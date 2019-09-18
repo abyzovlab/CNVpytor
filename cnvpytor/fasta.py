@@ -14,7 +14,7 @@ _logger = logging.getLogger("cnvpytor.fasta")
 class Fasta:
 
     def __init__(self, filename):
-        """ Class Fasta
+        """
         Opens FASTA file, reads chromosome names/lengths and detects reference genome
 
         Parameters
@@ -45,7 +45,8 @@ class Fasta:
                 self.len[c] = l
 
     def get_chr_len(self):
-        """ get_chr_len()
+        """
+        Get chromosome names and lengths.
 
         Returns
         -------
@@ -58,7 +59,7 @@ class Fasta:
         return self.file.references, self.file.lengths
 
     def read_chromosome_gc(self, chr_name):
-        """ read_chromosome_gc(chr_name)
+        """
         Reads chromosome GC/AT content
 
         Parameters
@@ -94,7 +95,7 @@ class Fasta:
         return gc, at
 
     def read_chromosome_mask_p_regions(self, chr_name):
-        """ read_chromosome_gc(chr_name)
+        """
         Reads chromosome strict mask P regions.
 
         Parameters

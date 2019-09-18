@@ -14,7 +14,8 @@ _logger = logging.getLogger("cnvpytor.utils")
 
 
 def gc_at_compress(gc, at):
-    """ Commpress GC/AT content of 100bins using fact that #at+#gc=100 in large majority of bins.
+    """
+    Commpress GC/AT content of 100bins using fact that #at+#gc=100 in large majority of bins.
     If #at+#gc=100 it will store just one byte (#gc) otherwise it will store two bytes: (128+#gc and #at).
     First bit is used as flag: if it is set there are additional byte for #at.
 
@@ -42,7 +43,8 @@ def gc_at_compress(gc, at):
 
 
 def gc_at_decompress(gcat):
-    """ Decompress GT/AC content - inverse function of gc_at_compress(gc, at).
+    """
+    Decompress GT/AC content - inverse function of gc_at_compress(gc, at).
 
     Parameters
     ----------
@@ -63,7 +65,8 @@ def gc_at_decompress(gcat):
 
 
 def gcp_decompress(gcat):
-    """ Decompress GT/AC content and calculate GC percentage.
+    """
+    Decompress GT/AC content and calculate GC percentage.
 
     Parameters
     ----------
@@ -85,11 +88,13 @@ binary_to_bp = {0: 'A', 3: 'T', 1: 'G', 2: 'C', 4: '.'}
 
 
 def snp_compress(pos, ref, alt, nref, nalt, gt, flag, qual):
-    """ Commpress SNP information binary in four arrays:
+    """
+    Commpress SNP information binary in four arrays:
             snp_pos - diferences in positions
             snp_counts - 32 bits: ref count (16 bits), alt count (16 bits)
             snp_desc -  16 bits: ref (3 bits), alt (3 bits), gt (3 bits), flag (2 bits)
             snp_qual - 8 bits
+
     """
     snp_pos = list(map(lambda i, j: i - j,
                        pos, [0] + pos[:-1]))
@@ -104,7 +109,9 @@ def snp_compress(pos, ref, alt, nref, nalt, gt, flag, qual):
 
 
 def snp_decompress(snp_pos, snp_desc, snp_counts, snp_qual):
-    """ Decommpress SNP information
+    """
+    Decommpress SNP information
+
     """
     pos = []
     s = 0

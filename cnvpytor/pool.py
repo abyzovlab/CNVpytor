@@ -17,7 +17,7 @@ def _fun(f, q_in, q_out):
 
 
 def parmap(f, x_arg, cores=multiprocessing.cpu_count()):
-    """ parmap(f, x_arg, cores=multiprocessing.cpu_count())
+    """
     Calculates list(map(f,x_args)) using multiprocessing module.
 
     Parameters

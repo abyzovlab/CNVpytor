@@ -14,10 +14,10 @@ _logger = logging.getLogger("cnvpytor.viewer")
 
 
 class Viewer:
-    def __init__(self, files, png_prefix):
-        _logger.debug("Viewer class init: files [%s], png_prefix '%s'." % (", ".join(files), png_prefix))
+    def __init__(self, files, plot_file):
+        _logger.debug("Viewer class init: files [%s], png_prefix '%s'." % (", ".join(files), plot_file))
         self.io = [IO(f) for f in files]
-        self.png_prefix = png_prefix
+        self.plot_file = plot_file
         self.set_style('seaborn-deep')
         self.io_gc = self.io[0]
         self.io_mask = self.io[0]
@@ -34,6 +34,27 @@ class Viewer:
     def set_style(style):
         if style in plt.style.available:
             plt.style.use(style)
+
+    def image_filename(self,sufix):
+        parts = self.plot_file.split(".")
+        if parts[-1]!="png" and parts[-1]!="pdf" and parts[-1]!="jpg" and parts[-1]!="eps" and parts[-1]!="svg":
+            _logger.warning("File extension should be: .jpg, .png, .svg, .eps or .pdf")
+            exit(0)
+        parts[-1] = sufix+"."+parts[-1]
+        return ".".join(parts)
+
+    def parse(self, args):
+        current = "gview"
+        for p in args.plot:
+            if p.isdigit() and (int(p) % 100) == 0:
+                if current == "gview":
+                    self.gview(int(p), args.use_mask_with_rd)
+                elif current == "manhattan":
+                    self.manhattan(int(p), args.use_mask_with_rd)
+            elif p == "stat":
+                self.stat()
+            else:
+                current = p
 
     def stat(self):
         auto = self.io[0].signal_exists(None, None, "RD stat", FLAG_AUTO)
@@ -87,8 +108,9 @@ class Viewer:
                 plt.plot(x[:len(his_p)], his_p / stat[3], "b*")
                 ix += 1
         plt.subplots_adjust(bottom=0.08, top=0.95, wspace=0.25, hspace=0, left=0.05 * 3 / n_cols, right=0.95)
-        if self.png_prefix != "":
-            plt.savefig(self.png_prefix + "_stat.png", dpi=150)
+        if self.plot_file != "":
+
+            plt.savefig(self.image_filename("stat"), dpi=150)
             plt.close(fig)
         else:
             plt.show()
@@ -117,8 +139,8 @@ class Viewer:
                 plt.step(his_p, "grey")
                 plt.step(his_p_corr, "k")
                 ix += 1
-        if self.png_prefix != "":
-            plt.savefig(self.png_prefix + "_stat.png", dpi=150)
+        if self.plot_file != "":
+            plt.savefig(self.image_filename("rd"), dpi=150)
             plt.close(fig)
         else:
             plt.show()
@@ -162,8 +184,8 @@ class Viewer:
             plt.step(his_p_corr, "k")
             ix += 1
         plt.subplots_adjust(bottom=0., top=1., wspace=0, hspace=0, left=0., right=1.)
-        if self.png_prefix != "":
-            plt.savefig(self.png_prefix + "_stat.png", dpi=150)
+        if self.plot_file != "":
+            plt.savefig(self.image_filename("gview"), dpi=150)
             plt.close(fig)
         else:
             plt.show()
@@ -239,8 +261,8 @@ class Viewer:
         ax.grid()
         plt.subplots_adjust(bottom=0.05, top=0.95, wspace=0, hspace=0, left=0.05, right=0.95)
 
-        if self.png_prefix != "":
-            plt.savefig(self.png_prefix + "_manhattan.png", dpi=150)
+        if self.plot_file != "":
+            plt.savefig(self.image_filename("manhattan"), dpi=150)
             plt.close(fig)
         else:
             plt.show()

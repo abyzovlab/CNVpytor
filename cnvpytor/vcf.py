@@ -12,7 +12,7 @@ _logger = logging.getLogger("cnvpytor.vcf")
 class Vcf:
 
     def __init__(self, filename):
-        """ Class Vcf
+        """
         Opens VCF file, reads chromosome/sample names
 
         Parameters
@@ -39,7 +39,8 @@ class Vcf:
             _logger.debug("Header samples: %s" % ", ".join(self.samples))
 
     def get_chromosomes(self):
-        """ get_chromosomes()
+        """
+        Get chromosome names.
 
         Returns
         -------
@@ -50,7 +51,8 @@ class Vcf:
         return self.chrs
 
     def get_samples(self):
-        """ get_samples()
+        """
+        Get sample names.
 
         Returns
         -------
@@ -61,7 +63,8 @@ class Vcf:
         return self.samples
 
     def read_chromosome_snp(self, chr_name, sample=''):
-        """ read_chromosome_snp(chr_name, sample='')
+        """
+        Read SNP/indel data for given chromosome and sample.
 
         Parameters
         ----------

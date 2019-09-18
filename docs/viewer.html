@@ -1,0 +1,916 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.6.3" />
+<title>cnvpytor.viewer API documentation</title>
+<meta name="description" content="cnvpytor.viewer …" />
+<link href='https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.0/normalize.min.css' rel='stylesheet'>
+<link href='https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/8.0.0/sanitize.min.css' rel='stylesheet'>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css" rel="stylesheet">
+<style>.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{font-weight:bold}#index h4 + ul{margin-bottom:.6em}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase;cursor:pointer}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>cnvpytor.viewer</code></h1>
+</header>
+<section id="section-intro">
+<p>cnvpytor.viewer</p>
+<p>Class Viewer: ploting CNVpytor data</p>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">&#34;&#34;&#34; cnvpytor.viewer
+
+Class Viewer: ploting CNVpytor data
+&#34;&#34;&#34;
+
+from .io import *
+from .utils import *
+from .genome import *
+import matplotlib.pyplot as plt
+import numpy as np
+import logging
+
+_logger = logging.getLogger(&#34;cnvpytor.viewer&#34;)
+
+
+class Viewer:
+    def __init__(self, files, plot_file):
+        _logger.debug(&#34;Viewer class init: files [%s], png_prefix &#39;%s&#39;.&#34; % (&#34;, &#34;.join(files), plot_file))
+        self.io = [IO(f) for f in files]
+        self.plot_file = plot_file
+        self.set_style(&#39;seaborn-deep&#39;)
+        self.io_gc = self.io[0]
+        self.io_mask = self.io[0]
+        self.reference_genome = None
+        if self.io[0].signal_exists(None, None, &#34;reference genome&#34;):
+            rg_name = np.array(self.io[0].get_signal(None, None, &#34;reference genome&#34;)).astype(&#34;str&#34;)[0]
+            self.reference_genome = Genome.reference_genomes[rg_name]
+            if &#34;mask_file&#34; in Genome.reference_genomes[rg_name]:
+                self.io_mask = IO(Genome.reference_genomes[rg_name][&#34;mask_file&#34;])
+            if &#34;gc_file&#34; in Genome.reference_genomes[rg_name]:
+                self.io_gc = IO(Genome.reference_genomes[rg_name][&#34;gc_file&#34;])
+
+    @staticmethod
+    def set_style(style):
+        if style in plt.style.available:
+            plt.style.use(style)
+
+    def image_filename(self,sufix):
+        parts = self.plot_file.split(&#34;.&#34;)
+        if parts[-1]!=&#34;png&#34; and parts[-1]!=&#34;pdf&#34; and parts[-1]!=&#34;jpg&#34; and parts[-1]!=&#34;eps&#34; and parts[-1]!=&#34;svg&#34;:
+            _logger.warning(&#34;File extension should be: .jpg, .png, .svg, .eps or .pdf&#34;)
+            exit(0)
+        parts[-1] = sufix+&#34;.&#34;+parts[-1]
+        return &#34;.&#34;.join(parts)
+
+    def parse(self, args):
+        current = &#34;gview&#34;
+        for p in args.plot:
+            if p.isdigit() and (int(p) % 100) == 0:
+                if current == &#34;gview&#34;:
+                    self.gview(int(p), args.use_mask_with_rd)
+                elif current == &#34;manhattan&#34;:
+                    self.manhattan(int(p), args.use_mask_with_rd)
+            elif p == &#34;stat&#34;:
+                self.stat()
+            else:
+                current = p
+
+    def stat(self):
+        auto = self.io[0].signal_exists(None, None, &#34;RD stat&#34;, FLAG_AUTO)
+        sex = self.io[0].signal_exists(None, None, &#34;RD stat&#34;, FLAG_SEX)
+        mt = self.io[0].signal_exists(None, None, &#34;RD stat&#34;, FLAG_MT)
+        if not (auto or sex or mt):
+            return
+        cond = [auto, sex, mt]
+        stat_list = []
+        n_cols = sum(map(int, cond))
+        ix = 1
+        plt.rcParams[&#34;font.size&#34;] = 8
+        fig = plt.figure(1, figsize=(4 * n_cols, 8), dpi=90, facecolor=&#39;w&#39;, edgecolor=&#39;k&#39;)
+        for t, c, flag in zip([&#34;Autosomes&#34;, &#34;X/Y&#34;, &#34;Mitochondria&#34;], cond, [FLAG_AUTO, FLAG_SEX, FLAG_MT]):
+            if c:
+                stat = self.io[0].get_signal(None, None, &#34;RD stat&#34;, flag)
+                stat_list.append(stat)
+                max_rd = int(stat[0])
+                bin_size = int(stat[1])
+                n_bins = int(stat[2])
+                lim_rd = int(max(2 * stat[4], stat[4] + 3 * stat[5]))
+                _logger.info(&#34;RD stat for %s: %.2f +- %.2f&#34; % (t, stat[4], stat[5]))
+                if t == &#34;Mitochondria&#34; and auto:
+                    _logger.info(&#34;RD stat for %s - number of miochondria per cell: %.2f +- %.2f&#34; % (
+                        t, 2 * stat[4] / stat_list[0][4],
+                        2 * stat[5] / stat_list[0][4] + stat_list[0][5] * stat[4] / (
+                                stat_list[0][4] * stat_list[0][4])))
+                his_p = self.io[0].get_signal(None, None, &#34;RD p dist&#34;, flag)
+                his_u = self.io[0].get_signal(None, None, &#34;RD u dist&#34;, flag)
+                his_rd_gc = self.io[0].get_signal(None, None, &#34;RD GC dist&#34;, flag)
+                gc_corr = self.io[0].get_signal(None, None, &#34;GC corr&#34;, flag)
+                ax = plt.subplot(2, n_cols, ix)
+                ax.set_xlabel(&#34;RD&#34;)
+                ax.set_ylabel(&#34;GC [%]&#34;)
+                ax.xaxis.set_ticklabels([])
+                ax.set_title(t)
+                his_rd_gc[0][0] = 0
+                ax.imshow(his_rd_gc[:lim_rd // bin_size, :].T, aspect=&#34;auto&#34;, interpolation=&#39;nearest&#39;, origin=&#39;lower&#39;)
+                ax.plot(gc_corr * stat[4] / bin_size, range(101), &#34;w-&#34;)
+
+                ax = plt.subplot(2, n_cols, ix + n_cols)
+                ax.set_ylabel(&#34;Normalised distribution&#34;)
+                ax.set_xlabel(&#34;RD&#34;)
+                ax.set_xlim([0, lim_rd])
+                ax.set_ylim([0, 1.1])
+                bins = range(0, max_rd, bin_size)
+                x = np.arange(0, max_rd // bin_size * bin_size, 0.1 * bin_size)
+                plt.plot(x, normal(x, 1, stat[4], stat[5]), &#34;g-&#34;)
+                x = np.array(bins)
+                plt.plot(x[:len(his_u)], his_u / stat[3], &#34;y*&#34;)
+                plt.plot(x[:len(his_p)], his_p / stat[3], &#34;b*&#34;)
+                ix += 1
+        plt.subplots_adjust(bottom=0.08, top=0.95, wspace=0.25, hspace=0, left=0.05 * 3 / n_cols, right=0.95)
+        if self.plot_file != &#34;&#34;:
+
+            plt.savefig(self.image_filename(&#34;stat&#34;), dpi=150)
+            plt.close(fig)
+        else:
+            plt.show()
+
+    def rd(self, bin_size, chroms=[]):
+        plt.rcParams[&#34;font.size&#34;] = 8
+        fig = plt.figure(1, figsize=(12, 8), dpi=90, facecolor=&#39;w&#39;, edgecolor=&#39;k&#39;)
+        count = 0
+        for c in self.io[0].chromosomes_with_signal(None, &#34;RD p&#34;):
+            if len(chroms) == 0 or (c in chroms):
+                count += 1
+        sx = 1
+        sy = 1
+        while sx * sy &lt; count:
+            sx += 1
+            sy = int(2. * sx / 3 + 1.)
+        ix = 1
+        for c in self.io[0].chromosomes_with_signal(None, &#34;RD p&#34;):
+            if len(chroms) == 0 or (c in chroms):
+                flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
+                stat = self.io[0].get_signal(None, None, &#34;RD stat&#34;, flag)
+                his_p = self.io[0].get_signal(c, bin_size, &#34;RD&#34;, 0)
+                his_p_corr = self.io[0].get_signal(c, bin_size, &#34;RD&#34;, FLAG_GC_CORR)
+                ax = plt.subplot(sx, sy, ix)
+                ax.set_ylim([0, max(3. * stat[4], stat[4] + 5. * stat[5]) * bin_size / 100])
+                plt.step(his_p, &#34;grey&#34;)
+                plt.step(his_p_corr, &#34;k&#34;)
+                ix += 1
+        if self.plot_file != &#34;&#34;:
+            plt.savefig(self.image_filename(&#34;rd&#34;), dpi=150)
+            plt.close(fig)
+        else:
+            plt.show()
+
+    def gview(self, bin_size, use_mask):
+        if self.reference_genome is None:
+            _logger.warning(&#34;Missing reference genome required for gview.&#34;)
+            return
+        plt.rcParams[&#34;font.size&#34;] = 8
+        fig = plt.figure(1, figsize=(12, 8), dpi=90, facecolor=&#39;w&#39;, edgecolor=&#39;k&#39;)
+        chroms = []
+        for c, (l, t) in self.reference_genome[&#34;chromosomes&#34;].items():
+            rd_chr = self.io[0].rd_chromosome_name(c)
+            if self.io[0].signal_exists(rd_chr, bin_size, &#34;RD&#34;, 0) and \
+                    self.io[0].signal_exists(rd_chr, bin_size, &#34;RD&#34;, FLAG_GC_CORR) and \
+                    (Genome.is_autosome(c) or Genome.is_sex_chrom(c)):
+                chroms.append((rd_chr, l))
+        sx, sy = self.panels_shape(len(chroms))
+        ix = 1
+        for c, l in chroms:
+            flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
+            stat = self.io[0].get_signal(None, None, &#34;RD stat&#34;, flag)
+            flag_rd = 0
+            if use_mask:
+                flag_rd = FLAG_USEMASK
+            his_p = self.io[0].get_signal(c, bin_size, &#34;RD&#34;, flag_rd)
+            his_p_corr = self.io[0].get_signal(c, bin_size, &#34;RD&#34;, flag_rd | FLAG_GC_CORR)
+            ax = plt.subplot(sx, sy, ix)
+            ax.set_title(c, position=(0.01, 0.9), fontdict={&#39;verticalalignment&#39;: &#39;top&#39;, &#39;horizontalalignment&#39;: &#39;left&#39;},
+                         color=&#39;C0&#39;)
+            ax.xaxis.set_ticklabels([])
+            ax.yaxis.set_ticklabels([])
+            ax.yaxis.set_ticks(np.arange(0, 3, 0.5) * stat[4] * bin_size / 100, [])
+            ax.xaxis.set_ticks(np.arange(0, (l + 10e6) // bin_size, 10e6 // bin_size), [])
+            ax.set_ylim([0, max(3. * stat[4], stat[4] + 5. * stat[5]) * bin_size / 100])
+            n_bins = l // bin_size
+            ax.set_xlim([-n_bins * 0.05, n_bins * 1.05])
+            ax.grid()
+
+            plt.step(his_p, &#34;grey&#34;)
+            plt.step(his_p_corr, &#34;k&#34;)
+            ix += 1
+        plt.subplots_adjust(bottom=0., top=1., wspace=0, hspace=0, left=0., right=1.)
+        if self.plot_file != &#34;&#34;:
+            plt.savefig(self.image_filename(&#34;gview&#34;), dpi=150)
+            plt.close(fig)
+        else:
+            plt.show()
+
+    def panels_shape(self, n):
+        sx, sy = 1, 1
+        if n == 2:
+            sx = 2
+        elif n in [3, 4]:
+            sx, sy = 2, 2
+        elif n in [5, 6]:
+            sx, sy = 3, 2
+        elif n in [7, 8, 9]:
+            sx, sy = 3, 3
+        elif n in [10, 11, 12]:
+            sx, sy = 4, 3
+        elif n in [13, 14, 15, 16]:
+            sx, sy = 4, 4
+        elif n in [17, 18, 19, 20]:
+            sx, sy = 5, 4
+        elif n in [21, 22, 23, 24]:
+            sx, sy = 6, 4
+        else:
+            while sx * sy &lt; n:
+                sx += 1
+                sy = int(2. * sx / 3 + 1.)
+        return sx, sy
+
+    def manhattan(self, bin_size, use_mask):
+        if self.reference_genome is None:
+            _logger.warning(&#34;Missing reference genome required for gview.&#34;)
+            return
+        chroms = []
+        for c, (l, t) in self.reference_genome[&#34;chromosomes&#34;].items():
+            rd_chr = self.io[0].rd_chromosome_name(c)
+            if self.io[0].signal_exists(rd_chr, bin_size, &#34;RD&#34;, 0) and \
+                    self.io[0].signal_exists(rd_chr, bin_size, &#34;RD&#34;, FLAG_GC_CORR) and \
+                    (Genome.is_autosome(c) or Genome.is_sex_chrom(c)):
+                chroms.append((rd_chr, l))
+
+        ix = 1
+        apos = 0
+        xticks = [0]
+
+        plt.rcParams[&#34;font.size&#34;] = 8
+        fig = plt.figure(1, figsize=(12, 4), dpi=90, facecolor=&#39;w&#39;, edgecolor=&#39;k&#39;)
+        ax = plt.gca()
+        max_m = 0
+        for c, l in chroms:
+            flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
+            stat = self.io[0].get_signal(None, None, &#34;RD stat&#34;, flag)
+            if stat[4] &gt; max_m:
+                max_m = stat[4]
+            flag_rd = 0
+            if use_mask:
+                flag_rd = FLAG_USEMASK
+            his_p = self.io[0].get_signal(c, bin_size, &#34;RD&#34;, flag_rd)
+            his_p_corr = self.io[0].get_signal(c, bin_size, &#34;RD&#34;, flag_rd | FLAG_GC_CORR)
+            pos = range(apos, apos + len(his_p))
+            ax.text(apos + len(his_p) // 2, int(stat[4]) * bin_size // 100 * 2 // 3, Genome.canonical_chrom_name(c),
+                    fontsize=12, verticalalignment=&#39;top&#39;, horizontalalignment=&#39;center&#39;,)
+            plt.plot(pos, his_p_corr, ls=&#39;&#39;, marker=&#39;.&#39;)
+            apos += len(his_p)
+            xticks.append(apos)
+
+        ax.xaxis.set_ticklabels([])
+        ax.yaxis.set_ticklabels([])
+        ax.yaxis.set_ticks(np.arange(0, 3, 0.5) * max_m * bin_size / 100, [])
+        ax.xaxis.set_ticks(xticks, [])
+        ax.set_ylim([0, 2 * max_m * bin_size / 100])
+        n_bins = apos
+        ax.set_xlim([0, n_bins])
+        ax.grid()
+        plt.subplots_adjust(bottom=0.05, top=0.95, wspace=0, hspace=0, left=0.05, right=0.95)
+
+        if self.plot_file != &#34;&#34;:
+            plt.savefig(self.image_filename(&#34;manhattan&#34;), dpi=150)
+            plt.close(fig)
+        else:
+            plt.show()</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="cnvpytor.viewer.Viewer"><code class="flex name class">
+<span>class <span class="ident">Viewer</span></span>
+<span>(</span><span>files, plot_file)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">class Viewer:
+    def __init__(self, files, plot_file):
+        _logger.debug(&#34;Viewer class init: files [%s], png_prefix &#39;%s&#39;.&#34; % (&#34;, &#34;.join(files), plot_file))
+        self.io = [IO(f) for f in files]
+        self.plot_file = plot_file
+        self.set_style(&#39;seaborn-deep&#39;)
+        self.io_gc = self.io[0]
+        self.io_mask = self.io[0]
+        self.reference_genome = None
+        if self.io[0].signal_exists(None, None, &#34;reference genome&#34;):
+            rg_name = np.array(self.io[0].get_signal(None, None, &#34;reference genome&#34;)).astype(&#34;str&#34;)[0]
+            self.reference_genome = Genome.reference_genomes[rg_name]
+            if &#34;mask_file&#34; in Genome.reference_genomes[rg_name]:
+                self.io_mask = IO(Genome.reference_genomes[rg_name][&#34;mask_file&#34;])
+            if &#34;gc_file&#34; in Genome.reference_genomes[rg_name]:
+                self.io_gc = IO(Genome.reference_genomes[rg_name][&#34;gc_file&#34;])
+
+    @staticmethod
+    def set_style(style):
+        if style in plt.style.available:
+            plt.style.use(style)
+
+    def image_filename(self,sufix):
+        parts = self.plot_file.split(&#34;.&#34;)
+        if parts[-1]!=&#34;png&#34; and parts[-1]!=&#34;pdf&#34; and parts[-1]!=&#34;jpg&#34; and parts[-1]!=&#34;eps&#34; and parts[-1]!=&#34;svg&#34;:
+            _logger.warning(&#34;File extension should be: .jpg, .png, .svg, .eps or .pdf&#34;)
+            exit(0)
+        parts[-1] = sufix+&#34;.&#34;+parts[-1]
+        return &#34;.&#34;.join(parts)
+
+    def parse(self, args):
+        current = &#34;gview&#34;
+        for p in args.plot:
+            if p.isdigit() and (int(p) % 100) == 0:
+                if current == &#34;gview&#34;:
+                    self.gview(int(p), args.use_mask_with_rd)
+                elif current == &#34;manhattan&#34;:
+                    self.manhattan(int(p), args.use_mask_with_rd)
+            elif p == &#34;stat&#34;:
+                self.stat()
+            else:
+                current = p
+
+    def stat(self):
+        auto = self.io[0].signal_exists(None, None, &#34;RD stat&#34;, FLAG_AUTO)
+        sex = self.io[0].signal_exists(None, None, &#34;RD stat&#34;, FLAG_SEX)
+        mt = self.io[0].signal_exists(None, None, &#34;RD stat&#34;, FLAG_MT)
+        if not (auto or sex or mt):
+            return
+        cond = [auto, sex, mt]
+        stat_list = []
+        n_cols = sum(map(int, cond))
+        ix = 1
+        plt.rcParams[&#34;font.size&#34;] = 8
+        fig = plt.figure(1, figsize=(4 * n_cols, 8), dpi=90, facecolor=&#39;w&#39;, edgecolor=&#39;k&#39;)
+        for t, c, flag in zip([&#34;Autosomes&#34;, &#34;X/Y&#34;, &#34;Mitochondria&#34;], cond, [FLAG_AUTO, FLAG_SEX, FLAG_MT]):
+            if c:
+                stat = self.io[0].get_signal(None, None, &#34;RD stat&#34;, flag)
+                stat_list.append(stat)
+                max_rd = int(stat[0])
+                bin_size = int(stat[1])
+                n_bins = int(stat[2])
+                lim_rd = int(max(2 * stat[4], stat[4] + 3 * stat[5]))
+                _logger.info(&#34;RD stat for %s: %.2f +- %.2f&#34; % (t, stat[4], stat[5]))
+                if t == &#34;Mitochondria&#34; and auto:
+                    _logger.info(&#34;RD stat for %s - number of miochondria per cell: %.2f +- %.2f&#34; % (
+                        t, 2 * stat[4] / stat_list[0][4],
+                        2 * stat[5] / stat_list[0][4] + stat_list[0][5] * stat[4] / (
+                                stat_list[0][4] * stat_list[0][4])))
+                his_p = self.io[0].get_signal(None, None, &#34;RD p dist&#34;, flag)
+                his_u = self.io[0].get_signal(None, None, &#34;RD u dist&#34;, flag)
+                his_rd_gc = self.io[0].get_signal(None, None, &#34;RD GC dist&#34;, flag)
+                gc_corr = self.io[0].get_signal(None, None, &#34;GC corr&#34;, flag)
+                ax = plt.subplot(2, n_cols, ix)
+                ax.set_xlabel(&#34;RD&#34;)
+                ax.set_ylabel(&#34;GC [%]&#34;)
+                ax.xaxis.set_ticklabels([])
+                ax.set_title(t)
+                his_rd_gc[0][0] = 0
+                ax.imshow(his_rd_gc[:lim_rd // bin_size, :].T, aspect=&#34;auto&#34;, interpolation=&#39;nearest&#39;, origin=&#39;lower&#39;)
+                ax.plot(gc_corr * stat[4] / bin_size, range(101), &#34;w-&#34;)
+
+                ax = plt.subplot(2, n_cols, ix + n_cols)
+                ax.set_ylabel(&#34;Normalised distribution&#34;)
+                ax.set_xlabel(&#34;RD&#34;)
+                ax.set_xlim([0, lim_rd])
+                ax.set_ylim([0, 1.1])
+                bins = range(0, max_rd, bin_size)
+                x = np.arange(0, max_rd // bin_size * bin_size, 0.1 * bin_size)
+                plt.plot(x, normal(x, 1, stat[4], stat[5]), &#34;g-&#34;)
+                x = np.array(bins)
+                plt.plot(x[:len(his_u)], his_u / stat[3], &#34;y*&#34;)
+                plt.plot(x[:len(his_p)], his_p / stat[3], &#34;b*&#34;)
+                ix += 1
+        plt.subplots_adjust(bottom=0.08, top=0.95, wspace=0.25, hspace=0, left=0.05 * 3 / n_cols, right=0.95)
+        if self.plot_file != &#34;&#34;:
+
+            plt.savefig(self.image_filename(&#34;stat&#34;), dpi=150)
+            plt.close(fig)
+        else:
+            plt.show()
+
+    def rd(self, bin_size, chroms=[]):
+        plt.rcParams[&#34;font.size&#34;] = 8
+        fig = plt.figure(1, figsize=(12, 8), dpi=90, facecolor=&#39;w&#39;, edgecolor=&#39;k&#39;)
+        count = 0
+        for c in self.io[0].chromosomes_with_signal(None, &#34;RD p&#34;):
+            if len(chroms) == 0 or (c in chroms):
+                count += 1
+        sx = 1
+        sy = 1
+        while sx * sy &lt; count:
+            sx += 1
+            sy = int(2. * sx / 3 + 1.)
+        ix = 1
+        for c in self.io[0].chromosomes_with_signal(None, &#34;RD p&#34;):
+            if len(chroms) == 0 or (c in chroms):
+                flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
+                stat = self.io[0].get_signal(None, None, &#34;RD stat&#34;, flag)
+                his_p = self.io[0].get_signal(c, bin_size, &#34;RD&#34;, 0)
+                his_p_corr = self.io[0].get_signal(c, bin_size, &#34;RD&#34;, FLAG_GC_CORR)
+                ax = plt.subplot(sx, sy, ix)
+                ax.set_ylim([0, max(3. * stat[4], stat[4] + 5. * stat[5]) * bin_size / 100])
+                plt.step(his_p, &#34;grey&#34;)
+                plt.step(his_p_corr, &#34;k&#34;)
+                ix += 1
+        if self.plot_file != &#34;&#34;:
+            plt.savefig(self.image_filename(&#34;rd&#34;), dpi=150)
+            plt.close(fig)
+        else:
+            plt.show()
+
+    def gview(self, bin_size, use_mask):
+        if self.reference_genome is None:
+            _logger.warning(&#34;Missing reference genome required for gview.&#34;)
+            return
+        plt.rcParams[&#34;font.size&#34;] = 8
+        fig = plt.figure(1, figsize=(12, 8), dpi=90, facecolor=&#39;w&#39;, edgecolor=&#39;k&#39;)
+        chroms = []
+        for c, (l, t) in self.reference_genome[&#34;chromosomes&#34;].items():
+            rd_chr = self.io[0].rd_chromosome_name(c)
+            if self.io[0].signal_exists(rd_chr, bin_size, &#34;RD&#34;, 0) and \
+                    self.io[0].signal_exists(rd_chr, bin_size, &#34;RD&#34;, FLAG_GC_CORR) and \
+                    (Genome.is_autosome(c) or Genome.is_sex_chrom(c)):
+                chroms.append((rd_chr, l))
+        sx, sy = self.panels_shape(len(chroms))
+        ix = 1
+        for c, l in chroms:
+            flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
+            stat = self.io[0].get_signal(None, None, &#34;RD stat&#34;, flag)
+            flag_rd = 0
+            if use_mask:
+                flag_rd = FLAG_USEMASK
+            his_p = self.io[0].get_signal(c, bin_size, &#34;RD&#34;, flag_rd)
+            his_p_corr = self.io[0].get_signal(c, bin_size, &#34;RD&#34;, flag_rd | FLAG_GC_CORR)
+            ax = plt.subplot(sx, sy, ix)
+            ax.set_title(c, position=(0.01, 0.9), fontdict={&#39;verticalalignment&#39;: &#39;top&#39;, &#39;horizontalalignment&#39;: &#39;left&#39;},
+                         color=&#39;C0&#39;)
+            ax.xaxis.set_ticklabels([])
+            ax.yaxis.set_ticklabels([])
+            ax.yaxis.set_ticks(np.arange(0, 3, 0.5) * stat[4] * bin_size / 100, [])
+            ax.xaxis.set_ticks(np.arange(0, (l + 10e6) // bin_size, 10e6 // bin_size), [])
+            ax.set_ylim([0, max(3. * stat[4], stat[4] + 5. * stat[5]) * bin_size / 100])
+            n_bins = l // bin_size
+            ax.set_xlim([-n_bins * 0.05, n_bins * 1.05])
+            ax.grid()
+
+            plt.step(his_p, &#34;grey&#34;)
+            plt.step(his_p_corr, &#34;k&#34;)
+            ix += 1
+        plt.subplots_adjust(bottom=0., top=1., wspace=0, hspace=0, left=0., right=1.)
+        if self.plot_file != &#34;&#34;:
+            plt.savefig(self.image_filename(&#34;gview&#34;), dpi=150)
+            plt.close(fig)
+        else:
+            plt.show()
+
+    def panels_shape(self, n):
+        sx, sy = 1, 1
+        if n == 2:
+            sx = 2
+        elif n in [3, 4]:
+            sx, sy = 2, 2
+        elif n in [5, 6]:
+            sx, sy = 3, 2
+        elif n in [7, 8, 9]:
+            sx, sy = 3, 3
+        elif n in [10, 11, 12]:
+            sx, sy = 4, 3
+        elif n in [13, 14, 15, 16]:
+            sx, sy = 4, 4
+        elif n in [17, 18, 19, 20]:
+            sx, sy = 5, 4
+        elif n in [21, 22, 23, 24]:
+            sx, sy = 6, 4
+        else:
+            while sx * sy &lt; n:
+                sx += 1
+                sy = int(2. * sx / 3 + 1.)
+        return sx, sy
+
+    def manhattan(self, bin_size, use_mask):
+        if self.reference_genome is None:
+            _logger.warning(&#34;Missing reference genome required for gview.&#34;)
+            return
+        chroms = []
+        for c, (l, t) in self.reference_genome[&#34;chromosomes&#34;].items():
+            rd_chr = self.io[0].rd_chromosome_name(c)
+            if self.io[0].signal_exists(rd_chr, bin_size, &#34;RD&#34;, 0) and \
+                    self.io[0].signal_exists(rd_chr, bin_size, &#34;RD&#34;, FLAG_GC_CORR) and \
+                    (Genome.is_autosome(c) or Genome.is_sex_chrom(c)):
+                chroms.append((rd_chr, l))
+
+        ix = 1
+        apos = 0
+        xticks = [0]
+
+        plt.rcParams[&#34;font.size&#34;] = 8
+        fig = plt.figure(1, figsize=(12, 4), dpi=90, facecolor=&#39;w&#39;, edgecolor=&#39;k&#39;)
+        ax = plt.gca()
+        max_m = 0
+        for c, l in chroms:
+            flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
+            stat = self.io[0].get_signal(None, None, &#34;RD stat&#34;, flag)
+            if stat[4] &gt; max_m:
+                max_m = stat[4]
+            flag_rd = 0
+            if use_mask:
+                flag_rd = FLAG_USEMASK
+            his_p = self.io[0].get_signal(c, bin_size, &#34;RD&#34;, flag_rd)
+            his_p_corr = self.io[0].get_signal(c, bin_size, &#34;RD&#34;, flag_rd | FLAG_GC_CORR)
+            pos = range(apos, apos + len(his_p))
+            ax.text(apos + len(his_p) // 2, int(stat[4]) * bin_size // 100 * 2 // 3, Genome.canonical_chrom_name(c),
+                    fontsize=12, verticalalignment=&#39;top&#39;, horizontalalignment=&#39;center&#39;,)
+            plt.plot(pos, his_p_corr, ls=&#39;&#39;, marker=&#39;.&#39;)
+            apos += len(his_p)
+            xticks.append(apos)
+
+        ax.xaxis.set_ticklabels([])
+        ax.yaxis.set_ticklabels([])
+        ax.yaxis.set_ticks(np.arange(0, 3, 0.5) * max_m * bin_size / 100, [])
+        ax.xaxis.set_ticks(xticks, [])
+        ax.set_ylim([0, 2 * max_m * bin_size / 100])
+        n_bins = apos
+        ax.set_xlim([0, n_bins])
+        ax.grid()
+        plt.subplots_adjust(bottom=0.05, top=0.95, wspace=0, hspace=0, left=0.05, right=0.95)
+
+        if self.plot_file != &#34;&#34;:
+            plt.savefig(self.image_filename(&#34;manhattan&#34;), dpi=150)
+            plt.close(fig)
+        else:
+            plt.show()</code></pre>
+</details>
+<h3>Static methods</h3>
+<dl>
+<dt id="cnvpytor.viewer.Viewer.set_style"><code class="name flex">
+<span>def <span class="ident">set_style</span></span>(<span>style)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">@staticmethod
+def set_style(style):
+    if style in plt.style.available:
+        plt.style.use(style)</code></pre>
+</details>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="cnvpytor.viewer.Viewer.gview"><code class="name flex">
+<span>def <span class="ident">gview</span></span>(<span>self, bin_size, use_mask)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def gview(self, bin_size, use_mask):
+    if self.reference_genome is None:
+        _logger.warning(&#34;Missing reference genome required for gview.&#34;)
+        return
+    plt.rcParams[&#34;font.size&#34;] = 8
+    fig = plt.figure(1, figsize=(12, 8), dpi=90, facecolor=&#39;w&#39;, edgecolor=&#39;k&#39;)
+    chroms = []
+    for c, (l, t) in self.reference_genome[&#34;chromosomes&#34;].items():
+        rd_chr = self.io[0].rd_chromosome_name(c)
+        if self.io[0].signal_exists(rd_chr, bin_size, &#34;RD&#34;, 0) and \
+                self.io[0].signal_exists(rd_chr, bin_size, &#34;RD&#34;, FLAG_GC_CORR) and \
+                (Genome.is_autosome(c) or Genome.is_sex_chrom(c)):
+            chroms.append((rd_chr, l))
+    sx, sy = self.panels_shape(len(chroms))
+    ix = 1
+    for c, l in chroms:
+        flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
+        stat = self.io[0].get_signal(None, None, &#34;RD stat&#34;, flag)
+        flag_rd = 0
+        if use_mask:
+            flag_rd = FLAG_USEMASK
+        his_p = self.io[0].get_signal(c, bin_size, &#34;RD&#34;, flag_rd)
+        his_p_corr = self.io[0].get_signal(c, bin_size, &#34;RD&#34;, flag_rd | FLAG_GC_CORR)
+        ax = plt.subplot(sx, sy, ix)
+        ax.set_title(c, position=(0.01, 0.9), fontdict={&#39;verticalalignment&#39;: &#39;top&#39;, &#39;horizontalalignment&#39;: &#39;left&#39;},
+                     color=&#39;C0&#39;)
+        ax.xaxis.set_ticklabels([])
+        ax.yaxis.set_ticklabels([])
+        ax.yaxis.set_ticks(np.arange(0, 3, 0.5) * stat[4] * bin_size / 100, [])
+        ax.xaxis.set_ticks(np.arange(0, (l + 10e6) // bin_size, 10e6 // bin_size), [])
+        ax.set_ylim([0, max(3. * stat[4], stat[4] + 5. * stat[5]) * bin_size / 100])
+        n_bins = l // bin_size
+        ax.set_xlim([-n_bins * 0.05, n_bins * 1.05])
+        ax.grid()
+
+        plt.step(his_p, &#34;grey&#34;)
+        plt.step(his_p_corr, &#34;k&#34;)
+        ix += 1
+    plt.subplots_adjust(bottom=0., top=1., wspace=0, hspace=0, left=0., right=1.)
+    if self.plot_file != &#34;&#34;:
+        plt.savefig(self.image_filename(&#34;gview&#34;), dpi=150)
+        plt.close(fig)
+    else:
+        plt.show()</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.viewer.Viewer.image_filename"><code class="name flex">
+<span>def <span class="ident">image_filename</span></span>(<span>self, sufix)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def image_filename(self,sufix):
+    parts = self.plot_file.split(&#34;.&#34;)
+    if parts[-1]!=&#34;png&#34; and parts[-1]!=&#34;pdf&#34; and parts[-1]!=&#34;jpg&#34; and parts[-1]!=&#34;eps&#34; and parts[-1]!=&#34;svg&#34;:
+        _logger.warning(&#34;File extension should be: .jpg, .png, .svg, .eps or .pdf&#34;)
+        exit(0)
+    parts[-1] = sufix+&#34;.&#34;+parts[-1]
+    return &#34;.&#34;.join(parts)</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.viewer.Viewer.manhattan"><code class="name flex">
+<span>def <span class="ident">manhattan</span></span>(<span>self, bin_size, use_mask)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def manhattan(self, bin_size, use_mask):
+    if self.reference_genome is None:
+        _logger.warning(&#34;Missing reference genome required for gview.&#34;)
+        return
+    chroms = []
+    for c, (l, t) in self.reference_genome[&#34;chromosomes&#34;].items():
+        rd_chr = self.io[0].rd_chromosome_name(c)
+        if self.io[0].signal_exists(rd_chr, bin_size, &#34;RD&#34;, 0) and \
+                self.io[0].signal_exists(rd_chr, bin_size, &#34;RD&#34;, FLAG_GC_CORR) and \
+                (Genome.is_autosome(c) or Genome.is_sex_chrom(c)):
+            chroms.append((rd_chr, l))
+
+    ix = 1
+    apos = 0
+    xticks = [0]
+
+    plt.rcParams[&#34;font.size&#34;] = 8
+    fig = plt.figure(1, figsize=(12, 4), dpi=90, facecolor=&#39;w&#39;, edgecolor=&#39;k&#39;)
+    ax = plt.gca()
+    max_m = 0
+    for c, l in chroms:
+        flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
+        stat = self.io[0].get_signal(None, None, &#34;RD stat&#34;, flag)
+        if stat[4] &gt; max_m:
+            max_m = stat[4]
+        flag_rd = 0
+        if use_mask:
+            flag_rd = FLAG_USEMASK
+        his_p = self.io[0].get_signal(c, bin_size, &#34;RD&#34;, flag_rd)
+        his_p_corr = self.io[0].get_signal(c, bin_size, &#34;RD&#34;, flag_rd | FLAG_GC_CORR)
+        pos = range(apos, apos + len(his_p))
+        ax.text(apos + len(his_p) // 2, int(stat[4]) * bin_size // 100 * 2 // 3, Genome.canonical_chrom_name(c),
+                fontsize=12, verticalalignment=&#39;top&#39;, horizontalalignment=&#39;center&#39;,)
+        plt.plot(pos, his_p_corr, ls=&#39;&#39;, marker=&#39;.&#39;)
+        apos += len(his_p)
+        xticks.append(apos)
+
+    ax.xaxis.set_ticklabels([])
+    ax.yaxis.set_ticklabels([])
+    ax.yaxis.set_ticks(np.arange(0, 3, 0.5) * max_m * bin_size / 100, [])
+    ax.xaxis.set_ticks(xticks, [])
+    ax.set_ylim([0, 2 * max_m * bin_size / 100])
+    n_bins = apos
+    ax.set_xlim([0, n_bins])
+    ax.grid()
+    plt.subplots_adjust(bottom=0.05, top=0.95, wspace=0, hspace=0, left=0.05, right=0.95)
+
+    if self.plot_file != &#34;&#34;:
+        plt.savefig(self.image_filename(&#34;manhattan&#34;), dpi=150)
+        plt.close(fig)
+    else:
+        plt.show()</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.viewer.Viewer.panels_shape"><code class="name flex">
+<span>def <span class="ident">panels_shape</span></span>(<span>self, n)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def panels_shape(self, n):
+    sx, sy = 1, 1
+    if n == 2:
+        sx = 2
+    elif n in [3, 4]:
+        sx, sy = 2, 2
+    elif n in [5, 6]:
+        sx, sy = 3, 2
+    elif n in [7, 8, 9]:
+        sx, sy = 3, 3
+    elif n in [10, 11, 12]:
+        sx, sy = 4, 3
+    elif n in [13, 14, 15, 16]:
+        sx, sy = 4, 4
+    elif n in [17, 18, 19, 20]:
+        sx, sy = 5, 4
+    elif n in [21, 22, 23, 24]:
+        sx, sy = 6, 4
+    else:
+        while sx * sy &lt; n:
+            sx += 1
+            sy = int(2. * sx / 3 + 1.)
+    return sx, sy</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.viewer.Viewer.parse"><code class="name flex">
+<span>def <span class="ident">parse</span></span>(<span>self, args)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def parse(self, args):
+    current = &#34;gview&#34;
+    for p in args.plot:
+        if p.isdigit() and (int(p) % 100) == 0:
+            if current == &#34;gview&#34;:
+                self.gview(int(p), args.use_mask_with_rd)
+            elif current == &#34;manhattan&#34;:
+                self.manhattan(int(p), args.use_mask_with_rd)
+        elif p == &#34;stat&#34;:
+            self.stat()
+        else:
+            current = p</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.viewer.Viewer.rd"><code class="name flex">
+<span>def <span class="ident">rd</span></span>(<span>self, bin_size, chroms=[])</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def rd(self, bin_size, chroms=[]):
+    plt.rcParams[&#34;font.size&#34;] = 8
+    fig = plt.figure(1, figsize=(12, 8), dpi=90, facecolor=&#39;w&#39;, edgecolor=&#39;k&#39;)
+    count = 0
+    for c in self.io[0].chromosomes_with_signal(None, &#34;RD p&#34;):
+        if len(chroms) == 0 or (c in chroms):
+            count += 1
+    sx = 1
+    sy = 1
+    while sx * sy &lt; count:
+        sx += 1
+        sy = int(2. * sx / 3 + 1.)
+    ix = 1
+    for c in self.io[0].chromosomes_with_signal(None, &#34;RD p&#34;):
+        if len(chroms) == 0 or (c in chroms):
+            flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
+            stat = self.io[0].get_signal(None, None, &#34;RD stat&#34;, flag)
+            his_p = self.io[0].get_signal(c, bin_size, &#34;RD&#34;, 0)
+            his_p_corr = self.io[0].get_signal(c, bin_size, &#34;RD&#34;, FLAG_GC_CORR)
+            ax = plt.subplot(sx, sy, ix)
+            ax.set_ylim([0, max(3. * stat[4], stat[4] + 5. * stat[5]) * bin_size / 100])
+            plt.step(his_p, &#34;grey&#34;)
+            plt.step(his_p_corr, &#34;k&#34;)
+            ix += 1
+    if self.plot_file != &#34;&#34;:
+        plt.savefig(self.image_filename(&#34;rd&#34;), dpi=150)
+        plt.close(fig)
+    else:
+        plt.show()</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.viewer.Viewer.stat"><code class="name flex">
+<span>def <span class="ident">stat</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def stat(self):
+    auto = self.io[0].signal_exists(None, None, &#34;RD stat&#34;, FLAG_AUTO)
+    sex = self.io[0].signal_exists(None, None, &#34;RD stat&#34;, FLAG_SEX)
+    mt = self.io[0].signal_exists(None, None, &#34;RD stat&#34;, FLAG_MT)
+    if not (auto or sex or mt):
+        return
+    cond = [auto, sex, mt]
+    stat_list = []
+    n_cols = sum(map(int, cond))
+    ix = 1
+    plt.rcParams[&#34;font.size&#34;] = 8
+    fig = plt.figure(1, figsize=(4 * n_cols, 8), dpi=90, facecolor=&#39;w&#39;, edgecolor=&#39;k&#39;)
+    for t, c, flag in zip([&#34;Autosomes&#34;, &#34;X/Y&#34;, &#34;Mitochondria&#34;], cond, [FLAG_AUTO, FLAG_SEX, FLAG_MT]):
+        if c:
+            stat = self.io[0].get_signal(None, None, &#34;RD stat&#34;, flag)
+            stat_list.append(stat)
+            max_rd = int(stat[0])
+            bin_size = int(stat[1])
+            n_bins = int(stat[2])
+            lim_rd = int(max(2 * stat[4], stat[4] + 3 * stat[5]))
+            _logger.info(&#34;RD stat for %s: %.2f +- %.2f&#34; % (t, stat[4], stat[5]))
+            if t == &#34;Mitochondria&#34; and auto:
+                _logger.info(&#34;RD stat for %s - number of miochondria per cell: %.2f +- %.2f&#34; % (
+                    t, 2 * stat[4] / stat_list[0][4],
+                    2 * stat[5] / stat_list[0][4] + stat_list[0][5] * stat[4] / (
+                            stat_list[0][4] * stat_list[0][4])))
+            his_p = self.io[0].get_signal(None, None, &#34;RD p dist&#34;, flag)
+            his_u = self.io[0].get_signal(None, None, &#34;RD u dist&#34;, flag)
+            his_rd_gc = self.io[0].get_signal(None, None, &#34;RD GC dist&#34;, flag)
+            gc_corr = self.io[0].get_signal(None, None, &#34;GC corr&#34;, flag)
+            ax = plt.subplot(2, n_cols, ix)
+            ax.set_xlabel(&#34;RD&#34;)
+            ax.set_ylabel(&#34;GC [%]&#34;)
+            ax.xaxis.set_ticklabels([])
+            ax.set_title(t)
+            his_rd_gc[0][0] = 0
+            ax.imshow(his_rd_gc[:lim_rd // bin_size, :].T, aspect=&#34;auto&#34;, interpolation=&#39;nearest&#39;, origin=&#39;lower&#39;)
+            ax.plot(gc_corr * stat[4] / bin_size, range(101), &#34;w-&#34;)
+
+            ax = plt.subplot(2, n_cols, ix + n_cols)
+            ax.set_ylabel(&#34;Normalised distribution&#34;)
+            ax.set_xlabel(&#34;RD&#34;)
+            ax.set_xlim([0, lim_rd])
+            ax.set_ylim([0, 1.1])
+            bins = range(0, max_rd, bin_size)
+            x = np.arange(0, max_rd // bin_size * bin_size, 0.1 * bin_size)
+            plt.plot(x, normal(x, 1, stat[4], stat[5]), &#34;g-&#34;)
+            x = np.array(bins)
+            plt.plot(x[:len(his_u)], his_u / stat[3], &#34;y*&#34;)
+            plt.plot(x[:len(his_p)], his_p / stat[3], &#34;b*&#34;)
+            ix += 1
+    plt.subplots_adjust(bottom=0.08, top=0.95, wspace=0.25, hspace=0, left=0.05 * 3 / n_cols, right=0.95)
+    if self.plot_file != &#34;&#34;:
+
+        plt.savefig(self.image_filename(&#34;stat&#34;), dpi=150)
+        plt.close(fig)
+    else:
+        plt.show()</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="cnvpytor" href="index.html">cnvpytor</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="cnvpytor.viewer.Viewer" href="#cnvpytor.viewer.Viewer">Viewer</a></code></h4>
+<ul class="two-column">
+<li><code><a title="cnvpytor.viewer.Viewer.gview" href="#cnvpytor.viewer.Viewer.gview">gview</a></code></li>
+<li><code><a title="cnvpytor.viewer.Viewer.image_filename" href="#cnvpytor.viewer.Viewer.image_filename">image_filename</a></code></li>
+<li><code><a title="cnvpytor.viewer.Viewer.manhattan" href="#cnvpytor.viewer.Viewer.manhattan">manhattan</a></code></li>
+<li><code><a title="cnvpytor.viewer.Viewer.panels_shape" href="#cnvpytor.viewer.Viewer.panels_shape">panels_shape</a></code></li>
+<li><code><a title="cnvpytor.viewer.Viewer.parse" href="#cnvpytor.viewer.Viewer.parse">parse</a></code></li>
+<li><code><a title="cnvpytor.viewer.Viewer.rd" href="#cnvpytor.viewer.Viewer.rd">rd</a></code></li>
+<li><code><a title="cnvpytor.viewer.Viewer.set_style" href="#cnvpytor.viewer.Viewer.set_style">set_style</a></code></li>
+<li><code><a title="cnvpytor.viewer.Viewer.stat" href="#cnvpytor.viewer.Viewer.stat">stat</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc"><cite>pdoc</cite> 0.6.3</a>.</p>
+</footer>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+<script>hljs.initHighlightingOnLoad()</script>
+</body>
+</html>

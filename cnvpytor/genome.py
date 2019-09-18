@@ -49,7 +49,7 @@ class Genome:
 
     @staticmethod
     def canonical_chrom_name(name):
-        """ canonical_chrom_name(name)
+        """
         Removes prefix chr, chrom or chromosome
 
         Parameters
@@ -70,7 +70,7 @@ class Genome:
 
     @staticmethod
     def extended_chrom_name(name):
-        """  extended_chrom_name(name)
+        """
         Add 'chr' prefix to the chromosome name
 
         Parameters
@@ -88,7 +88,7 @@ class Genome:
 
     @classmethod
     def is_autosome(cls, name):
-        """ is_autosome(name)
+        """
         Checks is chromosome with given name listed as autosome in the reference genome.
         If reference genome is not detected, returns True if name is not equal to
         'M', 'X', 'Y' or 'SEX' and if does not contain 'GL' or 'NC'.
@@ -112,7 +112,7 @@ class Genome:
 
     @classmethod
     def is_sex_chrom(cls, name):
-        """ is_sex_chrom(name)
+        """
         Checks is chromosome with given name listed as sex chromosome in the reference genome.
         If reference genome is not detected, returns True if name is equal to 'X', 'Y' or 'SEX'.
 
@@ -134,7 +134,7 @@ class Genome:
 
     @classmethod
     def is_mt_chrom(cls, name):
-        """ is_mt_chrom(name)
+        """
         Checks is chromosome with given name listed as mitochondrial chromosome in the reference genome.
         If reference genome is not detected, returns True if name is equal to 'M' or 'MT'.
 
@@ -156,7 +156,7 @@ class Genome:
 
     @classmethod
     def detect_genome(cls, names, lengths):
-        """ detect_genome(names, lengths)
+        """
         Detects reference genome for given list od chromosome names and lengths.
 
         Parameters
@@ -186,7 +186,7 @@ class Genome:
 
     @classmethod
     def load_reference_genomes(cls, filename):
-        """ load_reference_genomes(filename)
+        """
         Load reference genomes from configuration file. File should be writen in format:
 
             |#File: example_ref_genome_conf.py

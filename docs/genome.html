@@ -1,0 +1,650 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.6.3" />
+<title>cnvpytor.genome API documentation</title>
+<meta name="description" content="cnvpytor.genome …" />
+<link href='https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.0/normalize.min.css' rel='stylesheet'>
+<link href='https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/8.0.0/sanitize.min.css' rel='stylesheet'>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css" rel="stylesheet">
+<style>.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{font-weight:bold}#index h4 + ul{margin-bottom:.6em}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase;cursor:pointer}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>cnvpytor.genome</code></h1>
+</header>
+<section id="section-intro">
+<p>cnvpytor.genome</p>
+<p>class Genome: detect reference / parity / naming functions / reference genome data files</p>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">&#34;&#34;&#34; cnvpytor.genome
+
+class Genome: detect reference / parity / naming functions / reference genome data files
+
+&#34;&#34;&#34;
+from __future__ import absolute_import, print_function, division
+from collections import OrderedDict
+import logging
+import pkg_resources
+
+_logger = logging.getLogger(&#34;cnvpytor.genome&#34;)
+
+
+class Genome:
+    reference_genomes = {
+        &#34;hg19&#34;: {
+            &#34;name&#34;: &#34;GRCh37&#34;,
+            &#34;species&#34;: &#34;human&#34;,
+            &#34;chromosomes&#34;: OrderedDict(
+                [(&#34;chr1&#34;, (249250621, &#34;A&#34;)), (&#34;chr2&#34;, (243199373, &#34;A&#34;)), (&#34;chr3&#34;, (198022430, &#34;A&#34;)),
+                 (&#34;chr4&#34;, (191154276, &#34;A&#34;)), (&#34;chr5&#34;, (180915260, &#34;A&#34;)), (&#34;chr6&#34;, (171115067, &#34;A&#34;)),
+                 (&#34;chr7&#34;, (159138663, &#34;A&#34;)), (&#34;chr8&#34;, (146364022, &#34;A&#34;)), (&#34;chr9&#34;, (141213431, &#34;A&#34;)),
+                 (&#34;chr10&#34;, (135534747, &#34;A&#34;)), (&#34;chr11&#34;, (135006516, &#34;A&#34;)), (&#34;chr12&#34;, (133851895, &#34;A&#34;)),
+                 (&#34;chr13&#34;, (115169878, &#34;A&#34;)), (&#34;chr14&#34;, (107349540, &#34;A&#34;)), (&#34;chr15&#34;, (102531392, &#34;A&#34;)),
+                 (&#34;chr16&#34;, (90354753, &#34;A&#34;)), (&#34;chr17&#34;, (81195210, &#34;A&#34;)), (&#34;chr18&#34;, (78077248, &#34;A&#34;)),
+                 (&#34;chr19&#34;, (59128983, &#34;A&#34;)), (&#34;chr20&#34;, (63025520, &#34;A&#34;)), (&#34;chr21&#34;, (48129895, &#34;A&#34;)),
+                 (&#34;chr22&#34;, (51304566, &#34;A&#34;)), (&#34;chrX&#34;, (155270560, &#34;S&#34;)), (&#34;chrY&#34;, (59373566, &#34;S&#34;)),
+                 (&#34;chrM&#34;, (16571, &#34;M&#34;))]),
+            &#34;gc_file&#34;: pkg_resources.resource_filename(&#39;cnvpytor&#39;, &#39;data/gc_hg19.pytor&#39;),
+            &#34;mask_file&#34;: pkg_resources.resource_filename(&#39;cnvpytor&#39;, &#39;data/mask_hg19.pytor&#39;)
+        },
+        &#34;hg38&#34;: {
+            &#34;name&#34;: &#34;GRCh38&#34;,
+            &#34;species&#34;: &#34;human&#34;,
+            &#34;chromosomes&#34;: OrderedDict(
+                [(&#34;chr1&#34;, (248956422, &#34;A&#34;)), (&#34;chr2&#34;, (242193529, &#34;A&#34;)), (&#34;chr3&#34;, (198295559, &#34;A&#34;)),
+                 (&#34;chr4&#34;, (190214555, &#34;A&#34;)), (&#34;chr5&#34;, (181538259, &#34;A&#34;)), (&#34;chr6&#34;, (170805979, &#34;A&#34;)),
+                 (&#34;chr7&#34;, (159345973, &#34;A&#34;)), (&#34;chr8&#34;, (145138636, &#34;A&#34;)), (&#34;chr9&#34;, (138394717, &#34;A&#34;)),
+                 (&#34;chr10&#34;, (133797422, &#34;A&#34;)), (&#34;chr11&#34;, (135086622, &#34;A&#34;)), (&#34;chr12&#34;, (133275309, &#34;A&#34;)),
+                 (&#34;chr13&#34;, (114364328, &#34;A&#34;)), (&#34;chr14&#34;, (107043718, &#34;A&#34;)), (&#34;chr15&#34;, (101991189, &#34;A&#34;)),
+                 (&#34;chr16&#34;, (90338345, &#34;A&#34;)), (&#34;chr17&#34;, (83257441, &#34;A&#34;)), (&#34;chr18&#34;, (80373285, &#34;A&#34;)),
+                 (&#34;chr19&#34;, (58617616, &#34;A&#34;)), (&#34;chr20&#34;, (64444167, &#34;A&#34;)), (&#34;chr21&#34;, (46709983, &#34;A&#34;)),
+                 (&#34;chr22&#34;, (50818468, &#34;A&#34;)), (&#34;chrX&#34;, (156040895, &#34;S&#34;)), (&#34;chrY&#34;, (57227415, &#34;S&#34;)),
+                 (&#34;chrM&#34;, (16569, &#34;M&#34;))])
+        }
+    }
+
+    detected_genome = None
+
+    @staticmethod
+    def canonical_chrom_name(name):
+        &#34;&#34;&#34;
+        Removes prefix chr, chrom or chromosome
+
+        Parameters
+        ----------
+        name : str
+            Name of the chromosome
+
+        Returns
+        -------
+        cname : str
+            Canonical chromosome name.
+
+        &#34;&#34;&#34;
+        cname = name.upper().replace(&#34;CHROMOSOME&#34;, &#34;&#34;).replace(&#34;CHROM&#34;, &#34;&#34;).replace(&#34;CHR&#34;, &#34;&#34;)
+        if cname == &#34;MT&#34;:
+            cname = &#34;M&#34;
+        return cname
+
+    @staticmethod
+    def extended_chrom_name(name):
+        &#34;&#34;&#34;
+        Add &#39;chr&#39; prefix to the chromosome name
+
+        Parameters
+        ----------
+        name : str
+            Name of the chromosome
+
+        Returns
+        -------
+        ename : str
+            Extended chromosome name.
+
+        &#34;&#34;&#34;
+        return &#34;chr&#34; + Genome.canonical_chrom_name(name)
+
+    @classmethod
+    def is_autosome(cls, name):
+        &#34;&#34;&#34;
+        Checks is chromosome with given name listed as autosome in the reference genome.
+        If reference genome is not detected, returns True if name is not equal to
+        &#39;M&#39;, &#39;X&#39;, &#39;Y&#39; or &#39;SEX&#39; and if does not contain &#39;GL&#39; or &#39;NC&#39;.
+
+        Parameters
+        ----------
+        name : str
+            Name of the chromosome
+
+        Returns
+        -------
+        bool
+            Return True if chromosome is autosome
+        &#34;&#34;&#34;
+        if cls.detected_genome is None:
+            return (not cls.is_sex_chrom(name)) and (not cls.is_mt_chrom(name)) and (not (&#34;GL&#34; in name.upper())) and (
+                not (&#34;NC&#34; in name.upper()))
+        if cls.extended_chrom_name(name) in cls.reference_genomes[cls.detected_genome][&#34;chromosomes&#34;]:
+            return cls.reference_genomes[cls.detected_genome][&#34;chromosomes&#34;][cls.extended_chrom_name(name)][1] == &#34;A&#34;
+        return False
+
+    @classmethod
+    def is_sex_chrom(cls, name):
+        &#34;&#34;&#34;
+        Checks is chromosome with given name listed as sex chromosome in the reference genome.
+        If reference genome is not detected, returns True if name is equal to &#39;X&#39;, &#39;Y&#39; or &#39;SEX&#39;.
+
+        Parameters
+        ----------
+        name : str
+            Name of the chromosome
+
+        Returns
+        -------
+        bool
+            Return True if chromosome is sex chromosome
+        &#34;&#34;&#34;
+        if cls.detected_genome is None:
+            return cls.canonical_chrom_name(name) in {&#34;X&#34;, &#34;Y&#34;, &#34;SEX&#34;}
+        if cls.extended_chrom_name(name) in cls.reference_genomes[cls.detected_genome][&#34;chromosomes&#34;]:
+            return cls.reference_genomes[cls.detected_genome][&#34;chromosomes&#34;][cls.extended_chrom_name(name)][1] == &#34;S&#34;
+        return False
+
+    @classmethod
+    def is_mt_chrom(cls, name):
+        &#34;&#34;&#34;
+        Checks is chromosome with given name listed as mitochondrial chromosome in the reference genome.
+        If reference genome is not detected, returns True if name is equal to &#39;M&#39; or &#39;MT&#39;.
+
+        Parameters
+        ----------
+        name : str
+            Name of the chromosome
+
+        Returns
+        -------
+        bool
+            Return True if chromosome is mitochondrial chromosome
+        &#34;&#34;&#34;
+        if cls.detected_genome is None:
+            return cls.canonical_chrom_name(name) in {&#34;M&#34;, &#34;MT&#34;}
+        if cls.extended_chrom_name(name) in cls.reference_genomes[cls.detected_genome][&#34;chromosomes&#34;]:
+            return cls.reference_genomes[cls.detected_genome][&#34;chromosomes&#34;][cls.extended_chrom_name(name)][1] == &#34;M&#34;
+        return False
+
+    @classmethod
+    def detect_genome(cls, names, lengths):
+        &#34;&#34;&#34;
+        Detects reference genome for given list od chromosome names and lengths.
+
+        Parameters
+        ----------
+        names : list of str
+            List of chromosome names.
+        lengths : list of int
+            List of chromosome lengths.
+
+        Returns
+        -------
+        g : str or None
+            Name of the reference genome if detected, otherwise None.
+
+        &#34;&#34;&#34;
+        for g in cls.reference_genomes:
+            found = True
+            checked = False
+            for c, l in zip(names, lengths):
+                if cls.extended_chrom_name(c) in cls.reference_genomes[g][&#34;chromosomes&#34;]:
+                    checked = True
+                    found = found and (cls.reference_genomes[g][&#34;chromosomes&#34;][cls.extended_chrom_name(c)][0] == l)
+            if checked and found:
+                cls.detected_genome = g
+                return g
+        return None
+
+    @classmethod
+    def load_reference_genomes(cls, filename):
+        &#34;&#34;&#34;
+        Load reference genomes from configuration file. File should be writen in format:
+
+            |#File: example_ref_genome_conf.py
+            |
+            |import_reference_genomes = {
+            |    &#34;hg19&#34;: {
+            |    &#34;name&#34;: &#34;GRCh37&#34;,
+            |    &#34;species&#34;: &#34;human&#34;,
+            |    &#34;chromosomes&#34;: OrderedDict(
+            |        [(&#34;chr1&#34;, (249250621, &#34;A&#34;)), (&#34;chr2&#34;, (243199373, &#34;A&#34;)), (&#34;chr3&#34;, (198022430, &#34;A&#34;)),
+            |        (&#34;chr4&#34;, (191154276, &#34;A&#34;)), (&#34;chr5&#34;, (180915260, &#34;A&#34;)), (&#34;chr6&#34;, (171115067, &#34;A&#34;)),
+            |        (&#34;chr7&#34;, (159138663, &#34;A&#34;)), (&#34;chr8&#34;, (146364022, &#34;A&#34;)), (&#34;chr9&#34;, (141213431, &#34;A&#34;)),
+            |        (&#34;chr10&#34;, (135534747, &#34;A&#34;)), (&#34;chr11&#34;, (135006516, &#34;A&#34;)), (&#34;chr12&#34;, (133851895, &#34;A&#34;)),
+            |        (&#34;chr13&#34;, (115169878, &#34;A&#34;)), (&#34;chr14&#34;, (107349540, &#34;A&#34;)), (&#34;chr15&#34;, (102531392, &#34;A&#34;)),
+            |        (&#34;chr16&#34;, (90354753, &#34;A&#34;)), (&#34;chr17&#34;, (81195210, &#34;A&#34;)), (&#34;chr18&#34;, (78077248, &#34;A&#34;)),
+            |        (&#34;chr19&#34;, (59128983, &#34;A&#34;)), (&#34;chr20&#34;, (63025520, &#34;A&#34;)), (&#34;chr21&#34;, (48129895, &#34;A&#34;)),
+            |        (&#34;chr22&#34;, (51304566, &#34;A&#34;)), (&#34;chrX&#34;, (155270560, &#34;S&#34;)), (&#34;chrY&#34;, (59373566, &#34;S&#34;)),
+            |        (&#34;chrM&#34;, (16571, &#34;M&#34;))]),
+            |    &#34;gc_file&#34;: &#34;/path/gc_file.pytor&#34;,
+            |    &#34;mask_file&#34;: &#34;/path/mask_file.pytor&#34;
+            |    }
+            |}
+
+
+        Parameters
+        ----------
+        filename : str
+            Name of the configuration file
+
+        &#34;&#34;&#34;
+        import_reference_genomes = {}
+        exec(open(filename).read())
+        for g in import_reference_genomes:
+            cls.reference_genomes[g] = import_reference_genomes[g]</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="cnvpytor.genome.Genome"><code class="flex name class">
+<span>class <span class="ident">Genome</span></span>
+<span>(</span><span>*args, **kwargs)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">class Genome: detect reference / parity / naming functions / reference genome data files</code></pre>
+</details>
+<h3>Class variables</h3>
+<dl>
+<dt id="cnvpytor.genome.Genome.detected_genome"><code class="name">var <span class="ident">detected_genome</span></code></dt>
+<dd>
+<section class="desc"></section>
+</dd>
+<dt id="cnvpytor.genome.Genome.reference_genomes"><code class="name">var <span class="ident">reference_genomes</span></code></dt>
+<dd>
+<section class="desc"></section>
+</dd>
+</dl>
+<h3>Static methods</h3>
+<dl>
+<dt id="cnvpytor.genome.Genome.canonical_chrom_name"><code class="name flex">
+<span>def <span class="ident">canonical_chrom_name</span></span>(<span>name)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Removes prefix chr, chrom or chromosome</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>name</code></strong> :&ensp;<code>str</code></dt>
+<dd>Name of the chromosome</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>cname</code></strong> :&ensp;<code>str</code></dt>
+<dd>Canonical chromosome name.</dd>
+</dl></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">@staticmethod
+def canonical_chrom_name(name):
+    &#34;&#34;&#34;
+    Removes prefix chr, chrom or chromosome
+
+    Parameters
+    ----------
+    name : str
+        Name of the chromosome
+
+    Returns
+    -------
+    cname : str
+        Canonical chromosome name.
+
+    &#34;&#34;&#34;
+    cname = name.upper().replace(&#34;CHROMOSOME&#34;, &#34;&#34;).replace(&#34;CHROM&#34;, &#34;&#34;).replace(&#34;CHR&#34;, &#34;&#34;)
+    if cname == &#34;MT&#34;:
+        cname = &#34;M&#34;
+    return cname</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.genome.Genome.detect_genome"><code class="name flex">
+<span>def <span class="ident">detect_genome</span></span>(<span>names, lengths)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Detects reference genome for given list od chromosome names and lengths.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>names</code></strong> :&ensp;<code>list</code> of <code>str</code></dt>
+<dd>List of chromosome names.</dd>
+<dt><strong><code>lengths</code></strong> :&ensp;<code>list</code> of <code>int</code></dt>
+<dd>List of chromosome lengths.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>g</code></strong> :&ensp;<code>str</code> or <code>None</code></dt>
+<dd>Name of the reference genome if detected, otherwise None.</dd>
+</dl></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">@classmethod
+def detect_genome(cls, names, lengths):
+    &#34;&#34;&#34;
+    Detects reference genome for given list od chromosome names and lengths.
+
+    Parameters
+    ----------
+    names : list of str
+        List of chromosome names.
+    lengths : list of int
+        List of chromosome lengths.
+
+    Returns
+    -------
+    g : str or None
+        Name of the reference genome if detected, otherwise None.
+
+    &#34;&#34;&#34;
+    for g in cls.reference_genomes:
+        found = True
+        checked = False
+        for c, l in zip(names, lengths):
+            if cls.extended_chrom_name(c) in cls.reference_genomes[g][&#34;chromosomes&#34;]:
+                checked = True
+                found = found and (cls.reference_genomes[g][&#34;chromosomes&#34;][cls.extended_chrom_name(c)][0] == l)
+        if checked and found:
+            cls.detected_genome = g
+            return g
+    return None</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.genome.Genome.extended_chrom_name"><code class="name flex">
+<span>def <span class="ident">extended_chrom_name</span></span>(<span>name)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Add 'chr' prefix to the chromosome name</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>name</code></strong> :&ensp;<code>str</code></dt>
+<dd>Name of the chromosome</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>ename</code></strong> :&ensp;<code>str</code></dt>
+<dd>Extended chromosome name.</dd>
+</dl></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">@staticmethod
+def extended_chrom_name(name):
+    &#34;&#34;&#34;
+    Add &#39;chr&#39; prefix to the chromosome name
+
+    Parameters
+    ----------
+    name : str
+        Name of the chromosome
+
+    Returns
+    -------
+    ename : str
+        Extended chromosome name.
+
+    &#34;&#34;&#34;
+    return &#34;chr&#34; + Genome.canonical_chrom_name(name)</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.genome.Genome.is_autosome"><code class="name flex">
+<span>def <span class="ident">is_autosome</span></span>(<span>name)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Checks is chromosome with given name listed as autosome in the reference genome.
+If reference genome is not detected, returns True if name is not equal to
+'M', 'X', 'Y' or 'SEX' and if does not contain 'GL' or 'NC'.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>name</code></strong> :&ensp;<code>str</code></dt>
+<dd>Name of the chromosome</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>bool</code></dt>
+<dd>Return True if chromosome is autosome</dd>
+</dl></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">@classmethod
+def is_autosome(cls, name):
+    &#34;&#34;&#34;
+    Checks is chromosome with given name listed as autosome in the reference genome.
+    If reference genome is not detected, returns True if name is not equal to
+    &#39;M&#39;, &#39;X&#39;, &#39;Y&#39; or &#39;SEX&#39; and if does not contain &#39;GL&#39; or &#39;NC&#39;.
+
+    Parameters
+    ----------
+    name : str
+        Name of the chromosome
+
+    Returns
+    -------
+    bool
+        Return True if chromosome is autosome
+    &#34;&#34;&#34;
+    if cls.detected_genome is None:
+        return (not cls.is_sex_chrom(name)) and (not cls.is_mt_chrom(name)) and (not (&#34;GL&#34; in name.upper())) and (
+            not (&#34;NC&#34; in name.upper()))
+    if cls.extended_chrom_name(name) in cls.reference_genomes[cls.detected_genome][&#34;chromosomes&#34;]:
+        return cls.reference_genomes[cls.detected_genome][&#34;chromosomes&#34;][cls.extended_chrom_name(name)][1] == &#34;A&#34;
+    return False</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.genome.Genome.is_mt_chrom"><code class="name flex">
+<span>def <span class="ident">is_mt_chrom</span></span>(<span>name)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Checks is chromosome with given name listed as mitochondrial chromosome in the reference genome.
+If reference genome is not detected, returns True if name is equal to 'M' or 'MT'.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>name</code></strong> :&ensp;<code>str</code></dt>
+<dd>Name of the chromosome</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>bool</code></dt>
+<dd>Return True if chromosome is mitochondrial chromosome</dd>
+</dl></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">@classmethod
+def is_mt_chrom(cls, name):
+    &#34;&#34;&#34;
+    Checks is chromosome with given name listed as mitochondrial chromosome in the reference genome.
+    If reference genome is not detected, returns True if name is equal to &#39;M&#39; or &#39;MT&#39;.
+
+    Parameters
+    ----------
+    name : str
+        Name of the chromosome
+
+    Returns
+    -------
+    bool
+        Return True if chromosome is mitochondrial chromosome
+    &#34;&#34;&#34;
+    if cls.detected_genome is None:
+        return cls.canonical_chrom_name(name) in {&#34;M&#34;, &#34;MT&#34;}
+    if cls.extended_chrom_name(name) in cls.reference_genomes[cls.detected_genome][&#34;chromosomes&#34;]:
+        return cls.reference_genomes[cls.detected_genome][&#34;chromosomes&#34;][cls.extended_chrom_name(name)][1] == &#34;M&#34;
+    return False</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.genome.Genome.is_sex_chrom"><code class="name flex">
+<span>def <span class="ident">is_sex_chrom</span></span>(<span>name)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Checks is chromosome with given name listed as sex chromosome in the reference genome.
+If reference genome is not detected, returns True if name is equal to 'X', 'Y' or 'SEX'.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>name</code></strong> :&ensp;<code>str</code></dt>
+<dd>Name of the chromosome</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>bool</code></dt>
+<dd>Return True if chromosome is sex chromosome</dd>
+</dl></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">@classmethod
+def is_sex_chrom(cls, name):
+    &#34;&#34;&#34;
+    Checks is chromosome with given name listed as sex chromosome in the reference genome.
+    If reference genome is not detected, returns True if name is equal to &#39;X&#39;, &#39;Y&#39; or &#39;SEX&#39;.
+
+    Parameters
+    ----------
+    name : str
+        Name of the chromosome
+
+    Returns
+    -------
+    bool
+        Return True if chromosome is sex chromosome
+    &#34;&#34;&#34;
+    if cls.detected_genome is None:
+        return cls.canonical_chrom_name(name) in {&#34;X&#34;, &#34;Y&#34;, &#34;SEX&#34;}
+    if cls.extended_chrom_name(name) in cls.reference_genomes[cls.detected_genome][&#34;chromosomes&#34;]:
+        return cls.reference_genomes[cls.detected_genome][&#34;chromosomes&#34;][cls.extended_chrom_name(name)][1] == &#34;S&#34;
+    return False</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.genome.Genome.load_reference_genomes"><code class="name flex">
+<span>def <span class="ident">load_reference_genomes</span></span>(<span>filename)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Load reference genomes from configuration file. File should be writen in format:</p>
+<pre><code>|#File: example_ref_genome_conf.py
+|
+|import_reference_genomes = {
+|    "hg19": {
+|    "name": "GRCh37",
+|    "species": "human",
+|    "chromosomes": OrderedDict(
+|        [("chr1", (249250621, "A")), ("chr2", (243199373, "A")), ("chr3", (198022430, "A")),
+|        ("chr4", (191154276, "A")), ("chr5", (180915260, "A")), ("chr6", (171115067, "A")),
+|        ("chr7", (159138663, "A")), ("chr8", (146364022, "A")), ("chr9", (141213431, "A")),
+|        ("chr10", (135534747, "A")), ("chr11", (135006516, "A")), ("chr12", (133851895, "A")),
+|        ("chr13", (115169878, "A")), ("chr14", (107349540, "A")), ("chr15", (102531392, "A")),
+|        ("chr16", (90354753, "A")), ("chr17", (81195210, "A")), ("chr18", (78077248, "A")),
+|        ("chr19", (59128983, "A")), ("chr20", (63025520, "A")), ("chr21", (48129895, "A")),
+|        ("chr22", (51304566, "A")), ("chrX", (155270560, "S")), ("chrY", (59373566, "S")),
+|        ("chrM", (16571, "M"))]),
+|    "gc_file": "/path/gc_file.pytor",
+|    "mask_file": "/path/mask_file.pytor"
+|    }
+|}
+</code></pre>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>filename</code></strong> :&ensp;<code>str</code></dt>
+<dd>Name of the configuration file</dd>
+</dl></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">@classmethod
+def load_reference_genomes(cls, filename):
+    &#34;&#34;&#34;
+    Load reference genomes from configuration file. File should be writen in format:
+
+        |#File: example_ref_genome_conf.py
+        |
+        |import_reference_genomes = {
+        |    &#34;hg19&#34;: {
+        |    &#34;name&#34;: &#34;GRCh37&#34;,
+        |    &#34;species&#34;: &#34;human&#34;,
+        |    &#34;chromosomes&#34;: OrderedDict(
+        |        [(&#34;chr1&#34;, (249250621, &#34;A&#34;)), (&#34;chr2&#34;, (243199373, &#34;A&#34;)), (&#34;chr3&#34;, (198022430, &#34;A&#34;)),
+        |        (&#34;chr4&#34;, (191154276, &#34;A&#34;)), (&#34;chr5&#34;, (180915260, &#34;A&#34;)), (&#34;chr6&#34;, (171115067, &#34;A&#34;)),
+        |        (&#34;chr7&#34;, (159138663, &#34;A&#34;)), (&#34;chr8&#34;, (146364022, &#34;A&#34;)), (&#34;chr9&#34;, (141213431, &#34;A&#34;)),
+        |        (&#34;chr10&#34;, (135534747, &#34;A&#34;)), (&#34;chr11&#34;, (135006516, &#34;A&#34;)), (&#34;chr12&#34;, (133851895, &#34;A&#34;)),
+        |        (&#34;chr13&#34;, (115169878, &#34;A&#34;)), (&#34;chr14&#34;, (107349540, &#34;A&#34;)), (&#34;chr15&#34;, (102531392, &#34;A&#34;)),
+        |        (&#34;chr16&#34;, (90354753, &#34;A&#34;)), (&#34;chr17&#34;, (81195210, &#34;A&#34;)), (&#34;chr18&#34;, (78077248, &#34;A&#34;)),
+        |        (&#34;chr19&#34;, (59128983, &#34;A&#34;)), (&#34;chr20&#34;, (63025520, &#34;A&#34;)), (&#34;chr21&#34;, (48129895, &#34;A&#34;)),
+        |        (&#34;chr22&#34;, (51304566, &#34;A&#34;)), (&#34;chrX&#34;, (155270560, &#34;S&#34;)), (&#34;chrY&#34;, (59373566, &#34;S&#34;)),
+        |        (&#34;chrM&#34;, (16571, &#34;M&#34;))]),
+        |    &#34;gc_file&#34;: &#34;/path/gc_file.pytor&#34;,
+        |    &#34;mask_file&#34;: &#34;/path/mask_file.pytor&#34;
+        |    }
+        |}
+
+
+    Parameters
+    ----------
+    filename : str
+        Name of the configuration file
+
+    &#34;&#34;&#34;
+    import_reference_genomes = {}
+    exec(open(filename).read())
+    for g in import_reference_genomes:
+        cls.reference_genomes[g] = import_reference_genomes[g]</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="cnvpytor" href="index.html">cnvpytor</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="cnvpytor.genome.Genome" href="#cnvpytor.genome.Genome">Genome</a></code></h4>
+<ul class="">
+<li><code><a title="cnvpytor.genome.Genome.canonical_chrom_name" href="#cnvpytor.genome.Genome.canonical_chrom_name">canonical_chrom_name</a></code></li>
+<li><code><a title="cnvpytor.genome.Genome.detect_genome" href="#cnvpytor.genome.Genome.detect_genome">detect_genome</a></code></li>
+<li><code><a title="cnvpytor.genome.Genome.detected_genome" href="#cnvpytor.genome.Genome.detected_genome">detected_genome</a></code></li>
+<li><code><a title="cnvpytor.genome.Genome.extended_chrom_name" href="#cnvpytor.genome.Genome.extended_chrom_name">extended_chrom_name</a></code></li>
+<li><code><a title="cnvpytor.genome.Genome.is_autosome" href="#cnvpytor.genome.Genome.is_autosome">is_autosome</a></code></li>
+<li><code><a title="cnvpytor.genome.Genome.is_mt_chrom" href="#cnvpytor.genome.Genome.is_mt_chrom">is_mt_chrom</a></code></li>
+<li><code><a title="cnvpytor.genome.Genome.is_sex_chrom" href="#cnvpytor.genome.Genome.is_sex_chrom">is_sex_chrom</a></code></li>
+<li><code><a title="cnvpytor.genome.Genome.load_reference_genomes" href="#cnvpytor.genome.Genome.load_reference_genomes">load_reference_genomes</a></code></li>
+<li><code><a title="cnvpytor.genome.Genome.reference_genomes" href="#cnvpytor.genome.Genome.reference_genomes">reference_genomes</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc"><cite>pdoc</cite> 0.6.3</a>.</p>
+</footer>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+<script>hljs.initHighlightingOnLoad()</script>
+</body>
+</html>

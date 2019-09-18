@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.6.3" />
+<title>cnvpytor.bam API documentation</title>
+<meta name="description" content="class Bam: BAM/CRAM/SAM reading class" />
+<link href='https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.0/normalize.min.css' rel='stylesheet'>
+<link href='https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/8.0.0/sanitize.min.css' rel='stylesheet'>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css" rel="stylesheet">
+<style>.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{font-weight:bold}#index h4 + ul{margin-bottom:.6em}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase;cursor:pointer}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>cnvpytor.bam</code></h1>
+</header>
+<section id="section-intro">
+<p>class Bam: BAM/CRAM/SAM reading class</p>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">&#34;&#34;&#34;
+class Bam: BAM/CRAM/SAM reading class
+
+&#34;&#34;&#34;
+from __future__ import absolute_import, print_function, division
+from .genome import Genome
+import pysam
+import numpy as np
+import logging
+
+_logger = logging.getLogger(&#34;cnvpytor.bam&#34;)
+
+
+class Bam:
+
+    def __init__(self, filename, max_fragment_len=5000, max_read_len=300):
+        &#34;&#34;&#34;
+        Opens BAM/CRAM/SAM file, reads chromosome names/lengths from header file and detects reference genome
+
+        Parameters
+        ----------
+        filename : str
+            Name of the BAM/CRAM/SAM file.
+        max_fragment_len : int
+            Maximal fragment length used in distribution calculation (default: 5000)
+        max_read_len : int
+            Maximal read length used in distribution calculation (default: 300).
+
+        &#34;&#34;&#34;
+        self.max_read_len = max_read_len
+        self.max_frg_len = max_fragment_len
+        self.reference_genome = None
+        self.filename = filename
+        if filename[-4:] == &#34;.bam&#34;:
+            self.file = pysam.AlignmentFile(filename, &#34;rb&#34;)
+        elif filename[-4:] == &#34;.sam&#34;:
+            self.file = pysam.AlignmentFile(filename, &#34;r&#34;)
+        elif filename[-4:] == &#34;.cram&#34;:
+            self.file = pysam.AlignmentFile(filename, &#34;rc&#34;)
+        else:
+            _logger.warning(&#34;Unsuported file type: &#34; + filename)
+        self.len = {}
+        if self.file:
+            _logger.info(&#34;File: &#34; + filename + &#34; successfully open&#34;)
+            self.reference_genome = Genome.detect_genome(self.file.header.references, self.file.header.lengths)
+            if self.reference_genome:
+                _logger.info(&#34;Detected reference genome: &#34; + self.reference_genome)
+            for c, l in zip(self.file.header.references, self.file.header.lengths):
+                self.len[c] = l
+
+    def get_chr_len(self):
+        &#34;&#34;&#34; Get chromosome names and lengths.
+
+        Returns
+        -------
+        chrs : list of str
+            Chromosome names from BAM/CRAM/SAM header.
+        len : list of str
+            Chromosome lengths from BAM/CRAM/SAM header.
+
+        &#34;&#34;&#34;
+        return self.file.header.references, self.file.header.lengths
+
+    def read_chromosome(self, chr_name):
+        &#34;&#34;&#34;
+        Reads chromosome RD data and calculates read vs template length distribution
+
+        Parameters
+        ----------
+        chr_name : str
+            Name of the chromosome.
+
+        Returns
+        -------
+        rd_p : numpy.ndarray
+            RD parity array (100bp bins).
+        rd_u : numpy.ndarray
+            RD unique array (100bp bins).
+        his_read_frg : numpy.ndarray
+            2D distribution of read and template lengths.
+
+        &#34;&#34;&#34;
+        if not (chr_name in self.len):
+            _logger.warning(&#34;Can not find chromosome &#39;%s&#39; in file &#39;%s&#39;.&#34; % (chr_name, self.filename))
+            return None, None, None
+        _logger.debug(&#34;Reading chromosome %s from filename %s&#34; % (chr_name, self.filename))
+        n = self.len[chr_name] // 100 + 1
+        rd_p = np.zeros(n)
+        rd_u = np.zeros(n)
+        his_read_frg = np.zeros((self.max_read_len, self.max_frg_len))
+        for r in self.file.fetch(chr_name, multiple_iterators=True):
+            assert isinstance(r, pysam.libcalignedsegment.AlignedSegment)
+            if r.template_length and r.reference_length:
+                fl = abs(r.template_length)
+                rl = r.reference_length
+                if fl and (rl &lt; self.max_read_len) and (fl &lt; self.max_frg_len):
+                    his_read_frg[rl][fl] += 1
+                if r.is_unmapped or r.is_secondary or r.is_duplicate:
+                    continue
+            if r.reference_start and r.reference_end and not (r.mapping_quality is None):
+                mid = (r.reference_end + r.reference_start) // 200
+                rd_p[mid] += 1
+                if r.mapping_quality &gt; 0:
+                    rd_u[mid] += 1
+        return rd_p, rd_u, his_read_frg</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="cnvpytor.bam.Bam"><code class="flex name class">
+<span>class <span class="ident">Bam</span></span>
+<span>(</span><span>filename, max_fragment_len=5000, max_read_len=300)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Opens BAM/CRAM/SAM file, reads chromosome names/lengths from header file and detects reference genome</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>filename</code></strong> :&ensp;<code>str</code></dt>
+<dd>Name of the BAM/CRAM/SAM file.</dd>
+<dt><strong><code>max_fragment_len</code></strong> :&ensp;<code>int</code></dt>
+<dd>Maximal fragment length used in distribution calculation (default: 5000)</dd>
+<dt><strong><code>max_read_len</code></strong> :&ensp;<code>int</code></dt>
+<dd>Maximal read length used in distribution calculation (default: 300).</dd>
+</dl></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">class Bam: BAM/CRAM/SAM reading class</code></pre>
+</details>
+<h3>Methods</h3>
+<dl>
+<dt id="cnvpytor.bam.Bam.get_chr_len"><code class="name flex">
+<span>def <span class="ident">get_chr_len</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Get chromosome names and lengths.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>chrs</code></strong> :&ensp;<code>list</code> of <code>str</code></dt>
+<dd>Chromosome names from BAM/CRAM/SAM header.</dd>
+<dt><strong><code>len</code></strong> :&ensp;<code>list</code> of <code>str</code></dt>
+<dd>Chromosome lengths from BAM/CRAM/SAM header.</dd>
+</dl></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def get_chr_len(self):
+    &#34;&#34;&#34; Get chromosome names and lengths.
+
+    Returns
+    -------
+    chrs : list of str
+        Chromosome names from BAM/CRAM/SAM header.
+    len : list of str
+        Chromosome lengths from BAM/CRAM/SAM header.
+
+    &#34;&#34;&#34;
+    return self.file.header.references, self.file.header.lengths</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.bam.Bam.read_chromosome"><code class="name flex">
+<span>def <span class="ident">read_chromosome</span></span>(<span>self, chr_name)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Reads chromosome RD data and calculates read vs template length distribution</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>chr_name</code></strong> :&ensp;<code>str</code></dt>
+<dd>Name of the chromosome.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>rd_p</code></strong> :&ensp;<code>numpy.ndarray</code></dt>
+<dd>RD parity array (100bp bins).</dd>
+<dt><strong><code>rd_u</code></strong> :&ensp;<code>numpy.ndarray</code></dt>
+<dd>RD unique array (100bp bins).</dd>
+<dt><strong><code>his_read_frg</code></strong> :&ensp;<code>numpy.ndarray</code></dt>
+<dd>2D distribution of read and template lengths.</dd>
+</dl></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def read_chromosome(self, chr_name):
+    &#34;&#34;&#34;
+    Reads chromosome RD data and calculates read vs template length distribution
+
+    Parameters
+    ----------
+    chr_name : str
+        Name of the chromosome.
+
+    Returns
+    -------
+    rd_p : numpy.ndarray
+        RD parity array (100bp bins).
+    rd_u : numpy.ndarray
+        RD unique array (100bp bins).
+    his_read_frg : numpy.ndarray
+        2D distribution of read and template lengths.
+
+    &#34;&#34;&#34;
+    if not (chr_name in self.len):
+        _logger.warning(&#34;Can not find chromosome &#39;%s&#39; in file &#39;%s&#39;.&#34; % (chr_name, self.filename))
+        return None, None, None
+    _logger.debug(&#34;Reading chromosome %s from filename %s&#34; % (chr_name, self.filename))
+    n = self.len[chr_name] // 100 + 1
+    rd_p = np.zeros(n)
+    rd_u = np.zeros(n)
+    his_read_frg = np.zeros((self.max_read_len, self.max_frg_len))
+    for r in self.file.fetch(chr_name, multiple_iterators=True):
+        assert isinstance(r, pysam.libcalignedsegment.AlignedSegment)
+        if r.template_length and r.reference_length:
+            fl = abs(r.template_length)
+            rl = r.reference_length
+            if fl and (rl &lt; self.max_read_len) and (fl &lt; self.max_frg_len):
+                his_read_frg[rl][fl] += 1
+            if r.is_unmapped or r.is_secondary or r.is_duplicate:
+                continue
+        if r.reference_start and r.reference_end and not (r.mapping_quality is None):
+            mid = (r.reference_end + r.reference_start) // 200
+            rd_p[mid] += 1
+            if r.mapping_quality &gt; 0:
+                rd_u[mid] += 1
+    return rd_p, rd_u, his_read_frg</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="cnvpytor" href="index.html">cnvpytor</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="cnvpytor.bam.Bam" href="#cnvpytor.bam.Bam">Bam</a></code></h4>
+<ul class="">
+<li><code><a title="cnvpytor.bam.Bam.get_chr_len" href="#cnvpytor.bam.Bam.get_chr_len">get_chr_len</a></code></li>
+<li><code><a title="cnvpytor.bam.Bam.read_chromosome" href="#cnvpytor.bam.Bam.read_chromosome">read_chromosome</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc"><cite>pdoc</cite> 0.6.3</a>.</p>
+</footer>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+<script>hljs.initHighlightingOnLoad()</script>
+</body>
+</html>

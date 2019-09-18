@@ -1,5 +1,4 @@
-""" cnvpytor
-
+"""
 __main__
 
 """
@@ -54,7 +53,7 @@ def main():
     parser.add_argument('-plot', '--plot', type=str, nargs="+", help="plotting")
     parser.add_argument('-style', '--plot_style', type=str,
                         help="available plot styles: " + ", ".join(plt.style.available), choices=plt.style.available)
-    parser.add_argument('-png', '--png_prefix', type=str, help="output png filename prefix", default="")
+    parser.add_argument('-o', '--plot_output_file', type=str, help="output filename prefix and extension", default="")
 
     parser.add_argument('-make_gc_file', '--make_gc_genome_file', action='store_true', help="used with -gc will create genome gc file")
     parser.add_argument('-make_mask_file', '--make_mask_genome_file', action='store_true', help="used with -mask will create genome mask file")
@@ -109,16 +108,10 @@ def main():
             app.rd(args.rd, chroms=args.chrom)
 
         if args.plot:
-            viewer = Viewer(args.root, png_prefix=args.png_prefix)
+            viewer = Viewer(args.root, args.plot_output_file)
             if args.plot_style:
                 viewer.set_style(args.plot_style)
-            for p in args.plot:
-                if p.isdigit() and (int(p)%100)==0:
-                    viewer.gview(int(p),args.use_mask_with_rd)
-                if p == "stat":
-                    viewer.stat()
-                if p == "manhattan":
-                    viewer.manhattan(1000000,args.use_mask_with_rd)
+            viewer.parse(args)
 
         if args.gc:
             app = Root(args.root[0], max_cores=args.max_cores)

@@ -1,5 +1,4 @@
-""" cnvpytor.bam
-
+"""
 class Bam: BAM/CRAM/SAM reading class
 
 """
@@ -15,7 +14,7 @@ _logger = logging.getLogger("cnvpytor.bam")
 class Bam:
 
     def __init__(self, filename, max_fragment_len=5000, max_read_len=300):
-        """ Class Bam
+        """
         Opens BAM/CRAM/SAM file, reads chromosome names/lengths from header file and detects reference genome
 
         Parameters
@@ -50,7 +49,7 @@ class Bam:
                 self.len[c] = l
 
     def get_chr_len(self):
-        """ get_chr_len()
+        """ Get chromosome names and lengths.
 
         Returns
         -------
@@ -63,7 +62,7 @@ class Bam:
         return self.file.header.references, self.file.header.lengths
 
     def read_chromosome(self, chr_name):
-        """ read_chromosome(chr_name)
+        """
         Reads chromosome RD data and calculates read vs template length distribution
 
         Parameters

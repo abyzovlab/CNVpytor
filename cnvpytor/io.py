@@ -75,7 +75,7 @@ class IO:
     }
 
     def __init__(self, filename):
-        """ Class IO
+        """
         Opens CNVpytor file for reading/writing
 
         Parameters
@@ -97,7 +97,7 @@ class IO:
 
     @staticmethod
     def suffix_rd_flag(flags):
-        """ suffix_rd_flag(flags)
+        """
         Converts binary flags into suffix used in RD signal names.
 
         Parameters
@@ -122,7 +122,7 @@ class IO:
 
     @staticmethod
     def suffix_snp_flag(flags):
-        """ suffix_snp_flag(flags)
+        """
         Converts binary flags into suffix used in SNP signal names.
 
         Parameters
@@ -147,7 +147,7 @@ class IO:
 
     @staticmethod
     def suffix_flag(flags):
-        """ suffix_flag(flags)
+        """
         Converts binary flags into suffix used in distribution signal names.
 
         Parameters
@@ -171,7 +171,7 @@ class IO:
         return s
 
     def chromosomes_with_signal(self, bin_size, signal, flags=FLAG_USEMASK | FLAG_GC_CORR):
-        """ chromosomes_with_signal(bin_size, signal, flags=FLAG_USEMASK | FLAG_GC_CORR)
+        """
         Returns list of chromosomes with signal stored in CNVpytor file
 
         Parameters
@@ -200,7 +200,7 @@ class IO:
         return chrs
 
     def signal_name(self, chr_name, bin_size, signal, flags=FLAG_USEMASK | FLAG_GC_CORR):
-        """ signal_name(chr_name, bin_size, signal, flags=FLAG_USEMASK | FLAG_GC_CORR)
+        """
         Returns h5py variable name for a given signal.
 
         Parameters
@@ -230,7 +230,7 @@ class IO:
             return None
 
     def signal_exists(self, chr_name, bin_size, signal, flags=FLAG_USEMASK | FLAG_GC_CORR):
-        """ signal_exists(chr_name, bin_size, signal, flags=FLAG_USEMASK | FLAG_GC_CORR)
+        """
         Checks does signal exist.
 
         Parameters
@@ -258,7 +258,7 @@ class IO:
         return signame in self.file
 
     def create_signal(self, chr_name, bin_size, signal, data, flags=0):
-        """ create_signal(chr_name, bin_size, signal, data, flags=0)
+        """
         Stores signal data into CNVpytor file and returns data set instance.
 
         Parameters
@@ -289,11 +289,11 @@ class IO:
             del self.file[signame]
         ds = self.file.create_dataset(signame, data.shape, dtype=str(data.dtype), compression="gzip",
                                       compression_opts=9, data=data)
-        self.flush()
+        self._flush()
         return ds
 
     def update_signal(self, chr_name, bin_size, signal, data, flags=0):
-        """ update_signal(chr_name, bin_size, signal, data, flags=0)
+        """
         Updates signal data in CNVpytor file and returns data set instance.
 
         Parameters
@@ -324,11 +324,11 @@ class IO:
             _logger.warning("Signal %s does not exist in file %s!" % (signame, self.filename))
             return None
         self.file[signame] = data
-        self.flush()
+        self._flush()
         return self.file[signame]
 
     def get_signal(self, chr_name, bin_size, signal, flags=FLAG_USEMASK | FLAG_GC_CORR):
-        """ get_signal(chr_name, bin_size, signal, flags=FLAG_USEMASK | FLAG_GC_CORR)
+        """
         Reads signal data from CNVpytor file and returns pointer to data set.
 
         Parameters
@@ -358,8 +358,8 @@ class IO:
             return []
         return np.array(self.file[signame])
 
-    def flush(self):
-        """ flush()
+    def _flush(self):
+        """
         Flush pyh5 file.
 
         Returns
@@ -370,7 +370,7 @@ class IO:
         self.file.flush()
 
     def ls(self):
-        """ ls()
+        """
         Prints content of CNVpytor file.
 
         Returns
@@ -384,7 +384,7 @@ class IO:
 
     @staticmethod
     def save_root_trees(root_filename):
-        """ save_root_trees(fn)
+        """
         Save RD and VCF data into root file. Requires ROOT installed.
 
         Parameters
@@ -408,7 +408,7 @@ class IO:
             _logger.debug(root_filename, ROOT.__version__)
 
     def save_rd(self, chr_name, rd_p, rd_u):
-        """ save_rd(chr_name, rd_p, rd_u)
+        """
         Compress and stores RD data into CNVpytor file and returns data set instances.
 
         Parameters
@@ -439,7 +439,7 @@ class IO:
         return ds_p, ds_u
 
     def save_vcf(self, chr_name, pos, ref, alt, nref, nalt, gt, flag, qual):
-        """ save_vcf(self, chr_name, pos, ref, alt, nref, nalt, gt, flag, qual)
+        """
         Compress and stores SNP data into CNVpytor file.
 
         Parameters
@@ -478,7 +478,7 @@ class IO:
             self.create_signal(None, None, "SNP chromosomes", np.array([np.string_(x) for x in snp_chroms]))
 
     def read_rd(self, chr_name):
-        """ read_rd(chr_name)
+        """
         Reads RD signals
 
         Parameters
@@ -500,7 +500,7 @@ class IO:
         return rd_p, rd_u
 
     def rd_chromosomes(self):
-        """ rd_chromosomes()
+        """
         Lists all chromosomes with RD signal stored in CNVpytor file.
 
         Returns
@@ -512,7 +512,7 @@ class IO:
         return list(np.array(self.get_signal(None, None, "RD chromosomes")).astype("str"))
 
     def gc_chromosomes(self):
-        """ gc_chromosomes()
+        """
         Lists all chromosomes with GC/AT content data stored in CNVpytor file.
 
         Returns
@@ -524,7 +524,7 @@ class IO:
         return self.chromosomes_with_signal(None, "GC/AT")
 
     def snp_chromosomes(self):
-        """ snp_chromosomes()
+        """
         Lists all chromosomes with SNP signal stored in CNVpytor file.
 
         Returns
@@ -536,7 +536,7 @@ class IO:
         return list(np.array(self.get_signal(None, None, "SNP chromosomes")).astype("str"))
 
     def mask_chromosomes(self):
-        """ mask_chromosomes()
+        """
         Lists all chromosomes with strict P mask stored in CNVpytor file.
 
         Returns
@@ -548,7 +548,7 @@ class IO:
         return self.chromosomes_with_signal(None, "mask")
 
     def rd_chromosome_name(self, name):
-        """ rd_chromosome_name(name)
+        """
         Finds name of the chromosome used for RD signal variable name.
 
         Parameters
@@ -576,7 +576,7 @@ class IO:
         return None
 
     def snp_chromosome_name(self, name):
-        """ snp_chromosome_name(name)
+        """
         Finds name of the chromosome used for SNP signal variable name.
 
         Parameters

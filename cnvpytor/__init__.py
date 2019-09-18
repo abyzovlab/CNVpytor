@@ -1,5 +1,4 @@
-""" cnvpytor
-
+"""
 CNVpytor
 ========
 CNVpytor is a Python package and command line tool for CNV analysis
@@ -14,23 +13,30 @@ Bug reports::
 Simple example
 --------------
 
-Call CNV using read depth::
-    cnvpytor -root file.pytor -rd file.bam
-    cnvpytor -root file.pytor -his 1000 10000 100000
-    TODO: cnvpytor -root file.pytor -partition 1000 10000 100000
-    TODO: cnvpytor -root file.pytor -call 1000 10000 100000
+Call CNV using read depth:
+```
+> cnvpytor -root file.pytor -rd file.bam
+> cnvpytor -root file.pytor -his 1000 10000 100000
+> TODO: cnvpytor -root file.pytor -partition 1000 10000 100000
+> TODO: cnvpytor -root file.pytor -call 1000 10000 100000
+```
 
 Call CNV using single nucleotide polymorphism::
-    cnvpytor -root file.pytor -snp file.vcf
-    TODO: cnvpytor -root file.pytor -baf 10000 100000
-    TODO: cnvpytor -root file.pytor -call baf 10000 100000
+```
+> cnvpytor -root file.pytor -snp file.vcf
+> TODO: cnvpytor -root file.pytor -baf 10000 100000
+> TODO: cnvpytor -root file.pytor -call baf 10000 100000
+```
 
 Plot
-    cnvpytor -root file.pytor -plot stat
-    cnvpytor -root file.pytor -plot 10000 100000
-    TODO: cnvpytor -root file.pytor -plot manhattan
-    TODO: cnvpytor -root file.pytor -plot circular -o pdf image_file_prefix
-    TODO: cnvpytor -root file.pytor -plot regions 1:10M-20M 2:20M-43M
+```
+> cnvpytor -root file.pytor -plot stat
+> cnvpytor -root file.pytor -plot 10000 100000
+> cnvpytor -root file.pytor -plot stat manhattan 100000 -o file.pdf
+> TODO: cnvpytor -root file.pytor -plot circular
+> TODO: cnvpytor -root file.pytor -plot regions 1:10M-20M;2:20M-43M,3:10M-20M
+```
+
 Bugs
 ----
 
