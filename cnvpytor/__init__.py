@@ -4,6 +4,9 @@ CNVpytor
 CNVpytor is a Python package and command line tool for CNV analysis
 from depth-of-coverage by mapped reads developed in Abyzov Lab, Mayo Clinic.
 
+Documentation::
+    https://abyzovlab.github.io/CNVpytor/
+
 Source::
     https://github.com/abyzovlab/CNVpytor
 
