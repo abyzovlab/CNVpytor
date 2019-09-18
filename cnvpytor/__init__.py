@@ -13,6 +13,18 @@ Source::
 Bug reports::
     https://github.com/abyzovlab/CNVpytor/issues
 
+Install
+-------
+```
+> git clone https://github.com/abyzovlab/CNVpytor.git
+> cd CNVpytor
+> python setup.py install
+```
+For single user (without admin privileges) use:
+```
+> python setup.py install --user
+```
+
 Simple example
 --------------
 
