@@ -35,12 +35,13 @@ class Viewer:
         if style in plt.style.available:
             plt.style.use(style)
 
-    def image_filename(self,sufix):
+    def image_filename(self, sufix):
         parts = self.plot_file.split(".")
-        if parts[-1]!="png" and parts[-1]!="pdf" and parts[-1]!="jpg" and parts[-1]!="eps" and parts[-1]!="svg":
+        if parts[-1] != "png" and parts[-1] != "pdf" and parts[-1] != "jpg" and parts[-1] != "eps" and parts[
+            -1] != "svg":
             _logger.warning("File extension should be: .jpg, .png, .svg, .eps or .pdf")
             exit(0)
-        parts[-1] = sufix+"."+parts[-1]
+        parts[-1] = sufix + "." + parts[-1]
         return ".".join(parts)
 
     def parse(self, args):
@@ -51,15 +52,19 @@ class Viewer:
                     self.gview(int(p), args.use_mask_with_rd)
                 elif current == "manhattan":
                     self.manhattan(int(p), args.use_mask_with_rd)
-            elif p == "stat":
+                elif current == "stat":
+                    self.stat(int(p))
+            elif p == "rdstat":
                 self.stat()
+            elif p == "baf":
+                self.baf()
             else:
                 current = p
 
-    def stat(self):
-        auto = self.io[0].signal_exists(None, None, "RD stat", FLAG_AUTO)
-        sex = self.io[0].signal_exists(None, None, "RD stat", FLAG_SEX)
-        mt = self.io[0].signal_exists(None, None, "RD stat", FLAG_MT)
+    def stat(self,his_bin_size=100):
+        auto = self.io[0].signal_exists(None, his_bin_size, "RD stat", FLAG_AUTO)
+        sex = self.io[0].signal_exists(None, his_bin_size, "RD stat", FLAG_SEX)
+        mt = self.io[0].signal_exists(None, his_bin_size, "RD stat", FLAG_MT) and (his_bin_size<1001)
         if not (auto or sex or mt):
             return
         cond = [auto, sex, mt]
@@ -70,7 +75,7 @@ class Viewer:
         fig = plt.figure(1, figsize=(4 * n_cols, 8), dpi=90, facecolor='w', edgecolor='k')
         for t, c, flag in zip(["Autosomes", "X/Y", "Mitochondria"], cond, [FLAG_AUTO, FLAG_SEX, FLAG_MT]):
             if c:
-                stat = self.io[0].get_signal(None, None, "RD stat", flag)
+                stat = self.io[0].get_signal(None, his_bin_size, "RD stat", flag)
                 stat_list.append(stat)
                 max_rd = int(stat[0])
                 bin_size = int(stat[1])
@@ -82,10 +87,10 @@ class Viewer:
                         t, 2 * stat[4] / stat_list[0][4],
                         2 * stat[5] / stat_list[0][4] + stat_list[0][5] * stat[4] / (
                                 stat_list[0][4] * stat_list[0][4])))
-                his_p = self.io[0].get_signal(None, None, "RD p dist", flag)
-                his_u = self.io[0].get_signal(None, None, "RD u dist", flag)
-                his_rd_gc = self.io[0].get_signal(None, None, "RD GC dist", flag)
-                gc_corr = self.io[0].get_signal(None, None, "GC corr", flag)
+                his_p = self.io[0].get_signal(None, his_bin_size, "RD p dist", flag)
+                his_u = self.io[0].get_signal(None, his_bin_size, "RD u dist", flag)
+                his_rd_gc = self.io[0].get_signal(None, his_bin_size, "RD GC dist", flag)
+                gc_corr = self.io[0].get_signal(None, his_bin_size, "GC corr", flag)
                 ax = plt.subplot(2, n_cols, ix)
                 ax.set_xlabel("RD")
                 ax.set_ylabel("GC [%]")
@@ -115,36 +120,6 @@ class Viewer:
         else:
             plt.show()
 
-    def rd(self, bin_size, chroms=[]):
-        plt.rcParams["font.size"] = 8
-        fig = plt.figure(1, figsize=(12, 8), dpi=90, facecolor='w', edgecolor='k')
-        count = 0
-        for c in self.io[0].chromosomes_with_signal(None, "RD p"):
-            if len(chroms) == 0 or (c in chroms):
-                count += 1
-        sx = 1
-        sy = 1
-        while sx * sy < count:
-            sx += 1
-            sy = int(2. * sx / 3 + 1.)
-        ix = 1
-        for c in self.io[0].chromosomes_with_signal(None, "RD p"):
-            if len(chroms) == 0 or (c in chroms):
-                flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
-                stat = self.io[0].get_signal(None, None, "RD stat", flag)
-                his_p = self.io[0].get_signal(c, bin_size, "RD", 0)
-                his_p_corr = self.io[0].get_signal(c, bin_size, "RD", FLAG_GC_CORR)
-                ax = plt.subplot(sx, sy, ix)
-                ax.set_ylim([0, max(3. * stat[4], stat[4] + 5. * stat[5]) * bin_size / 100])
-                plt.step(his_p, "grey")
-                plt.step(his_p_corr, "k")
-                ix += 1
-        if self.plot_file != "":
-            plt.savefig(self.image_filename("rd"), dpi=150)
-            plt.close(fig)
-        else:
-            plt.show()
-
     def gview(self, bin_size, use_mask):
         if self.reference_genome is None:
             _logger.warning("Missing reference genome required for gview.")
@@ -162,7 +137,10 @@ class Viewer:
         ix = 1
         for c, l in chroms:
             flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
-            stat = self.io[0].get_signal(None, None, "RD stat", flag)
+            stat = self.io[0].get_signal(None, bin_size, "RD stat", flag)
+            if stat is None:
+                _logger.error("Data for bin size %d is missing in file '%s'!" % (bin_size, self.io[0].filename))
+                exit(0)
             flag_rd = 0
             if use_mask:
                 flag_rd = FLAG_USEMASK
@@ -173,15 +151,65 @@ class Viewer:
                          color='C0')
             ax.xaxis.set_ticklabels([])
             ax.yaxis.set_ticklabels([])
-            ax.yaxis.set_ticks(np.arange(0, 3, 0.5) * stat[4] * bin_size / 100, [])
+            ax.yaxis.set_ticks(np.arange(0, 3, 0.5) * stat[4], [])
             ax.xaxis.set_ticks(np.arange(0, (l + 10e6) // bin_size, 10e6 // bin_size), [])
-            ax.set_ylim([0, max(3. * stat[4], stat[4] + 5. * stat[5]) * bin_size / 100])
+            ax.set_ylim([0, max(3. * stat[4], stat[4] + 5. * stat[5])])
             n_bins = l // bin_size
             ax.set_xlim([-n_bins * 0.05, n_bins * 1.05])
             ax.grid()
 
             plt.step(his_p, "grey")
             plt.step(his_p_corr, "k")
+            ix += 1
+        plt.subplots_adjust(bottom=0., top=1., wspace=0, hspace=0, left=0., right=1.)
+        if self.plot_file != "":
+            plt.savefig(self.image_filename("gview"), dpi=150)
+            plt.close(fig)
+        else:
+            plt.show()
+
+    def baf(self):
+        plt.rcParams["font.size"] = 8
+        fig = plt.figure(1, figsize=(12, 8), dpi=90, facecolor='w', edgecolor='k')
+        chroms = []
+        if self.reference_genome is None:
+            chroms = self.io[0].snp_chromosomes()
+        else:
+            for c, (l, t) in self.reference_genome["chromosomes"].items():
+                snp_chr = self.io[0].snp_chromosome_name(c)
+                if self.io[0].signal_exists(snp_chr, None, "SNP pos", 0) and \
+                        self.io[0].signal_exists(snp_chr, None, "SNP desc", 0) and \
+                        self.io[0].signal_exists(snp_chr, None, "SNP counts", 0) and \
+                        self.io[0].signal_exists(snp_chr, None, "SNP qual", 0) and \
+                        (Genome.is_autosome(c) or Genome.is_sex_chrom(c)):
+                    chroms.append(snp_chr)
+        sx, sy = self.panels_shape(len(chroms))
+        ix = 1
+        for c in chroms:
+            pos, ref, alt, nref, nalt, gt, flag, qual = self.io[0].read_snp(c)
+            hpos = []
+            baf = []
+            for i in range(len(pos)):
+                if (gt[i] == 1 or gt[i] == 5 or gt[i] == 6) and (nref[i] + nalt[i]) != 0:
+                    hpos.append(pos[i])
+                    if gt[i] % 4 == 1:
+                        baf.append(1.0 * nalt[i] / (nref[i] + nalt[i]))
+                    else:
+                        baf.append(1.0 * nref[i] / (nref[i] + nalt[i]))
+
+            ax = plt.subplot(sx, sy, ix)
+
+            ax.set_title(c, position=(0.01, 0.9), fontdict={'verticalalignment': 'top', 'horizontalalignment': 'left'},
+                         color='C0')
+            ax.xaxis.set_ticklabels([])
+            ax.yaxis.set_ticklabels([])
+            ax.yaxis.set_ticks([0, 0.25, 0.5, 0.75, 1.0], [])
+            l = max(pos)
+            ax.xaxis.set_ticks(np.arange(0, (l + 10e6), 10e6), [])
+            ax.set_ylim([0., 1.])
+            ax.set_xlim([-0.05 * l, 1.05 * l])
+            ax.grid()
+            plt.scatter(hpos,baf,marker='.',c='k',s=0.5,alpha=0.5)
             ix += 1
         plt.subplots_adjust(bottom=0., top=1., wspace=0, hspace=0, left=0., right=1.)
         if self.plot_file != "":
@@ -236,7 +264,7 @@ class Viewer:
         max_m = 0
         for c, l in chroms:
             flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
-            stat = self.io[0].get_signal(None, None, "RD stat", flag)
+            stat = self.io[0].get_signal(None, bin_size, "RD stat", flag)
             if stat[4] > max_m:
                 max_m = stat[4]
             flag_rd = 0
@@ -245,17 +273,17 @@ class Viewer:
             his_p = self.io[0].get_signal(c, bin_size, "RD", flag_rd)
             his_p_corr = self.io[0].get_signal(c, bin_size, "RD", flag_rd | FLAG_GC_CORR)
             pos = range(apos, apos + len(his_p))
-            ax.text(apos + len(his_p) // 2, int(stat[4]) * bin_size // 100 * 2 // 3, Genome.canonical_chrom_name(c),
-                    fontsize=12, verticalalignment='top', horizontalalignment='center',)
+            ax.text(apos + len(his_p) // 2, stat[4] // 10, Genome.canonical_chrom_name(c),
+                    fontsize=12, verticalalignment='bottom', horizontalalignment='center', )
             plt.plot(pos, his_p_corr, ls='', marker='.')
             apos += len(his_p)
             xticks.append(apos)
 
         ax.xaxis.set_ticklabels([])
         ax.yaxis.set_ticklabels([])
-        ax.yaxis.set_ticks(np.arange(0, 3, 0.5) * max_m * bin_size / 100, [])
+        ax.yaxis.set_ticks(np.arange(0, 3, 0.5) * max_m, [])
         ax.xaxis.set_ticks(xticks, [])
-        ax.set_ylim([0, 2 * max_m * bin_size / 100])
+        ax.set_ylim([0, 2 * max_m])
         n_bins = apos
         ax.set_xlim([0, n_bins])
         ax.grid()

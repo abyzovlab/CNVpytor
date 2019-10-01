@@ -43,6 +43,8 @@ def main():
     parser.add_argument('-call', '--call', type=binsize_type, nargs="+",
                         help="CNV caller based on read depth segmentation for specified bin size (multiple bin sizes separate by space)")
     parser.add_argument('-vcf', '--vcf', nargs="+", type=str, help="read SNP data from vcf files")
+    parser.add_argument('-pileup', '--pileup_bam', nargs="+", type=str, help="calculate SNP counts from bam files")
+
     parser.add_argument('-mask', '--mask', type=str, help="read fasta mask file and flag SNPs in P region")
     parser.add_argument('-idvar', '--idvar', type=str, help="read vcf file and flag SNPs that exist in database file")
     parser.add_argument('-baf', '--baf', type=binsize_type, nargs="+",
@@ -58,9 +60,8 @@ def main():
     parser.add_argument('-make_gc_file', '--make_gc_genome_file', action='store_true', help="used with -gc will create genome gc file")
     parser.add_argument('-make_mask_file', '--make_mask_genome_file', action='store_true', help="used with -mask will create genome mask file")
     parser.add_argument('-use_mask_rd','--use_mask_with_rd', action='store_true', help="used P mask in RD histograms")
-    parser.add_argument('-rg', '--reference_genome', type=str,
-                        help="Manually set reference genme", default=None)
-
+    parser.add_argument('-rg', '--reference_genome', type=str, help="Manually set reference genome", default=None)
+    parser.add_argument('-sample', '--vcf_sample', type=str, help="Sample name in vcf file", default="")
 
     args = parser.parse_args(sys.argv[1:])
 
@@ -123,7 +124,11 @@ def main():
 
         if args.vcf:
             app = Root(args.root[0], max_cores=args.max_cores)
-            app.vcf(args.vcf, chroms=args.chrom)
+            app.vcf(args.vcf, chroms=args.chrom, sample=args.vcf_sample)
+
+        if args.pileup_bam:
+            app = Root(args.root[0], max_cores=args.max_cores)
+            app.pileup(args.pileup_bam, chroms=args.chrom)
 
         if args.mask:
             app = Root(args.root[0], max_cores=args.max_cores)
@@ -135,9 +140,7 @@ def main():
 
         if args.his:
             app = Root(args.root[0], max_cores=args.max_cores)
-            for bin_size in args.his:
-                app.his(bin_size, chroms=args.chrom)
-                app.his_mask(bin_size,chroms=args.chrom)
+            app.calculate_histograms(args.his, chroms=args.chrom)
 
 
 if __name__ == '__main__':

@@ -176,7 +176,7 @@ class Genome:
             found = True
             checked = False
             for c, l in zip(names, lengths):
-                if cls.extended_chrom_name(c) in cls.reference_genomes[g]["chromosomes"]:
+                if (cls.extended_chrom_name(c) in cls.reference_genomes[g]["chromosomes"]) and (not cls.is_mt_chrom(c)):
                     checked = True
                     found = found and (cls.reference_genomes[g]["chromosomes"][cls.extended_chrom_name(c)][0] == l)
             if checked and found:

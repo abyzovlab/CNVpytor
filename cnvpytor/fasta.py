@@ -85,7 +85,10 @@ class Fasta:
               for i in range(0, len(seq), 100)]
         at = [seq.count("A", i, i + 100) + seq.count("T", i, i + 100)
               for i in range(0, len(seq), 100)]
-
+        n = self.len[chr_name] // 100 + 1
+        if len(gc)<n:
+            gc.append(0)
+            at.append(0)
         tot = len(seq)
         sgc = sum(gc)
         sat = sum(at)

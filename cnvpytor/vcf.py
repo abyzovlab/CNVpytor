@@ -25,9 +25,11 @@ class Vcf:
         try:
             self.file = pysam.VariantFile(filename)
         except IOError:
-            _logger.warning("Problem opening file '%s'!" % filename)
+            _logger.error("Problem opening file '%s'!" % filename)
+            exit(0)
         except ValueError:
-            _logger.warning("Problem opening file '%s'!" % filename)
+            _logger.error("Problem opening file '%s'!" % filename)
+            exit(0)
 
         self.chrs = []
         self.samples = []
@@ -103,22 +105,25 @@ class Vcf:
         gt = []
         flag = []
         qual = []
+        alphabet = ['A', 'T', 'G', 'C', '.']
         try:
             for rec in self.file.fetch(chr_name):
-                if "PASS" in rec.filter.keys() and len(rec.alts) == 1 and ("GT" in rec.samples['F316'].keys()) and (
-                        "AD" in rec.samples['F316'].keys()):
-                    pos.append(rec.pos)
-                    ref.append(rec.ref)
-                    alt.append(rec.alts[0])
-                    flag.append(2)  # Assign P region by default
-                    qual.append(int(rec.qual / 10))  # divide QUAL by factor 10 and truncate to one byte
-                    if qual[-1] > 255:
-                        qual[-1] = 255
-                    nref.append(rec.samples[sample]["AD"][0])
-                    nalt.append(rec.samples[sample]["AD"][1])
-                    gt.append(rec.samples[sample]["GT"][0] * 2 + rec.samples[sample]["GT"][1])
-                    if rec.samples[sample].phased:
-                        gt[-1] += 4
+                if "PASS" in rec.filter.keys() and len(rec.alts) == 1 and ("GT" in rec.samples[sample].keys()) and (
+                        "AD" in rec.samples[sample].keys()):
+                    if (len(rec.samples[sample]["AD"])>1) and (rec.ref in alphabet) and (rec.alts[0] in alphabet):
+                        pos.append(rec.pos)
+                        ref.append(rec.ref)
+                        alt.append(rec.alts[0])
+                        flag.append(2)  # Assign P region by default
+                        qual.append(int(rec.qual / 10))  # divide QUAL by factor 10 and truncate to one byte
+                        if qual[-1] > 255:
+                            qual[-1] = 255
+                        nref.append(rec.samples[sample]["AD"][0])
+                        nalt.append(rec.samples[sample]["AD"][1])
+                        gt.append(rec.samples[sample]["GT"][0] * 2 + rec.samples[sample]["GT"][1])
+                        if rec.samples[sample].phased:
+                            gt[-1] += 4
         except ValueError:
             _logger.error("Variant file reading problem. Probably index file is missing or corrupted.")
+            exit(0)
         return pos, ref, alt, nref, nalt, gt, flag, qual

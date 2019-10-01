@@ -16,8 +16,7 @@ _logger = logging.getLogger("cnvpytor.utils")
 def gc_at_compress(gc, at):
     """
     Commpress GC/AT content of 100bins using fact that #at+#gc=100 in large majority of bins.
-    If #at+#gc=100 it will store just one byte (#gc) otherwise it will store two bytes: (128+#gc and #at).
-    First bit is used as flag: if it is set there are additional byte for #at.
+    Transforms #at, #gc -> #at, 100-#at-#gc
 
     Parameters
     ----------
@@ -32,14 +31,9 @@ def gc_at_compress(gc, at):
         Array contains compressed GC/AT content.
 
     """
-    gcat = []
-    for g, a in zip(gc, at):
-        if a + g == 100:
-            gcat.append(g)
-        else:
-            gcat.append(g + 128)
-            gcat.append(a)
-    return np.array(gcat, dtype="uint8")
+    cgc=np.array(gc)
+    cat=100-np.array(at)-cgc
+    return np.concatenate((cgc,cat)).astype("uint8")
 
 
 def gc_at_decompress(gcat):
@@ -59,12 +53,9 @@ def gc_at_decompress(gcat):
         Binned AT content (100bp bins).
 
     """
-    fil = filter(lambda x: (x[2] < 128), zip(list(gcat), list(gcat[1:]) + [0], [0] + list(gcat[:-1])))
-    y = list(map(lambda x: (x[0] - 128, x[1]) if x[0] > 127 else (x[0], 100 - x[0]), fil))
-    return [list(c) for c in zip(*y)]
+    return list(gcat[:gcat.size//2]),list(100-gcat[:gcat.size//2]-gcat[gcat.size//2:])
 
-
-def gcp_decompress(gcat):
+def gcp_decompress(gcat,bin_ratio=1):
     """
     Decompress GT/AC content and calculate GC percentage.
 
@@ -79,8 +70,19 @@ def gcp_decompress(gcat):
         GC percentage.
 
     """
-    fil = filter(lambda x: (x[2] < 128), zip(list(gcat), list(gcat[1:]) + [0], [0] + list(gcat[:-1])))
-    return list(map(lambda x: float(x[0] - 128) / (x[0] + x[1] - 128 + 1e-10) if x[0] > 127 else float(x[0]), fil))
+    gc, at = gcat[:gcat.size//2].astype("float"),(100-gcat[:gcat.size//2]-gcat[gcat.size//2:]).astype("float")
+    if bin_ratio==1:
+        return 100. * np.divide(gc, at + gc, out=np.zeros_like(gc), where=(at+gc)!=0.)
+    n = len(gc)
+    his_gc = np.concatenate(
+        (np.array(gc), np.zeros(bin_ratio - n + (n // bin_ratio * bin_ratio)))).astype("float")
+    his_gc.resize((len(his_gc) // bin_ratio, bin_ratio))
+    his_gc = his_gc.sum(axis=1)
+    his_at = np.concatenate(
+        (np.array(at), np.zeros(bin_ratio - n + (n // bin_ratio * bin_ratio)))).astype("float")
+    his_at.resize((len(his_at) // bin_ratio, bin_ratio))
+    his_at = his_at.sum(axis=1)
+    return 100. * np.divide(his_gc, his_at + his_gc, out=np.zeros_like(his_gc), where=(his_at + his_gc)!=0.)
 
 
 bp_to_binary = {'A': 0, 'T': 3, 'G': 1, 'C': 2, '.': 4}
@@ -123,8 +125,8 @@ def snp_decompress(snp_pos, snp_desc, snp_counts, snp_qual):
     gt = []
     flag = []
     for i in snp_desc:
-        ref.append(i >> 8)
-        alt.append((i >> 5) & int('111', 2))
+        ref.append(binary_to_bp[i >> 8])
+        alt.append(binary_to_bp[(i >> 5) & int('111', 2)])
         gt.append((i >> 2) & int('111', 2))
         flag.append(i & int('11', 2))
     nref = []
@@ -198,8 +200,11 @@ def normal_overlap(m1, s1, m2, s2):
         roots[0], m2, s2)
 
 
-def normal_merge(m1, s1, m2, s2):
-    return (m1 * s2 * s2 + m2 * s1 * s1) / (s1 * s1 + s2 * s2), np.sqrt(s1 * s1 * s2 * s2 / (s1 * s1 + s2 * s2))
+def normal_merge((m1, s1), (m2, s2)):
+    if s1==0 and s2==0:
+        return 0.5*(m1+m2),0
+    else:
+        return (m1 * s2 * s2 + m2 * s1 * s1) / (s1 * s1 + s2 * s2), np.sqrt(s1 * s1 * s2 * s2 / (s1 * s1 + s2 * s2))
 
 
 def normal(x, a, x0, sigma):
@@ -214,6 +219,7 @@ def fit_normal(x, y):
         return [0, 0, 0], None
     mean = sum(x * y) / sum(y)
     sigma = np.sqrt(sum(y * (x - mean) ** 2) / sum(y))
+    _logger.debug("%f %f %d" % (mean, sigma, len(x)))
     if sigma == 0:
         _logger.debug("Problem with fit: sigma equals zero. Return zeros instead fit parameters!")
         return [0, 0, 0], None

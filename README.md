@@ -49,6 +49,7 @@ Plot
 > cnvpytor -root file.pytor -plot stat
 > cnvpytor -root file.pytor -plot 10000 100000
 > cnvpytor -root file.pytor -plot stat manhattan 100000 -o file.pdf
+> cnvpytor -root file.pytor -plot baf -chrom 1 2 3 4
 > TODO: cnvpytor -root file.pytor -plot circular
 > TODO: cnvpytor -root file.pytor -plot regions 1:10M-20M;2:20M-43M,3:10M-20M
 ```
@@ -62,4 +63,4 @@ Or, even better, fork the repository on GitHub and create a pull request.
 
 ## License
 
-Released under GPL licence.
+Released under MIT licence.

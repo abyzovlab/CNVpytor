@@ -29,11 +29,11 @@ class IO:
         "RD u": "%(chr)s_rd_u",
         "GC/AT": "%(chr)s_gc",
         "mask": "%(chr)s_mask",
-        "GC corr": "gc_corr%(flag)s",
-        "RD p dist": "dist_rd_p%(flag)s",
-        "RD u dist": "dist_rd_u%(flag)s",
-        "RD GC dist": "dist_rd_gc%(flag)s",
-        "RD stat": "rd_stat%(flag)s",
+        "GC corr": "gc_corr_%(bin_size)d%(flag)s",
+        "RD p dist": "dist_rd_p_%(bin_size)d%(flag)s",
+        "RD u dist": "dist_rd_u_%(bin_size)d%(flag)s",
+        "RD GC dist": "dist_rd_gc_%(bin_size)d%(flag)s",
+        "RD stat": "rd_stat_%(bin_size)d%(flag)s",
         "RD": "his_rd_p_%(chr)s_%(bin_size)d%(rd_flag)s",
         "RD unique": "his_rd_u_%(chr)s_%(bin_size)d%(rd_flag)s",
         "RD raw": "his_rd_p_%(chr)s_%(bin_size)d%(rd_flag)s_raw",
@@ -85,15 +85,23 @@ class IO:
 
         """
         self.filename = filename
+        self.file = None
         _logger.debug("Opening h5 file '%s'" % self.filename)
         try:
             self.file = h5py.File(filename, "r+")
+            _logger.debug("File '%s' successfully opened." % self.filename)
         except IOError:
-            self.file = h5py.File(filename, "w")
+            try:
+                self.file = h5py.File(filename, "w")
+                _logger.debug("File '%s' successfully created." % self.filename)
+            except IOError:
+                _logger.error("Unable to create file %s!" % filename)
+                exit(0)
 
     def __del__(self):
         _logger.debug("Closing h5 file '%s'" % self.filename)
-        self.file.close()
+        if self.file:
+            self.file.close()
 
     @staticmethod
     def suffix_rd_flag(flags):
@@ -199,7 +207,7 @@ class IO:
                 chrs.append(res[0])
         return chrs
 
-    def signal_name(self, chr_name, bin_size, signal, flags=FLAG_USEMASK | FLAG_GC_CORR):
+    def signal_name(self, chr_name, bin_size, signal, flags=0):
         """
         Returns h5py variable name for a given signal.
 
@@ -223,13 +231,15 @@ class IO:
 
         """
         if signal in self.signals:
-            return self.signals[signal] % {"chr": chr_name, "bin_size": bin_size, "rd_flag": self.suffix_rd_flag(flags),
+            try:
+                return self.signals[signal] % {"chr": chr_name, "bin_size": bin_size, "rd_flag": self.suffix_rd_flag(flags),
                                            "snp_flag": self.suffix_snp_flag(flags), "flag": self.suffix_flag(flags)}
+            except TypeError:
+                return None
         else:
-            logging.warning("Signal '%s' does not exists!" % signal)
             return None
 
-    def signal_exists(self, chr_name, bin_size, signal, flags=FLAG_USEMASK | FLAG_GC_CORR):
+    def signal_exists(self, chr_name, bin_size, signal, flags=0):
         """
         Checks does signal exist.
 
@@ -327,7 +337,7 @@ class IO:
         self._flush()
         return self.file[signame]
 
-    def get_signal(self, chr_name, bin_size, signal, flags=FLAG_USEMASK | FLAG_GC_CORR):
+    def get_signal(self, chr_name, bin_size, signal, flags=0):
         """
         Reads signal data from CNVpytor file and returns pointer to data set.
 
@@ -428,8 +438,18 @@ class IO:
             Data set instance with RD unique signal.
 
         """
+        _logger.info("Saving chromosome RD data for chromosome '%s'." % chr_name)
         data_type = "uint32" if Genome.is_mt_chrom(chr_name) else "uint16"
         crd_p, crd_u = rd_compress(rd_p, rd_u, data_type)
+        snp_name = self.snp_chromosome_name(chr_name)
+        if not (snp_name is None):
+            if snp_name == chr_name:
+                _logger.info("Detecting SNP data in file '%s' for the same chromosome." % self.filename)
+            else:
+                _logger.info(
+                    "Detecting RD data in file '%s' for the same chromosome with different name '%s'. SNP name will be used." % (
+                    self.filename, snp_name))
+                chr_name = snp_name
         ds_p = self.create_signal(chr_name, None, "RD p", crd_p)
         ds_u = self.create_signal(chr_name, None, "RD u", crd_u)
         if not (chr_name in self.rd_chromosomes()):
@@ -438,7 +458,7 @@ class IO:
             self.create_signal(None, None, "RD chromosomes", np.array([np.string_(x) for x in rd_chroms]))
         return ds_p, ds_u
 
-    def save_vcf(self, chr_name, pos, ref, alt, nref, nalt, gt, flag, qual):
+    def save_snp(self, chr_name, pos, ref, alt, nref, nalt, gt, flag, qual):
         """
         Compress and stores SNP data into CNVpytor file.
 
@@ -467,7 +487,15 @@ class IO:
         -------
             None
         """
+        _logger.info("Saving chromosome SNP data for chromosome '%s'." % chr_name)
         snp_pos, snp_desc, snp_counts, snp_qual = snp_compress(pos, ref, alt, nref, nalt, gt, flag, qual)
+        rd_name=self.rd_chromosome_name(chr_name)
+        if not (rd_name is None):
+            if rd_name==chr_name:
+                _logger.info("Detecting RD data in file '%s' for the same chromosome." % self.filename)
+            else:
+                _logger.info("Detecting RD data in file '%s' for the same chromosome with different name '%s'. RD name will be used." % (self.filename, rd_name))
+                chr_name = rd_name
         self.create_signal(chr_name, None, "SNP pos", snp_pos)
         self.create_signal(chr_name, None, "SNP desc", snp_desc)
         self.create_signal(chr_name, None, "SNP counts", snp_counts)
@@ -498,6 +526,42 @@ class IO:
         crd_u = self.get_signal(chr_name, None, "RD u")
         rd_p, rd_u = rd_decompress(crd_p, crd_u)
         return rd_p, rd_u
+
+    def read_snp(self, chr_name):
+        """
+        Reads SNP signals
+
+        Parameters
+        ----------
+        chr_name : str
+            Name of the chromosome.
+
+        Returns
+        -------
+        pos : list of int
+            List of SNP positions.
+        ref : list of str
+            List of SNP reference base (A, T, G, C or .).
+        alt : list of str
+            List of SNP alternative base (A, T, G, C or .).
+        nref : list of int
+            Count of reads contains reference SNP.
+        nalt : list of int
+            Count of reads contains alternative SNP.
+        gt : list of int
+            List of genotypes (0 - "0/0", 1 - "0/1", 3- "1/1", 4 - "0|0" , 5 - "0|1", 6 - "1|0", 7 - "1|1").
+        flag : list of int
+            Binary flag: first bit 1 - SNP exists in database, second bit 1 - SNP in P region of strict mask.
+        qual : list of int
+            SNP quality (scale 0 - 255).
+
+        """
+        snp_pos = self.get_signal(chr_name, None, "SNP pos")
+        snp_desc = self.get_signal(chr_name, None, "SNP desc")
+        snp_counts = self.get_signal(chr_name, None, "SNP counts")
+        snp_qual = self.get_signal(chr_name, None, "SNP qual")
+        pos, ref, alt, nref, nalt, gt, flag, qual = snp_decompress(snp_pos, snp_desc, snp_counts, snp_qual)
+        return pos, ref, alt, nref, nalt, gt, flag, qual
 
     def rd_chromosomes(self):
         """
