@@ -213,18 +213,42 @@ class Root:
             gc_corr_mt = calculate_gc_correction(dist_p_gc_mt, m_mt, s_mt, bin_size_mt)
             self.io.create_signal(None, 100, "GC corr", gc_corr_mt, flags=FLAG_MT)
 
-    def read_vcf(self, vcf_file, chroms, sample=''):
+
+    def read_vcf(self, vcf_file, chroms, sample='', use_index=False):
+        """
+
+        Parameters
+        ----------
+        vcf_file
+        chroms
+        sample
+        use_index
+
+        Returns
+        -------
+
+        """
         vcff = Vcf(vcf_file)
         chrs = [c for c in vcff.get_chromosomes() if len(chroms) == 0 or c in chroms]
-        count = 0
-        for c in chrs:
-            _logger.info("Reading variant data for chromosome %s" % c)
-            pos, ref, alt, nref, nalt, gt, flag, qual = vcff.read_chromosome_snp(c, sample)
+        def save_data(chr, pos, ref, alt, nref, nalt, gt, flag, qual):
+            if len(chroms) == 0 or chr in chroms:
+                self.io.save_snp(chr, pos, ref, alt, nref, nalt, gt, flag, qual)
+            # TODO: Stop reading if all form chrom list are read.
 
-            if not pos is None and len(pos) > 0:
-                self.io.save_snp(c, pos, ref, alt, nref, nalt, gt, flag, qual)
-                count += 1
-        return count
+        if use_index:
+            count = 0
+            for c in chrs:
+                _logger.info("Reading variant data for chromosome %s" % c)
+                pos, ref, alt, nref, nalt, gt, flag, qual = vcff.read_chromosome_snp(c, sample)
+
+                if not pos is None and len(pos) > 0:
+                    self.io.save_snp(c, pos, ref, alt, nref, nalt, gt, flag, qual)
+                    count += 1
+            return count
+        else:
+            return vcff.read_all_snp(save_data,sample)
+
+
 
     def rd(self, bamfiles, chroms=[]):
         """ Read chromosomes from bam/sam/cram file(s) and store in .cnvnator file
@@ -459,7 +483,17 @@ class Root:
 
 
     def calculate_histograms(self, bin_sizes, chroms=[]):
+        """
+        Calculates RD histograms and store data into cnvpytor file.
 
+        Parameters
+        ----------
+        bin_sizes : list of int
+            List of histogram bin sizes
+        chroms : list of str
+            List of chromosomes. Calculates for all available if empty.
+
+        """
         rd_gc_chromosomes = {}
         for c in self.io_gc.gc_chromosomes():
             rd_name = self.io.rd_chromosome_name(c)
@@ -582,7 +616,7 @@ class Root:
                         dist_p_sex += dist_p
                         dist_u_sex += dist_u
                         dist_p_gc_sex += dist_p_gc
-                    elif Genome.is_mt_chrom(c):
+                    elif Genome.is_mt_chrom(c) and (bin_size <= 1000):
                         dist_p, bins = np.histogram(his_p, bins=bins_mt)
                         dist_u, bins = np.histogram(his_u, bins=bins_mt)
                         gcat = self.io_gc.get_signal(rd_gc_chromosomes[c], None, "GC/AT")
@@ -662,15 +696,28 @@ class Root:
                             his_count[p // bin_ratio] += 1
                     np.seterr(divide='ignore', invalid='ignore')
                     his_p = his_p / his_count * bin_ratio
-                    # his_p[np.isnan(his_p)] = 0.0
                     his_u = his_u / his_count * bin_ratio
-                    # his_u[np.isnan(his_u)] = 0.0
                     gc_corr = self.io.get_signal(None, bin_size, "GC corr", flag)
                     gcat = self.io_gc.get_signal(rd_gc_chromosomes[c], None, "GC/AT")
                     his_p_corr = his_p / np.array(list(map(lambda x: gc_corr[int(x)], gcp_decompress(gcat, bin_ratio))))
                     self.io.create_signal(c, bin_size, "RD", his_p, flags=FLAG_USEMASK)
                     self.io.create_signal(c, bin_size, "RD unique", his_u, flags=FLAG_USEMASK)
                     self.io.create_signal(c, bin_size, "RD", his_p_corr, flags=FLAG_GC_CORR | FLAG_USEMASK)
+
+    def calculate_baf(self, bin_sizes, chroms=[]):
+        """
+        Calculates BAF histograms and store data into cnvpytor file.
+
+        Parameters
+        ----------
+        bin_sizes : list of int
+            List of histogram bin sizes
+        chroms : list of str
+            List of chromosomes. Calculates for all available if empty.
+
+        """
+
+
 
     def ls(self):
         self.io.ls()

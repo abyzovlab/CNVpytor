@@ -108,8 +108,8 @@ class Vcf:
         alphabet = ['A', 'T', 'G', 'C', '.']
         try:
             for rec in self.file.fetch(chr_name):
-                if "PASS" in rec.filter.keys() and len(rec.alts) == 1 and ("GT" in rec.samples[sample].keys()) and (
-                        "AD" in rec.samples[sample].keys()):
+                if "PASS" in rec.filter.keys() and rec.alts and len(rec.alts) == 1 and ("GT" in rec.samples[sample].keys()) and (
+                        "AD" in rec.samples[sample].keys()) and len(rec.samples[sample]["GT"])>1 and len(rec.samples[sample]["AD"])>1:
                     if (len(rec.samples[sample]["AD"])>1) and (rec.ref in alphabet) and (rec.alts[0] in alphabet):
                         pos.append(rec.pos)
                         ref.append(rec.ref)
@@ -127,3 +127,85 @@ class Vcf:
             _logger.error("Variant file reading problem. Probably index file is missing or corrupted.")
             exit(0)
         return pos, ref, alt, nref, nalt, gt, flag, qual
+
+    def read_all_snp(self, callback, sample=''):
+        """
+
+        Parameters
+        ----------
+        callback
+        sample
+
+        Returns
+        -------
+
+        """
+        """
+        Read SNP/indel data for given chromosome and sample.
+
+        Parameters
+        ----------
+        callback : callable
+            Function to call after read a chromosome.
+        sample : str
+            Name of the sample (first one if empty - default)
+        
+        Returns
+        -------
+        count : int
+            Number of read chromosomes
+
+        """
+        if sample == '':
+            sample = self.samples[0]
+        pos = []
+        ref = []
+        alt = []
+        nref = []
+        nalt = []
+        gt = []
+        flag = []
+        qual = []
+        last_chrom=None
+        count = 0
+        alphabet = ['A', 'T', 'G', 'C', '.']
+
+        try:
+            for rec in self.file.fetch():
+                if last_chrom is None:
+                    last_chrom=rec.chrom
+                if last_chrom!=rec.chrom:
+                    callback(last_chrom, pos, ref, alt, nref, nalt, gt, flag, qual)
+                    pos = []
+                    ref = []
+                    alt = []
+                    nref = []
+                    nalt = []
+                    gt = []
+                    flag = []
+                    qual = []
+                    count += 1
+
+                if "PASS" in rec.filter.keys() and rec.alts and len(rec.alts) == 1 and ("GT" in rec.samples[sample].keys()) and (
+                        "AD" in rec.samples[sample].keys()) and len(rec.samples[sample]["GT"])>1 and len(rec.samples[sample]["AD"])>1:
+                    if (len(rec.samples[sample]["AD"])>1) and (rec.ref in alphabet) and (rec.alts[0] in alphabet):
+                        pos.append(rec.pos)
+                        ref.append(rec.ref)
+                        alt.append(rec.alts[0])
+                        flag.append(2)  # Assign P region by default
+                        qual.append(int(rec.qual / 10))  # divide QUAL by factor 10 and truncate to one byte
+                        if qual[-1] > 255:
+                            qual[-1] = 255
+                        nref.append(rec.samples[sample]["AD"][0])
+                        nalt.append(rec.samples[sample]["AD"][1])
+                        gt.append(rec.samples[sample]["GT"][0] * 2 + rec.samples[sample]["GT"][1])
+                        if rec.samples[sample].phased:
+                            gt[-1] += 4
+                last_chrom=rec.chrom
+            if len(pos)>0:
+                callback(last_chrom, pos, ref, alt, nref, nalt, gt, flag, qual)
+                count += 1
+            return count
+        except ValueError:
+            _logger.error("Variant file reading problem.")
+            exit(0)
