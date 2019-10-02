@@ -46,26 +46,32 @@ def main():
     parser.add_argument('-pileup', '--pileup_bam', nargs="+", type=str, help="calculate SNP counts from bam files")
 
     parser.add_argument('-mask', '--mask', type=str, help="read fasta mask file and flag SNPs in P region")
+    parser.add_argument('-mask_snps', '--mask_snps', action='store_true', help="flag SNPs in P region")
     parser.add_argument('-idvar', '--idvar', type=str, help="read vcf file and flag SNPs that exist in database file")
     parser.add_argument('-baf', '--baf', type=binsize_type, nargs="+",
                         help="create BAF histograms for specified bin size (multiple bin sizes separate by space)")
+    parser.add_argument('-nomask', '--no_mask', action='store_true', help="do not use P mask in BAF histograms")
+    parser.add_argument('-useid', '--use_id', action='store_true', help="use id flag filtering in SNP histograms")
+
     parser.add_argument('-callbaf', '--callbaf', type=binsize_type, nargs="+",
                         help="CNV caller based on BAF likelihood function for specified bin size (multiple bin sizes separate by space)")
 
     parser.add_argument('-plot', '--plot', type=str, nargs="+", help="plotting")
+    parser.add_argument('-panels', '--panels', type=str, nargs="+", default=["rd"], choices=["rd","baf","likelihood"], help="plot panels (with -plot regions)")
+
     parser.add_argument('-style', '--plot_style', type=str,
                         help="available plot styles: " + ", ".join(plt.style.available), choices=plt.style.available)
     parser.add_argument('-o', '--plot_output_file', type=str, help="output filename prefix and extension", default="")
 
     parser.add_argument('-make_gc_file', '--make_gc_genome_file', action='store_true', help="used with -gc will create genome gc file")
     parser.add_argument('-make_mask_file', '--make_mask_genome_file', action='store_true', help="used with -mask will create genome mask file")
-    parser.add_argument('-use_mask_rd','--use_mask_with_rd', action='store_true', help="used P mask in RD histograms")
+    parser.add_argument('-use_mask_rd', '--use_mask_with_rd', action='store_true', help="used P mask in RD histograms")
     parser.add_argument('-rg', '--reference_genome', type=str, help="Manually set reference genome", default=None)
     parser.add_argument('-sample', '--vcf_sample', type=str, help="Sample name in vcf file", default="")
 
     args = parser.parse_args(sys.argv[1:])
 
-    FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     if args.verbose in {"debug", "d"}:
         level = logging.DEBUG
     elif args.verbose in {"info", "i"}:
@@ -78,15 +84,15 @@ def main():
         level = logging.CRITICAL
 
     if args.log_file:
-        logging.basicConfig(filename=args.log_file, level=logging.DEBUG, format=FORMAT)
+        logging.basicConfig(filename=args.log_file, level=logging.DEBUG, format=log_format)
         logger = logging.getLogger('cnvpytor')
         ch = logging.StreamHandler()
-        formatter = logging.Formatter(FORMAT)
+        formatter = logging.Formatter(log_format)
         ch.setFormatter(formatter)
         ch.setLevel(level)
         logger.addHandler(ch)
     else:
-        logging.basicConfig(level=level, format=FORMAT)
+        logging.basicConfig(level=level, format=log_format)
         logger = logging.getLogger('cnvpytor')
     logger.debug("Start logging...")
 
@@ -94,7 +100,7 @@ def main():
         print('pyCNVnator {}'.format(__version__))
         return 0
 
-    if not args.root is None:
+    if args.root is not None:
 
         if args.ls:
             app = Root(args.root[0], max_cores=args.max_cores)
@@ -109,10 +115,10 @@ def main():
             app.rd(args.rd, chroms=args.chrom)
 
         if args.plot:
-            viewer = Viewer(args.root, args.plot_output_file)
+            view = Viewer(args.root, args.plot_output_file)
             if args.plot_style:
-                viewer.set_style(args.plot_style)
-            viewer.parse(args)
+                view.set_style(args.plot_style)
+            view.parse(args)
 
         if args.gc:
             app = Root(args.root[0], max_cores=args.max_cores)
@@ -134,6 +140,10 @@ def main():
             app = Root(args.root[0], max_cores=args.max_cores)
             app.mask(args.mask, chroms=args.chrom, make_mask_genome_file=args.make_mask_genome_file)
 
+        if args.mask_snps:
+            app = Root(args.root[0], max_cores=args.max_cores)
+            app.mask_snps()
+
         if args.stat:
             app = Root(args.root[0], max_cores=args.max_cores)
             app.rd_stat(chroms=args.chrom)
@@ -141,6 +151,10 @@ def main():
         if args.his:
             app = Root(args.root[0], max_cores=args.max_cores)
             app.calculate_histograms(args.his, chroms=args.chrom)
+
+        if args.baf:
+            app = Root(args.root[0], max_cores=args.max_cores)
+            app.calculate_baf(args.baf, chroms=args.chrom, use_id=args.use_id, use_mask= not args.no_mask)
 
 
 if __name__ == '__main__':

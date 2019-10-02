@@ -118,20 +118,18 @@ class Bam:
             _logger.warning("Can not find chromosome '%s' in file '%s'." % (chr_name, self.filename))
             return
         _logger.debug("Pileup chromosome %s from filename %s" % (chr_name, self.filename))
-        tmp_file += "_" + str(random.randint(0,1e10)) + "_" + chr_name
-        f=open(tmp_file,"w")
+        tmp_file += "_" + str(random.randint(0, 1e10)) + "_" + chr_name
+        f = open(tmp_file, "w")
         for i in pos:
-            print(chr_name,i,file=f)
+            print(chr_name, i, file=f)
         f.close()
-        mpile=pysam.mpileup("-r", chr_name, "-l", tmp_file, self.filename)
+        mpile = pysam.mpileup("-r", chr_name, "-l", tmp_file, self.filename)
         os.remove(tmp_file)
-        pos_seq = dict([(int(x.split("\t")[1]),x.split("\t")[4].upper()) for x in mpile.split("\n") if x!=""])
-        nref=[0]*len(pos)
-        nalt=[0]*len(pos)
+        pos_seq = dict([(int(x.split("\t")[1]), x.split("\t")[4].upper()) for x in mpile.split("\n") if x != ""])
+        nref = [0] * len(pos)
+        nalt = [0] * len(pos)
         for ix in range(len(pos)):
             if pos[ix] in pos_seq:
                 nref[ix] = pos_seq[pos[ix]].count(ref[ix])
                 nalt[ix] = pos_seq[pos[ix]].count(alt[ix])
         return nref, nalt
-
-

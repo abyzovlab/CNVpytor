@@ -47,7 +47,9 @@ class IO:
         "SNP desc": "%(chr)s_snp_desc",
         "SNP counts": "%(chr)s_snp_counts",
         "SNP qual": "%(chr)s_snp_qual",
-        "SNP bin_count": "snp_bafc_%(chr)s_%(bin_size)d%(snp_flag)s",
+        "SNP bin count": "snp_bafc_%(chr)s_%(bin_size)d%(snp_flag)s",
+        "SNP bin count h1": "snp_bafc_h1_%(chr)s_%(bin_size)d%(snp_flag)s",
+        "SNP bin count h2": "snp_bafc_h2_%(chr)s_%(bin_size)d%(snp_flag)s",
         "SNP baf": "snp_baf_%(chr)s_%(bin_size)d%(snp_flag)s",
         "SNP maf": "snp_maf_%(chr)s_%(bin_size)d%(snp_flag)s",
         "SNP likelihood": "snp_likelihood_%(chr)s_%(bin_size)d%(snp_flag)s",
@@ -232,8 +234,9 @@ class IO:
         """
         if signal in self.signals:
             try:
-                return self.signals[signal] % {"chr": chr_name, "bin_size": bin_size, "rd_flag": self.suffix_rd_flag(flags),
-                                           "snp_flag": self.suffix_snp_flag(flags), "flag": self.suffix_flag(flags)}
+                return self.signals[signal] % {"chr": chr_name, "bin_size": bin_size,
+                                               "rd_flag": self.suffix_rd_flag(flags),
+                                               "snp_flag": self.suffix_snp_flag(flags), "flag": self.suffix_flag(flags)}
             except TypeError:
                 return None
         else:
@@ -364,7 +367,7 @@ class IO:
         if not signame:
             return None
         if not (signame in self.file):
-            logging.debug("Signal '%s' does not exist in file '%s'!" % (signame, self.filename))
+            _logger.debug("Signal '%s' does not exist in file '%s'!" % (signame, self.filename))
             return []
         return np.array(self.file[signame])
 
@@ -448,7 +451,7 @@ class IO:
             else:
                 _logger.info(
                     "Detecting RD data in file '%s' for the same chromosome with different name '%s'. SNP name will be used." % (
-                    self.filename, snp_name))
+                        self.filename, snp_name))
                 chr_name = snp_name
         ds_p = self.create_signal(chr_name, None, "RD p", crd_p)
         ds_u = self.create_signal(chr_name, None, "RD u", crd_u)
@@ -458,7 +461,7 @@ class IO:
             self.create_signal(None, None, "RD chromosomes", np.array([np.string_(x) for x in rd_chroms]))
         return ds_p, ds_u
 
-    def save_snp(self, chr_name, pos, ref, alt, nref, nalt, gt, flag, qual):
+    def save_snp(self, chr_name, pos, ref, alt, nref, nalt, gt, flag, qual, update=False):
         """
         Compress and stores SNP data into CNVpytor file.
 
@@ -489,12 +492,14 @@ class IO:
         """
         _logger.info("Saving chromosome SNP data for chromosome '%s'." % chr_name)
         snp_pos, snp_desc, snp_counts, snp_qual = snp_compress(pos, ref, alt, nref, nalt, gt, flag, qual)
-        rd_name=self.rd_chromosome_name(chr_name)
-        if not (rd_name is None):
-            if rd_name==chr_name:
+        rd_name = self.rd_chromosome_name(chr_name)
+        if not update and not (rd_name is None):
+            if rd_name == chr_name:
                 _logger.info("Detecting RD data in file '%s' for the same chromosome." % self.filename)
             else:
-                _logger.info("Detecting RD data in file '%s' for the same chromosome with different name '%s'. RD name will be used." % (self.filename, rd_name))
+                _logger.info(
+                    "Detecting RD data in file '%s' for the same chromosome with different name '%s'. RD name will be used." % (
+                    self.filename, rd_name))
                 chr_name = rd_name
         self.create_signal(chr_name, None, "SNP pos", snp_pos)
         self.create_signal(chr_name, None, "SNP desc", snp_desc)

@@ -108,9 +108,11 @@ class Vcf:
         alphabet = ['A', 'T', 'G', 'C', '.']
         try:
             for rec in self.file.fetch(chr_name):
-                if "PASS" in rec.filter.keys() and rec.alts and len(rec.alts) == 1 and ("GT" in rec.samples[sample].keys()) and (
-                        "AD" in rec.samples[sample].keys()) and len(rec.samples[sample]["GT"])>1 and len(rec.samples[sample]["AD"])>1:
-                    if (len(rec.samples[sample]["AD"])>1) and (rec.ref in alphabet) and (rec.alts[0] in alphabet):
+                if "PASS" in rec.filter.keys() and rec.alts and len(rec.alts) == 1 and (
+                        "GT" in rec.samples[sample].keys()) and (
+                        "AD" in rec.samples[sample].keys()) and len(rec.samples[sample]["GT"]) > 1 and len(
+                        rec.samples[sample]["AD"]) > 1:
+                    if (len(rec.samples[sample]["AD"]) > 1) and (rec.ref in alphabet) and (rec.alts[0] in alphabet):
                         pos.append(rec.pos)
                         ref.append(rec.ref)
                         alt.append(rec.alts[0])
@@ -166,15 +168,15 @@ class Vcf:
         gt = []
         flag = []
         qual = []
-        last_chrom=None
+        last_chrom = None
         count = 0
         alphabet = ['A', 'T', 'G', 'C', '.']
 
         try:
             for rec in self.file.fetch():
                 if last_chrom is None:
-                    last_chrom=rec.chrom
-                if last_chrom!=rec.chrom:
+                    last_chrom = rec.chrom
+                if last_chrom != rec.chrom:
                     callback(last_chrom, pos, ref, alt, nref, nalt, gt, flag, qual)
                     pos = []
                     ref = []
@@ -186,9 +188,11 @@ class Vcf:
                     qual = []
                     count += 1
 
-                if "PASS" in rec.filter.keys() and rec.alts and len(rec.alts) == 1 and ("GT" in rec.samples[sample].keys()) and (
-                        "AD" in rec.samples[sample].keys()) and len(rec.samples[sample]["GT"])>1 and len(rec.samples[sample]["AD"])>1:
-                    if (len(rec.samples[sample]["AD"])>1) and (rec.ref in alphabet) and (rec.alts[0] in alphabet):
+                if "PASS" in rec.filter.keys() and rec.alts and len(rec.alts) == 1 and (
+                        "GT" in rec.samples[sample].keys()) and (
+                        "AD" in rec.samples[sample].keys()) and len(rec.samples[sample]["GT"]) > 1 and len(
+                    rec.samples[sample]["AD"]) > 1:
+                    if (len(rec.samples[sample]["AD"]) > 1) and (rec.ref in alphabet) and (rec.alts[0] in alphabet):
                         pos.append(rec.pos)
                         ref.append(rec.ref)
                         alt.append(rec.alts[0])
@@ -201,8 +205,8 @@ class Vcf:
                         gt.append(rec.samples[sample]["GT"][0] * 2 + rec.samples[sample]["GT"][1])
                         if rec.samples[sample].phased:
                             gt[-1] += 4
-                last_chrom=rec.chrom
-            if len(pos)>0:
+                last_chrom = rec.chrom
+            if len(pos) > 0:
                 callback(last_chrom, pos, ref, alt, nref, nalt, gt, flag, qual)
                 count += 1
             return count

@@ -213,7 +213,6 @@ class Root:
             gc_corr_mt = calculate_gc_correction(dist_p_gc_mt, m_mt, s_mt, bin_size_mt)
             self.io.create_signal(None, 100, "GC corr", gc_corr_mt, flags=FLAG_MT)
 
-
     def read_vcf(self, vcf_file, chroms, sample='', use_index=False):
         """
 
@@ -230,6 +229,7 @@ class Root:
         """
         vcff = Vcf(vcf_file)
         chrs = [c for c in vcff.get_chromosomes() if len(chroms) == 0 or c in chroms]
+
         def save_data(chr, pos, ref, alt, nref, nalt, gt, flag, qual):
             if (len(chroms) == 0 or chr in chroms) and (not pos is None) and (len(pos) > 0):
                 self.io.save_snp(chr, pos, ref, alt, nref, nalt, gt, flag, qual)
@@ -246,9 +246,7 @@ class Root:
                     count += 1
             return count
         else:
-            return vcff.read_all_snp(save_data,sample)
-
-
+            return vcff.read_all_snp(save_data, sample)
 
     def rd(self, bamfiles, chroms=[]):
         """ Read chromosomes from bam/sam/cram file(s) and store in .cnvnator file
@@ -481,7 +479,6 @@ class Root:
             self.io.create_signal(None, None, "reference genome", np.array([np.string_(rg)]))
             self.io.create_signal(None, None, "use reference", np.array([1, 1]).astype("uint8"))
 
-
     def calculate_histograms(self, bin_sizes, chroms=[]):
         """
         Calculates RD histograms and store data into cnvpytor file.
@@ -704,7 +701,34 @@ class Root:
                     self.io.create_signal(c, bin_size, "RD unique", his_u, flags=FLAG_USEMASK)
                     self.io.create_signal(c, bin_size, "RD", his_p_corr, flags=FLAG_GC_CORR | FLAG_USEMASK)
 
-    def calculate_baf(self, bin_sizes, chroms=[]):
+    def mask_snps(self):
+        """
+        Flags SNPs in P-region (sets second bit of the flag to 1 for SNP inside P region, or to 0 otherwise).
+        Requires imported mask data or recognized reference genome with mask data.
+
+        """
+        snp_mask_chromosomes = {}
+        for c in self.io_mask.mask_chromosomes():
+            snp_name = self.io.snp_chromosome_name(c)
+            if snp_name is not None:
+                snp_mask_chromosomes[snp_name] = c
+
+        for c in self.io.snp_chromosomes():
+            if c in snp_mask_chromosomes:
+                _logger.info("Masking SNP data for chromosome '%s'." % c)
+                pos, ref, alt, nref, nalt, gt, flag, qual = self.io.read_snp(c)
+                mask = mask_decompress(self.io_mask.get_signal(snp_mask_chromosomes[c], None, "mask"))
+                mask_ix = 0
+                for snp_ix in range(len(pos)):
+                    while mask_ix < len(mask) and mask[mask_ix][1] < pos[snp_ix]:
+                        mask_ix += 1
+                    if mask_ix < len(mask) and mask[mask_ix][0] < pos[snp_ix] and pos[snp_ix] < (mask[mask_ix][1] + 1):
+                        flag[snp_ix] = flag[snp_ix] | 2
+                    else:
+                        flag[snp_ix] = flag[snp_ix] & 1
+                self.io.save_snp(c, pos, ref, alt, nref, nalt, gt, flag, qual, update=True)
+
+    def calculate_baf(self, bin_sizes, chroms=[], use_mask=True, use_id=False, res=200):
         """
         Calculates BAF histograms and store data into cnvpytor file.
 
@@ -714,9 +738,101 @@ class Root:
             List of histogram bin sizes
         chroms : list of str
             List of chromosomes. Calculates for all available if empty.
+        use_mask : bool
+            Use P-mask filter if True. Default: True.
+        use_id : bool
+            Use id flag filter if True. Default: False.
+        res: int
+            Likelihood function resolution. Default: 201.
+
 
         """
+        for c in self.io.snp_chromosomes():
+            if len(chroms) == 0 or c in chroms:
+                _logger.info("Calculating BAF histograms for chromosome '%s'." % c)
+                pos, ref, alt, nref, nalt, gt, flag, qual = self.io.read_snp(c)
+                max_bin = {}
+                count = {}
+                count_h1 = {}
+                count_h2 = {}
+                baf = {}
+                maf = {}
+                likelihood = {}
+                i1 = {}
+                i2 = {}
+                lh_x = np.arange(0, 1. + 1.0 / res, 1.0 / res)
+                for bs in bin_sizes:
+                    max_bin[bs] = (pos[-1] - 1) // bs + 1
+                    count[bs] = np.zeros(max_bin[bs])
+                    count_h1[bs] = np.zeros(max_bin[bs])
+                    count_h2[bs] = np.zeros(max_bin[bs])
+                    baf[bs] = np.zeros(max_bin[bs])
+                    maf[bs] = np.zeros(max_bin[bs])
+                    likelihood[bs] = np.ones((max_bin[bs], res + 1)).astype("float") / (res + 1)
+                    i1[bs] = np.zeros(max_bin[bs])
+                    i2[bs] = np.zeros(max_bin[bs])
 
+                for i in range(len(pos)):
+                    if (gt[i] == 1 or gt[i] == 5 or gt[i] == 6) and (nalt[i] + nref[i]) > 0 and (
+                            not use_id or (flag[i] & 1)) and (not use_mask or (flag[i] & 2)):
+                        for bs in bin_sizes:
+                            b = (pos[i] - 1) // bs
+                            count[bs][b] += 1
+                            if gt[i] == 5:
+                                count_h1[bs][b] += nref[i]
+                                count_h2[bs][b] += nalt[i]
+                                snp_baf = 1.0 * nalt[i] / (nalt[i] + nref[i])
+                                s = 0
+                                for pi in range(res + 1):
+                                    likelihood[bs][b][pi] *= beta(nalt[i], nref[i], lh_x[pi], phased=True)
+                                    s += likelihood[bs][b][pi]
+                                likelihood[bs][b] /= s
+                            elif gt[i] == 6:
+                                count_h1[bs][b] += nalt[i]
+                                count_h2[bs][b] += nref[i]
+                                snp_baf = 1.0 * nref[i] / (nalt[i] + nref[i])
+                                s = 0
+                                for pi in range(res + 1):
+                                    likelihood[bs][b][pi] *= beta(nref[i], nalt[i], lh_x[pi], phased=True)
+                                    s += likelihood[bs][b][pi]
+                                likelihood[bs][b] /= s
+                            else:
+                                snp_baf = 1.0 * nalt[i] / (nalt[i] + nref[i])
+                                s = 0
+                                for pi in range(res + 1):
+                                    likelihood[bs][b][pi] *= beta(nalt[i], nref[i], lh_x[pi])
+                                    s += likelihood[bs][b][pi]
+                                likelihood[bs][b] /= s
+
+                            baf[bs][b] += snp_baf
+                            maf[bs][b] += 1.0 - snp_baf if snp_baf > 0.5 else snp_baf
+
+                for bs in bin_sizes:
+                    for i in range(max_bin[bs]):
+                        if count[bs][i]>0:
+                            baf[bs][i] /= count[bs][i]
+                            maf[bs][i] /= count[bs][i]
+                            max_lh = np.amax(likelihood[bs][i])
+                            ix = np.where(likelihood[bs][i] == max_lh)[0][0]
+                            i1[bs][i] = 1.0 * (res // 2 - ix) / res if ix <= (res // 2) else 1.0 * (ix - res // 2) / res
+                            i2[bs][i] = likelihood[bs][i][res//2]/max_lh
+                    _logger.info("Saving BAF histograms with bin size %d for chromosome '%s'." % (bs, c))
+                    self.io.create_signal(c,bs,"SNP bin count",data=count[bs].astype("uint16"))
+                    self.io.create_signal(c,bs,"SNP bin count h1",data=count_h1[bs].astype("uint16"))
+                    self.io.create_signal(c,bs,"SNP bin count h2",data=count_h2[bs].astype("uint16"))
+                    self.io.create_signal(c,bs,"SNP baf",data=baf[bs].astype("float32"))
+                    self.io.create_signal(c,bs,"SNP maf",data=maf[bs].astype("float32"))
+                    self.io.create_signal(c,bs,"SNP likelihood",data=likelihood[bs].astype("float64"))
+                    self.io.create_signal(c,bs,"SNP i1",data=i1[bs].astype("float32"))
+                    self.io.create_signal(c,bs,"SNP i2",data=i2[bs].astype("float32"))
+
+    def call_baf(self, bin_size, chrom = []):
+        """
+
+        Returns
+        -------
+
+        """
 
 
     def ls(self):

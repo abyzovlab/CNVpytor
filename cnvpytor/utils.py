@@ -31,9 +31,9 @@ def gc_at_compress(gc, at):
         Array contains compressed GC/AT content.
 
     """
-    cgc=np.array(gc)
-    cat=100-np.array(at)-cgc
-    return np.concatenate((cgc,cat)).astype("uint8")
+    cgc = np.array(gc)
+    cat = 100 - np.array(at) - cgc
+    return np.concatenate((cgc, cat)).astype("uint8")
 
 
 def gc_at_decompress(gcat):
@@ -53,9 +53,10 @@ def gc_at_decompress(gcat):
         Binned AT content (100bp bins).
 
     """
-    return list(gcat[:gcat.size//2]),list(100-gcat[:gcat.size//2]-gcat[gcat.size//2:])
+    return list(gcat[:gcat.size // 2]), list(100 - gcat[:gcat.size // 2] - gcat[gcat.size // 2:])
 
-def gcp_decompress(gcat,bin_ratio=1):
+
+def gcp_decompress(gcat, bin_ratio=1):
     """
     Decompress GT/AC content and calculate GC percentage.
 
@@ -70,8 +71,9 @@ def gcp_decompress(gcat,bin_ratio=1):
         GC percentage.
 
     """
-    gc, at = gcat[:gcat.size//2].astype("float"),(100-gcat[:gcat.size//2]-gcat[gcat.size//2:]).astype("float")
-    if bin_ratio==1:
+    gc, at = gcat[:gcat.size // 2].astype("float"), (100 - gcat[:gcat.size // 2] - gcat[gcat.size // 2:]).astype(
+        "float")
+    if bin_ratio == 1:
         return 100. * gc / (at + gc + 1e-10)
     n = len(gc)
     his_gc = np.concatenate(
@@ -84,6 +86,7 @@ def gcp_decompress(gcat,bin_ratio=1):
     his_at = his_at.sum(axis=1)
 
     return 100. * his_gc / (his_at + his_gc + 1e-10)
+
 
 bp_to_binary = {'A': 0, 'T': 3, 'G': 1, 'C': 2, '.': 4}
 binary_to_bp = {0: 'A', 3: 'T', 1: 'G', 2: 'C', 4: '.'}
@@ -201,8 +204,8 @@ def normal_overlap(m1, s1, m2, s2):
 
 
 def normal_merge((m1, s1), (m2, s2)):
-    if s1==0 and s2==0:
-        return 0.5*(m1+m2),0
+    if s1 == 0 and s2 == 0:
+        return 0.5 * (m1 + m2), 0
     else:
         return (m1 * s2 * s2 + m2 * s1 * s1) / (s1 * s1 + s2 * s2), np.sqrt(s1 * s1 * s2 * s2 / (s1 * s1 + s2 * s2))
 
@@ -246,3 +249,64 @@ def calculate_gc_correction(his_rd_gc, mean, sigma, bin_size=1):
     gc_corr[np.isnan(gc_corr)] = 1.0
     gc_corr = gc_corr / (np.sum(gc_corr * np.sum(his, axis=0)) / np.sum(np.sum(his, axis=0)))
     return gc_corr
+
+
+def beta(k, m, p, phased=False):
+    """
+    Returns likelihood beta function f(p) where 0 <= p <= 1.
+    Function is not normalized.
+
+    Parameters
+    ----------
+    k : int
+        Number of haplotype 1 reads.
+    m : int
+        Number of haplotype 2 reads.
+    p : float
+        Parameter.
+    phased : bool
+        Likelihood will be symmetrised if not phased.
+
+    Returns
+    -------
+    f : float
+        Value od likelihood function,.
+
+    """
+    if k == m or phased:
+        return 1.0 * p ** k * (1. - p) ** m
+    else:
+        return 1.0 * p ** k * (1. - p) ** m + 1.0 * p ** m * (1. - p) ** k
+
+def decode_position(s):
+    """
+
+    Parameters
+    ----------
+    s : str
+
+    Returns
+    -------
+    str
+    """
+    return int(s.replace("K","000").replace("k","000").replace("M","000000").replace("m","000000"))
+
+def decode_region(s):
+    """
+
+    Parameters
+    ----------
+    s : str
+
+    Returns
+    -------
+    list of tuples
+
+    """
+    regs=s.split(",")
+    ret=[]
+    for r in regs:
+        chr_interval=r.split(":")
+        begin_end=chr_interval[1].split("-")
+        ret.append((chr_interval[0],(decode_position(begin_end[0]),decode_position(begin_end[1]))))
+    return ret

@@ -39,8 +39,8 @@ Call CNV using read depth:
 Call CNV using single nucleotide polymorphism::
 ```
 > cnvpytor -root file.pytor -snp file.vcf
-> cnvpytor -root file.pytor -pileup file.bam              
-> TODO: cnvpytor -root file.pytor -baf 10000 100000
+> cnvpytor -root file.pytor -pileup file.bam
+> cnvpytor -root file.pytor -baf 10000 100000
 > TODO: cnvpytor -root file.pytor -call baf 10000 100000
 ```
 
@@ -50,8 +50,8 @@ Plot
 > cnvpytor -root file.pytor -plot 10000 100000
 > cnvpytor -root file.pytor -plot stat manhattan 100000 -o file.pdf
 > cnvpytor -root file.pytor -plot baf -chrom 1 2 3 4
+> cnvpytor -root file.pytor -plot regions 1:10M-20M,2:20M-43M 3:10M-20M 10000
 > TODO: cnvpytor -root file.pytor -plot circular
-> TODO: cnvpytor -root file.pytor -plot regions 1:10M-20M;2:20M-43M,3:10M-20M
 ```
 
 ## Bugs

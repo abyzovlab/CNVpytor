@@ -7,6 +7,7 @@ from .io import *
 from .utils import *
 from .genome import *
 import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
 import numpy as np
 import logging
 
@@ -46,6 +47,7 @@ class Viewer:
 
     def parse(self, args):
         current = "gview"
+        regions = []
         for p in args.plot:
             if p.isdigit() and (int(p) % 100) == 0:
                 if current == "gview":
@@ -54,17 +56,22 @@ class Viewer:
                     self.manhattan(int(p), args.use_mask_with_rd)
                 elif current == "stat":
                     self.stat(int(p))
+                elif current == "regions":
+                    self.regions(int(p), regions, panels=args.panels)
+                    regions = []
             elif p == "rdstat":
                 self.stat()
             elif p == "baf":
                 self.baf()
+            elif current == "regions":
+                regions.append(p)
             else:
                 current = p
 
-    def stat(self,his_bin_size=100):
+    def stat(self, his_bin_size=100):
         auto = self.io[0].signal_exists(None, his_bin_size, "RD stat", FLAG_AUTO)
         sex = self.io[0].signal_exists(None, his_bin_size, "RD stat", FLAG_SEX)
-        mt = self.io[0].signal_exists(None, his_bin_size, "RD stat", FLAG_MT) and (his_bin_size<1001)
+        mt = self.io[0].signal_exists(None, his_bin_size, "RD stat", FLAG_MT) and (his_bin_size < 1001)
         if not (auto or sex or mt):
             return
         cond = [auto, sex, mt]
@@ -209,7 +216,7 @@ class Viewer:
             ax.set_ylim([0., 1.])
             ax.set_xlim([-0.05 * l, 1.05 * l])
             ax.grid()
-            plt.scatter(hpos,baf,marker='.',c='k',s=0.5,alpha=0.5)
+            plt.scatter(hpos, baf, marker='.', c=['k' if f // 2 else 'y' for f in flag], s=1.5, alpha=1)
             ix += 1
         plt.subplots_adjust(bottom=0., top=1., wspace=0, hspace=0, left=0., right=1.)
         if self.plot_file != "":
@@ -294,3 +301,114 @@ class Viewer:
             plt.close(fig)
         else:
             plt.show()
+
+    def regions(self, bin_size, regions, panels=["rd"], use_mask_rd=False, sep_color="g"):
+        plt.rcParams["font.size"] = 8
+        fig = plt.figure(1, figsize=(12, 8), dpi=90, facecolor='w', edgecolor='k')
+        grid = gridspec.GridSpec(len(self.io), len(regions), wspace=0.2, hspace=0.2)
+        ix = 0
+        for i in self.io:
+            for r in regions:
+                self.region(i, fig, grid[ix], bin_size, r, panels=panels, use_mask_rd=use_mask_rd, sep_color=sep_color)
+                ix += 1
+        plt.subplots_adjust(bottom=0.05, top=0.95, wspace=0, hspace=0, left=0.05, right=0.95)
+
+        if self.plot_file != "":
+            plt.savefig(self.image_filename("manhattan"), dpi=150)
+            plt.close(fig)
+        else:
+            plt.show()
+
+    def region(self, io, fig, element, bin_size, region, panels=["rd"], use_mask_rd=False, sep_color="g"):
+        grid = gridspec.GridSpecFromSubplotSpec(len(panels), 1, subplot_spec=element, wspace=0, hspace=0.1)
+        r = decode_region(region)
+        for i in range(len(panels)):
+            ax = fig.add_subplot(grid[i])
+            if i==0:
+                ax.set_title(region, position=(0.01, 0.9), fontdict={'verticalalignment': 'top', 'horizontalalignment': 'left'},
+                         color='C0')
+            g_p = []
+            g_p_corr = []
+            if panels[i] == "rd":
+                mean, stdev = 0, 0
+                borders = []
+                for c, (pos1, pos2) in r:
+                    flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
+                    flag_rd = 0
+                    if use_mask_rd:
+                        flag_rd = FLAG_USEMASK
+                    stat = io.get_signal(None, bin_size, "RD stat", flag)
+                    mean = stat[4]
+                    stdev = stat[5]
+                    his_p = io.get_signal(c, bin_size, "RD", flag_rd)
+                    his_p_corr = io.get_signal(c, bin_size, "RD", flag_rd | FLAG_GC_CORR)
+                    start_bin = (pos1 - 1) / bin_size
+                    end_bin = pos2 / bin_size
+                    g_p.extend(list(his_p[start_bin:end_bin]))
+                    g_p_corr.extend(list(his_p_corr[start_bin:end_bin]))
+                    borders.append(len(g_p))
+
+                ax.xaxis.set_ticklabels([])
+                ax.yaxis.set_ticklabels([])
+                ax.yaxis.set_ticks(np.arange(0, 3, 0.5) * mean, [])
+                l = len(g_p)
+                ax.xaxis.set_ticks(np.arange(0, (l + 10e3) // bin_size, 10e3 // bin_size), [])
+                ax.set_ylim([0, max(3. * mean, mean + 5. * stdev)])
+                ax.set_xlim([-l * 0.0, l * 1.0])
+                ax.grid()
+                ax.step(g_p, "grey")
+                ax.step(g_p_corr, "k")
+                for i in borders[:-1]:
+                    ax.axvline(i, color=sep_color, lw=1)
+                fig.add_subplot(ax)
+            elif panels[i] == "baf":
+                borders = []
+                hpos = []
+                baf = []
+                color = []
+                start_pos = 0
+                for c, (pos1, pos2) in r:
+                    pos, ref, alt, nref, nalt, gt, flag, qual = io.read_snp(c)
+                    ix = 0
+                    last_hpos = -1
+                    while ix < len(pos) and pos[ix] <= pos2:
+                        if pos[ix] >= pos1 and (gt[i] == 1 or gt[i] == 5 or gt[i] == 6) and (nref[ix] + nalt[ix]) != 0:
+                            hpos.append(start_pos + pos[ix] - pos1)
+                            last_hpos = start_pos + pos[ix] - pos1
+                            if gt[i] % 4 == 1:
+                                baf.append(1.0 * nalt[ix] / (nref[ix] + nalt[ix]))
+                            else:
+                                baf.append(1.0 * nref[ix] / (nref[ix] + nalt[ix]))
+                            color.append('k' if flag[i] // 2 else 'y')
+                        ix += 1
+                    start_pos += pos2 - pos1
+                    borders.append(start_pos)
+
+                ax.xaxis.set_ticklabels([])
+                ax.yaxis.set_ticklabels([])
+                ax.yaxis.set_ticks([0, 0.25, 0.5, 0.75, 1.0], [])
+                l = max(hpos)
+                # ax.xaxis.set_ticks(np.arange(0, (l + 10e6), 10e6), [])
+                ax.set_ylim([0., 1.])
+                ax.set_xlim([0, borders[-1]])
+                ax.grid()
+                ax.scatter(hpos, baf, marker='.', c=['k' if f // 2 else 'y' for f in flag], s=1.5, alpha=1)
+
+                for i in borders[:-1]:
+                    ax.axvline(i, color=sep_color, lw=1)
+                fig.add_subplot(ax)
+
+            elif panels[i] == "likelihood":
+                borders = []
+                gl = []
+                for c, (pos1, pos2) in r:
+                    likelihood = io.get_signal(c, bin_size, "SNP likelihood")
+                    start_bin = (pos1 - 1) / bin_size
+                    end_bin = pos2 / bin_size
+                    gl.extend(list(likelihood[start_bin:end_bin]))
+                    borders.append(len(gl))
+                img = np.array(gl).transpose()
+                ax.imshow(img, aspect='auto')
+                for i in borders[:-1]:
+                    ax.axvline(i, color=sep_color, lw=1)
+                fig.add_subplot(ax)
