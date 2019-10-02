@@ -352,7 +352,7 @@ class Viewer:
                 ax.yaxis.set_ticklabels([])
                 ax.yaxis.set_ticks(np.arange(0, 3, 0.5) * mean, [])
                 l = len(g_p)
-                ax.xaxis.set_ticks(np.arange(0, (l + 10e3) // bin_size, 10e3 // bin_size), [])
+                ax.xaxis.set_ticks(np.arange(0, l, 10), [])
                 ax.set_ylim([0, max(3. * mean, mean + 5. * stdev)])
                 ax.set_xlim([-l * 0.0, l * 1.0])
                 ax.grid()
@@ -409,6 +409,11 @@ class Viewer:
                     borders.append(len(gl))
                 img = np.array(gl).transpose()
                 ax.imshow(img, aspect='auto')
+                ax.xaxis.set_ticklabels([])
+                ax.yaxis.set_ticklabels([])
+                ax.xaxis.set_ticks(np.arange(0, l, 50), [])
+                ax.grid()
+
                 for i in borders[:-1]:
                     ax.axvline(i, color=sep_color, lw=1)
                 fig.add_subplot(ax)
