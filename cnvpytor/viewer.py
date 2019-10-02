@@ -411,6 +411,7 @@ class Viewer:
                 ax.imshow(img, aspect='auto')
                 ax.xaxis.set_ticklabels([])
                 ax.yaxis.set_ticklabels([])
+                ax.xaxis.set_ticks(np.arange(0, len(gl), 50), [])
 
                 for i in borders[:-1]:
                     ax.axvline(i, color=sep_color, lw=1)
