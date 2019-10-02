@@ -314,7 +314,7 @@ class Viewer:
         plt.subplots_adjust(bottom=0.05, top=0.95, wspace=0, hspace=0, left=0.05, right=0.95)
 
         if self.plot_file != "":
-            plt.savefig(self.image_filename("manhattan"), dpi=150)
+            plt.savefig(self.image_filename("regions"), dpi=150)
             plt.close(fig)
         else:
             plt.show()
