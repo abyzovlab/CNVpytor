@@ -325,7 +325,7 @@ class Viewer:
         for i in range(len(panels)):
             ax = fig.add_subplot(grid[i])
             if i==0:
-                ax.set_title(region, position=(0.01, 0.9), fontdict={'verticalalignment': 'top', 'horizontalalignment': 'left'},
+                ax.set_title(io.filename+": "+region, position=(0.01, 0.9), fontdict={'verticalalignment': 'top', 'horizontalalignment': 'left'},
                          color='C0')
             g_p = []
             g_p_corr = []
