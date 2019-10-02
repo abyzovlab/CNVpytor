@@ -231,7 +231,7 @@ class Root:
         vcff = Vcf(vcf_file)
         chrs = [c for c in vcff.get_chromosomes() if len(chroms) == 0 or c in chroms]
         def save_data(chr, pos, ref, alt, nref, nalt, gt, flag, qual):
-            if len(chroms) == 0 or chr in chroms:
+            if (len(chroms) == 0 or chr in chroms) and (not pos is None) and (len(pos) > 0):
                 self.io.save_snp(chr, pos, ref, alt, nref, nalt, gt, flag, qual)
             # TODO: Stop reading if all form chrom list are read.
 
