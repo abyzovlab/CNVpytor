@@ -72,7 +72,7 @@ def gcp_decompress(gcat,bin_ratio=1):
     """
     gc, at = gcat[:gcat.size//2].astype("float"),(100-gcat[:gcat.size//2]-gcat[gcat.size//2:]).astype("float")
     if bin_ratio==1:
-        return 100. * np.divide(gc, at + gc, out=np.zeros_like(gc), where=(at+gc)!=0.)
+        return 100. * gc / (at + gc + 1e-10)
     n = len(gc)
     his_gc = np.concatenate(
         (np.array(gc), np.zeros(bin_ratio - n + (n // bin_ratio * bin_ratio)))).astype("float")
@@ -82,8 +82,8 @@ def gcp_decompress(gcat,bin_ratio=1):
         (np.array(at), np.zeros(bin_ratio - n + (n // bin_ratio * bin_ratio)))).astype("float")
     his_at.resize((len(his_at) // bin_ratio, bin_ratio))
     his_at = his_at.sum(axis=1)
-    return 100. * np.divide(his_gc, his_at + his_gc, out=np.zeros_like(his_gc), where=(his_at + his_gc)!=0.)
 
+    return 100. * his_gc / (his_at + his_gc + 1e-10)
 
 bp_to_binary = {'A': 0, 'T': 3, 'G': 1, 'C': 2, '.': 4}
 binary_to_bp = {0: 'A', 3: 'T', 1: 'G', 2: 'C', 4: '.'}
