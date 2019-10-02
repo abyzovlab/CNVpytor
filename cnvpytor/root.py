@@ -786,7 +786,8 @@ class Root:
                                 for pi in range(res + 1):
                                     likelihood[bs][b][pi] *= beta(nalt[i], nref[i], lh_x[pi], phased=True)
                                     s += likelihood[bs][b][pi]
-                                likelihood[bs][b] /= s
+                                if s != 0.0:
+                                    likelihood[bs][b] /= s
                             elif gt[i] == 6:
                                 count_h1[bs][b] += nalt[i]
                                 count_h2[bs][b] += nref[i]
@@ -795,14 +796,16 @@ class Root:
                                 for pi in range(res + 1):
                                     likelihood[bs][b][pi] *= beta(nref[i], nalt[i], lh_x[pi], phased=True)
                                     s += likelihood[bs][b][pi]
-                                likelihood[bs][b] /= s
+                                if s != 0.0:
+                                    likelihood[bs][b] /= s
                             else:
                                 snp_baf = 1.0 * nalt[i] / (nalt[i] + nref[i])
                                 s = 0
                                 for pi in range(res + 1):
                                     likelihood[bs][b][pi] *= beta(nalt[i], nref[i], lh_x[pi])
                                     s += likelihood[bs][b][pi]
-                                likelihood[bs][b] /= s
+                                if s != 0.0:
+                                    likelihood[bs][b] /= s
 
                             baf[bs][b] += snp_baf
                             maf[bs][b] += 1.0 - snp_baf if snp_baf > 0.5 else snp_baf
