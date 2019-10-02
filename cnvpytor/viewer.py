@@ -372,7 +372,7 @@ class Viewer:
                     ix = 0
                     last_hpos = -1
                     while ix < len(pos) and pos[ix] <= pos2:
-                        if pos[ix] >= pos1 and (gt[i] == 1 or gt[i] == 5 or gt[i] == 6) and (nref[ix] + nalt[ix]) != 0:
+                        if pos[ix] >= pos1 and (gt[ix] == 1 or gt[ix] == 5 or gt[ix] == 6) and (nref[ix] + nalt[ix]) != 0:
                             hpos.append(start_pos + pos[ix] - pos1)
                             last_hpos = start_pos + pos[ix] - pos1
                             if gt[i] % 4 == 1:
