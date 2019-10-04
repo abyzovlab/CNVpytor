@@ -53,6 +53,26 @@ Plot
 > TODO: cnvpytor -root file.pytor -plot circular
 ```
 
+Plot - interactive mode
+```
+> cnvpytor -root file.pytor -view 10000
+cnvpytor> chr1:1M-50M
+cnvpytor> rd
+cnvpytor> set panels rd likelihood
+cnvpytor> show
+    Parameters
+        * bin_size: 10000
+        * panels: ['rd','likelihood']
+        * use_mask_rd: False
+        * plot_files: [('file1.pytor', True),('file2.pytor', True)]
+        * plot_file: 0
+        * grid: auto
+    Available plot styles: classic, seaborn, ...
+cnvpytor> set bin_size 100000
+cnvpytor> chr1:1M-50M chr2:60M-65M > filename.png
+```
+
+
 ## Bugs
 
 Please report any bugs that you find on GitHub:

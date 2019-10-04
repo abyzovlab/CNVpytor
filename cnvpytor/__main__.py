@@ -57,6 +57,8 @@ def main():
                         help="CNV caller based on BAF likelihood function for specified bin size (multiple bin sizes separate by space)")
 
     parser.add_argument('-plot', '--plot', type=str, nargs="+", help="plotting")
+    parser.add_argument('-view', '--view', type=binsize_type,
+                        help="Enters interactive ploting mode")
     parser.add_argument('-panels', '--panels', type=str, nargs="+", default=["rd"], choices=["rd","baf","likelihood"], help="plot panels (with -plot regions)")
 
     parser.add_argument('-style', '--plot_style', type=str,
@@ -118,7 +120,13 @@ def main():
             view = Viewer(args.root, args.plot_output_file)
             if args.plot_style:
                 view.set_style(args.plot_style)
-            view.parse(args)
+            view.plot(args)
+
+        if args.view:
+            view = Viewer(args.root, args.plot_output_file)
+            if args.plot_style:
+                view.set_style(args.plot_style)
+            view.prompt(args.view,args)
 
         if args.gc:
             app = Root(args.root[0], max_cores=args.max_cores)

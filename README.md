@@ -44,7 +44,7 @@ Call CNV using single nucleotide polymorphism::
 > TODO: cnvpytor -root file.pytor -call baf 10000 100000
 ```
 
-Plot
+Plot - command line
 ```
 > cnvpytor -root file.pytor -plot stat
 > cnvpytor -root file.pytor -plot 10000 100000
@@ -53,6 +53,26 @@ Plot
 > cnvpytor -root file.pytor -plot regions 1:10M-20M,2:20M-43M 3:10M-20M 10000
 > TODO: cnvpytor -root file.pytor -plot circular
 ```
+
+Plot - interactive mode
+```
+> cnvpytor -root file.pytor -view 10000
+cnvpytor> chr1:1M-50M
+cnvpytor> rd
+cnvpytor> set panels rd likelihood
+cnvpytor> show
+    Parameters
+        * bin_size: 10000
+        * panels: ['rd','likelihood']
+        * use_mask_rd: False
+        * plot_files: [('file1.pytor', True),('file2.pytor', True)]
+        * plot_file: 0
+        * grid: auto
+    Available plot styles: classic, seaborn, ...
+cnvpytor> set bin_size 100000    
+cnvpytor> chr1:1M-50M chr2:60M-65M > filename.png
+```
+
 
 ## Bugs
 

@@ -7,6 +7,8 @@ from __future__ import absolute_import, print_function, division
 from .genome import Genome
 from .utils import *
 import logging
+import os.path
+import io
 import numpy as np
 import h5py
 import re
@@ -76,7 +78,7 @@ class IO:
         "use reference": "use_reference"
     }
 
-    def __init__(self, filename):
+    def __init__(self, filename, ro=False, buffer=False):
         """
         Opens CNVpytor file for reading/writing
 
@@ -89,10 +91,26 @@ class IO:
         self.filename = filename
         self.file = None
         _logger.debug("Opening h5 file '%s'" % self.filename)
-        try:
-            self.file = h5py.File(filename, "r+")
-            _logger.debug("File '%s' successfully opened." % self.filename)
-        except IOError:
+        if ro:
+            try:
+                if buffer:
+                    with open(filename, 'rb') as f:
+                        self.bytesio = io.BytesIO(f.read())
+                    self.file = h5py.File(self.bytesio, "r")
+                else:
+                    self.file = h5py.File(filename, "r")
+                _logger.debug("File '%s' successfully opened in read-only mode." % self.filename)
+            except IOError:
+                _logger.error("Unable to open file %s!" % filename)
+                exit(0)
+        elif os.path.exists(filename):
+            try:
+                self.file = h5py.File(filename, "r+")
+                _logger.debug("File '%s' successfully opened." % self.filename)
+            except IOError:
+                _logger.error("Unable to open file %s!" % filename)
+                exit(0)
+        else:
             try:
                 self.file = h5py.File(filename, "w")
                 _logger.debug("File '%s' successfully created." % self.filename)
@@ -180,7 +198,7 @@ class IO:
             s += "_mt"
         return s
 
-    def chromosomes_with_signal(self, bin_size, signal, flags=FLAG_USEMASK | FLAG_GC_CORR):
+    def chromosomes_with_signal(self, bin_size, signal, flags=0):
         """
         Returns list of chromosomes with signal stored in CNVpytor file
 
@@ -208,6 +226,36 @@ class IO:
             if len(res) > 0:
                 chrs.append(res[0])
         return chrs
+
+    def chromosomes_bin_sizes_with_signal(self, signal, flags=0):
+        """
+        Returns list of chromosome bin_size pairs with signal stored in CNVpytor file
+
+        Parameters
+        ----------
+        bin_size : int or None
+            Bin size or None.
+        signal : str
+            Signal name.
+        flags : int
+            Binary flag
+            (FLAG_AUTO = 0x0001, FLAG_SEX = 0x0002, FLAG_MT = 0x0004, FLAG_GC_CORR = 0x0010
+            FLAG_AT_CORR = 0x0020, FLAG_USEMASK = 0x0100, FLAG_USEID = 0x0200, FLAG_USEHAP = 0x0400).
+
+        Returns
+        -------
+        chrs_bss : list of (str, int)
+            List of tuples (chromosome name, bin size).
+
+        """
+        search_string = "^" + self.signal_name("(.*)", 17110806, signal, flags) + "$"
+        search_string = search_string.replace("17110806", "(.[0-9]*)")
+        chrs_bss = []
+        for key in self.file.keys():
+            res = re.findall(search_string, key)
+            if len(res) > 0:
+                chrs_bss.append(res[0])
+        return chrs_bss
 
     def signal_name(self, chr_name, bin_size, signal, flags=0):
         """
@@ -391,8 +439,53 @@ class IO:
         None
 
         """
-        print("Filename '%s':" % self.filename)
-        print(", ".join(self.file.keys()))
+        print()
+        print("Filename '%s'" % self.filename)
+        print("-----------" + "-" * len(self.filename))
+        print("Chromosomes with RD signal: " + ", ".join(self.rd_chromosomes()))
+        print()
+        print("Chromosomes with SNP signal: " + ", ".join(self.snp_chromosomes()))
+        print()
+        if self.signal_exists(None, None, "reference genome") and self.signal_exists(None, None, "use reference"):
+            rg_name = np.array(self.get_signal(None, None, "reference genome")).astype("str")[0]
+            print("Using reference genome: " + rg_name + " [ ", end='')
+            if rg_name in Genome.reference_genomes:
+                rg_use = self.get_signal(None, None, "use reference")
+                if "gc_file" in Genome.reference_genomes[rg_name] and rg_use[0] == 1:
+                    print("GC: yes, ", end='')
+                else:
+                    print("GC: no, ", end='')
+                if "mask_file" in Genome.reference_genomes[rg_name] and rg_use[1] == 1:
+                    print("mask: yes ]")
+                else:
+                    print("mask: no ]")
+        else:
+            print("Reference genome is not set.")
+        print()
+
+        chr_bs = self.chromosomes_bin_sizes_with_signal("RD")
+        chrs = {}
+        bss = []
+        for c, b in chr_bs:
+            if c not in chrs:
+                chrs[c] = []
+            chrs[c].append(int(b))
+            if int(b) not in bss:
+                bss.append(int(b))
+
+        print("Chromosomes with RD histograms [bin sizes]: " + ", ".join(chrs.keys()) + " " + str(sorted(bss)))
+        print()
+        chr_bs = self.chromosomes_bin_sizes_with_signal("SNP bin count")
+        chrs = {}
+        bss = []
+        for c, b in chr_bs:
+            if c not in chrs:
+                chrs[c] = []
+            chrs[c].append(int(b))
+            if int(b) not in bss:
+                bss.append(int(b))
+
+        print("Chromosomes with SNP histograms [bin sizes]: " + ", ".join(chrs.keys()) + " " + str(sorted(bss)))
         print()
 
     @staticmethod
@@ -499,7 +592,7 @@ class IO:
             else:
                 _logger.info(
                     "Detecting RD data in file '%s' for the same chromosome with different name '%s'. RD name will be used." % (
-                    self.filename, rd_name))
+                        self.filename, rd_name))
                 chr_name = rd_name
         self.create_signal(chr_name, None, "SNP pos", snp_pos)
         self.create_signal(chr_name, None, "SNP desc", snp_desc)

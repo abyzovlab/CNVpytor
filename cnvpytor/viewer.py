@@ -2,6 +2,7 @@
 
 Class Viewer: ploting CNVpytor data
 """
+from __future__ import absolute_import, print_function, division
 
 from .io import *
 from .utils import *
@@ -10,48 +11,46 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import numpy as np
 import logging
+import readline
+import traceback
 
 _logger = logging.getLogger("cnvpytor.viewer")
 
 
 class Viewer:
-    def __init__(self, files, plot_file):
-        _logger.debug("Viewer class init: files [%s], png_prefix '%s'." % (", ".join(files), plot_file))
-        self.io = [IO(f) for f in files]
-        self.plot_file = plot_file
-        self.set_style('seaborn-deep')
+    def __init__(self, files, output_filename):
+        _logger.debug("Viewer class init: files [%s], png_prefix '%s'." % (", ".join(files), output_filename))
+        self.io = [IO(f, ro=True) for f in files]
+        self.output_filename = output_filename
+        self.set_style('classic')
         self.io_gc = self.io[0]
         self.io_mask = self.io[0]
         self.reference_genome = None
+        self.interactive = False
+        self.plot_files = [True for i in files]
+        self.fig = None
+        self.xkcd = False
+        self.grid = "auto"
+        self.plot_file = 0
+        self.baf_colors = {(0, 0): "yellow", (0, 1): "orange", (1, 0): "cyan", (1, 1): "blue", (2, 0): "lime",
+                           (2, 1): "green", (3, 0): "yellow", (3, 1): "orange"}
         if self.io[0].signal_exists(None, None, "reference genome"):
             rg_name = np.array(self.io[0].get_signal(None, None, "reference genome")).astype("str")[0]
             self.reference_genome = Genome.reference_genomes[rg_name]
             if "mask_file" in Genome.reference_genomes[rg_name]:
-                self.io_mask = IO(Genome.reference_genomes[rg_name]["mask_file"])
+                self.io_mask = IO(Genome.reference_genomes[rg_name]["mask_file"], ro=True, buffer=True)
             if "gc_file" in Genome.reference_genomes[rg_name]:
-                self.io_gc = IO(Genome.reference_genomes[rg_name]["gc_file"])
+                self.io_gc = IO(Genome.reference_genomes[rg_name]["gc_file"], ro=True, buffer=True)
 
-    @staticmethod
-    def set_style(style):
-        if style in plt.style.available:
-            plt.style.use(style)
-
-    def image_filename(self, sufix):
-        parts = self.plot_file.split(".")
-        if parts[-1] != "png" and parts[-1] != "pdf" and parts[-1] != "jpg" and parts[-1] != "eps" and parts[
-            -1] != "svg":
-            _logger.warning("File extension should be: .jpg, .png, .svg, .eps or .pdf")
-            exit(0)
-        parts[-1] = sufix + "." + parts[-1]
-        return ".".join(parts)
-
-    def parse(self, args):
-        current = "gview"
+    def parse(self, command, args):
+        current = "regions"
         regions = []
-        for p in args.plot:
+        for p in command:
             if p.isdigit() and (int(p) % 100) == 0:
-                if current == "gview":
-                    self.gview(int(p), args.use_mask_with_rd)
+                if current == "rd":
+                    self.rd(int(p), args.use_mask_with_rd)
+                if current == "likelihood":
+                    self.likelihood(int(p))
                 elif current == "manhattan":
                     self.manhattan(int(p), args.use_mask_with_rd)
                 elif current == "stat":
@@ -63,12 +62,151 @@ class Viewer:
                 self.stat()
             elif p == "baf":
                 self.baf()
+            elif p in ["rd", "manhattan", "stat", "regions", "likelihood"]:
+                current = p
             elif current == "regions":
                 regions.append(p)
             else:
                 current = p
 
+    def plot(self, args):
+        self.interactive = False
+        self.parse(args.plot, args)
+
+    def prompt(self, bin_size, args):
+        self.interactive = True
+        command_tree = {"set": {"bin_size": None,
+                                "panels": None,
+                                "use_mask_rd": None,
+                                "plot_files": None,
+                                "plot_file": None,
+                                "grid": None,
+                                "xkcd": None,
+                                "style": {}
+                                },
+                        "unset": {"use_mask_rd": None,
+                                  "xkcd": None
+                                  },
+                        "save": None, "show": None, "quit": None, "rd": None, "likelihood": None, "baf": None,
+                        "stat": None, "rdstat": None,
+                        }
+        chromosomes = set({})
+        for f in self.io:
+            chromosomes = chromosomes.union(set(f.rd_chromosomes()))
+            chromosomes = chromosomes.union(set(f.snp_chromosomes()))
+        for c in chromosomes:
+            command_tree[c] = None
+        command_tree["set"]["style"] = dict(zip(plt.style.available, [None] * len(plt.style.available)))
+        readline.parse_and_bind("tab: complete")
+        completer = PromptCompleter(command_tree)
+        readline.set_completer(completer.complete)
+        quit = False
+        try:
+            while not quit:
+                try:
+                    line = raw_input("cnvpytor> ")
+                except NameError:
+                    line = input("cnvpytor> ")
+
+                pre = line.split(">")
+                f = pre[0].strip().split(" ")
+                n = len(f)
+                if len(line) == 0:
+                    continue
+                elif f[0] == "quit":
+                    quit = True
+                elif line[0] == "|":
+                    try:
+                        eval(compile(line[1:], '<string>', 'single'))
+                    except Exception as e:
+                        print(traceback.format_exc())
+                elif f[0] == "save" and n > 1:
+                    plt.savefig(f[1])
+                elif f[0] in ["draw", "repaint", "update"] and n == 1:
+                    self.fig.canvas.draw()
+                elif f[0] == "show":
+                    if n == 1:
+                        print("    Parameters")
+                        print("        * bin_size:", bin_size)
+                        print("        * panels:", args.panels)
+                        print("        * use_mask_rd:", args.use_mask_with_rd)
+                        print("        * plot_files:", list(zip(map(lambda x: x.filename, self.io), self.plot_files)))
+                        print("        * plot_file:", self.plot_file)
+                        print("        * grid:", self.grid)
+                        print("    Available plot styles:", ", ".join(plt.style.available))
+                elif f[0] == "set":
+                    if n > 2 and f[1] == "bin_size":
+                        try:
+                            bin_size = binsize_type(f[2])
+                        except (ArgumentTypeError, ValueError):
+                            _logger.warning("bin_size should be intiger divisible by 100")
+                    elif n > 3 and f[1] == "grid" and f[2].isdigit() and f[3].isdigit():
+                        self.grid = (int(f[2]), int(f[3]))
+                    elif n > 2 and f[1] == "plot_file" and f[2].isdigit() and int(f[2]) < len(self.io):
+                        self.plot_file = int(f[2])
+                    elif n > 2 and f[1] == "plot_files":
+                        select = [int(i) for i in f[2:] if i.isdigit()]
+                        self.plot_files = list([ix in select for ix in range(len(self.io))])
+                    elif n > 2 and f[1] == "panels":
+                        args.panels = f[2:]
+                    elif n > 2 and f[1] == "style":
+                        self.set_style(f[2])
+                        if self.fig:
+                            self.fig.canvas.draw()
+                    elif n > 1 and f[1] == "use_mask_rd":
+                        args.use_mask_with_rd = True
+                    elif n > 1 and f[1] == "xkcd":
+                        self.set_style("classic")
+                        from matplotlib import patheffects
+                        plt.xkcd()
+                        plt.rcParams["path.effects"] = [patheffects.withStroke(linewidth=0.5, foreground="w")]
+                        self.xkcd = True
+                    else:
+                        print("Unrecognized set argument!")
+                elif f[0] == "unset":
+                    if n > 1 and f[1] == "use_mask_rd":
+                        args.use_mask_with_rd = False
+                    elif n > 1 and f[1] == "xkcd" and self.xkcd:
+                        plt.rcdefaults()
+                        self.set_style('classic')
+                        self.xkcd = False
+
+                    else:
+                        print("Unrecognized unset argument!")
+                else:
+
+                    try:
+                        if f[0] not in ["rdstat", "baf"]:
+                            self.parse(f + [str(bin_size)], args)
+                        else:
+                            self.parse(f, args)
+                        if len(pre) > 1:
+                            fns = pre[1].strip().split(" ")
+                            if fns[0] != "":
+                                plt.savefig(fns[0], dpi=200)
+                    except Exception as e:
+                        print(traceback.format_exc())
+        except (EOFError, KeyboardInterrupt):
+            print()
+            return
+
+    @staticmethod
+    def set_style(style):
+        if style in plt.style.available:
+            plt.style.use("default")
+            plt.style.use(style)
+
+    def image_filename(self, sufix):
+        parts = self.output_filename.split(".")
+        if parts[-1] != "png" and parts[-1] != "pdf" and parts[-1] != "jpg" and parts[-1] != "eps" and parts[
+            -1] != "svg":
+            _logger.warning("File extension should be: .jpg, .png, .svg, .eps or .pdf")
+            exit(0)
+        parts[-1] = sufix + "." + parts[-1]
+        return ".".join(parts)
+
     def stat(self, his_bin_size=100):
+        plt.clf()
         auto = self.io[0].signal_exists(None, his_bin_size, "RD stat", FLAG_AUTO)
         sex = self.io[0].signal_exists(None, his_bin_size, "RD stat", FLAG_SEX)
         mt = self.io[0].signal_exists(None, his_bin_size, "RD stat", FLAG_MT) and (his_bin_size < 1001)
@@ -79,7 +217,7 @@ class Viewer:
         n_cols = sum(map(int, cond))
         ix = 1
         plt.rcParams["font.size"] = 8
-        fig = plt.figure(1, figsize=(4 * n_cols, 8), dpi=90, facecolor='w', edgecolor='k')
+        self.fig = plt.figure(1, figsize=(4 * n_cols, 8), dpi=90, facecolor='w', edgecolor='k')
         for t, c, flag in zip(["Autosomes", "X/Y", "Mitochondria"], cond, [FLAG_AUTO, FLAG_SEX, FLAG_MT]):
             if c:
                 stat = self.io[0].get_signal(None, his_bin_size, "RD stat", flag)
@@ -120,39 +258,42 @@ class Viewer:
                 plt.plot(x[:len(his_p)], his_p / stat[3], "b*")
                 ix += 1
         plt.subplots_adjust(bottom=0.08, top=0.95, wspace=0.25, hspace=0, left=0.05 * 3 / n_cols, right=0.95)
-        if self.plot_file != "":
-
+        if self.output_filename != "":
             plt.savefig(self.image_filename("stat"), dpi=150)
-            plt.close(fig)
+            plt.close(self.fig)
+        elif self.interactive:
+            plt.show(block=False)
+            plt.draw()
         else:
             plt.show()
 
-    def gview(self, bin_size, use_mask):
+    def rd(self, bin_size, use_mask):
+        plt.clf()
         if self.reference_genome is None:
             _logger.warning("Missing reference genome required for gview.")
             return
         plt.rcParams["font.size"] = 8
-        fig = plt.figure(1, figsize=(12, 8), dpi=90, facecolor='w', edgecolor='k')
         chroms = []
         for c, (l, t) in self.reference_genome["chromosomes"].items():
-            rd_chr = self.io[0].rd_chromosome_name(c)
-            if self.io[0].signal_exists(rd_chr, bin_size, "RD", 0) and \
-                    self.io[0].signal_exists(rd_chr, bin_size, "RD", FLAG_GC_CORR) and \
+            rd_chr = self.io[self.plot_file].rd_chromosome_name(c)
+            if self.io[self.plot_file].signal_exists(rd_chr, bin_size, "RD", 0) and \
+                    self.io[self.plot_file].signal_exists(rd_chr, bin_size, "RD", FLAG_GC_CORR) and \
                     (Genome.is_autosome(c) or Genome.is_sex_chrom(c)):
                 chroms.append((rd_chr, l))
         sx, sy = self.panels_shape(len(chroms))
+        self.fig = plt.figure(1, figsize=(sx, sy), dpi=200, facecolor='w', edgecolor='k')
         ix = 1
         for c, l in chroms:
             flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
-            stat = self.io[0].get_signal(None, bin_size, "RD stat", flag)
+            stat = self.io[self.plot_file].get_signal(None, bin_size, "RD stat", flag)
             if stat is None:
-                _logger.error("Data for bin size %d is missing in file '%s'!" % (bin_size, self.io[0].filename))
+                _logger.error("Data for bin size %d is missing in file '%s'!" % (bin_size, self.io[self.plot_file].filename))
                 exit(0)
             flag_rd = 0
             if use_mask:
                 flag_rd = FLAG_USEMASK
-            his_p = self.io[0].get_signal(c, bin_size, "RD", flag_rd)
-            his_p_corr = self.io[0].get_signal(c, bin_size, "RD", flag_rd | FLAG_GC_CORR)
+            his_p = self.io[self.plot_file].get_signal(c, bin_size, "RD", flag_rd)
+            his_p_corr = self.io[self.plot_file].get_signal(c, bin_size, "RD", flag_rd | FLAG_GC_CORR)
             ax = plt.subplot(sx, sy, ix)
             ax.set_title(c, position=(0.01, 0.9), fontdict={'verticalalignment': 'top', 'horizontalalignment': 'left'},
                          color='C0')
@@ -169,40 +310,85 @@ class Viewer:
             plt.step(his_p_corr, "k")
             ix += 1
         plt.subplots_adjust(bottom=0., top=1., wspace=0, hspace=0, left=0., right=1.)
-        if self.plot_file != "":
+        if self.output_filename != "":
             plt.savefig(self.image_filename("gview"), dpi=150)
-            plt.close(fig)
+            plt.close(self.fig)
+        elif self.interactive:
+            plt.show(block=False)
+            plt.draw()
+        else:
+            plt.show()
+
+    def likelihood(self, bin_size):
+        plt.clf()
+        if self.reference_genome is None:
+            _logger.warning("Missing reference genome required for gview.")
+            return
+        plt.rcParams["font.size"] = 8
+        chroms = []
+        if self.reference_genome is None:
+            chroms = self.io[self.plot_file].snp_chromosomes()
+        else:
+            for c, (l, t) in self.reference_genome["chromosomes"].items():
+                snp_chr = self.io[self.plot_file].snp_chromosome_name(c)
+                if self.io[self.plot_file].signal_exists(snp_chr, bin_size, "SNP likelihood") and (
+                        Genome.is_autosome(c) or Genome.is_sex_chrom(c)):
+                    chroms.append(snp_chr)
+        sx, sy = self.panels_shape(len(chroms))
+        self.fig = plt.figure(1, figsize=(sx, sy), dpi=200, facecolor='w', edgecolor='k')
+        ix = 1
+        for c in chroms:
+            likelihood = self.io[self.plot_file].get_signal(c, bin_size, "SNP likelihood")
+            img = np.array(likelihood).transpose()
+            ax = plt.subplot(sx, sy, ix)
+            ax.set_title(c, position=(0.01, 0.9), fontdict={'verticalalignment': 'top', 'horizontalalignment': 'left'},
+                         color='C0')
+            ax.imshow(img, aspect='auto')
+            ax.xaxis.set_ticklabels([])
+            ax.yaxis.set_ticklabels([])
+            ax.xaxis.set_ticks(np.arange(0, likelihood.shape[0], 50), [])
+            ix += 1
+        plt.subplots_adjust(bottom=0., top=1., wspace=0, hspace=0, left=0., right=1.)
+        if self.output_filename != "":
+            plt.savefig(self.image_filename("gview"), dpi=150)
+            plt.close(self.fig)
+        elif self.interactive:
+            plt.show(block=False)
+            plt.draw()
         else:
             plt.show()
 
     def baf(self):
+        plt.clf()
         plt.rcParams["font.size"] = 8
-        fig = plt.figure(1, figsize=(12, 8), dpi=90, facecolor='w', edgecolor='k')
+        self.fig = plt.figure(1, figsize=(12, 8), dpi=90, facecolor='w', edgecolor='k')
         chroms = []
         if self.reference_genome is None:
-            chroms = self.io[0].snp_chromosomes()
+            chroms = self.io[self.plot_file].snp_chromosomes()
         else:
             for c, (l, t) in self.reference_genome["chromosomes"].items():
-                snp_chr = self.io[0].snp_chromosome_name(c)
-                if self.io[0].signal_exists(snp_chr, None, "SNP pos", 0) and \
-                        self.io[0].signal_exists(snp_chr, None, "SNP desc", 0) and \
-                        self.io[0].signal_exists(snp_chr, None, "SNP counts", 0) and \
-                        self.io[0].signal_exists(snp_chr, None, "SNP qual", 0) and \
+                snp_chr = self.io[self.plot_file].snp_chromosome_name(c)
+                if self.io[self.plot_file].signal_exists(snp_chr, None, "SNP pos", 0) and \
+                        self.io[self.plot_file].signal_exists(snp_chr, None, "SNP desc", 0) and \
+                        self.io[self.plot_file].signal_exists(snp_chr, None, "SNP counts", 0) and \
+                        self.io[self.plot_file].signal_exists(snp_chr, None, "SNP qual", 0) and \
                         (Genome.is_autosome(c) or Genome.is_sex_chrom(c)):
                     chroms.append(snp_chr)
         sx, sy = self.panels_shape(len(chroms))
         ix = 1
         for c in chroms:
-            pos, ref, alt, nref, nalt, gt, flag, qual = self.io[0].read_snp(c)
+            pos, ref, alt, nref, nalt, gt, flag, qual = self.io[self.plot_file].read_snp(c)
             hpos = []
             baf = []
+            color = []
             for i in range(len(pos)):
-                if (gt[i] == 1 or gt[i] == 5 or gt[i] == 6) and (nref[i] + nalt[i]) != 0:
+                if (nref[i] + nalt[i]) != 0:
                     hpos.append(pos[i])
-                    if gt[i] % 4 == 1:
+                    if gt[i] % 4 != 2:
                         baf.append(1.0 * nalt[i] / (nref[i] + nalt[i]))
                     else:
                         baf.append(1.0 * nref[i] / (nref[i] + nalt[i]))
+                    color.append(self.baf_colors[(gt[i] % 4, flag[i] >> 1)])
 
             ax = plt.subplot(sx, sy, ix)
 
@@ -216,12 +402,15 @@ class Viewer:
             ax.set_ylim([0., 1.])
             ax.set_xlim([-0.05 * l, 1.05 * l])
             ax.grid()
-            plt.scatter(hpos, baf, marker='.', c=['k' if f // 2 else 'y' for f in flag], s=1.5, alpha=1)
+            plt.scatter(hpos, baf, marker='.', c=color, s=1.5, alpha=1)
             ix += 1
         plt.subplots_adjust(bottom=0., top=1., wspace=0, hspace=0, left=0., right=1.)
-        if self.plot_file != "":
+        if self.output_filename != "":
             plt.savefig(self.image_filename("gview"), dpi=150)
-            plt.close(fig)
+            plt.close(self.fig)
+        elif self.interactive:
+            plt.show(block=False)
+            plt.draw()
         else:
             plt.show()
 
@@ -249,15 +438,16 @@ class Viewer:
                 sy = int(2. * sx / 3 + 1.)
         return sx, sy
 
-    def manhattan(self, bin_size, use_mask):
+    def manhattan(self, bin_size, use_mask=False):
+        plt.clf()
         if self.reference_genome is None:
             _logger.warning("Missing reference genome required for gview.")
             return
         chroms = []
         for c, (l, t) in self.reference_genome["chromosomes"].items():
-            rd_chr = self.io[0].rd_chromosome_name(c)
-            if self.io[0].signal_exists(rd_chr, bin_size, "RD", 0) and \
-                    self.io[0].signal_exists(rd_chr, bin_size, "RD", FLAG_GC_CORR) and \
+            rd_chr = self.io[self.plot_file].rd_chromosome_name(c)
+            if self.io[self.plot_file].signal_exists(rd_chr, bin_size, "RD", 0) and \
+                    self.io[self.plot_file].signal_exists(rd_chr, bin_size, "RD", FLAG_GC_CORR) and \
                     (Genome.is_autosome(c) or Genome.is_sex_chrom(c)):
                 chroms.append((rd_chr, l))
 
@@ -266,19 +456,19 @@ class Viewer:
         xticks = [0]
 
         plt.rcParams["font.size"] = 8
-        fig = plt.figure(1, figsize=(12, 4), dpi=90, facecolor='w', edgecolor='k')
+        self.fig = plt.figure(1, figsize=(12, 4), dpi=90, facecolor='w', edgecolor='k')
         ax = plt.gca()
         max_m = 0
         for c, l in chroms:
             flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
-            stat = self.io[0].get_signal(None, bin_size, "RD stat", flag)
+            stat = self.io[self.plot_file].get_signal(None, bin_size, "RD stat", flag)
             if stat[4] > max_m:
                 max_m = stat[4]
             flag_rd = 0
             if use_mask:
                 flag_rd = FLAG_USEMASK
-            his_p = self.io[0].get_signal(c, bin_size, "RD", flag_rd)
-            his_p_corr = self.io[0].get_signal(c, bin_size, "RD", flag_rd | FLAG_GC_CORR)
+            his_p = self.io[self.plot_file].get_signal(c, bin_size, "RD", flag_rd)
+            his_p_corr = self.io[self.plot_file].get_signal(c, bin_size, "RD", flag_rd | FLAG_GC_CORR)
             pos = range(apos, apos + len(his_p))
             ax.text(apos + len(his_p) // 2, stat[4] // 10, Genome.canonical_chrom_name(c),
                     fontsize=12, verticalalignment='bottom', horizontalalignment='center', )
@@ -296,37 +486,45 @@ class Viewer:
         ax.grid()
         plt.subplots_adjust(bottom=0.05, top=0.95, wspace=0, hspace=0, left=0.05, right=0.95)
 
-        if self.plot_file != "":
+        if self.output_filename != "":
             plt.savefig(self.image_filename("manhattan"), dpi=150)
-            plt.close(fig)
+            plt.close(self.fig)
+        elif self.interactive:
+            plt.show(block=False)
+            plt.draw()
         else:
             plt.show()
 
     def regions(self, bin_size, regions, panels=["rd"], use_mask_rd=False, sep_color="g"):
+        plt.clf()
         plt.rcParams["font.size"] = 8
-        fig = plt.figure(1, figsize=(12, 8), dpi=90, facecolor='w', edgecolor='k')
+        self.fig = plt.figure(1, figsize=(12, 8), facecolor='w', edgecolor='k')
         grid = gridspec.GridSpec(len(self.io), len(regions), wspace=0.2, hspace=0.2)
         ix = 0
         for i in self.io:
             for r in regions:
-                self.region(i, fig, grid[ix], bin_size, r, panels=panels, use_mask_rd=use_mask_rd, sep_color=sep_color)
+                self.region(i, grid[ix], bin_size, r, panels=panels, use_mask_rd=use_mask_rd, sep_color=sep_color)
                 ix += 1
         plt.subplots_adjust(bottom=0.05, top=0.95, wspace=0, hspace=0, left=0.05, right=0.95)
 
-        if self.plot_file != "":
+        if self.output_filename != "":
             plt.savefig(self.image_filename("regions"), dpi=150)
-            plt.close(fig)
+            plt.close(self.fig)
+        elif self.interactive:
+            plt.show(block=False)
+            plt.draw()
         else:
             plt.show()
 
-    def region(self, io, fig, element, bin_size, region, panels=["rd"], use_mask_rd=False, sep_color="g"):
+    def region(self, io, element, bin_size, region, panels=["rd"], use_mask_rd=False, sep_color="g"):
         grid = gridspec.GridSpecFromSubplotSpec(len(panels), 1, subplot_spec=element, wspace=0, hspace=0.1)
         r = decode_region(region)
         for i in range(len(panels)):
-            ax = fig.add_subplot(grid[i])
-            if i==0:
-                ax.set_title(io.filename+": "+region, position=(0.01, 0.9), fontdict={'verticalalignment': 'top', 'horizontalalignment': 'left'},
-                         color='C0')
+            ax = self.fig.add_subplot(grid[i])
+            if i == 0:
+                ax.set_title(io.filename + ": " + region, position=(0.01, 0.9),
+                             fontdict={'verticalalignment': 'top', 'horizontalalignment': 'left'},
+                             color='C0')
             g_p = []
             g_p_corr = []
             if panels[i] == "rd":
@@ -342,25 +540,26 @@ class Viewer:
                     stdev = stat[5]
                     his_p = io.get_signal(c, bin_size, "RD", flag_rd)
                     his_p_corr = io.get_signal(c, bin_size, "RD", flag_rd | FLAG_GC_CORR)
-                    start_bin = (pos1 - 1) / bin_size
-                    end_bin = pos2 / bin_size
+                    start_bin = (pos1 - 1) // bin_size
+                    end_bin = pos2 // bin_size
                     g_p.extend(list(his_p[start_bin:end_bin]))
                     g_p_corr.extend(list(his_p_corr[start_bin:end_bin]))
                     borders.append(len(g_p))
 
-                ax.xaxis.set_ticklabels([])
+                # ax.xaxis.set_ticklabels([])
                 ax.yaxis.set_ticklabels([])
-                ax.yaxis.set_ticks(np.arange(0, 3, 0.5) * mean, [])
                 l = len(g_p)
-                ax.xaxis.set_ticks(np.arange(0, l, 10), [])
+                # ax.xaxis.set_ticks(np.arange(0, l, 10), [])
+                ax.yaxis.set_ticks(np.arange(0, 3, 0.5) * mean, [])
                 ax.set_ylim([0, max(3. * mean, mean + 5. * stdev)])
                 ax.set_xlim([-l * 0.0, l * 1.0])
-                ax.grid()
+
+                ax.yaxis.grid()
                 ax.step(g_p, "grey")
                 ax.step(g_p_corr, "k")
                 for i in borders[:-1]:
                     ax.axvline(i, color=sep_color, lw=1)
-                fig.add_subplot(ax)
+                self.fig.add_subplot(ax)
             elif panels[i] == "baf":
                 borders = []
                 hpos = []
@@ -370,16 +569,14 @@ class Viewer:
                 for c, (pos1, pos2) in r:
                     pos, ref, alt, nref, nalt, gt, flag, qual = io.read_snp(c)
                     ix = 0
-                    last_hpos = -1
                     while ix < len(pos) and pos[ix] <= pos2:
-                        if pos[ix] >= pos1 and (gt[ix] == 1 or gt[ix] == 5 or gt[ix] == 6) and (nref[ix] + nalt[ix]) != 0:
+                        if pos[ix] >= pos1 and (nref[ix] + nalt[ix]) != 0:
                             hpos.append(start_pos + pos[ix] - pos1)
-                            last_hpos = start_pos + pos[ix] - pos1
-                            if gt[i] % 4 == 1:
+                            if gt[ix] % 4 != 2:
                                 baf.append(1.0 * nalt[ix] / (nref[ix] + nalt[ix]))
                             else:
                                 baf.append(1.0 * nref[ix] / (nref[ix] + nalt[ix]))
-                            color.append('k' if flag[i] // 2 else 'y')
+                            color.append(self.baf_colors[(gt[ix] % 4, flag[ix] >> 1)])
                         ix += 1
                     start_pos += pos2 - pos1
                     borders.append(start_pos)
@@ -391,20 +588,20 @@ class Viewer:
                 # ax.xaxis.set_ticks(np.arange(0, (l + 10e6), 10e6), [])
                 ax.set_ylim([0., 1.])
                 ax.set_xlim([0, borders[-1]])
-                ax.grid()
-                ax.scatter(hpos, baf, marker='.', c=['k' if f // 2 else 'y' for f in flag], s=1.5, alpha=1)
+                ax.yaxis.grid()
+                ax.scatter(hpos, baf, marker='.', c=color, s=1.5, alpha=1)
 
                 for i in borders[:-1]:
                     ax.axvline(i, color=sep_color, lw=1)
-                fig.add_subplot(ax)
+                self.fig.add_subplot(ax)
 
             elif panels[i] == "likelihood":
                 borders = []
                 gl = []
                 for c, (pos1, pos2) in r:
                     likelihood = io.get_signal(c, bin_size, "SNP likelihood")
-                    start_bin = (pos1 - 1) / bin_size
-                    end_bin = pos2 / bin_size
+                    start_bin = (pos1 - 1) // bin_size
+                    end_bin = pos2 // bin_size
                     gl.extend(list(likelihood[start_bin:end_bin]))
                     borders.append(len(gl))
                 img = np.array(gl).transpose()
@@ -415,4 +612,4 @@ class Viewer:
 
                 for i in borders[:-1]:
                     ax.axvline(i, color=sep_color, lw=1)
-                fig.add_subplot(ax)
+                self.fig.add_subplot(ax)

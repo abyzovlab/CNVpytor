@@ -9,6 +9,7 @@ from argparse import ArgumentTypeError
 from scipy.stats import norm
 from scipy.optimize import curve_fit
 import logging
+import readline
 
 _logger = logging.getLogger("cnvpytor.utils")
 
@@ -203,7 +204,7 @@ def normal_overlap(m1, s1, m2, s2):
         roots[0], m2, s2)
 
 
-def normal_merge((m1, s1), (m2, s2)):
+def normal_merge(m1, s1, m2, s2):
     if s1 == 0 and s2 == 0:
         return 0.5 * (m1 + m2), 0
     else:
@@ -278,6 +279,7 @@ def beta(k, m, p, phased=False):
     else:
         return 1.0 * p ** k * (1. - p) ** m + 1.0 * p ** m * (1. - p) ** k
 
+
 def decode_position(s):
     """
 
@@ -289,7 +291,8 @@ def decode_position(s):
     -------
     str
     """
-    return int(s.replace("K","000").replace("k","000").replace("M","000000").replace("m","000000"))
+    return int(s.replace("K", "000").replace("k", "000").replace("M", "000000").replace("m", "000000"))
+
 
 def decode_region(s):
     """
@@ -303,10 +306,44 @@ def decode_region(s):
     list of tuples
 
     """
-    regs=s.split(",")
-    ret=[]
+    regs = s.split(",")
+    ret = []
     for r in regs:
-        chr_interval=r.split(":")
-        begin_end=chr_interval[1].split("-")
-        ret.append((chr_interval[0],(decode_position(begin_end[0]),decode_position(begin_end[1]))))
+        chr_interval = r.split(":")
+        begin_end = chr_interval[1].split("-")
+        ret.append((chr_interval[0], (decode_position(begin_end[0]), decode_position(begin_end[1]))))
     return ret
+
+
+class PromptCompleter:
+    def __init__(self, command_tree):
+        """
+        Initialize completer class for GNU readline tab comleter.
+
+        Parameters
+        ----------
+        command_tree : dictionary
+            Example: command_tree = {"comannd1":None,"command2":{"subcommand2.1":None,subcommand2.1:None}}
+
+        """
+        self.command_tree = command_tree
+
+    def _traverse(self, tokens, tree):
+        if tree is None or len(tokens)==0:
+            return []
+        if len(tokens) == 1:
+            return [x + ' ' for x in tree if x.startswith(tokens[0])]
+        else:
+            if tokens[0] in tree.keys():
+                return self._traverse(tokens[1:], tree[tokens[0]])
+        return []
+
+    def complete(self, text, state):
+        try:
+            tokens = readline.get_line_buffer().split()
+            if not tokens or readline.get_line_buffer()[-1] == ' ':
+                tokens.append("")
+            results = self._traverse(tokens, self.command_tree) + [None]
+            return results[state]
+        except Exception as e:
+            print(e)

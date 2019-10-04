@@ -38,10 +38,10 @@ class Root:
                 rg_use = self.io.get_signal(None, None, "use reference")
                 if "gc_file" in Genome.reference_genomes[rg_name] and rg_use[0] == 1:
                     _logger.debug("Using GC content from database for reference genome '%s'." % rg_name)
-                    self.io_gc = IO(Genome.reference_genomes[rg_name]["gc_file"])
+                    self.io_gc = IO(Genome.reference_genomes[rg_name]["gc_file"], ro=True, buffer=True)
                 if "mask_file" in Genome.reference_genomes[rg_name] and rg_use[1] == 1:
                     _logger.debug("Using strict mask from database for reference genome '%s'." % rg_name)
-                    self.io_mask = IO(Genome.reference_genomes[rg_name]["mask_file"])
+                    self.io_mask = IO(Genome.reference_genomes[rg_name]["mask_file"], ro=True, buffer=True)
 
     def read_bam(self, bf, chroms):
         bamf = Bam(bf)
