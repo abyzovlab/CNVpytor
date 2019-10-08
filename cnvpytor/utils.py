@@ -280,6 +280,54 @@ def beta(k, m, p, phased=False):
         return 1.0 * p ** k * (1. - p) ** m + 1.0 * p ** m * (1. - p) ** k
 
 
+def log_beta(k, m, p, phased=False):
+    """
+    Returns logarithm of likelihood beta function f(p) where 0 <= p <= 1.
+    Function is not normalized.
+
+    Parameters
+    ----------
+    k : int
+        Number of haplotype 1 reads.
+    m : int
+        Number of haplotype 2 reads.
+    p : float
+        Parameter.
+    phased : bool
+        Likelihood will be symmetrised if not phased.
+
+    Returns
+    -------
+    f : float
+        Value od likelihood function,.
+
+    """
+    if k == m or phased:
+        return np.log(1.0 * p ** k * (1. - p) ** m)
+    else:
+        return np.log(1.0 * p ** k * (1. - p) ** m + 1.0 * p ** m * (1. - p) ** k)
+
+
+def likelihood_overlap(lk1, lk2):
+    """
+    Returns overlap area of two likelihood functions.
+
+    Parameters
+    ----------
+    lk1 : numpy.ndarray
+        First likelihood function.
+    lk2 : numpy.ndarray
+        Second likelihood function.
+
+    Returns
+    -------
+    overlap : float
+        Overlap area.
+
+    """
+    return np.sum(np.min((lk1, lk2), axis=0))
+
+
 def decode_position(s):
     """
 
@@ -329,7 +377,7 @@ class PromptCompleter:
         self.command_tree = command_tree
 
     def _traverse(self, tokens, tree):
-        if tree is None or len(tokens)==0:
+        if tree is None or len(tokens) == 0:
             return []
         if len(tokens) == 1:
             return [x + ' ' for x in tree if x.startswith(tokens[0])]

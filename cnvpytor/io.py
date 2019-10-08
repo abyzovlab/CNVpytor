@@ -50,6 +50,7 @@ class IO:
         "SNP counts": "%(chr)s_snp_counts",
         "SNP qual": "%(chr)s_snp_qual",
         "SNP bin count": "snp_bafc_%(chr)s_%(bin_size)d%(snp_flag)s",
+        "SNP bin hets": "snp_bafc_%(chr)s_%(bin_size)d%(snp_flag)s",
         "SNP bin count h1": "snp_bafc_h1_%(chr)s_%(bin_size)d%(snp_flag)s",
         "SNP bin count h2": "snp_bafc_h2_%(chr)s_%(bin_size)d%(snp_flag)s",
         "SNP baf": "snp_baf_%(chr)s_%(bin_size)d%(snp_flag)s",
@@ -219,7 +220,7 @@ class IO:
             List of chromosome names.
 
         """
-        search_string = "^" + self.signal_name("(.*)", bin_size, signal, flags) + "$"
+        search_string = "^" + self.signal_name("(.[^_]*)", bin_size, signal, flags) + "$"
         chrs = []
         for key in self.file.keys():
             res = re.findall(search_string, key)
@@ -248,7 +249,7 @@ class IO:
             List of tuples (chromosome name, bin size).
 
         """
-        search_string = "^" + self.signal_name("(.*)", 17110806, signal, flags) + "$"
+        search_string = "^" + self.signal_name("(.[^_]*)", 17110806, signal, flags) + "$"
         search_string = search_string.replace("17110806", "(.[0-9]*)")
         chrs_bss = []
         for key in self.file.keys():

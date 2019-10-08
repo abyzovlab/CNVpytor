@@ -32,6 +32,8 @@ class Viewer:
         self.xkcd = False
         self.grid = "auto"
         self.plot_file = 0
+        self.use_mask = True
+        self.use_id = False
         self.baf_colors = {(0, 0): "yellow", (0, 1): "orange", (1, 0): "cyan", (1, 1): "blue", (2, 0): "lime",
                            (2, 1): "green", (3, 0): "yellow", (3, 1): "orange"}
         if self.io[0].signal_exists(None, None, "reference genome"):
@@ -45,6 +47,7 @@ class Viewer:
     def parse(self, command, args):
         current = "regions"
         regions = []
+
         for p in command:
             if p.isdigit() and (int(p) % 100) == 0:
                 if current == "rd":
@@ -71,16 +74,22 @@ class Viewer:
 
     def plot(self, args):
         self.interactive = False
+        self.use_mask = not args.no_mask
+        self.use_id = args.use_id
         self.parse(args.plot, args)
 
     def prompt(self, bin_size, args):
         self.interactive = True
+        self.use_mask = not args.no_mask
+        self.use_id = args.use_id
         command_tree = {"set": {"bin_size": None,
                                 "panels": None,
                                 "use_mask_rd": None,
                                 "plot_files": None,
                                 "plot_file": None,
                                 "grid": None,
+                                "use_mask":None,
+                                "use_id":None,
                                 "xkcd": None,
                                 "style": {}
                                 },
@@ -130,6 +139,8 @@ class Viewer:
                         print("        * bin_size:", bin_size)
                         print("        * panels:", args.panels)
                         print("        * use_mask_rd:", args.use_mask_with_rd)
+                        print("        * use_mask:", self.use_mask)
+                        print("        * use_id:", self.use_id)
                         print("        * plot_files:", list(zip(map(lambda x: x.filename, self.io), self.plot_files)))
                         print("        * plot_file:", self.plot_file)
                         print("        * grid:", self.grid)
@@ -155,6 +166,10 @@ class Viewer:
                             self.fig.canvas.draw()
                     elif n > 1 and f[1] == "use_mask_rd":
                         args.use_mask_with_rd = True
+                    elif n > 1 and f[1] == "use_mask":
+                        self.use_mask = True
+                    elif n > 1 and f[1] == "use_id":
+                        self.use_id = True
                     elif n > 1 and f[1] == "xkcd":
                         self.set_style("classic")
                         from matplotlib import patheffects
@@ -166,6 +181,10 @@ class Viewer:
                 elif f[0] == "unset":
                     if n > 1 and f[1] == "use_mask_rd":
                         args.use_mask_with_rd = False
+                    elif n > 1 and f[1] == "use_mask":
+                        self.use_mask = False
+                    elif n > 1 and f[1] == "use_id":
+                        self.use_id = False
                     elif n > 1 and f[1] == "xkcd" and self.xkcd:
                         plt.rcdefaults()
                         self.set_style('classic')
@@ -321,6 +340,7 @@ class Viewer:
 
     def likelihood(self, bin_size):
         plt.clf()
+        snp_flag = (FLAG_USEMASK if self.use_mask else 0) | (FLAG_USEID if self.use_id else 0)
         if self.reference_genome is None:
             _logger.warning("Missing reference genome required for gview.")
             return
@@ -331,14 +351,14 @@ class Viewer:
         else:
             for c, (l, t) in self.reference_genome["chromosomes"].items():
                 snp_chr = self.io[self.plot_file].snp_chromosome_name(c)
-                if self.io[self.plot_file].signal_exists(snp_chr, bin_size, "SNP likelihood") and (
+                if self.io[self.plot_file].signal_exists(snp_chr, bin_size, "SNP likelihood", snp_flag) and (
                         Genome.is_autosome(c) or Genome.is_sex_chrom(c)):
                     chroms.append(snp_chr)
         sx, sy = self.panels_shape(len(chroms))
         self.fig = plt.figure(1, figsize=(sx, sy), dpi=200, facecolor='w', edgecolor='k')
         ix = 1
         for c in chroms:
-            likelihood = self.io[self.plot_file].get_signal(c, bin_size, "SNP likelihood")
+            likelihood = self.io[self.plot_file].get_signal(c, bin_size, "SNP likelihood", snp_flag)
             img = np.array(likelihood).transpose()
             ax = plt.subplot(sx, sy, ix)
             ax.set_title(c, position=(0.01, 0.9), fontdict={'verticalalignment': 'top', 'horizontalalignment': 'left'},
@@ -402,7 +422,7 @@ class Viewer:
             ax.set_ylim([0., 1.])
             ax.set_xlim([-0.05 * l, 1.05 * l])
             ax.grid()
-            plt.scatter(hpos, baf, marker='.', c=color, s=1.5, alpha=1)
+            plt.scatter(hpos, baf, marker='.', edgecolor=color, c=color, s=10, alpha=0.7)
             ix += 1
         plt.subplots_adjust(bottom=0., top=1., wspace=0, hspace=0, left=0., right=1.)
         if self.output_filename != "":
@@ -517,6 +537,7 @@ class Viewer:
             plt.show()
 
     def region(self, io, element, bin_size, region, panels=["rd"], use_mask_rd=False, sep_color="g"):
+        snp_flag = (FLAG_USEMASK if self.use_mask else 0) | (FLAG_USEID if self.use_id else 0)
         grid = gridspec.GridSpecFromSubplotSpec(len(panels), 1, subplot_spec=element, wspace=0, hspace=0.1)
         r = decode_region(region)
         for i in range(len(panels)):
@@ -589,7 +610,7 @@ class Viewer:
                 ax.set_ylim([0., 1.])
                 ax.set_xlim([0, borders[-1]])
                 ax.yaxis.grid()
-                ax.scatter(hpos, baf, marker='.', c=color, s=1.5, alpha=1)
+                ax.scatter(hpos, baf, marker='.', edgecolor=color, c=color, s=10, alpha=0.7)
 
                 for i in borders[:-1]:
                     ax.axvline(i, color=sep_color, lw=1)
@@ -599,7 +620,7 @@ class Viewer:
                 borders = []
                 gl = []
                 for c, (pos1, pos2) in r:
-                    likelihood = io.get_signal(c, bin_size, "SNP likelihood")
+                    likelihood = io.get_signal(c, bin_size, "SNP likelihood", snp_flag)
                     start_bin = (pos1 - 1) // bin_size
                     end_bin = pos2 // bin_size
                     gl.extend(list(likelihood[start_bin:end_bin]))

@@ -2,6 +2,8 @@
 
 class Root: main CNVpytor class
 """
+from __future__ import absolute_import, print_function, division
+
 from .io import *
 from .bam import Bam
 from .vcf import Vcf
@@ -728,7 +730,7 @@ class Root:
                         flag[snp_ix] = flag[snp_ix] & 1
                 self.io.save_snp(c, pos, ref, alt, nref, nalt, gt, flag, qual, update=True)
 
-    def calculate_baf(self, bin_sizes, chroms=[], use_mask=True, use_id=False, res=200):
+    def calculate_baf(self, bin_sizes, chroms=[], use_mask=True, use_id=False, res=200, reduce_noise=False):
         """
         Calculates BAF histograms and store data into cnvpytor file.
 
@@ -743,16 +745,18 @@ class Root:
         use_id : bool
             Use id flag filter if True. Default: False.
         res: int
-            Likelihood function resolution. Default: 201.
+            Likelihood function resolution. Default: 200.
 
 
         """
+        snp_flag = (FLAG_USEMASK if use_mask else 0) | (FLAG_USEID if use_id else 0)
         for c in self.io.snp_chromosomes():
             if len(chroms) == 0 or c in chroms:
                 _logger.info("Calculating BAF histograms for chromosome '%s'." % c)
                 pos, ref, alt, nref, nalt, gt, flag, qual = self.io.read_snp(c)
                 max_bin = {}
                 count = {}
+                hets = {}
                 count_h1 = {}
                 count_h2 = {}
                 baf = {}
@@ -760,15 +764,16 @@ class Root:
                 likelihood = {}
                 i1 = {}
                 i2 = {}
-                lh_x = np.arange(0, 1. + 1.0 / res, 1.0 / res)
+                lh_x = np.arange(1.0 / res, 1., 1.0 / res)
                 for bs in bin_sizes:
                     max_bin[bs] = (pos[-1] - 1) // bs + 1
                     count[bs] = np.zeros(max_bin[bs])
+                    hets[bs] = np.zeros(max_bin[bs])
                     count_h1[bs] = np.zeros(max_bin[bs])
                     count_h2[bs] = np.zeros(max_bin[bs])
                     baf[bs] = np.zeros(max_bin[bs])
                     maf[bs] = np.zeros(max_bin[bs])
-                    likelihood[bs] = np.ones((max_bin[bs], res + 1)).astype("float") / (res + 1)
+                    likelihood[bs] = np.ones((max_bin[bs], res - 1)).astype("float") / (res - 1)
                     i1[bs] = np.zeros(max_bin[bs])
                     i2[bs] = np.zeros(max_bin[bs])
 
@@ -781,29 +786,30 @@ class Root:
                             if gt[i] == 5:
                                 count_h1[bs][b] += nref[i]
                                 count_h2[bs][b] += nalt[i]
+                                hets[bs][b] += 1
                                 snp_baf = 1.0 * nalt[i] / (nalt[i] + nref[i])
-                                s = 0
-                                for pi in range(res + 1):
-                                    likelihood[bs][b][pi] *= beta(nalt[i], nref[i], lh_x[pi], phased=True)
-                                    s += likelihood[bs][b][pi]
+                                likelihood[bs][b] *= beta(nalt[i], nref[i], lh_x, phased=True)
+                                s = np.sum(likelihood[bs][b])
                                 if s != 0.0:
                                     likelihood[bs][b] /= s
                             elif gt[i] == 6:
                                 count_h1[bs][b] += nalt[i]
                                 count_h2[bs][b] += nref[i]
+                                hets[bs][b] += 1
                                 snp_baf = 1.0 * nref[i] / (nalt[i] + nref[i])
-                                s = 0
-                                for pi in range(res + 1):
-                                    likelihood[bs][b][pi] *= beta(nref[i], nalt[i], lh_x[pi], phased=True)
-                                    s += likelihood[bs][b][pi]
+                                likelihood[bs][b] *= beta(nref[i], nalt[i], lh_x, phased=True)
+                                s = np.sum(likelihood[bs][b])
                                 if s != 0.0:
                                     likelihood[bs][b] /= s
                             else:
                                 snp_baf = 1.0 * nalt[i] / (nalt[i] + nref[i])
-                                s = 0
-                                for pi in range(res + 1):
-                                    likelihood[bs][b][pi] *= beta(nalt[i], nref[i], lh_x[pi])
-                                    s += likelihood[bs][b][pi]
+                                hets[bs][b] += 1
+                                if reduce_noise:
+                                    likelihood[bs][b] *= beta(nalt[i] + (1 if nalt[i] < nref[i] else 0),
+                                                              nref[i] + (1 if nref[i] < nalt[i] else 0), lh_x)
+                                else:
+                                    likelihood[bs][b] *= beta(nalt[i] + 1, nref[i] + 1, lh_x)
+                                s = np.sum(likelihood[bs][b])
                                 if s != 0.0:
                                     likelihood[bs][b] /= s
 
@@ -812,31 +818,141 @@ class Root:
 
                 for bs in bin_sizes:
                     for i in range(max_bin[bs]):
-                        if count[bs][i]>0:
+                        if count[bs][i] > 0:
                             baf[bs][i] /= count[bs][i]
                             maf[bs][i] /= count[bs][i]
                             max_lh = np.amax(likelihood[bs][i])
                             ix = np.where(likelihood[bs][i] == max_lh)[0][0]
-                            i1[bs][i] = 1.0 * (res // 2 - ix) / res if ix <= (res // 2) else 1.0 * (ix - res // 2) / res
-                            i2[bs][i] = likelihood[bs][i][res//2]/max_lh
+                            i1[bs][i] = 1.0 * (res // 2 - 1 - ix) / res if ix <= (res // 2 - 1) else 1.0 * (
+                                    ix - res // 2 + 1) / res
+                            i2[bs][i] = likelihood[bs][i][res // 2 - 1] / max_lh
                     _logger.info("Saving BAF histograms with bin size %d for chromosome '%s'." % (bs, c))
-                    self.io.create_signal(c,bs,"SNP bin count",data=count[bs].astype("uint16"))
-                    self.io.create_signal(c,bs,"SNP bin count h1",data=count_h1[bs].astype("uint16"))
-                    self.io.create_signal(c,bs,"SNP bin count h2",data=count_h2[bs].astype("uint16"))
-                    self.io.create_signal(c,bs,"SNP baf",data=baf[bs].astype("float32"))
-                    self.io.create_signal(c,bs,"SNP maf",data=maf[bs].astype("float32"))
-                    self.io.create_signal(c,bs,"SNP likelihood",data=likelihood[bs].astype("float64"))
-                    self.io.create_signal(c,bs,"SNP i1",data=i1[bs].astype("float32"))
-                    self.io.create_signal(c,bs,"SNP i2",data=i2[bs].astype("float32"))
+                    self.io.create_signal(c, bs, "SNP bin count", count[bs].astype("uint16"), snp_flag)
+                    self.io.create_signal(c, bs, "SNP bin hets", hets[bs].astype("uint16"), snp_flag)
+                    self.io.create_signal(c, bs, "SNP bin count h1", count_h1[bs].astype("uint16"), snp_flag)
+                    self.io.create_signal(c, bs, "SNP bin count h2", count_h2[bs].astype("uint16"), snp_flag)
+                    self.io.create_signal(c, bs, "SNP baf", baf[bs].astype("float32"), snp_flag)
+                    self.io.create_signal(c, bs, "SNP maf", maf[bs].astype("float32"), snp_flag)
+                    self.io.create_signal(c, bs, "SNP likelihood", likelihood[bs].astype("float32"), snp_flag)
+                    self.io.create_signal(c, bs, "SNP i1", i1[bs].astype("float32"), snp_flag)
+                    self.io.create_signal(c, bs, "SNP i2", i2[bs].astype("float32"), snp_flag)
 
-    def call_baf(self, bin_size, chrom = []):
+    def call_baf(self, bin_sizes, chroms=[], use_mask=True, use_id=False, odec=0.9, omin=None, mcount=None,
+                 max_distance=0.1):
         """
 
         Returns
         -------
 
         """
+        for bin_size in bin_sizes:
+            if omin is None:
+                overlap_min = 1e-7 * bin_size
+            else:
+                overlap_min = omin
+            if mcount is None:
+                min_count = bin_size // 10000
+            else:
+                min_count = mcount
 
+            snp_flag = (FLAG_USEMASK if use_mask else 0) | (FLAG_USEID if use_id else 0)
+            for c in self.io.snp_chromosomes():
+                if len(chroms) == 0 or c in chroms and self.io.signal_exists(c, bin_size, "SNP likelihood", snp_flag):
+                    # _logger.info(
+                    #    "Caling CNV-s by merging BAF likelihood with bin size %d for chromosome '%s'." % (bin_size, c))
+                    likelihood = list(self.io.get_signal(c, bin_size, "SNP likelihood", snp_flag).astype("float64"))
+                    snp_hets = self.io.get_signal(c, bin_size, "SNP bin hets", snp_flag)
+
+                    bins = len(likelihood)
+                    res = likelihood[0].size
+                    segments = [[i] for i in range(bins) if
+                                snp_hets[i] >= min_count and np.sum(likelihood[i]) > 0.0]
+                    likelihood = [likelihood[i] for i in range(bins) if
+                                  snp_hets[i] >= min_count and np.sum(likelihood[i]) > 0.0]
+                    overlaps = [likelihood_overlap(likelihood[i], likelihood[i + 1]) for i in range(len(segments) - 1)]
+
+                    iter = 0
+                    while len(overlaps) > 0:
+                        maxo = max(overlaps)
+                        mino = max(maxo * odec, overlap_min)
+                        if maxo < overlap_min:
+                            break
+                        i = 0
+                        while i < len(overlaps):
+                            if overlaps[i] > mino:
+                                nlh = likelihood[i] * likelihood[i + 1]
+                                likelihood[i] = nlh / np.sum(nlh)
+                                segments[i] += segments[i + 1]
+                                del likelihood[i + 1]
+                                del segments[i + 1]
+                                del overlaps[i]
+                                if i < len(overlaps):
+                                    overlaps[i] = likelihood_overlap(likelihood[i], likelihood[i + 1])
+                                if i > 0:
+                                    overlaps[i - 1] = likelihood_overlap(likelihood[i - 1], likelihood[i])
+                            else:
+                                i = i + 1
+                        iter = iter + 1
+
+                    overlaps = [[
+                        likelihood_overlap(likelihood[i], likelihood[j])
+                        if (segments[j][0] - segments[i][-1]) < max_distance * (
+                                len(segments[i]) + len(segments[j])) and i < j
+                        else 0 for j in range(len(segments))]
+                        for i in range(len(segments))]
+
+                    iter = 0
+                    ons = -1
+
+                    while True:
+                        overlaps = [likelihood_overlap(likelihood[i], likelihood[j]) for i in range(len(likelihood))
+                                    for j in range(i + 1, len(likelihood)) if
+                                    (segments[j][0] - segments[i][-1]) < max_distance * (
+                                                len(segments[i]) + len(segments[j]))]
+                        if len(overlaps) == 0:
+                            break
+                        maxo = max(overlaps)
+                        mino = max(maxo * odec, overlap_min)
+                        if maxo < omin:
+                            break
+                        i, j = 0, 1
+                        while i < len(segments) - 1:
+                            #                            if overlaps[i][j] > mino:
+                            if likelihood_overlap(likelihood[i], likelihood[j]) > mino and (
+                                    segments[j][0] - segments[i][-1]) < max_distance * (
+                                    len(segments[i]) + len(segments[j])):
+                                nlh = likelihood[i] * likelihood[j]
+                                likelihood[i] = nlh / np.sum(nlh)
+                                segments[i] += segments[j]
+                                segments[i] = sorted(segments[i])
+                                del likelihood[j]
+                                del segments[j]
+
+                                if j >= len(segments):
+                                    i += 1
+                                    j = i + 1
+                            else:
+                                j += 1
+                                if j >= len(segments):
+                                    i += 1
+                                    j = i + 1
+
+                        iter = iter + 1
+                        if ons == len(segments):
+                            break
+                        ons = len(segments)
+
+                    for i in range(len(segments)):
+                        max_lh = np.amax(likelihood[i])
+                        ix = np.where(likelihood[i] == max_lh)[0][0]
+                        i1 = 1.0 * (res // 2 - ix) / (res + 1) if ix <= (res // 2) else 1.0 * (
+                                ix - res // 2) / (res + 1)
+                        i2 = likelihood[i][res // 2] / max_lh
+
+                        print(c + ":" + str(segments[i][0] * bin_size + 1) + "-" + str(
+                            segments[i][-1] * bin_size + bin_size),
+                              bin_size, i1,
+                              i2, len(segments[i]))
 
     def ls(self):
         self.io.ls()

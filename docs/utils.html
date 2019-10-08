@@ -35,6 +35,7 @@ from argparse import ArgumentTypeError
 from scipy.stats import norm
 from scipy.optimize import curve_fit
 import logging
+import readline
 
 _logger = logging.getLogger(&#34;cnvpytor.utils&#34;)
 
@@ -42,8 +43,7 @@ _logger = logging.getLogger(&#34;cnvpytor.utils&#34;)
 def gc_at_compress(gc, at):
     &#34;&#34;&#34;
     Commpress GC/AT content of 100bins using fact that #at+#gc=100 in large majority of bins.
-    If #at+#gc=100 it will store just one byte (#gc) otherwise it will store two bytes: (128+#gc and #at).
-    First bit is used as flag: if it is set there are additional byte for #at.
+    Transforms #at, #gc -&gt; #at, 100-#at-#gc
 
     Parameters
     ----------
@@ -58,14 +58,9 @@ def gc_at_compress(gc, at):
         Array contains compressed GC/AT content.
 
     &#34;&#34;&#34;
-    gcat = []
-    for g, a in zip(gc, at):
-        if a + g == 100:
-            gcat.append(g)
-        else:
-            gcat.append(g + 128)
-            gcat.append(a)
-    return np.array(gcat, dtype=&#34;uint8&#34;)
+    cgc = np.array(gc)
+    cat = 100 - np.array(at) - cgc
+    return np.concatenate((cgc, cat)).astype(&#34;uint8&#34;)
 
 
 def gc_at_decompress(gcat):
@@ -85,12 +80,10 @@ def gc_at_decompress(gcat):
         Binned AT content (100bp bins).
 
     &#34;&#34;&#34;
-    fil = filter(lambda x: (x[2] &lt; 128), zip(list(gcat), list(gcat[1:]) + [0], [0] + list(gcat[:-1])))
-    y = list(map(lambda x: (x[0] - 128, x[1]) if x[0] &gt; 127 else (x[0], 100 - x[0]), fil))
-    return [list(c) for c in zip(*y)]
+    return list(gcat[:gcat.size // 2]), list(100 - gcat[:gcat.size // 2] - gcat[gcat.size // 2:])
 
 
-def gcp_decompress(gcat):
+def gcp_decompress(gcat, bin_ratio=1):
     &#34;&#34;&#34;
     Decompress GT/AC content and calculate GC percentage.
 
@@ -105,8 +98,21 @@ def gcp_decompress(gcat):
         GC percentage.
 
     &#34;&#34;&#34;
-    fil = filter(lambda x: (x[2] &lt; 128), zip(list(gcat), list(gcat[1:]) + [0], [0] + list(gcat[:-1])))
-    return list(map(lambda x: float(x[0] - 128) / (x[0] + x[1] - 128 + 1e-10) if x[0] &gt; 127 else float(x[0]), fil))
+    gc, at = gcat[:gcat.size // 2].astype(&#34;float&#34;), (100 - gcat[:gcat.size // 2] - gcat[gcat.size // 2:]).astype(
+        &#34;float&#34;)
+    if bin_ratio == 1:
+        return 100. * gc / (at + gc + 1e-10)
+    n = len(gc)
+    his_gc = np.concatenate(
+        (np.array(gc), np.zeros(bin_ratio - n + (n // bin_ratio * bin_ratio)))).astype(&#34;float&#34;)
+    his_gc.resize((len(his_gc) // bin_ratio, bin_ratio))
+    his_gc = his_gc.sum(axis=1)
+    his_at = np.concatenate(
+        (np.array(at), np.zeros(bin_ratio - n + (n // bin_ratio * bin_ratio)))).astype(&#34;float&#34;)
+    his_at.resize((len(his_at) // bin_ratio, bin_ratio))
+    his_at = his_at.sum(axis=1)
+
+    return 100. * his_gc / (his_at + his_gc + 1e-10)
 
 
 bp_to_binary = {&#39;A&#39;: 0, &#39;T&#39;: 3, &#39;G&#39;: 1, &#39;C&#39;: 2, &#39;.&#39;: 4}
@@ -149,8 +155,8 @@ def snp_decompress(snp_pos, snp_desc, snp_counts, snp_qual):
     gt = []
     flag = []
     for i in snp_desc:
-        ref.append(i &gt;&gt; 8)
-        alt.append((i &gt;&gt; 5) &amp; int(&#39;111&#39;, 2))
+        ref.append(binary_to_bp[i &gt;&gt; 8])
+        alt.append(binary_to_bp[(i &gt;&gt; 5) &amp; int(&#39;111&#39;, 2)])
         gt.append((i &gt;&gt; 2) &amp; int(&#39;111&#39;, 2))
         flag.append(i &amp; int(&#39;11&#39;, 2))
     nref = []
@@ -225,7 +231,10 @@ def normal_overlap(m1, s1, m2, s2):
 
 
 def normal_merge(m1, s1, m2, s2):
-    return (m1 * s2 * s2 + m2 * s1 * s1) / (s1 * s1 + s2 * s2), np.sqrt(s1 * s1 * s2 * s2 / (s1 * s1 + s2 * s2))
+    if s1 == 0 and s2 == 0:
+        return 0.5 * (m1 + m2), 0
+    else:
+        return (m1 * s2 * s2 + m2 * s1 * s1) / (s1 * s1 + s2 * s2), np.sqrt(s1 * s1 * s2 * s2 / (s1 * s1 + s2 * s2))
 
 
 def normal(x, a, x0, sigma):
@@ -240,6 +249,7 @@ def fit_normal(x, y):
         return [0, 0, 0], None
     mean = sum(x * y) / sum(y)
     sigma = np.sqrt(sum(y * (x - mean) ** 2) / sum(y))
+    _logger.debug(&#34;%f %f %d&#34; % (mean, sigma, len(x)))
     if sigma == 0:
         _logger.debug(&#34;Problem with fit: sigma equals zero. Return zeros instead fit parameters!&#34;)
         return [0, 0, 0], None
@@ -265,7 +275,152 @@ def calculate_gc_correction(his_rd_gc, mean, sigma, bin_size=1):
     gc_corr = np.sum(rd * his, axis=0) / np.sum(his, axis=0)
     gc_corr[np.isnan(gc_corr)] = 1.0
     gc_corr = gc_corr / (np.sum(gc_corr * np.sum(his, axis=0)) / np.sum(np.sum(his, axis=0)))
-    return gc_corr</code></pre>
+    return gc_corr
+
+
+def beta(k, m, p, phased=False):
+    &#34;&#34;&#34;
+    Returns likelihood beta function f(p) where 0 &lt;= p &lt;= 1.
+    Function is not normalized.
+
+    Parameters
+    ----------
+    k : int
+        Number of haplotype 1 reads.
+    m : int
+        Number of haplotype 2 reads.
+    p : float
+        Parameter.
+    phased : bool
+        Likelihood will be symmetrised if not phased.
+
+    Returns
+    -------
+    f : float
+        Value od likelihood function,.
+
+    &#34;&#34;&#34;
+    if k == m or phased:
+        return 1.0 * p ** k * (1. - p) ** m
+    else:
+        return 1.0 * p ** k * (1. - p) ** m + 1.0 * p ** m * (1. - p) ** k
+
+
+def log_beta(k, m, p, phased=False):
+    &#34;&#34;&#34;
+    Returns logarithm of likelihood beta function f(p) where 0 &lt;= p &lt;= 1.
+    Function is not normalized.
+
+    Parameters
+    ----------
+    k : int
+        Number of haplotype 1 reads.
+    m : int
+        Number of haplotype 2 reads.
+    p : float
+        Parameter.
+    phased : bool
+        Likelihood will be symmetrised if not phased.
+
+    Returns
+    -------
+    f : float
+        Value od likelihood function,.
+
+    &#34;&#34;&#34;
+    if k == m or phased:
+        return np.log(1.0 * p ** k * (1. - p) ** m)
+    else:
+        return np.log(1.0 * p ** k * (1. - p) ** m + 1.0 * p ** m * (1. - p) ** k)
+
+
+def likelihood_overlap(lk1, lk2):
+    &#34;&#34;&#34;
+    Returns overlap area of two likelihood functions.
+
+    Parameters
+    ----------
+    lk1 : numpy.ndarray
+        First likelihood function.
+    lk2 : numpy.ndarray
+        Second likelihood function.
+
+    Returns
+    -------
+    overlap : float
+        Overlap area.
+
+    &#34;&#34;&#34;
+    return np.sum(np.min((lk1, lk2), axis=0))
+
+
+def decode_position(s):
+    &#34;&#34;&#34;
+
+    Parameters
+    ----------
+    s : str
+
+    Returns
+    -------
+    str
+    &#34;&#34;&#34;
+    return int(s.replace(&#34;K&#34;, &#34;000&#34;).replace(&#34;k&#34;, &#34;000&#34;).replace(&#34;M&#34;, &#34;000000&#34;).replace(&#34;m&#34;, &#34;000000&#34;))
+
+
+def decode_region(s):
+    &#34;&#34;&#34;
+
+    Parameters
+    ----------
+    s : str
+
+    Returns
+    -------
+    list of tuples
+
+    &#34;&#34;&#34;
+    regs = s.split(&#34;,&#34;)
+    ret = []
+    for r in regs:
+        chr_interval = r.split(&#34;:&#34;)
+        begin_end = chr_interval[1].split(&#34;-&#34;)
+        ret.append((chr_interval[0], (decode_position(begin_end[0]), decode_position(begin_end[1]))))
+    return ret
+
+
+class PromptCompleter:
+    def __init__(self, command_tree):
+        &#34;&#34;&#34;
+        Initialize completer class for GNU readline tab comleter.
+
+        Parameters
+        ----------
+        command_tree : dictionary
+            Example: command_tree = {&#34;comannd1&#34;:None,&#34;command2&#34;:{&#34;subcommand2.1&#34;:None,subcommand2.1:None}}
+
+        &#34;&#34;&#34;
+        self.command_tree = command_tree
+
+    def _traverse(self, tokens, tree):
+        if tree is None or len(tokens) == 0:
+            return []
+        if len(tokens) == 1:
+            return [x + &#39; &#39; for x in tree if x.startswith(tokens[0])]
+        else:
+            if tokens[0] in tree.keys():
+                return self._traverse(tokens[1:], tree[tokens[0]])
+        return []
+
+    def complete(self, text, state):
+        try:
+            tokens = readline.get_line_buffer().split()
+            if not tokens or readline.get_line_buffer()[-1] == &#39; &#39;:
+                tokens.append(&#34;&#34;)
+            results = self._traverse(tokens, self.command_tree) + [None]
+            return results[state]
+        except Exception as e:
+            print(e)</code></pre>
 </details>
 </section>
 <section>
@@ -275,6 +430,58 @@ def calculate_gc_correction(his_rd_gc, mean, sigma, bin_size=1):
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
+<dt id="cnvpytor.utils.beta"><code class="name flex">
+<span>def <span class="ident">beta</span></span>(<span>k, m, p, phased=False)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Returns likelihood beta function f(p) where 0 &lt;= p &lt;= 1.
+Function is not normalized.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>k</code></strong> :&ensp;<code>int</code></dt>
+<dd>Number of haplotype 1 reads.</dd>
+<dt><strong><code>m</code></strong> :&ensp;<code>int</code></dt>
+<dd>Number of haplotype 2 reads.</dd>
+<dt><strong><code>p</code></strong> :&ensp;<code>float</code></dt>
+<dd>Parameter.</dd>
+<dt><strong><code>phased</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Likelihood will be symmetrised if not phased.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>f</code></strong> :&ensp;<code>float</code></dt>
+<dd>Value od likelihood function,.</dd>
+</dl></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def beta(k, m, p, phased=False):
+    &#34;&#34;&#34;
+    Returns likelihood beta function f(p) where 0 &lt;= p &lt;= 1.
+    Function is not normalized.
+
+    Parameters
+    ----------
+    k : int
+        Number of haplotype 1 reads.
+    m : int
+        Number of haplotype 2 reads.
+    p : float
+        Parameter.
+    phased : bool
+        Likelihood will be symmetrised if not phased.
+
+    Returns
+    -------
+    f : float
+        Value od likelihood function,.
+
+    &#34;&#34;&#34;
+    if k == m or phased:
+        return 1.0 * p ** k * (1. - p) ** m
+    else:
+        return 1.0 * p ** k * (1. - p) ** m + 1.0 * p ** m * (1. - p) ** k</code></pre>
+</details>
+</dd>
 <dt id="cnvpytor.utils.binsize_type"><code class="name flex">
 <span>def <span class="ident">binsize_type</span></span>(<span>x)</span>
 </code></dt>
@@ -309,6 +516,73 @@ def calculate_gc_correction(his_rd_gc, mean, sigma, bin_size=1):
     return gc_corr</code></pre>
 </details>
 </dd>
+<dt id="cnvpytor.utils.decode_position"><code class="name flex">
+<span>def <span class="ident">decode_position</span></span>(<span>s)</span>
+</code></dt>
+<dd>
+<section class="desc"><h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>s</code></strong> :&ensp;<code>str</code></dt>
+<dd>&nbsp;</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>str</code></dt>
+<dd>&nbsp;</dd>
+</dl></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def decode_position(s):
+    &#34;&#34;&#34;
+
+    Parameters
+    ----------
+    s : str
+
+    Returns
+    -------
+    str
+    &#34;&#34;&#34;
+    return int(s.replace(&#34;K&#34;, &#34;000&#34;).replace(&#34;k&#34;, &#34;000&#34;).replace(&#34;M&#34;, &#34;000000&#34;).replace(&#34;m&#34;, &#34;000000&#34;))</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.utils.decode_region"><code class="name flex">
+<span>def <span class="ident">decode_region</span></span>(<span>s)</span>
+</code></dt>
+<dd>
+<section class="desc"><h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>s</code></strong> :&ensp;<code>str</code></dt>
+<dd>&nbsp;</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>list</code> of <code>tuples</code></dt>
+<dd>&nbsp;</dd>
+</dl></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def decode_region(s):
+    &#34;&#34;&#34;
+
+    Parameters
+    ----------
+    s : str
+
+    Returns
+    -------
+    list of tuples
+
+    &#34;&#34;&#34;
+    regs = s.split(&#34;,&#34;)
+    ret = []
+    for r in regs:
+        chr_interval = r.split(&#34;:&#34;)
+        begin_end = chr_interval[1].split(&#34;-&#34;)
+        ret.append((chr_interval[0], (decode_position(begin_end[0]), decode_position(begin_end[1]))))
+    return ret</code></pre>
+</details>
+</dd>
 <dt id="cnvpytor.utils.fit_normal"><code class="name flex">
 <span>def <span class="ident">fit_normal</span></span>(<span>x, y)</span>
 </code></dt>
@@ -324,6 +598,7 @@ def calculate_gc_correction(his_rd_gc, mean, sigma, bin_size=1):
         return [0, 0, 0], None
     mean = sum(x * y) / sum(y)
     sigma = np.sqrt(sum(y * (x - mean) ** 2) / sum(y))
+    _logger.debug(&#34;%f %f %d&#34; % (mean, sigma, len(x)))
     if sigma == 0:
         _logger.debug(&#34;Problem with fit: sigma equals zero. Return zeros instead fit parameters!&#34;)
         return [0, 0, 0], None
@@ -344,8 +619,7 @@ def calculate_gc_correction(his_rd_gc, mean, sigma, bin_size=1):
 </code></dt>
 <dd>
 <section class="desc"><p>Commpress GC/AT content of 100bins using fact that #at+#gc=100 in large majority of bins.
-If #at+#gc=100 it will store just one byte (#gc) otherwise it will store two bytes: (128+#gc and #at).
-First bit is used as flag: if it is set there are additional byte for #at.</p>
+Transforms #at, #gc -&gt; #at, 100-#at-#gc</p>
 <h2 id="parameters">Parameters</h2>
 <dl>
 <dt><strong><code>gc</code></strong> :&ensp;<code>list</code> of <code>int</code></dt>
@@ -363,8 +637,7 @@ First bit is used as flag: if it is set there are additional byte for #at.</p>
 <pre><code class="python">def gc_at_compress(gc, at):
     &#34;&#34;&#34;
     Commpress GC/AT content of 100bins using fact that #at+#gc=100 in large majority of bins.
-    If #at+#gc=100 it will store just one byte (#gc) otherwise it will store two bytes: (128+#gc and #at).
-    First bit is used as flag: if it is set there are additional byte for #at.
+    Transforms #at, #gc -&gt; #at, 100-#at-#gc
 
     Parameters
     ----------
@@ -379,14 +652,9 @@ First bit is used as flag: if it is set there are additional byte for #at.</p>
         Array contains compressed GC/AT content.
 
     &#34;&#34;&#34;
-    gcat = []
-    for g, a in zip(gc, at):
-        if a + g == 100:
-            gcat.append(g)
-        else:
-            gcat.append(g + 128)
-            gcat.append(a)
-    return np.array(gcat, dtype=&#34;uint8&#34;)</code></pre>
+    cgc = np.array(gc)
+    cat = 100 - np.array(at) - cgc
+    return np.concatenate((cgc, cat)).astype(&#34;uint8&#34;)</code></pre>
 </details>
 </dd>
 <dt id="cnvpytor.utils.gc_at_decompress"><code class="name flex">
@@ -425,13 +693,11 @@ First bit is used as flag: if it is set there are additional byte for #at.</p>
         Binned AT content (100bp bins).
 
     &#34;&#34;&#34;
-    fil = filter(lambda x: (x[2] &lt; 128), zip(list(gcat), list(gcat[1:]) + [0], [0] + list(gcat[:-1])))
-    y = list(map(lambda x: (x[0] - 128, x[1]) if x[0] &gt; 127 else (x[0], 100 - x[0]), fil))
-    return [list(c) for c in zip(*y)]</code></pre>
+    return list(gcat[:gcat.size // 2]), list(100 - gcat[:gcat.size // 2] - gcat[gcat.size // 2:])</code></pre>
 </details>
 </dd>
 <dt id="cnvpytor.utils.gcp_decompress"><code class="name flex">
-<span>def <span class="ident">gcp_decompress</span></span>(<span>gcat)</span>
+<span>def <span class="ident">gcp_decompress</span></span>(<span>gcat, bin_ratio=1)</span>
 </code></dt>
 <dd>
 <section class="desc"><p>Decompress GT/AC content and calculate GC percentage.</p>
@@ -447,7 +713,7 @@ First bit is used as flag: if it is set there are additional byte for #at.</p>
 </dl></section>
 <details class="source">
 <summary>Source code</summary>
-<pre><code class="python">def gcp_decompress(gcat):
+<pre><code class="python">def gcp_decompress(gcat, bin_ratio=1):
     &#34;&#34;&#34;
     Decompress GT/AC content and calculate GC percentage.
 
@@ -462,8 +728,112 @@ First bit is used as flag: if it is set there are additional byte for #at.</p>
         GC percentage.
 
     &#34;&#34;&#34;
-    fil = filter(lambda x: (x[2] &lt; 128), zip(list(gcat), list(gcat[1:]) + [0], [0] + list(gcat[:-1])))
-    return list(map(lambda x: float(x[0] - 128) / (x[0] + x[1] - 128 + 1e-10) if x[0] &gt; 127 else float(x[0]), fil))</code></pre>
+    gc, at = gcat[:gcat.size // 2].astype(&#34;float&#34;), (100 - gcat[:gcat.size // 2] - gcat[gcat.size // 2:]).astype(
+        &#34;float&#34;)
+    if bin_ratio == 1:
+        return 100. * gc / (at + gc + 1e-10)
+    n = len(gc)
+    his_gc = np.concatenate(
+        (np.array(gc), np.zeros(bin_ratio - n + (n // bin_ratio * bin_ratio)))).astype(&#34;float&#34;)
+    his_gc.resize((len(his_gc) // bin_ratio, bin_ratio))
+    his_gc = his_gc.sum(axis=1)
+    his_at = np.concatenate(
+        (np.array(at), np.zeros(bin_ratio - n + (n // bin_ratio * bin_ratio)))).astype(&#34;float&#34;)
+    his_at.resize((len(his_at) // bin_ratio, bin_ratio))
+    his_at = his_at.sum(axis=1)
+
+    return 100. * his_gc / (his_at + his_gc + 1e-10)</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.utils.likelihood_overlap"><code class="name flex">
+<span>def <span class="ident">likelihood_overlap</span></span>(<span>lk1, lk2)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Returns overlap area of two likelihood functions.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>lk1</code></strong> :&ensp;<code>numpy.ndarray</code></dt>
+<dd>First likelihood function.</dd>
+<dt><strong><code>lk2</code></strong> :&ensp;<code>numpy.ndarray</code></dt>
+<dd>Second likelihood function.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>overlap</code></strong> :&ensp;<code>float</code></dt>
+<dd>Overlap area.</dd>
+</dl></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def likelihood_overlap(lk1, lk2):
+    &#34;&#34;&#34;
+    Returns overlap area of two likelihood functions.
+
+    Parameters
+    ----------
+    lk1 : numpy.ndarray
+        First likelihood function.
+    lk2 : numpy.ndarray
+        Second likelihood function.
+
+    Returns
+    -------
+    overlap : float
+        Overlap area.
+
+    &#34;&#34;&#34;
+    return np.sum(np.min((lk1, lk2), axis=0))</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.utils.log_beta"><code class="name flex">
+<span>def <span class="ident">log_beta</span></span>(<span>k, m, p, phased=False)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Returns logarithm of likelihood beta function f(p) where 0 &lt;= p &lt;= 1.
+Function is not normalized.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>k</code></strong> :&ensp;<code>int</code></dt>
+<dd>Number of haplotype 1 reads.</dd>
+<dt><strong><code>m</code></strong> :&ensp;<code>int</code></dt>
+<dd>Number of haplotype 2 reads.</dd>
+<dt><strong><code>p</code></strong> :&ensp;<code>float</code></dt>
+<dd>Parameter.</dd>
+<dt><strong><code>phased</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Likelihood will be symmetrised if not phased.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>f</code></strong> :&ensp;<code>float</code></dt>
+<dd>Value od likelihood function,.</dd>
+</dl></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def log_beta(k, m, p, phased=False):
+    &#34;&#34;&#34;
+    Returns logarithm of likelihood beta function f(p) where 0 &lt;= p &lt;= 1.
+    Function is not normalized.
+
+    Parameters
+    ----------
+    k : int
+        Number of haplotype 1 reads.
+    m : int
+        Number of haplotype 2 reads.
+    p : float
+        Parameter.
+    phased : bool
+        Likelihood will be symmetrised if not phased.
+
+    Returns
+    -------
+    f : float
+        Value od likelihood function,.
+
+    &#34;&#34;&#34;
+    if k == m or phased:
+        return np.log(1.0 * p ** k * (1. - p) ** m)
+    else:
+        return np.log(1.0 * p ** k * (1. - p) ** m + 1.0 * p ** m * (1. - p) ** k)</code></pre>
 </details>
 </dd>
 <dt id="cnvpytor.utils.mask_compress"><code class="name flex">
@@ -522,7 +892,10 @@ First bit is used as flag: if it is set there are additional byte for #at.</p>
 <details class="source">
 <summary>Source code</summary>
 <pre><code class="python">def normal_merge(m1, s1, m2, s2):
-    return (m1 * s2 * s2 + m2 * s1 * s1) / (s1 * s1 + s2 * s2), np.sqrt(s1 * s1 * s2 * s2 / (s1 * s1 + s2 * s2))</code></pre>
+    if s1 == 0 and s2 == 0:
+        return 0.5 * (m1 + m2), 0
+    else:
+        return (m1 * s2 * s2 + m2 * s1 * s1) / (s1 * s1 + s2 * s2), np.sqrt(s1 * s1 * s2 * s2 / (s1 * s1 + s2 * s2))</code></pre>
 </details>
 </dd>
 <dt id="cnvpytor.utils.normal_overlap"><code class="name flex">
@@ -634,8 +1007,8 @@ snp_qual - 8 bits</p></section>
     gt = []
     flag = []
     for i in snp_desc:
-        ref.append(i &gt;&gt; 8)
-        alt.append((i &gt;&gt; 5) &amp; int(&#39;111&#39;, 2))
+        ref.append(binary_to_bp[i &gt;&gt; 8])
+        alt.append(binary_to_bp[(i &gt;&gt; 5) &amp; int(&#39;111&#39;, 2)])
         gt.append((i &gt;&gt; 2) &amp; int(&#39;111&#39;, 2))
         flag.append(i &amp; int(&#39;11&#39;, 2))
     nref = []
@@ -651,6 +1024,77 @@ snp_qual - 8 bits</p></section>
 </dl>
 </section>
 <section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="cnvpytor.utils.PromptCompleter"><code class="flex name class">
+<span>class <span class="ident">PromptCompleter</span></span>
+<span>(</span><span>command_tree)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Initialize completer class for GNU readline tab comleter.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>command_tree</code></strong> :&ensp;<code>dictionary</code></dt>
+<dd>Example: command_tree = {"comannd1":None,"command2":{"subcommand2.1":None,subcommand2.1:None}}</dd>
+</dl></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">class PromptCompleter:
+    def __init__(self, command_tree):
+        &#34;&#34;&#34;
+        Initialize completer class for GNU readline tab comleter.
+
+        Parameters
+        ----------
+        command_tree : dictionary
+            Example: command_tree = {&#34;comannd1&#34;:None,&#34;command2&#34;:{&#34;subcommand2.1&#34;:None,subcommand2.1:None}}
+
+        &#34;&#34;&#34;
+        self.command_tree = command_tree
+
+    def _traverse(self, tokens, tree):
+        if tree is None or len(tokens) == 0:
+            return []
+        if len(tokens) == 1:
+            return [x + &#39; &#39; for x in tree if x.startswith(tokens[0])]
+        else:
+            if tokens[0] in tree.keys():
+                return self._traverse(tokens[1:], tree[tokens[0]])
+        return []
+
+    def complete(self, text, state):
+        try:
+            tokens = readline.get_line_buffer().split()
+            if not tokens or readline.get_line_buffer()[-1] == &#39; &#39;:
+                tokens.append(&#34;&#34;)
+            results = self._traverse(tokens, self.command_tree) + [None]
+            return results[state]
+        except Exception as e:
+            print(e)</code></pre>
+</details>
+<h3>Methods</h3>
+<dl>
+<dt id="cnvpytor.utils.PromptCompleter.complete"><code class="name flex">
+<span>def <span class="ident">complete</span></span>(<span>self, text, state)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def complete(self, text, state):
+    try:
+        tokens = readline.get_line_buffer().split()
+        if not tokens or readline.get_line_buffer()[-1] == &#39; &#39;:
+            tokens.append(&#34;&#34;)
+        results = self._traverse(tokens, self.command_tree) + [None]
+        return results[state]
+    except Exception as e:
+        print(e)</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+</dl>
 </section>
 </article>
 <nav id="sidebar">
@@ -666,12 +1110,17 @@ snp_qual - 8 bits</p></section>
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
+<li><code><a title="cnvpytor.utils.beta" href="#cnvpytor.utils.beta">beta</a></code></li>
 <li><code><a title="cnvpytor.utils.binsize_type" href="#cnvpytor.utils.binsize_type">binsize_type</a></code></li>
 <li><code><a title="cnvpytor.utils.calculate_gc_correction" href="#cnvpytor.utils.calculate_gc_correction">calculate_gc_correction</a></code></li>
+<li><code><a title="cnvpytor.utils.decode_position" href="#cnvpytor.utils.decode_position">decode_position</a></code></li>
+<li><code><a title="cnvpytor.utils.decode_region" href="#cnvpytor.utils.decode_region">decode_region</a></code></li>
 <li><code><a title="cnvpytor.utils.fit_normal" href="#cnvpytor.utils.fit_normal">fit_normal</a></code></li>
 <li><code><a title="cnvpytor.utils.gc_at_compress" href="#cnvpytor.utils.gc_at_compress">gc_at_compress</a></code></li>
 <li><code><a title="cnvpytor.utils.gc_at_decompress" href="#cnvpytor.utils.gc_at_decompress">gc_at_decompress</a></code></li>
 <li><code><a title="cnvpytor.utils.gcp_decompress" href="#cnvpytor.utils.gcp_decompress">gcp_decompress</a></code></li>
+<li><code><a title="cnvpytor.utils.likelihood_overlap" href="#cnvpytor.utils.likelihood_overlap">likelihood_overlap</a></code></li>
+<li><code><a title="cnvpytor.utils.log_beta" href="#cnvpytor.utils.log_beta">log_beta</a></code></li>
 <li><code><a title="cnvpytor.utils.mask_compress" href="#cnvpytor.utils.mask_compress">mask_compress</a></code></li>
 <li><code><a title="cnvpytor.utils.mask_decompress" href="#cnvpytor.utils.mask_decompress">mask_decompress</a></code></li>
 <li><code><a title="cnvpytor.utils.normal" href="#cnvpytor.utils.normal">normal</a></code></li>
@@ -681,6 +1130,16 @@ snp_qual - 8 bits</p></section>
 <li><code><a title="cnvpytor.utils.rd_decompress" href="#cnvpytor.utils.rd_decompress">rd_decompress</a></code></li>
 <li><code><a title="cnvpytor.utils.snp_compress" href="#cnvpytor.utils.snp_compress">snp_compress</a></code></li>
 <li><code><a title="cnvpytor.utils.snp_decompress" href="#cnvpytor.utils.snp_decompress">snp_decompress</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="cnvpytor.utils.PromptCompleter" href="#cnvpytor.utils.PromptCompleter">PromptCompleter</a></code></h4>
+<ul class="">
+<li><code><a title="cnvpytor.utils.PromptCompleter.complete" href="#cnvpytor.utils.PromptCompleter.complete">complete</a></code></li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>

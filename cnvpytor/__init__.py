@@ -40,7 +40,7 @@ Call CNV using single nucleotide polymorphism::
 > cnvpytor -root file.pytor -snp file.vcf
 > cnvpytor -root file.pytor -pileup file.bam
 > cnvpytor -root file.pytor -baf 10000 100000
-> TODO: cnvpytor -root file.pytor -call baf 10000 100000
+> cnvpytor -root file.pytor -call baf 10000 100000
 ```
 
 Plot
@@ -94,4 +94,4 @@ from .vcf import *
 from .root import *
 from .viewer import *
 
-__version__ = '1.0a1'
+__version__ = '1.0a2'

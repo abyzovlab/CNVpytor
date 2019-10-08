@@ -111,7 +111,10 @@ class Fasta:
               for i in range(0, len(seq), 100)]
         at = [seq.count(&#34;A&#34;, i, i + 100) + seq.count(&#34;T&#34;, i, i + 100)
               for i in range(0, len(seq), 100)]
-
+        n = self.len[chr_name] // 100 + 1
+        if len(gc) &lt; n:
+            gc.append(0)
+            at.append(0)
         tot = len(seq)
         sgc = sum(gc)
         sat = sum(at)
@@ -246,7 +249,10 @@ class Fasta:
           for i in range(0, len(seq), 100)]
     at = [seq.count(&#34;A&#34;, i, i + 100) + seq.count(&#34;T&#34;, i, i + 100)
           for i in range(0, len(seq), 100)]
-
+    n = self.len[chr_name] // 100 + 1
+    if len(gc) &lt; n:
+        gc.append(0)
+        at.append(0)
     tot = len(seq)
     sgc = sum(gc)
     sat = sum(at)

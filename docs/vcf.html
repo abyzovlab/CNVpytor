@@ -51,9 +51,11 @@ class Vcf:
         try:
             self.file = pysam.VariantFile(filename)
         except IOError:
-            _logger.warning(&#34;Problem opening file &#39;%s&#39;!&#34; % filename)
+            _logger.error(&#34;Problem opening file &#39;%s&#39;!&#34; % filename)
+            exit(0)
         except ValueError:
-            _logger.warning(&#34;Problem opening file &#39;%s&#39;!&#34; % filename)
+            _logger.error(&#34;Problem opening file &#39;%s&#39;!&#34; % filename)
+            exit(0)
 
         self.chrs = []
         self.samples = []
@@ -129,25 +131,114 @@ class Vcf:
         gt = []
         flag = []
         qual = []
+        alphabet = [&#39;A&#39;, &#39;T&#39;, &#39;G&#39;, &#39;C&#39;, &#39;.&#39;]
         try:
             for rec in self.file.fetch(chr_name):
-                if &#34;PASS&#34; in rec.filter.keys() and len(rec.alts) == 1 and (&#34;GT&#34; in rec.samples[&#39;F316&#39;].keys()) and (
-                        &#34;AD&#34; in rec.samples[&#39;F316&#39;].keys()):
-                    pos.append(rec.pos)
-                    ref.append(rec.ref)
-                    alt.append(rec.alts[0])
-                    flag.append(2)  # Assign P region by default
-                    qual.append(int(rec.qual / 10))  # divide QUAL by factor 10 and truncate to one byte
-                    if qual[-1] &gt; 255:
-                        qual[-1] = 255
-                    nref.append(rec.samples[sample][&#34;AD&#34;][0])
-                    nalt.append(rec.samples[sample][&#34;AD&#34;][1])
-                    gt.append(rec.samples[sample][&#34;GT&#34;][0] * 2 + rec.samples[sample][&#34;GT&#34;][1])
-                    if rec.samples[sample].phased:
-                        gt[-1] += 4
+                if &#34;PASS&#34; in rec.filter.keys() and rec.alts and len(rec.alts) == 1 and (
+                        &#34;GT&#34; in rec.samples[sample].keys()) and (
+                        &#34;AD&#34; in rec.samples[sample].keys()) and len(rec.samples[sample][&#34;GT&#34;]) &gt; 1 and len(
+                        rec.samples[sample][&#34;AD&#34;]) &gt; 1:
+                    if (len(rec.samples[sample][&#34;AD&#34;]) &gt; 1) and (rec.ref in alphabet) and (rec.alts[0] in alphabet):
+                        pos.append(rec.pos)
+                        ref.append(rec.ref)
+                        alt.append(rec.alts[0])
+                        flag.append(2)  # Assign P region by default
+                        qual.append(int(rec.qual / 10))  # divide QUAL by factor 10 and truncate to one byte
+                        if qual[-1] &gt; 255:
+                            qual[-1] = 255
+                        nref.append(rec.samples[sample][&#34;AD&#34;][0])
+                        nalt.append(rec.samples[sample][&#34;AD&#34;][1])
+                        gt.append(rec.samples[sample][&#34;GT&#34;][0] * 2 + rec.samples[sample][&#34;GT&#34;][1])
+                        if rec.samples[sample].phased:
+                            gt[-1] += 4
         except ValueError:
             _logger.error(&#34;Variant file reading problem. Probably index file is missing or corrupted.&#34;)
-        return pos, ref, alt, nref, nalt, gt, flag, qual</code></pre>
+            exit(0)
+        return pos, ref, alt, nref, nalt, gt, flag, qual
+
+    def read_all_snp(self, callback, sample=&#39;&#39;):
+        &#34;&#34;&#34;
+
+        Parameters
+        ----------
+        callback
+        sample
+
+        Returns
+        -------
+
+        &#34;&#34;&#34;
+        &#34;&#34;&#34;
+        Read SNP/indel data for given chromosome and sample.
+
+        Parameters
+        ----------
+        callback : callable
+            Function to call after read a chromosome.
+        sample : str
+            Name of the sample (first one if empty - default)
+        
+        Returns
+        -------
+        count : int
+            Number of read chromosomes
+
+        &#34;&#34;&#34;
+        if sample == &#39;&#39;:
+            sample = self.samples[0]
+        pos = []
+        ref = []
+        alt = []
+        nref = []
+        nalt = []
+        gt = []
+        flag = []
+        qual = []
+        last_chrom = None
+        count = 0
+        alphabet = [&#39;A&#39;, &#39;T&#39;, &#39;G&#39;, &#39;C&#39;, &#39;.&#39;]
+
+        try:
+            for rec in self.file.fetch():
+                if last_chrom is None:
+                    last_chrom = rec.chrom
+                if last_chrom != rec.chrom:
+                    callback(last_chrom, pos, ref, alt, nref, nalt, gt, flag, qual)
+                    pos = []
+                    ref = []
+                    alt = []
+                    nref = []
+                    nalt = []
+                    gt = []
+                    flag = []
+                    qual = []
+                    count += 1
+
+                if &#34;PASS&#34; in rec.filter.keys() and rec.alts and len(rec.alts) == 1 and (
+                        &#34;GT&#34; in rec.samples[sample].keys()) and (
+                        &#34;AD&#34; in rec.samples[sample].keys()) and len(rec.samples[sample][&#34;GT&#34;]) &gt; 1 and len(
+                    rec.samples[sample][&#34;AD&#34;]) &gt; 1:
+                    if (len(rec.samples[sample][&#34;AD&#34;]) &gt; 1) and (rec.ref in alphabet) and (rec.alts[0] in alphabet):
+                        pos.append(rec.pos)
+                        ref.append(rec.ref)
+                        alt.append(rec.alts[0])
+                        flag.append(2)  # Assign P region by default
+                        qual.append(int(rec.qual / 10))  # divide QUAL by factor 10 and truncate to one byte
+                        if qual[-1] &gt; 255:
+                            qual[-1] = 255
+                        nref.append(rec.samples[sample][&#34;AD&#34;][0])
+                        nalt.append(rec.samples[sample][&#34;AD&#34;][1])
+                        gt.append(rec.samples[sample][&#34;GT&#34;][0] * 2 + rec.samples[sample][&#34;GT&#34;][1])
+                        if rec.samples[sample].phased:
+                            gt[-1] += 4
+                last_chrom = rec.chrom
+            if len(pos) &gt; 0:
+                callback(last_chrom, pos, ref, alt, nref, nalt, gt, flag, qual)
+                count += 1
+            return count
+        except ValueError:
+            _logger.error(&#34;Variant file reading problem.&#34;)
+            exit(0)</code></pre>
 </details>
 </section>
 <section>
@@ -226,6 +317,105 @@ class Vcf:
     return self.samples</code></pre>
 </details>
 </dd>
+<dt id="cnvpytor.vcf.Vcf.read_all_snp"><code class="name flex">
+<span>def <span class="ident">read_all_snp</span></span>(<span>self, callback, sample='')</span>
+</code></dt>
+<dd>
+<section class="desc"><h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>callback</code></strong></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>sample</code></strong></dt>
+<dd>&nbsp;</dd>
+</dl>
+<h2 id="returns">Returns</h2></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def read_all_snp(self, callback, sample=&#39;&#39;):
+    &#34;&#34;&#34;
+
+    Parameters
+    ----------
+    callback
+    sample
+
+    Returns
+    -------
+
+    &#34;&#34;&#34;
+    &#34;&#34;&#34;
+    Read SNP/indel data for given chromosome and sample.
+
+    Parameters
+    ----------
+    callback : callable
+        Function to call after read a chromosome.
+    sample : str
+        Name of the sample (first one if empty - default)
+    
+    Returns
+    -------
+    count : int
+        Number of read chromosomes
+
+    &#34;&#34;&#34;
+    if sample == &#39;&#39;:
+        sample = self.samples[0]
+    pos = []
+    ref = []
+    alt = []
+    nref = []
+    nalt = []
+    gt = []
+    flag = []
+    qual = []
+    last_chrom = None
+    count = 0
+    alphabet = [&#39;A&#39;, &#39;T&#39;, &#39;G&#39;, &#39;C&#39;, &#39;.&#39;]
+
+    try:
+        for rec in self.file.fetch():
+            if last_chrom is None:
+                last_chrom = rec.chrom
+            if last_chrom != rec.chrom:
+                callback(last_chrom, pos, ref, alt, nref, nalt, gt, flag, qual)
+                pos = []
+                ref = []
+                alt = []
+                nref = []
+                nalt = []
+                gt = []
+                flag = []
+                qual = []
+                count += 1
+
+            if &#34;PASS&#34; in rec.filter.keys() and rec.alts and len(rec.alts) == 1 and (
+                    &#34;GT&#34; in rec.samples[sample].keys()) and (
+                    &#34;AD&#34; in rec.samples[sample].keys()) and len(rec.samples[sample][&#34;GT&#34;]) &gt; 1 and len(
+                rec.samples[sample][&#34;AD&#34;]) &gt; 1:
+                if (len(rec.samples[sample][&#34;AD&#34;]) &gt; 1) and (rec.ref in alphabet) and (rec.alts[0] in alphabet):
+                    pos.append(rec.pos)
+                    ref.append(rec.ref)
+                    alt.append(rec.alts[0])
+                    flag.append(2)  # Assign P region by default
+                    qual.append(int(rec.qual / 10))  # divide QUAL by factor 10 and truncate to one byte
+                    if qual[-1] &gt; 255:
+                        qual[-1] = 255
+                    nref.append(rec.samples[sample][&#34;AD&#34;][0])
+                    nalt.append(rec.samples[sample][&#34;AD&#34;][1])
+                    gt.append(rec.samples[sample][&#34;GT&#34;][0] * 2 + rec.samples[sample][&#34;GT&#34;][1])
+                    if rec.samples[sample].phased:
+                        gt[-1] += 4
+            last_chrom = rec.chrom
+        if len(pos) &gt; 0:
+            callback(last_chrom, pos, ref, alt, nref, nalt, gt, flag, qual)
+            count += 1
+        return count
+    except ValueError:
+        _logger.error(&#34;Variant file reading problem.&#34;)
+        exit(0)</code></pre>
+</details>
+</dd>
 <dt id="cnvpytor.vcf.Vcf.read_chromosome_snp"><code class="name flex">
 <span>def <span class="ident">read_chromosome_snp</span></span>(<span>self, chr_name, sample='')</span>
 </code></dt>
@@ -300,24 +490,29 @@ class Vcf:
     gt = []
     flag = []
     qual = []
+    alphabet = [&#39;A&#39;, &#39;T&#39;, &#39;G&#39;, &#39;C&#39;, &#39;.&#39;]
     try:
         for rec in self.file.fetch(chr_name):
-            if &#34;PASS&#34; in rec.filter.keys() and len(rec.alts) == 1 and (&#34;GT&#34; in rec.samples[&#39;F316&#39;].keys()) and (
-                    &#34;AD&#34; in rec.samples[&#39;F316&#39;].keys()):
-                pos.append(rec.pos)
-                ref.append(rec.ref)
-                alt.append(rec.alts[0])
-                flag.append(2)  # Assign P region by default
-                qual.append(int(rec.qual / 10))  # divide QUAL by factor 10 and truncate to one byte
-                if qual[-1] &gt; 255:
-                    qual[-1] = 255
-                nref.append(rec.samples[sample][&#34;AD&#34;][0])
-                nalt.append(rec.samples[sample][&#34;AD&#34;][1])
-                gt.append(rec.samples[sample][&#34;GT&#34;][0] * 2 + rec.samples[sample][&#34;GT&#34;][1])
-                if rec.samples[sample].phased:
-                    gt[-1] += 4
+            if &#34;PASS&#34; in rec.filter.keys() and rec.alts and len(rec.alts) == 1 and (
+                    &#34;GT&#34; in rec.samples[sample].keys()) and (
+                    &#34;AD&#34; in rec.samples[sample].keys()) and len(rec.samples[sample][&#34;GT&#34;]) &gt; 1 and len(
+                    rec.samples[sample][&#34;AD&#34;]) &gt; 1:
+                if (len(rec.samples[sample][&#34;AD&#34;]) &gt; 1) and (rec.ref in alphabet) and (rec.alts[0] in alphabet):
+                    pos.append(rec.pos)
+                    ref.append(rec.ref)
+                    alt.append(rec.alts[0])
+                    flag.append(2)  # Assign P region by default
+                    qual.append(int(rec.qual / 10))  # divide QUAL by factor 10 and truncate to one byte
+                    if qual[-1] &gt; 255:
+                        qual[-1] = 255
+                    nref.append(rec.samples[sample][&#34;AD&#34;][0])
+                    nalt.append(rec.samples[sample][&#34;AD&#34;][1])
+                    gt.append(rec.samples[sample][&#34;GT&#34;][0] * 2 + rec.samples[sample][&#34;GT&#34;][1])
+                    if rec.samples[sample].phased:
+                        gt[-1] += 4
     except ValueError:
         _logger.error(&#34;Variant file reading problem. Probably index file is missing or corrupted.&#34;)
+        exit(0)
     return pos, ref, alt, nref, nalt, gt, flag, qual</code></pre>
 </details>
 </dd>
@@ -344,6 +539,7 @@ class Vcf:
 <ul class="">
 <li><code><a title="cnvpytor.vcf.Vcf.get_chromosomes" href="#cnvpytor.vcf.Vcf.get_chromosomes">get_chromosomes</a></code></li>
 <li><code><a title="cnvpytor.vcf.Vcf.get_samples" href="#cnvpytor.vcf.Vcf.get_samples">get_samples</a></code></li>
+<li><code><a title="cnvpytor.vcf.Vcf.read_all_snp" href="#cnvpytor.vcf.Vcf.read_all_snp">read_all_snp</a></code></li>
 <li><code><a title="cnvpytor.vcf.Vcf.read_chromosome_snp" href="#cnvpytor.vcf.Vcf.read_chromosome_snp">read_chromosome_snp</a></code></li>
 </ul>
 </li>

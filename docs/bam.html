@@ -32,6 +32,8 @@ from .genome import Genome
 import pysam
 import numpy as np
 import logging
+import os
+import random
 
 _logger = logging.getLogger(&#34;cnvpytor.bam&#34;)
 
@@ -113,21 +115,49 @@ class Bam:
         rd_p = np.zeros(n)
         rd_u = np.zeros(n)
         his_read_frg = np.zeros((self.max_read_len, self.max_frg_len))
-        for r in self.file.fetch(chr_name, multiple_iterators=True):
-            assert isinstance(r, pysam.libcalignedsegment.AlignedSegment)
-            if r.template_length and r.reference_length:
-                fl = abs(r.template_length)
-                rl = r.reference_length
-                if fl and (rl &lt; self.max_read_len) and (fl &lt; self.max_frg_len):
-                    his_read_frg[rl][fl] += 1
-                if r.is_unmapped or r.is_secondary or r.is_duplicate:
-                    continue
-            if r.reference_start and r.reference_end and not (r.mapping_quality is None):
-                mid = (r.reference_end + r.reference_start) // 200
-                rd_p[mid] += 1
-                if r.mapping_quality &gt; 0:
-                    rd_u[mid] += 1
-        return rd_p, rd_u, his_read_frg</code></pre>
+        try:
+            for r in self.file.fetch(chr_name, multiple_iterators=True):
+                assert isinstance(r, pysam.libcalignedsegment.AlignedSegment)
+                if r.template_length and r.reference_length:
+                    fl = abs(r.template_length)
+                    rl = r.reference_length
+                    if fl and (rl &lt; self.max_read_len) and (fl &lt; self.max_frg_len):
+                        his_read_frg[rl][fl] += 1
+                    if r.is_unmapped or r.is_secondary or r.is_duplicate:
+                        continue
+                if r.reference_start and r.reference_end and not (r.mapping_quality is None):
+                    mid = (r.reference_end + r.reference_start) // 200
+                    rd_p[mid] += 1
+                    if r.mapping_quality &gt; 0:
+                        rd_u[mid] += 1
+        except IOError:
+            _logger.error(&#34;Error while reading file &#39;%s&#39;&#34; % self.filename)
+            exit(0)
+        except ValueError:
+            _logger.error(&#34;Error while reading file &#39;%s&#39;. Probably index is missing.&#34; % self.filename)
+            exit(0)
+        return rd_p, rd_u, his_read_frg
+
+    def pileup(self, chr_name, pos, ref, alt, tmp_file=&#34;.cnvpytor&#34;):
+        if not (chr_name in self.len):
+            _logger.warning(&#34;Can not find chromosome &#39;%s&#39; in file &#39;%s&#39;.&#34; % (chr_name, self.filename))
+            return
+        _logger.debug(&#34;Pileup chromosome %s from filename %s&#34; % (chr_name, self.filename))
+        tmp_file += &#34;_&#34; + str(random.randint(0, 1e10)) + &#34;_&#34; + chr_name
+        f = open(tmp_file, &#34;w&#34;)
+        for i in pos:
+            print(chr_name, i, file=f)
+        f.close()
+        mpile = pysam.mpileup(&#34;-r&#34;, chr_name, &#34;-l&#34;, tmp_file, self.filename)
+        os.remove(tmp_file)
+        pos_seq = dict([(int(x.split(&#34;\t&#34;)[1]), x.split(&#34;\t&#34;)[4].upper()) for x in mpile.split(&#34;\n&#34;) if x != &#34;&#34;])
+        nref = [0] * len(pos)
+        nalt = [0] * len(pos)
+        for ix in range(len(pos)):
+            if pos[ix] in pos_seq:
+                nref[ix] = pos_seq[pos[ix]].count(ref[ix])
+                nalt[ix] = pos_seq[pos[ix]].count(alt[ix])
+        return nref, nalt</code></pre>
 </details>
 </section>
 <section>
@@ -188,6 +218,35 @@ class Bam:
     return self.file.header.references, self.file.header.lengths</code></pre>
 </details>
 </dd>
+<dt id="cnvpytor.bam.Bam.pileup"><code class="name flex">
+<span>def <span class="ident">pileup</span></span>(<span>self, chr_name, pos, ref, alt, tmp_file='.cnvpytor')</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def pileup(self, chr_name, pos, ref, alt, tmp_file=&#34;.cnvpytor&#34;):
+    if not (chr_name in self.len):
+        _logger.warning(&#34;Can not find chromosome &#39;%s&#39; in file &#39;%s&#39;.&#34; % (chr_name, self.filename))
+        return
+    _logger.debug(&#34;Pileup chromosome %s from filename %s&#34; % (chr_name, self.filename))
+    tmp_file += &#34;_&#34; + str(random.randint(0, 1e10)) + &#34;_&#34; + chr_name
+    f = open(tmp_file, &#34;w&#34;)
+    for i in pos:
+        print(chr_name, i, file=f)
+    f.close()
+    mpile = pysam.mpileup(&#34;-r&#34;, chr_name, &#34;-l&#34;, tmp_file, self.filename)
+    os.remove(tmp_file)
+    pos_seq = dict([(int(x.split(&#34;\t&#34;)[1]), x.split(&#34;\t&#34;)[4].upper()) for x in mpile.split(&#34;\n&#34;) if x != &#34;&#34;])
+    nref = [0] * len(pos)
+    nalt = [0] * len(pos)
+    for ix in range(len(pos)):
+        if pos[ix] in pos_seq:
+            nref[ix] = pos_seq[pos[ix]].count(ref[ix])
+            nalt[ix] = pos_seq[pos[ix]].count(alt[ix])
+    return nref, nalt</code></pre>
+</details>
+</dd>
 <dt id="cnvpytor.bam.Bam.read_chromosome"><code class="name flex">
 <span>def <span class="ident">read_chromosome</span></span>(<span>self, chr_name)</span>
 </code></dt>
@@ -236,20 +295,27 @@ class Bam:
     rd_p = np.zeros(n)
     rd_u = np.zeros(n)
     his_read_frg = np.zeros((self.max_read_len, self.max_frg_len))
-    for r in self.file.fetch(chr_name, multiple_iterators=True):
-        assert isinstance(r, pysam.libcalignedsegment.AlignedSegment)
-        if r.template_length and r.reference_length:
-            fl = abs(r.template_length)
-            rl = r.reference_length
-            if fl and (rl &lt; self.max_read_len) and (fl &lt; self.max_frg_len):
-                his_read_frg[rl][fl] += 1
-            if r.is_unmapped or r.is_secondary or r.is_duplicate:
-                continue
-        if r.reference_start and r.reference_end and not (r.mapping_quality is None):
-            mid = (r.reference_end + r.reference_start) // 200
-            rd_p[mid] += 1
-            if r.mapping_quality &gt; 0:
-                rd_u[mid] += 1
+    try:
+        for r in self.file.fetch(chr_name, multiple_iterators=True):
+            assert isinstance(r, pysam.libcalignedsegment.AlignedSegment)
+            if r.template_length and r.reference_length:
+                fl = abs(r.template_length)
+                rl = r.reference_length
+                if fl and (rl &lt; self.max_read_len) and (fl &lt; self.max_frg_len):
+                    his_read_frg[rl][fl] += 1
+                if r.is_unmapped or r.is_secondary or r.is_duplicate:
+                    continue
+            if r.reference_start and r.reference_end and not (r.mapping_quality is None):
+                mid = (r.reference_end + r.reference_start) // 200
+                rd_p[mid] += 1
+                if r.mapping_quality &gt; 0:
+                    rd_u[mid] += 1
+    except IOError:
+        _logger.error(&#34;Error while reading file &#39;%s&#39;&#34; % self.filename)
+        exit(0)
+    except ValueError:
+        _logger.error(&#34;Error while reading file &#39;%s&#39;. Probably index is missing.&#34; % self.filename)
+        exit(0)
     return rd_p, rd_u, his_read_frg</code></pre>
 </details>
 </dd>
@@ -275,6 +341,7 @@ class Bam:
 <h4><code><a title="cnvpytor.bam.Bam" href="#cnvpytor.bam.Bam">Bam</a></code></h4>
 <ul class="">
 <li><code><a title="cnvpytor.bam.Bam.get_chr_len" href="#cnvpytor.bam.Bam.get_chr_len">get_chr_len</a></code></li>
+<li><code><a title="cnvpytor.bam.Bam.pileup" href="#cnvpytor.bam.Bam.pileup">pileup</a></code></li>
 <li><code><a title="cnvpytor.bam.Bam.read_chromosome" href="#cnvpytor.bam.Bam.read_chromosome">read_chromosome</a></code></li>
 </ul>
 </li>

@@ -40,8 +40,8 @@ def main():
                         help="calculate statistics for specified bin size (multiple bin sizes separate by space)")
     parser.add_argument('-partition', '--partition', type=binsize_type, nargs="+",
                         help="calculate segmentation for specified bin size (multiple bin sizes separate by space)")
-    parser.add_argument('-call', '--call', type=binsize_type, nargs="+",
-                        help="CNV caller based on read depth segmentation for specified bin size (multiple bin sizes separate by space)")
+    parser.add_argument('-call', '--call', type=str, nargs="+",
+                        help="CNV caller: [baf] bin_size [bin_size2 ...] (multiple bin sizes separate by space)")
     parser.add_argument('-vcf', '--vcf', nargs="+", type=str, help="read SNP data from vcf files")
     parser.add_argument('-pileup', '--pileup_bam', nargs="+", type=str, help="calculate SNP counts from bam files")
 
@@ -59,14 +59,17 @@ def main():
     parser.add_argument('-plot', '--plot', type=str, nargs="+", help="plotting")
     parser.add_argument('-view', '--view', type=binsize_type,
                         help="Enters interactive ploting mode")
-    parser.add_argument('-panels', '--panels', type=str, nargs="+", default=["rd"], choices=["rd","baf","likelihood"], help="plot panels (with -plot regions)")
+    parser.add_argument('-panels', '--panels', type=str, nargs="+", default=["rd"], choices=["rd", "baf", "likelihood"],
+                        help="plot panels (with -plot regions)")
 
     parser.add_argument('-style', '--plot_style', type=str,
                         help="available plot styles: " + ", ".join(plt.style.available), choices=plt.style.available)
     parser.add_argument('-o', '--plot_output_file', type=str, help="output filename prefix and extension", default="")
 
-    parser.add_argument('-make_gc_file', '--make_gc_genome_file', action='store_true', help="used with -gc will create genome gc file")
-    parser.add_argument('-make_mask_file', '--make_mask_genome_file', action='store_true', help="used with -mask will create genome mask file")
+    parser.add_argument('-make_gc_file', '--make_gc_genome_file', action='store_true',
+                        help="used with -gc will create genome gc file")
+    parser.add_argument('-make_mask_file', '--make_mask_genome_file', action='store_true',
+                        help="used with -mask will create genome mask file")
     parser.add_argument('-use_mask_rd', '--use_mask_with_rd', action='store_true', help="used P mask in RD histograms")
     parser.add_argument('-rg', '--reference_genome', type=str, help="Manually set reference genome", default=None)
     parser.add_argument('-sample', '--vcf_sample', type=str, help="Sample name in vcf file", default="")
@@ -126,7 +129,7 @@ def main():
             view = Viewer(args.root, args.plot_output_file)
             if args.plot_style:
                 view.set_style(args.plot_style)
-            view.prompt(args.view,args)
+            view.prompt(args.view, args)
 
         if args.gc:
             app = Root(args.root[0], max_cores=args.max_cores)
@@ -162,7 +165,13 @@ def main():
 
         if args.baf:
             app = Root(args.root[0], max_cores=args.max_cores)
-            app.calculate_baf(args.baf, chroms=args.chrom, use_id=args.use_id, use_mask= not args.no_mask)
+            app.calculate_baf(args.baf, chroms=args.chrom, use_id=args.use_id, use_mask=not args.no_mask)
+
+        if args.call:
+            app = Root(args.root[0], max_cores=args.max_cores)
+            if args.call[0] == "baf":
+                app.call_baf([binsize_type(x) for x in args.call[1:]], chroms=args.chrom, use_id=args.use_id,
+                             use_mask=not args.no_mask)
 
 
 if __name__ == '__main__':

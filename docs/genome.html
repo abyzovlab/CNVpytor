@@ -202,7 +202,7 @@ class Genome:
             found = True
             checked = False
             for c, l in zip(names, lengths):
-                if cls.extended_chrom_name(c) in cls.reference_genomes[g][&#34;chromosomes&#34;]:
+                if (cls.extended_chrom_name(c) in cls.reference_genomes[g][&#34;chromosomes&#34;]) and (not cls.is_mt_chrom(c)):
                     checked = True
                     found = found and (cls.reference_genomes[g][&#34;chromosomes&#34;][cls.extended_chrom_name(c)][0] == l)
             if checked and found:
@@ -361,7 +361,7 @@ def detect_genome(cls, names, lengths):
         found = True
         checked = False
         for c, l in zip(names, lengths):
-            if cls.extended_chrom_name(c) in cls.reference_genomes[g][&#34;chromosomes&#34;]:
+            if (cls.extended_chrom_name(c) in cls.reference_genomes[g][&#34;chromosomes&#34;]) and (not cls.is_mt_chrom(c)):
                 checked = True
                 found = found and (cls.reference_genomes[g][&#34;chromosomes&#34;][cls.extended_chrom_name(c)][0] == l)
         if checked and found:

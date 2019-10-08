@@ -33,6 +33,8 @@ from __future__ import absolute_import, print_function, division
 from .genome import Genome
 from .utils import *
 import logging
+import os.path
+import io
 import numpy as np
 import h5py
 import re
@@ -55,11 +57,11 @@ class IO:
         &#34;RD u&#34;: &#34;%(chr)s_rd_u&#34;,
         &#34;GC/AT&#34;: &#34;%(chr)s_gc&#34;,
         &#34;mask&#34;: &#34;%(chr)s_mask&#34;,
-        &#34;GC corr&#34;: &#34;gc_corr%(flag)s&#34;,
-        &#34;RD p dist&#34;: &#34;dist_rd_p%(flag)s&#34;,
-        &#34;RD u dist&#34;: &#34;dist_rd_u%(flag)s&#34;,
-        &#34;RD GC dist&#34;: &#34;dist_rd_gc%(flag)s&#34;,
-        &#34;RD stat&#34;: &#34;rd_stat%(flag)s&#34;,
+        &#34;GC corr&#34;: &#34;gc_corr_%(bin_size)d%(flag)s&#34;,
+        &#34;RD p dist&#34;: &#34;dist_rd_p_%(bin_size)d%(flag)s&#34;,
+        &#34;RD u dist&#34;: &#34;dist_rd_u_%(bin_size)d%(flag)s&#34;,
+        &#34;RD GC dist&#34;: &#34;dist_rd_gc_%(bin_size)d%(flag)s&#34;,
+        &#34;RD stat&#34;: &#34;rd_stat_%(bin_size)d%(flag)s&#34;,
         &#34;RD&#34;: &#34;his_rd_p_%(chr)s_%(bin_size)d%(rd_flag)s&#34;,
         &#34;RD unique&#34;: &#34;his_rd_u_%(chr)s_%(bin_size)d%(rd_flag)s&#34;,
         &#34;RD raw&#34;: &#34;his_rd_p_%(chr)s_%(bin_size)d%(rd_flag)s_raw&#34;,
@@ -73,7 +75,10 @@ class IO:
         &#34;SNP desc&#34;: &#34;%(chr)s_snp_desc&#34;,
         &#34;SNP counts&#34;: &#34;%(chr)s_snp_counts&#34;,
         &#34;SNP qual&#34;: &#34;%(chr)s_snp_qual&#34;,
-        &#34;SNP bin_count&#34;: &#34;snp_bafc_%(chr)s_%(bin_size)d%(snp_flag)s&#34;,
+        &#34;SNP bin count&#34;: &#34;snp_bafc_%(chr)s_%(bin_size)d%(snp_flag)s&#34;,
+        &#34;SNP bin hets&#34;: &#34;snp_bafc_%(chr)s_%(bin_size)d%(snp_flag)s&#34;,
+        &#34;SNP bin count h1&#34;: &#34;snp_bafc_h1_%(chr)s_%(bin_size)d%(snp_flag)s&#34;,
+        &#34;SNP bin count h2&#34;: &#34;snp_bafc_h2_%(chr)s_%(bin_size)d%(snp_flag)s&#34;,
         &#34;SNP baf&#34;: &#34;snp_baf_%(chr)s_%(bin_size)d%(snp_flag)s&#34;,
         &#34;SNP maf&#34;: &#34;snp_maf_%(chr)s_%(bin_size)d%(snp_flag)s&#34;,
         &#34;SNP likelihood&#34;: &#34;snp_likelihood_%(chr)s_%(bin_size)d%(snp_flag)s&#34;,
@@ -100,7 +105,7 @@ class IO:
         &#34;use reference&#34;: &#34;use_reference&#34;
     }
 
-    def __init__(self, filename):
+    def __init__(self, filename, ro=False, buffer=False):
         &#34;&#34;&#34;
         Opens CNVpytor file for reading/writing
 
@@ -111,15 +116,39 @@ class IO:
 
         &#34;&#34;&#34;
         self.filename = filename
+        self.file = None
         _logger.debug(&#34;Opening h5 file &#39;%s&#39;&#34; % self.filename)
-        try:
-            self.file = h5py.File(filename, &#34;r+&#34;)
-        except IOError:
-            self.file = h5py.File(filename, &#34;w&#34;)
+        if ro:
+            try:
+                if buffer:
+                    with open(filename, &#39;rb&#39;) as f:
+                        self.bytesio = io.BytesIO(f.read())
+                    self.file = h5py.File(self.bytesio, &#34;r&#34;)
+                else:
+                    self.file = h5py.File(filename, &#34;r&#34;)
+                _logger.debug(&#34;File &#39;%s&#39; successfully opened in read-only mode.&#34; % self.filename)
+            except IOError:
+                _logger.error(&#34;Unable to open file %s!&#34; % filename)
+                exit(0)
+        elif os.path.exists(filename):
+            try:
+                self.file = h5py.File(filename, &#34;r+&#34;)
+                _logger.debug(&#34;File &#39;%s&#39; successfully opened.&#34; % self.filename)
+            except IOError:
+                _logger.error(&#34;Unable to open file %s!&#34; % filename)
+                exit(0)
+        else:
+            try:
+                self.file = h5py.File(filename, &#34;w&#34;)
+                _logger.debug(&#34;File &#39;%s&#39; successfully created.&#34; % self.filename)
+            except IOError:
+                _logger.error(&#34;Unable to create file %s!&#34; % filename)
+                exit(0)
 
     def __del__(self):
         _logger.debug(&#34;Closing h5 file &#39;%s&#39;&#34; % self.filename)
-        self.file.close()
+        if self.file:
+            self.file.close()
 
     @staticmethod
     def suffix_rd_flag(flags):
@@ -196,7 +225,7 @@ class IO:
             s += &#34;_mt&#34;
         return s
 
-    def chromosomes_with_signal(self, bin_size, signal, flags=FLAG_USEMASK | FLAG_GC_CORR):
+    def chromosomes_with_signal(self, bin_size, signal, flags=0):
         &#34;&#34;&#34;
         Returns list of chromosomes with signal stored in CNVpytor file
 
@@ -217,7 +246,7 @@ class IO:
             List of chromosome names.
 
         &#34;&#34;&#34;
-        search_string = &#34;^&#34; + self.signal_name(&#34;(.*)&#34;, bin_size, signal, flags) + &#34;$&#34;
+        search_string = &#34;^&#34; + self.signal_name(&#34;(.[^_]*)&#34;, bin_size, signal, flags) + &#34;$&#34;
         chrs = []
         for key in self.file.keys():
             res = re.findall(search_string, key)
@@ -225,7 +254,37 @@ class IO:
                 chrs.append(res[0])
         return chrs
 
-    def signal_name(self, chr_name, bin_size, signal, flags=FLAG_USEMASK | FLAG_GC_CORR):
+    def chromosomes_bin_sizes_with_signal(self, signal, flags=0):
+        &#34;&#34;&#34;
+        Returns list of chromosome bin_size pairs with signal stored in CNVpytor file
+
+        Parameters
+        ----------
+        bin_size : int or None
+            Bin size or None.
+        signal : str
+            Signal name.
+        flags : int
+            Binary flag
+            (FLAG_AUTO = 0x0001, FLAG_SEX = 0x0002, FLAG_MT = 0x0004, FLAG_GC_CORR = 0x0010
+            FLAG_AT_CORR = 0x0020, FLAG_USEMASK = 0x0100, FLAG_USEID = 0x0200, FLAG_USEHAP = 0x0400).
+
+        Returns
+        -------
+        chrs_bss : list of (str, int)
+            List of tuples (chromosome name, bin size).
+
+        &#34;&#34;&#34;
+        search_string = &#34;^&#34; + self.signal_name(&#34;(.[^_]*)&#34;, 17110806, signal, flags) + &#34;$&#34;
+        search_string = search_string.replace(&#34;17110806&#34;, &#34;(.[0-9]*)&#34;)
+        chrs_bss = []
+        for key in self.file.keys():
+            res = re.findall(search_string, key)
+            if len(res) &gt; 0:
+                chrs_bss.append(res[0])
+        return chrs_bss
+
+    def signal_name(self, chr_name, bin_size, signal, flags=0):
         &#34;&#34;&#34;
         Returns h5py variable name for a given signal.
 
@@ -249,13 +308,16 @@ class IO:
 
         &#34;&#34;&#34;
         if signal in self.signals:
-            return self.signals[signal] % {&#34;chr&#34;: chr_name, &#34;bin_size&#34;: bin_size, &#34;rd_flag&#34;: self.suffix_rd_flag(flags),
-                                           &#34;snp_flag&#34;: self.suffix_snp_flag(flags), &#34;flag&#34;: self.suffix_flag(flags)}
+            try:
+                return self.signals[signal] % {&#34;chr&#34;: chr_name, &#34;bin_size&#34;: bin_size,
+                                               &#34;rd_flag&#34;: self.suffix_rd_flag(flags),
+                                               &#34;snp_flag&#34;: self.suffix_snp_flag(flags), &#34;flag&#34;: self.suffix_flag(flags)}
+            except TypeError:
+                return None
         else:
-            logging.warning(&#34;Signal &#39;%s&#39; does not exists!&#34; % signal)
             return None
 
-    def signal_exists(self, chr_name, bin_size, signal, flags=FLAG_USEMASK | FLAG_GC_CORR):
+    def signal_exists(self, chr_name, bin_size, signal, flags=0):
         &#34;&#34;&#34;
         Checks does signal exist.
 
@@ -353,7 +415,7 @@ class IO:
         self._flush()
         return self.file[signame]
 
-    def get_signal(self, chr_name, bin_size, signal, flags=FLAG_USEMASK | FLAG_GC_CORR):
+    def get_signal(self, chr_name, bin_size, signal, flags=0):
         &#34;&#34;&#34;
         Reads signal data from CNVpytor file and returns pointer to data set.
 
@@ -380,7 +442,7 @@ class IO:
         if not signame:
             return None
         if not (signame in self.file):
-            logging.debug(&#34;Signal &#39;%s&#39; does not exist in file &#39;%s&#39;!&#34; % (signame, self.filename))
+            _logger.debug(&#34;Signal &#39;%s&#39; does not exist in file &#39;%s&#39;!&#34; % (signame, self.filename))
             return []
         return np.array(self.file[signame])
 
@@ -404,8 +466,53 @@ class IO:
         None
 
         &#34;&#34;&#34;
-        print(&#34;Filename &#39;%s&#39;:&#34; % self.filename)
-        print(&#34;, &#34;.join(self.file.keys()))
+        print()
+        print(&#34;Filename &#39;%s&#39;&#34; % self.filename)
+        print(&#34;-----------&#34; + &#34;-&#34; * len(self.filename))
+        print(&#34;Chromosomes with RD signal: &#34; + &#34;, &#34;.join(self.rd_chromosomes()))
+        print()
+        print(&#34;Chromosomes with SNP signal: &#34; + &#34;, &#34;.join(self.snp_chromosomes()))
+        print()
+        if self.signal_exists(None, None, &#34;reference genome&#34;) and self.signal_exists(None, None, &#34;use reference&#34;):
+            rg_name = np.array(self.get_signal(None, None, &#34;reference genome&#34;)).astype(&#34;str&#34;)[0]
+            print(&#34;Using reference genome: &#34; + rg_name + &#34; [ &#34;, end=&#39;&#39;)
+            if rg_name in Genome.reference_genomes:
+                rg_use = self.get_signal(None, None, &#34;use reference&#34;)
+                if &#34;gc_file&#34; in Genome.reference_genomes[rg_name] and rg_use[0] == 1:
+                    print(&#34;GC: yes, &#34;, end=&#39;&#39;)
+                else:
+                    print(&#34;GC: no, &#34;, end=&#39;&#39;)
+                if &#34;mask_file&#34; in Genome.reference_genomes[rg_name] and rg_use[1] == 1:
+                    print(&#34;mask: yes ]&#34;)
+                else:
+                    print(&#34;mask: no ]&#34;)
+        else:
+            print(&#34;Reference genome is not set.&#34;)
+        print()
+
+        chr_bs = self.chromosomes_bin_sizes_with_signal(&#34;RD&#34;)
+        chrs = {}
+        bss = []
+        for c, b in chr_bs:
+            if c not in chrs:
+                chrs[c] = []
+            chrs[c].append(int(b))
+            if int(b) not in bss:
+                bss.append(int(b))
+
+        print(&#34;Chromosomes with RD histograms [bin sizes]: &#34; + &#34;, &#34;.join(chrs.keys()) + &#34; &#34; + str(sorted(bss)))
+        print()
+        chr_bs = self.chromosomes_bin_sizes_with_signal(&#34;SNP bin count&#34;)
+        chrs = {}
+        bss = []
+        for c, b in chr_bs:
+            if c not in chrs:
+                chrs[c] = []
+            chrs[c].append(int(b))
+            if int(b) not in bss:
+                bss.append(int(b))
+
+        print(&#34;Chromosomes with SNP histograms [bin sizes]: &#34; + &#34;, &#34;.join(chrs.keys()) + &#34; &#34; + str(sorted(bss)))
         print()
 
     @staticmethod
@@ -454,8 +561,18 @@ class IO:
             Data set instance with RD unique signal.
 
         &#34;&#34;&#34;
+        _logger.info(&#34;Saving chromosome RD data for chromosome &#39;%s&#39;.&#34; % chr_name)
         data_type = &#34;uint32&#34; if Genome.is_mt_chrom(chr_name) else &#34;uint16&#34;
         crd_p, crd_u = rd_compress(rd_p, rd_u, data_type)
+        snp_name = self.snp_chromosome_name(chr_name)
+        if not (snp_name is None):
+            if snp_name == chr_name:
+                _logger.info(&#34;Detecting SNP data in file &#39;%s&#39; for the same chromosome.&#34; % self.filename)
+            else:
+                _logger.info(
+                    &#34;Detecting RD data in file &#39;%s&#39; for the same chromosome with different name &#39;%s&#39;. SNP name will be used.&#34; % (
+                        self.filename, snp_name))
+                chr_name = snp_name
         ds_p = self.create_signal(chr_name, None, &#34;RD p&#34;, crd_p)
         ds_u = self.create_signal(chr_name, None, &#34;RD u&#34;, crd_u)
         if not (chr_name in self.rd_chromosomes()):
@@ -464,7 +581,7 @@ class IO:
             self.create_signal(None, None, &#34;RD chromosomes&#34;, np.array([np.string_(x) for x in rd_chroms]))
         return ds_p, ds_u
 
-    def save_vcf(self, chr_name, pos, ref, alt, nref, nalt, gt, flag, qual):
+    def save_snp(self, chr_name, pos, ref, alt, nref, nalt, gt, flag, qual, update=False):
         &#34;&#34;&#34;
         Compress and stores SNP data into CNVpytor file.
 
@@ -493,7 +610,17 @@ class IO:
         -------
             None
         &#34;&#34;&#34;
+        _logger.info(&#34;Saving chromosome SNP data for chromosome &#39;%s&#39;.&#34; % chr_name)
         snp_pos, snp_desc, snp_counts, snp_qual = snp_compress(pos, ref, alt, nref, nalt, gt, flag, qual)
+        rd_name = self.rd_chromosome_name(chr_name)
+        if not update and not (rd_name is None):
+            if rd_name == chr_name:
+                _logger.info(&#34;Detecting RD data in file &#39;%s&#39; for the same chromosome.&#34; % self.filename)
+            else:
+                _logger.info(
+                    &#34;Detecting RD data in file &#39;%s&#39; for the same chromosome with different name &#39;%s&#39;. RD name will be used.&#34; % (
+                        self.filename, rd_name))
+                chr_name = rd_name
         self.create_signal(chr_name, None, &#34;SNP pos&#34;, snp_pos)
         self.create_signal(chr_name, None, &#34;SNP desc&#34;, snp_desc)
         self.create_signal(chr_name, None, &#34;SNP counts&#34;, snp_counts)
@@ -524,6 +651,42 @@ class IO:
         crd_u = self.get_signal(chr_name, None, &#34;RD u&#34;)
         rd_p, rd_u = rd_decompress(crd_p, crd_u)
         return rd_p, rd_u
+
+    def read_snp(self, chr_name):
+        &#34;&#34;&#34;
+        Reads SNP signals
+
+        Parameters
+        ----------
+        chr_name : str
+            Name of the chromosome.
+
+        Returns
+        -------
+        pos : list of int
+            List of SNP positions.
+        ref : list of str
+            List of SNP reference base (A, T, G, C or .).
+        alt : list of str
+            List of SNP alternative base (A, T, G, C or .).
+        nref : list of int
+            Count of reads contains reference SNP.
+        nalt : list of int
+            Count of reads contains alternative SNP.
+        gt : list of int
+            List of genotypes (0 - &#34;0/0&#34;, 1 - &#34;0/1&#34;, 3- &#34;1/1&#34;, 4 - &#34;0|0&#34; , 5 - &#34;0|1&#34;, 6 - &#34;1|0&#34;, 7 - &#34;1|1&#34;).
+        flag : list of int
+            Binary flag: first bit 1 - SNP exists in database, second bit 1 - SNP in P region of strict mask.
+        qual : list of int
+            SNP quality (scale 0 - 255).
+
+        &#34;&#34;&#34;
+        snp_pos = self.get_signal(chr_name, None, &#34;SNP pos&#34;)
+        snp_desc = self.get_signal(chr_name, None, &#34;SNP desc&#34;)
+        snp_counts = self.get_signal(chr_name, None, &#34;SNP counts&#34;)
+        snp_qual = self.get_signal(chr_name, None, &#34;SNP qual&#34;)
+        pos, ref, alt, nref, nalt, gt, flag, qual = snp_decompress(snp_pos, snp_desc, snp_counts, snp_qual)
+        return pos, ref, alt, nref, nalt, gt, flag, qual
 
     def rd_chromosomes(self):
         &#34;&#34;&#34;
@@ -641,7 +804,7 @@ class IO:
 <dl>
 <dt id="cnvpytor.io.IO"><code class="flex name class">
 <span>class <span class="ident">IO</span></span>
-<span>(</span><span>filename)</span>
+<span>(</span><span>filename, ro=False, buffer=False)</span>
 </code></dt>
 <dd>
 <section class="desc"><p>Opens CNVpytor file for reading/writing</p>
@@ -840,8 +1003,62 @@ def suffix_snp_flag(flags):
 </dl>
 <h3>Methods</h3>
 <dl>
+<dt id="cnvpytor.io.IO.chromosomes_bin_sizes_with_signal"><code class="name flex">
+<span>def <span class="ident">chromosomes_bin_sizes_with_signal</span></span>(<span>self, signal, flags=0)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Returns list of chromosome bin_size pairs with signal stored in CNVpytor file</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>bin_size</code></strong> :&ensp;<code>int</code> or <code>None</code></dt>
+<dd>Bin size or None.</dd>
+<dt><strong><code>signal</code></strong> :&ensp;<code>str</code></dt>
+<dd>Signal name.</dd>
+<dt><strong><code>flags</code></strong> :&ensp;<code>int</code></dt>
+<dd>Binary flag
+(FLAG_AUTO = 0x0001, FLAG_SEX = 0x0002, FLAG_MT = 0x0004, FLAG_GC_CORR = 0x0010
+FLAG_AT_CORR = 0x0020, FLAG_USEMASK = 0x0100, FLAG_USEID = 0x0200, FLAG_USEHAP = 0x0400).</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>chrs_bss</code></strong> :&ensp;<code>list</code> of (<code>str</code>, <code>int</code>)</dt>
+<dd>List of tuples (chromosome name, bin size).</dd>
+</dl></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def chromosomes_bin_sizes_with_signal(self, signal, flags=0):
+    &#34;&#34;&#34;
+    Returns list of chromosome bin_size pairs with signal stored in CNVpytor file
+
+    Parameters
+    ----------
+    bin_size : int or None
+        Bin size or None.
+    signal : str
+        Signal name.
+    flags : int
+        Binary flag
+        (FLAG_AUTO = 0x0001, FLAG_SEX = 0x0002, FLAG_MT = 0x0004, FLAG_GC_CORR = 0x0010
+        FLAG_AT_CORR = 0x0020, FLAG_USEMASK = 0x0100, FLAG_USEID = 0x0200, FLAG_USEHAP = 0x0400).
+
+    Returns
+    -------
+    chrs_bss : list of (str, int)
+        List of tuples (chromosome name, bin size).
+
+    &#34;&#34;&#34;
+    search_string = &#34;^&#34; + self.signal_name(&#34;(.[^_]*)&#34;, 17110806, signal, flags) + &#34;$&#34;
+    search_string = search_string.replace(&#34;17110806&#34;, &#34;(.[0-9]*)&#34;)
+    chrs_bss = []
+    for key in self.file.keys():
+        res = re.findall(search_string, key)
+        if len(res) &gt; 0:
+            chrs_bss.append(res[0])
+    return chrs_bss</code></pre>
+</details>
+</dd>
 <dt id="cnvpytor.io.IO.chromosomes_with_signal"><code class="name flex">
-<span>def <span class="ident">chromosomes_with_signal</span></span>(<span>self, bin_size, signal, flags=272)</span>
+<span>def <span class="ident">chromosomes_with_signal</span></span>(<span>self, bin_size, signal, flags=0)</span>
 </code></dt>
 <dd>
 <section class="desc"><p>Returns list of chromosomes with signal stored in CNVpytor file</p>
@@ -863,7 +1080,7 @@ FLAG_AT_CORR = 0x0020, FLAG_USEMASK = 0x0100, FLAG_USEID = 0x0200, FLAG_USEHAP =
 </dl></section>
 <details class="source">
 <summary>Source code</summary>
-<pre><code class="python">def chromosomes_with_signal(self, bin_size, signal, flags=FLAG_USEMASK | FLAG_GC_CORR):
+<pre><code class="python">def chromosomes_with_signal(self, bin_size, signal, flags=0):
     &#34;&#34;&#34;
     Returns list of chromosomes with signal stored in CNVpytor file
 
@@ -884,7 +1101,7 @@ FLAG_AT_CORR = 0x0020, FLAG_USEMASK = 0x0100, FLAG_USEID = 0x0200, FLAG_USEHAP =
         List of chromosome names.
 
     &#34;&#34;&#34;
-    search_string = &#34;^&#34; + self.signal_name(&#34;(.*)&#34;, bin_size, signal, flags) + &#34;$&#34;
+    search_string = &#34;^&#34; + self.signal_name(&#34;(.[^_]*)&#34;, bin_size, signal, flags) + &#34;$&#34;
     chrs = []
     for key in self.file.keys():
         res = re.findall(search_string, key)
@@ -982,7 +1199,7 @@ FLAG_AT_CORR = 0x0020, FLAG_USEMASK = 0x0100, FLAG_USEID = 0x0200, FLAG_USEHAP =
 </details>
 </dd>
 <dt id="cnvpytor.io.IO.get_signal"><code class="name flex">
-<span>def <span class="ident">get_signal</span></span>(<span>self, chr_name, bin_size, signal, flags=272)</span>
+<span>def <span class="ident">get_signal</span></span>(<span>self, chr_name, bin_size, signal, flags=0)</span>
 </code></dt>
 <dd>
 <section class="desc"><p>Reads signal data from CNVpytor file and returns pointer to data set.</p>
@@ -1006,7 +1223,7 @@ FLAG_AT_CORR = 0x0020, FLAG_USEMASK = 0x0100, FLAG_USEID = 0x0200, FLAG_USEHAP =
 </dl></section>
 <details class="source">
 <summary>Source code</summary>
-<pre><code class="python">def get_signal(self, chr_name, bin_size, signal, flags=FLAG_USEMASK | FLAG_GC_CORR):
+<pre><code class="python">def get_signal(self, chr_name, bin_size, signal, flags=0):
     &#34;&#34;&#34;
     Reads signal data from CNVpytor file and returns pointer to data set.
 
@@ -1033,7 +1250,7 @@ FLAG_AT_CORR = 0x0020, FLAG_USEMASK = 0x0100, FLAG_USEID = 0x0200, FLAG_USEHAP =
     if not signame:
         return None
     if not (signame in self.file):
-        logging.debug(&#34;Signal &#39;%s&#39; does not exist in file &#39;%s&#39;!&#34; % (signame, self.filename))
+        _logger.debug(&#34;Signal &#39;%s&#39; does not exist in file &#39;%s&#39;!&#34; % (signame, self.filename))
         return []
     return np.array(self.file[signame])</code></pre>
 </details>
@@ -1059,8 +1276,53 @@ FLAG_AT_CORR = 0x0020, FLAG_USEMASK = 0x0100, FLAG_USEID = 0x0200, FLAG_USEHAP =
     None
 
     &#34;&#34;&#34;
-    print(&#34;Filename &#39;%s&#39;:&#34; % self.filename)
-    print(&#34;, &#34;.join(self.file.keys()))
+    print()
+    print(&#34;Filename &#39;%s&#39;&#34; % self.filename)
+    print(&#34;-----------&#34; + &#34;-&#34; * len(self.filename))
+    print(&#34;Chromosomes with RD signal: &#34; + &#34;, &#34;.join(self.rd_chromosomes()))
+    print()
+    print(&#34;Chromosomes with SNP signal: &#34; + &#34;, &#34;.join(self.snp_chromosomes()))
+    print()
+    if self.signal_exists(None, None, &#34;reference genome&#34;) and self.signal_exists(None, None, &#34;use reference&#34;):
+        rg_name = np.array(self.get_signal(None, None, &#34;reference genome&#34;)).astype(&#34;str&#34;)[0]
+        print(&#34;Using reference genome: &#34; + rg_name + &#34; [ &#34;, end=&#39;&#39;)
+        if rg_name in Genome.reference_genomes:
+            rg_use = self.get_signal(None, None, &#34;use reference&#34;)
+            if &#34;gc_file&#34; in Genome.reference_genomes[rg_name] and rg_use[0] == 1:
+                print(&#34;GC: yes, &#34;, end=&#39;&#39;)
+            else:
+                print(&#34;GC: no, &#34;, end=&#39;&#39;)
+            if &#34;mask_file&#34; in Genome.reference_genomes[rg_name] and rg_use[1] == 1:
+                print(&#34;mask: yes ]&#34;)
+            else:
+                print(&#34;mask: no ]&#34;)
+    else:
+        print(&#34;Reference genome is not set.&#34;)
+    print()
+
+    chr_bs = self.chromosomes_bin_sizes_with_signal(&#34;RD&#34;)
+    chrs = {}
+    bss = []
+    for c, b in chr_bs:
+        if c not in chrs:
+            chrs[c] = []
+        chrs[c].append(int(b))
+        if int(b) not in bss:
+            bss.append(int(b))
+
+    print(&#34;Chromosomes with RD histograms [bin sizes]: &#34; + &#34;, &#34;.join(chrs.keys()) + &#34; &#34; + str(sorted(bss)))
+    print()
+    chr_bs = self.chromosomes_bin_sizes_with_signal(&#34;SNP bin count&#34;)
+    chrs = {}
+    bss = []
+    for c, b in chr_bs:
+        if c not in chrs:
+            chrs[c] = []
+        chrs[c].append(int(b))
+        if int(b) not in bss:
+            bss.append(int(b))
+
+    print(&#34;Chromosomes with SNP histograms [bin sizes]: &#34; + &#34;, &#34;.join(chrs.keys()) + &#34; &#34; + str(sorted(bss)))
     print()</code></pre>
 </details>
 </dd>
@@ -1203,6 +1465,74 @@ If such chromosome does not exist returns None.</dd>
     return rd_p, rd_u</code></pre>
 </details>
 </dd>
+<dt id="cnvpytor.io.IO.read_snp"><code class="name flex">
+<span>def <span class="ident">read_snp</span></span>(<span>self, chr_name)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Reads SNP signals</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>chr_name</code></strong> :&ensp;<code>str</code></dt>
+<dd>Name of the chromosome.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>pos</code></strong> :&ensp;<code>list</code> of <code>int</code></dt>
+<dd>List of SNP positions.</dd>
+<dt><strong><code>ref</code></strong> :&ensp;<code>list</code> of <code>str</code></dt>
+<dd>List of SNP reference base (A, T, G, C or .).</dd>
+<dt><strong><code>alt</code></strong> :&ensp;<code>list</code> of <code>str</code></dt>
+<dd>List of SNP alternative base (A, T, G, C or .).</dd>
+<dt><strong><code>nref</code></strong> :&ensp;<code>list</code> of <code>int</code></dt>
+<dd>Count of reads contains reference SNP.</dd>
+<dt><strong><code>nalt</code></strong> :&ensp;<code>list</code> of <code>int</code></dt>
+<dd>Count of reads contains alternative SNP.</dd>
+<dt><strong><code>gt</code></strong> :&ensp;<code>list</code> of <code>int</code></dt>
+<dd>List of genotypes (0 - "0/0", 1 - "0/1", 3- "1/1", 4 - "0|0" , 5 - "0|1", 6 - "1|0", 7 - "1|1").</dd>
+<dt><strong><code>flag</code></strong> :&ensp;<code>list</code> of <code>int</code></dt>
+<dd>Binary flag: first bit 1 - SNP exists in database, second bit 1 - SNP in P region of strict mask.</dd>
+<dt><strong><code>qual</code></strong> :&ensp;<code>list</code> of <code>int</code></dt>
+<dd>SNP quality (scale 0 - 255).</dd>
+</dl></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def read_snp(self, chr_name):
+    &#34;&#34;&#34;
+    Reads SNP signals
+
+    Parameters
+    ----------
+    chr_name : str
+        Name of the chromosome.
+
+    Returns
+    -------
+    pos : list of int
+        List of SNP positions.
+    ref : list of str
+        List of SNP reference base (A, T, G, C or .).
+    alt : list of str
+        List of SNP alternative base (A, T, G, C or .).
+    nref : list of int
+        Count of reads contains reference SNP.
+    nalt : list of int
+        Count of reads contains alternative SNP.
+    gt : list of int
+        List of genotypes (0 - &#34;0/0&#34;, 1 - &#34;0/1&#34;, 3- &#34;1/1&#34;, 4 - &#34;0|0&#34; , 5 - &#34;0|1&#34;, 6 - &#34;1|0&#34;, 7 - &#34;1|1&#34;).
+    flag : list of int
+        Binary flag: first bit 1 - SNP exists in database, second bit 1 - SNP in P region of strict mask.
+    qual : list of int
+        SNP quality (scale 0 - 255).
+
+    &#34;&#34;&#34;
+    snp_pos = self.get_signal(chr_name, None, &#34;SNP pos&#34;)
+    snp_desc = self.get_signal(chr_name, None, &#34;SNP desc&#34;)
+    snp_counts = self.get_signal(chr_name, None, &#34;SNP counts&#34;)
+    snp_qual = self.get_signal(chr_name, None, &#34;SNP qual&#34;)
+    pos, ref, alt, nref, nalt, gt, flag, qual = snp_decompress(snp_pos, snp_desc, snp_counts, snp_qual)
+    return pos, ref, alt, nref, nalt, gt, flag, qual</code></pre>
+</details>
+</dd>
 <dt id="cnvpytor.io.IO.save_rd"><code class="name flex">
 <span>def <span class="ident">save_rd</span></span>(<span>self, chr_name, rd_p, rd_u)</span>
 </code></dt>
@@ -1247,8 +1577,18 @@ If such chromosome does not exist returns None.</dd>
         Data set instance with RD unique signal.
 
     &#34;&#34;&#34;
+    _logger.info(&#34;Saving chromosome RD data for chromosome &#39;%s&#39;.&#34; % chr_name)
     data_type = &#34;uint32&#34; if Genome.is_mt_chrom(chr_name) else &#34;uint16&#34;
     crd_p, crd_u = rd_compress(rd_p, rd_u, data_type)
+    snp_name = self.snp_chromosome_name(chr_name)
+    if not (snp_name is None):
+        if snp_name == chr_name:
+            _logger.info(&#34;Detecting SNP data in file &#39;%s&#39; for the same chromosome.&#34; % self.filename)
+        else:
+            _logger.info(
+                &#34;Detecting RD data in file &#39;%s&#39; for the same chromosome with different name &#39;%s&#39;. SNP name will be used.&#34; % (
+                    self.filename, snp_name))
+            chr_name = snp_name
     ds_p = self.create_signal(chr_name, None, &#34;RD p&#34;, crd_p)
     ds_u = self.create_signal(chr_name, None, &#34;RD u&#34;, crd_u)
     if not (chr_name in self.rd_chromosomes()):
@@ -1258,8 +1598,8 @@ If such chromosome does not exist returns None.</dd>
     return ds_p, ds_u</code></pre>
 </details>
 </dd>
-<dt id="cnvpytor.io.IO.save_vcf"><code class="name flex">
-<span>def <span class="ident">save_vcf</span></span>(<span>self, chr_name, pos, ref, alt, nref, nalt, gt, flag, qual)</span>
+<dt id="cnvpytor.io.IO.save_snp"><code class="name flex">
+<span>def <span class="ident">save_snp</span></span>(<span>self, chr_name, pos, ref, alt, nref, nalt, gt, flag, qual, update=False)</span>
 </code></dt>
 <dd>
 <section class="desc"><p>Compress and stores SNP data into CNVpytor file.</p>
@@ -1289,7 +1629,7 @@ If such chromosome does not exist returns None.</dd>
 </code></pre></section>
 <details class="source">
 <summary>Source code</summary>
-<pre><code class="python">def save_vcf(self, chr_name, pos, ref, alt, nref, nalt, gt, flag, qual):
+<pre><code class="python">def save_snp(self, chr_name, pos, ref, alt, nref, nalt, gt, flag, qual, update=False):
     &#34;&#34;&#34;
     Compress and stores SNP data into CNVpytor file.
 
@@ -1318,7 +1658,17 @@ If such chromosome does not exist returns None.</dd>
     -------
         None
     &#34;&#34;&#34;
+    _logger.info(&#34;Saving chromosome SNP data for chromosome &#39;%s&#39;.&#34; % chr_name)
     snp_pos, snp_desc, snp_counts, snp_qual = snp_compress(pos, ref, alt, nref, nalt, gt, flag, qual)
+    rd_name = self.rd_chromosome_name(chr_name)
+    if not update and not (rd_name is None):
+        if rd_name == chr_name:
+            _logger.info(&#34;Detecting RD data in file &#39;%s&#39; for the same chromosome.&#34; % self.filename)
+        else:
+            _logger.info(
+                &#34;Detecting RD data in file &#39;%s&#39; for the same chromosome with different name &#39;%s&#39;. RD name will be used.&#34; % (
+                    self.filename, rd_name))
+            chr_name = rd_name
     self.create_signal(chr_name, None, &#34;SNP pos&#34;, snp_pos)
     self.create_signal(chr_name, None, &#34;SNP desc&#34;, snp_desc)
     self.create_signal(chr_name, None, &#34;SNP counts&#34;, snp_counts)
@@ -1330,7 +1680,7 @@ If such chromosome does not exist returns None.</dd>
 </details>
 </dd>
 <dt id="cnvpytor.io.IO.signal_exists"><code class="name flex">
-<span>def <span class="ident">signal_exists</span></span>(<span>self, chr_name, bin_size, signal, flags=272)</span>
+<span>def <span class="ident">signal_exists</span></span>(<span>self, chr_name, bin_size, signal, flags=0)</span>
 </code></dt>
 <dd>
 <section class="desc"><p>Checks does signal exist.</p>
@@ -1354,7 +1704,7 @@ FLAG_AT_CORR = 0x0020, FLAG_USEMASK = 0x0100, FLAG_USEID = 0x0200, FLAG_USEHAP =
 </dl></section>
 <details class="source">
 <summary>Source code</summary>
-<pre><code class="python">def signal_exists(self, chr_name, bin_size, signal, flags=FLAG_USEMASK | FLAG_GC_CORR):
+<pre><code class="python">def signal_exists(self, chr_name, bin_size, signal, flags=0):
     &#34;&#34;&#34;
     Checks does signal exist.
 
@@ -1384,7 +1734,7 @@ FLAG_AT_CORR = 0x0020, FLAG_USEMASK = 0x0100, FLAG_USEID = 0x0200, FLAG_USEHAP =
 </details>
 </dd>
 <dt id="cnvpytor.io.IO.signal_name"><code class="name flex">
-<span>def <span class="ident">signal_name</span></span>(<span>self, chr_name, bin_size, signal, flags=272)</span>
+<span>def <span class="ident">signal_name</span></span>(<span>self, chr_name, bin_size, signal, flags=0)</span>
 </code></dt>
 <dd>
 <section class="desc"><p>Returns h5py variable name for a given signal.</p>
@@ -1408,7 +1758,7 @@ FLAG_AT_CORR = 0x0020, FLAG_USEMASK = 0x0100, FLAG_USEID = 0x0200, FLAG_USEHAP =
 </dl></section>
 <details class="source">
 <summary>Source code</summary>
-<pre><code class="python">def signal_name(self, chr_name, bin_size, signal, flags=FLAG_USEMASK | FLAG_GC_CORR):
+<pre><code class="python">def signal_name(self, chr_name, bin_size, signal, flags=0):
     &#34;&#34;&#34;
     Returns h5py variable name for a given signal.
 
@@ -1432,10 +1782,13 @@ FLAG_AT_CORR = 0x0020, FLAG_USEMASK = 0x0100, FLAG_USEID = 0x0200, FLAG_USEHAP =
 
     &#34;&#34;&#34;
     if signal in self.signals:
-        return self.signals[signal] % {&#34;chr&#34;: chr_name, &#34;bin_size&#34;: bin_size, &#34;rd_flag&#34;: self.suffix_rd_flag(flags),
-                                       &#34;snp_flag&#34;: self.suffix_snp_flag(flags), &#34;flag&#34;: self.suffix_flag(flags)}
+        try:
+            return self.signals[signal] % {&#34;chr&#34;: chr_name, &#34;bin_size&#34;: bin_size,
+                                           &#34;rd_flag&#34;: self.suffix_rd_flag(flags),
+                                           &#34;snp_flag&#34;: self.suffix_snp_flag(flags), &#34;flag&#34;: self.suffix_flag(flags)}
+        except TypeError:
+            return None
     else:
-        logging.warning(&#34;Signal &#39;%s&#39; does not exists!&#34; % signal)
         return None</code></pre>
 </details>
 </dd>
@@ -1595,6 +1948,7 @@ FLAG_AT_CORR = 0x0020, FLAG_USEMASK = 0x0100, FLAG_USEID = 0x0200, FLAG_USEHAP =
 <li>
 <h4><code><a title="cnvpytor.io.IO" href="#cnvpytor.io.IO">IO</a></code></h4>
 <ul class="">
+<li><code><a title="cnvpytor.io.IO.chromosomes_bin_sizes_with_signal" href="#cnvpytor.io.IO.chromosomes_bin_sizes_with_signal">chromosomes_bin_sizes_with_signal</a></code></li>
 <li><code><a title="cnvpytor.io.IO.chromosomes_with_signal" href="#cnvpytor.io.IO.chromosomes_with_signal">chromosomes_with_signal</a></code></li>
 <li><code><a title="cnvpytor.io.IO.create_signal" href="#cnvpytor.io.IO.create_signal">create_signal</a></code></li>
 <li><code><a title="cnvpytor.io.IO.gc_chromosomes" href="#cnvpytor.io.IO.gc_chromosomes">gc_chromosomes</a></code></li>
@@ -1604,9 +1958,10 @@ FLAG_AT_CORR = 0x0020, FLAG_USEMASK = 0x0100, FLAG_USEID = 0x0200, FLAG_USEHAP =
 <li><code><a title="cnvpytor.io.IO.rd_chromosome_name" href="#cnvpytor.io.IO.rd_chromosome_name">rd_chromosome_name</a></code></li>
 <li><code><a title="cnvpytor.io.IO.rd_chromosomes" href="#cnvpytor.io.IO.rd_chromosomes">rd_chromosomes</a></code></li>
 <li><code><a title="cnvpytor.io.IO.read_rd" href="#cnvpytor.io.IO.read_rd">read_rd</a></code></li>
+<li><code><a title="cnvpytor.io.IO.read_snp" href="#cnvpytor.io.IO.read_snp">read_snp</a></code></li>
 <li><code><a title="cnvpytor.io.IO.save_rd" href="#cnvpytor.io.IO.save_rd">save_rd</a></code></li>
 <li><code><a title="cnvpytor.io.IO.save_root_trees" href="#cnvpytor.io.IO.save_root_trees">save_root_trees</a></code></li>
-<li><code><a title="cnvpytor.io.IO.save_vcf" href="#cnvpytor.io.IO.save_vcf">save_vcf</a></code></li>
+<li><code><a title="cnvpytor.io.IO.save_snp" href="#cnvpytor.io.IO.save_snp">save_snp</a></code></li>
 <li><code><a title="cnvpytor.io.IO.signal_exists" href="#cnvpytor.io.IO.signal_exists">signal_exists</a></code></li>
 <li><code><a title="cnvpytor.io.IO.signal_name" href="#cnvpytor.io.IO.signal_name">signal_name</a></code></li>
 <li><code><a title="cnvpytor.io.IO.signals" href="#cnvpytor.io.IO.signals">signals</a></code></li>
