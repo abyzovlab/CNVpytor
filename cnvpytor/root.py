@@ -9,8 +9,10 @@ from .bam import Bam
 from .vcf import Vcf
 from .fasta import Fasta
 from .genome import Genome
+from .viewer import anim_plot_likelihood
 import numpy as np
 import logging
+import matplotlib.pyplot as plt
 
 _logger = logging.getLogger("cnvpytor.root")
 
@@ -838,7 +840,7 @@ class Root:
                     self.io.create_signal(c, bs, "SNP i2", i2[bs].astype("float32"), snp_flag)
 
     def call_baf(self, bin_sizes, chroms=[], use_mask=True, use_id=False, odec=0.9, omin=None, mcount=None,
-                 max_distance=0.1):
+                 max_distance=0.1, anim=""):
         """
 
         Returns
@@ -892,7 +894,11 @@ class Root:
                                     overlaps[i - 1] = likelihood_overlap(likelihood[i - 1], likelihood[i])
                             else:
                                 i = i + 1
+
                         iter = iter + 1
+                        if anim != "":
+                            anim_plot_likelihood(likelihood, segments, bins, res, iter,
+                                                 anim + c + "_0_" + str(bin_size), maxo, mino)
 
                     overlaps = [[
                         likelihood_overlap(likelihood[i], likelihood[j])
@@ -908,7 +914,7 @@ class Root:
                         overlaps = [likelihood_overlap(likelihood[i], likelihood[j]) for i in range(len(likelihood))
                                     for j in range(i + 1, len(likelihood)) if
                                     (segments[j][0] - segments[i][-1]) < max_distance * (
-                                                len(segments[i]) + len(segments[j]))]
+                                            len(segments[i]) + len(segments[j]))]
                         if len(overlaps) == 0:
                             break
                         maxo = max(overlaps)
@@ -936,8 +942,11 @@ class Root:
                                 if j >= len(segments):
                                     i += 1
                                     j = i + 1
-
                         iter = iter + 1
+                        if anim != "":
+                            anim_plot_likelihood(likelihood, segments, bins, res, iter,
+                                                 anim + c + "_1_" + str(bin_size), maxo, mino)
+
                         if ons == len(segments):
                             break
                         ons = len(segments)
@@ -953,6 +962,11 @@ class Root:
                             segments[i][-1] * bin_size + bin_size),
                               bin_size, i1,
                               i2, len(segments[i]))
+
+                    self.io.create_signal(c, bin_size, "SNP likelihood segments",
+                                          data=segments_code(segments), flags=snp_flag)
+                    self.io.create_signal(c, bin_size, "SNP likelihood call",
+                                          data=np.array(likelihood, dtype="float32"), flags=snp_flag)
 
     def ls(self):
         self.io.ls()

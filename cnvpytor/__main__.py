@@ -53,8 +53,7 @@ def main():
     parser.add_argument('-nomask', '--no_mask', action='store_true', help="do not use P mask in BAF histograms")
     parser.add_argument('-useid', '--use_id', action='store_true', help="use id flag filtering in SNP histograms")
 
-    parser.add_argument('-callbaf', '--callbaf', type=binsize_type, nargs="+",
-                        help="CNV caller based on BAF likelihood function for specified bin size (multiple bin sizes separate by space)")
+
 
     parser.add_argument('-plot', '--plot', type=str, nargs="+", help="plotting")
     parser.add_argument('-view', '--view', type=binsize_type,
@@ -65,6 +64,7 @@ def main():
     parser.add_argument('-style', '--plot_style', type=str,
                         help="available plot styles: " + ", ".join(plt.style.available), choices=plt.style.available)
     parser.add_argument('-o', '--plot_output_file', type=str, help="output filename prefix and extension", default="")
+    parser.add_argument('-anim', '--animation', type=str, help="animation folder/prefix", default="")
 
     parser.add_argument('-make_gc_file', '--make_gc_genome_file', action='store_true',
                         help="used with -gc will create genome gc file")
@@ -171,7 +171,7 @@ def main():
             app = Root(args.root[0], max_cores=args.max_cores)
             if args.call[0] == "baf":
                 app.call_baf([binsize_type(x) for x in args.call[1:]], chroms=args.chrom, use_id=args.use_id,
-                             use_mask=not args.no_mask)
+                             use_mask=not args.no_mask, anim=args.animation)
 
 
 if __name__ == '__main__':

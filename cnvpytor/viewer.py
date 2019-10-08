@@ -88,8 +88,8 @@ class Viewer:
                                 "plot_files": None,
                                 "plot_file": None,
                                 "grid": None,
-                                "use_mask":None,
-                                "use_id":None,
+                                "use_mask": None,
+                                "use_id": None,
                                 "xkcd": None,
                                 "style": {}
                                 },
@@ -306,7 +306,8 @@ class Viewer:
             flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
             stat = self.io[self.plot_file].get_signal(None, bin_size, "RD stat", flag)
             if stat is None:
-                _logger.error("Data for bin size %d is missing in file '%s'!" % (bin_size, self.io[self.plot_file].filename))
+                _logger.error(
+                    "Data for bin size %d is missing in file '%s'!" % (bin_size, self.io[self.plot_file].filename))
                 exit(0)
             flag_rd = 0
             if use_mask:
@@ -634,3 +635,29 @@ class Viewer:
                 for i in borders[:-1]:
                     ax.axvline(i, color=sep_color, lw=1)
                 self.fig.add_subplot(ax)
+
+
+def anim_plot_likelihood(likelihood, segments, n, res, iter, prefix, maxp, minp):
+    mm = [[0] * res] * n
+    for i in range(len(segments)):
+        for b in segments[i]:
+            mm[b] = list(likelihood[i])
+    fig = plt.figure(1, figsize=(16, 9), dpi=120, facecolor='w', edgecolor='k')
+    fig.suptitle(
+        "Iter: " + str(iter) + "   /   Segments: " + str(len(segments)) + "   /   Overlap interval: (" + ('%.4f' % minp) + "," + (
+                '%.4f' % maxp) + ")", fontsize='large')
+    plt.subplot(211)
+    plt.ylabel("BAF")
+    plt.imshow(np.transpose(np.array(mm)), aspect='auto')
+    plt.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
+    plt.yticks([0, 50.5, 101, 151.5, 201], ("1.00", "0.75", "0.50", "0.25", "0.00"))
+    # plt.grid(True,color="w")
+    plt.subplot(212)
+    plt.xlabel("BAF")
+    plt.ylabel("Likelihood")
+    plt.xticks([0, 0.25, 0.50, 0.75, 1.0])
+    plt.grid(True, color="b")
+    for i in range(len(likelihood)):
+        plt.plot(np.linspace(1./(res+1), 1.-1./(res+1), res), likelihood[i])
+    plt.savefig(prefix + "_" + str(iter).zfill(4), dpi=150)
+    plt.close(fig)

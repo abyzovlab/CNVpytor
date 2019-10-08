@@ -22,7 +22,7 @@ setup(
         'numpy',
         'scipy',
         'matplotlib',
-        'h5py',
+        'h5py>=2.9',
     ],
     classifiers=[
         'Development Status :: 3 - Alpha',

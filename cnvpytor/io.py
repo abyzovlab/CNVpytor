@@ -66,6 +66,7 @@ class IO:
         "SNP i2 partition": "snp_i2_%(chr)s_%(bin_size)d%(snp_flag)s_partition",
         "SNP i3 partition": "snp_i3_%(chr)s_%(bin_size)d%(snp_flag)s_partition",
         "SNP i4 partition": "snp_i4_%(chr)s_%(bin_size)d%(snp_flag)s_partition",
+        "SNP likelihood segments": "snp_likelihood_%(chr)s_%(bin_size)d%(snp_flag)s_segments",
         "SNP likelihood call": "snp_likelihood_%(chr)s_%(bin_size)d%(snp_flag)s_call",
         "SNP maf call": "snp_maf_%(chr)s_%(bin_size)d%(snp_flag)s_call",
         "SNP i1 call": "snp_i1_%(chr)s_%(bin_size)d%(snp_flag)s_call",

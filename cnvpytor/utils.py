@@ -175,6 +175,52 @@ def rd_decompress(crd_p, crd_u):
     """
     return np.array(crd_p), np.array(crd_p) + np.array(crd_u)
 
+def segments_code(segments):
+    """
+    Convert segments to numpy array e.g. [[1,2],[3]] -> [1,2,MAX,3,MAX]
+    Parameters
+    ----------
+    segments : list of list of int
+        Segments e.g. [[1,2],[3]].
+
+    Returns
+    -------
+    aseg : numpy.ndarra
+
+    """
+    max=2**32-1
+    l = []
+    for s in segments:
+        for i in s:
+            l.append(i)
+        l.append(max)
+    return np.array(l,dtype="uint32")
+
+
+def segments_decode(aseg):
+    """
+    Decode segments.
+    Parameters
+    ----------
+    aseg : numpy.ndarra of uint32
+
+    Returns
+    -------
+    segments : list of list of int
+
+    """
+    max = 2 ** 32 - 1
+    segments = []
+    l = []
+    for x in list(aseg):
+        if x==max:
+            segments.append(l)
+            l = []
+        else:
+            l.append(x)
+    return segments
+
+
 
 def binsize_type(x):
     x = int(x)
