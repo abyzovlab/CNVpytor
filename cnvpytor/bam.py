@@ -37,7 +37,7 @@ class Bam:
             self.file = pysam.AlignmentFile(filename, "rb")
         elif filename[-4:] == ".sam":
             self.file = pysam.AlignmentFile(filename, "r")
-        elif filename[-4:] == ".cram":
+        elif filename[-5:] == ".cram":
             self.file = pysam.AlignmentFile(filename, "rc")
         else:
             _logger.warning("Unsuported file type: " + filename)
