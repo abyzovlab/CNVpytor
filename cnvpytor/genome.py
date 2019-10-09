@@ -217,7 +217,9 @@ class Genome:
             Name of the configuration file
 
         """
+        _logger.info("Reading configuration file '%s'." % filename)
         import_reference_genomes = {}
         exec(open(filename).read())
         for g in import_reference_genomes:
+            _logger.info("Importing reference genome data: '%s'." % g)
             cls.reference_genomes[g] = import_reference_genomes[g]

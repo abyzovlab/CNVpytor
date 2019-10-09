@@ -34,6 +34,8 @@ class Viewer:
         self.plot_file = 0
         self.use_mask = True
         self.use_id = False
+        self.palette1 = ["#555555", "#aaaaaa"]
+        self.palette2 = ["#00ff00", "#0000ff"]
         self.baf_colors = {(0, 0): "yellow", (0, 1): "orange", (1, 0): "cyan", (1, 1): "blue", (2, 0): "lime",
                            (2, 1): "green", (3, 0): "yellow", (3, 1): "orange"}
         if self.io[0].signal_exists(None, None, "reference genome"):
@@ -58,14 +60,16 @@ class Viewer:
                     self.manhattan(int(p), args.use_mask_with_rd)
                 elif current == "stat":
                     self.stat(int(p))
+                elif current == "circular":
+                    self.circular(int(p), args.chrom, args.use_mask_with_rd)
                 elif current == "regions":
-                    self.regions(int(p), regions, panels=args.panels)
+                    self.multiple_regions(int(p), regions, panels=args.panels)
                     regions = []
             elif p == "rdstat":
                 self.stat()
             elif p == "baf":
                 self.baf()
-            elif p in ["rd", "manhattan", "stat", "regions", "likelihood"]:
+            elif p in ["rd", "manhattan", "stat", "regions", "likelihood", "circular"]:
                 current = p
             elif current == "regions":
                 regions.append(p)
@@ -97,7 +101,7 @@ class Viewer:
                                   "xkcd": None
                                   },
                         "save": None, "show": None, "quit": None, "rd": None, "likelihood": None, "baf": None,
-                        "stat": None, "rdstat": None,
+                        "stat": None, "rdstat": None, "circular": None, "manhattan": None
                         }
         chromosomes = set({})
         for f in self.io:
@@ -141,10 +145,13 @@ class Viewer:
                         print("        * use_mask_rd:", args.use_mask_with_rd)
                         print("        * use_mask:", self.use_mask)
                         print("        * use_id:", self.use_id)
-                        print("        * plot_files:", list(zip(map(lambda x: x.filename, self.io), self.plot_files)))
+                        print("        * plot_files:")
+                        for fi, fn, fs in list(
+                                zip(range(len(self.plot_files)), map(lambda x: x.filename, self.io), self.plot_files)):
+                            print("            %2d" % fi, fn, fs)
                         print("        * plot_file:", self.plot_file)
                         print("        * grid:", self.grid)
-                        print("    Available plot styles:", ", ".join(plt.style.available))
+                        # print("    Available plot styles:", ", ".join(plt.style.available))
                 elif f[0] == "set":
                     if n > 2 and f[1] == "bin_size":
                         try:
@@ -226,9 +233,9 @@ class Viewer:
 
     def stat(self, his_bin_size=100):
         plt.clf()
-        auto = self.io[0].signal_exists(None, his_bin_size, "RD stat", FLAG_AUTO)
-        sex = self.io[0].signal_exists(None, his_bin_size, "RD stat", FLAG_SEX)
-        mt = self.io[0].signal_exists(None, his_bin_size, "RD stat", FLAG_MT) and (his_bin_size < 1001)
+        auto = self.io[self.plot_file].signal_exists(None, his_bin_size, "RD stat", FLAG_AUTO)
+        sex = self.io[self.plot_file].signal_exists(None, his_bin_size, "RD stat", FLAG_SEX)
+        mt = self.io[self.plot_file].signal_exists(None, his_bin_size, "RD stat", FLAG_MT) and (his_bin_size < 1001)
         if not (auto or sex or mt):
             return
         cond = [auto, sex, mt]
@@ -239,7 +246,7 @@ class Viewer:
         self.fig = plt.figure(1, figsize=(4 * n_cols, 8), dpi=90, facecolor='w', edgecolor='k')
         for t, c, flag in zip(["Autosomes", "X/Y", "Mitochondria"], cond, [FLAG_AUTO, FLAG_SEX, FLAG_MT]):
             if c:
-                stat = self.io[0].get_signal(None, his_bin_size, "RD stat", flag)
+                stat = self.io[self.plot_file].get_signal(None, his_bin_size, "RD stat", flag)
                 stat_list.append(stat)
                 max_rd = int(stat[0])
                 bin_size = int(stat[1])
@@ -251,10 +258,10 @@ class Viewer:
                         t, 2 * stat[4] / stat_list[0][4],
                         2 * stat[5] / stat_list[0][4] + stat_list[0][5] * stat[4] / (
                                 stat_list[0][4] * stat_list[0][4])))
-                his_p = self.io[0].get_signal(None, his_bin_size, "RD p dist", flag)
-                his_u = self.io[0].get_signal(None, his_bin_size, "RD u dist", flag)
-                his_rd_gc = self.io[0].get_signal(None, his_bin_size, "RD GC dist", flag)
-                gc_corr = self.io[0].get_signal(None, his_bin_size, "GC corr", flag)
+                his_p = self.io[self.plot_file].get_signal(None, his_bin_size, "RD p dist", flag)
+                his_u = self.io[self.plot_file].get_signal(None, his_bin_size, "RD u dist", flag)
+                his_rd_gc = self.io[self.plot_file].get_signal(None, his_bin_size, "RD GC dist", flag)
+                gc_corr = self.io[self.plot_file].get_signal(None, his_bin_size, "GC corr", flag)
                 ax = plt.subplot(2, n_cols, ix)
                 ax.set_xlabel("RD")
                 ax.set_ylabel("GC [%]")
@@ -435,7 +442,8 @@ class Viewer:
         else:
             plt.show()
 
-    def panels_shape(self, n):
+    @staticmethod
+    def panels_shape(n):
         sx, sy = 1, 1
         if n == 2:
             sx = 2
@@ -464,51 +472,61 @@ class Viewer:
         if self.reference_genome is None:
             _logger.warning("Missing reference genome required for gview.")
             return
-        chroms = []
-        for c, (l, t) in self.reference_genome["chromosomes"].items():
-            rd_chr = self.io[self.plot_file].rd_chromosome_name(c)
-            if self.io[self.plot_file].signal_exists(rd_chr, bin_size, "RD", 0) and \
-                    self.io[self.plot_file].signal_exists(rd_chr, bin_size, "RD", FLAG_GC_CORR) and \
-                    (Genome.is_autosome(c) or Genome.is_sex_chrom(c)):
-                chroms.append((rd_chr, l))
+        n = self.plot_files.count(True)
+        ix = [x for x in range(len(self.plot_files)) if self.plot_files[x]]
 
-        ix = 1
-        apos = 0
-        xticks = [0]
-
+        plt.clf()
         plt.rcParams["font.size"] = 8
-        self.fig = plt.figure(1, figsize=(12, 4), dpi=90, facecolor='w', edgecolor='k')
-        ax = plt.gca()
-        max_m = 0
-        for c, l in chroms:
-            flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
-            stat = self.io[self.plot_file].get_signal(None, bin_size, "RD stat", flag)
-            if stat[4] > max_m:
-                max_m = stat[4]
-            flag_rd = 0
-            if use_mask:
-                flag_rd = FLAG_USEMASK
-            his_p = self.io[self.plot_file].get_signal(c, bin_size, "RD", flag_rd)
-            his_p_corr = self.io[self.plot_file].get_signal(c, bin_size, "RD", flag_rd | FLAG_GC_CORR)
-            pos = range(apos, apos + len(his_p))
-            ax.text(apos + len(his_p) // 2, stat[4] // 10, Genome.canonical_chrom_name(c),
-                    fontsize=12, verticalalignment='bottom', horizontalalignment='center', )
-            plt.plot(pos, his_p_corr, ls='', marker='.')
-            apos += len(his_p)
-            xticks.append(apos)
+        self.fig = plt.figure(1, facecolor='w', edgecolor='k')
+        if self.output_filename != "":
+            self.fig.set_figheight(2 * n)
+            self.fig.set_figwidth(12)
+        grid = gridspec.GridSpec(n, 1, wspace=0.2, hspace=0.2)
+        for i in range(n):
+            ax = self.fig.add_subplot(grid[i])
+            io = self.io[ix[i]]
 
-        ax.xaxis.set_ticklabels([])
-        ax.yaxis.set_ticklabels([])
-        ax.yaxis.set_ticks(np.arange(0, 3, 0.5) * max_m, [])
-        ax.xaxis.set_ticks(xticks, [])
-        ax.set_ylim([0, 2 * max_m])
-        n_bins = apos
-        ax.set_xlim([0, n_bins])
-        ax.grid()
+            chroms = []
+            for c, (l, t) in self.reference_genome["chromosomes"].items():
+                rd_chr = io.rd_chromosome_name(c)
+                if io.signal_exists(rd_chr, bin_size, "RD", 0) and \
+                        io.signal_exists(rd_chr, bin_size, "RD", FLAG_GC_CORR) and \
+                        (Genome.is_autosome(c) or Genome.is_sex_chrom(c)):
+                    chroms.append((rd_chr, l))
+
+            apos = 0
+            xticks = [0]
+
+            max_m = 0
+            for c, l in chroms:
+                flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
+                stat = io.get_signal(None, bin_size, "RD stat", flag)
+                if stat[4] > max_m:
+                    max_m = stat[4]
+                flag_rd = 0
+                if use_mask:
+                    flag_rd = FLAG_USEMASK
+                his_p = io.get_signal(c, bin_size, "RD", flag_rd)
+                his_p_corr = io.get_signal(c, bin_size, "RD", flag_rd | FLAG_GC_CORR)
+                pos = range(apos, apos + len(his_p))
+                ax.text(apos + len(his_p) // 2, stat[4] // 10, Genome.canonical_chrom_name(c),
+                        fontsize=12, verticalalignment='bottom', horizontalalignment='center', )
+                plt.plot(pos, his_p_corr, ls='', marker='.')
+                apos += len(his_p)
+                xticks.append(apos)
+
+            ax.xaxis.set_ticklabels([])
+            ax.yaxis.set_ticklabels([])
+            ax.yaxis.set_ticks(np.arange(0, 3, 0.5) * max_m, [])
+            ax.xaxis.set_ticks(xticks, [])
+            ax.set_ylim([0, 2 * max_m])
+            n_bins = apos
+            ax.set_xlim([0, n_bins])
+            ax.grid()
         plt.subplots_adjust(bottom=0.05, top=0.95, wspace=0, hspace=0, left=0.05, right=0.95)
 
         if self.output_filename != "":
-            plt.savefig(self.image_filename("manhattan"), dpi=150)
+            plt.savefig(self.image_filename("manhattan"), dpi=200)
             plt.close(self.fig)
         elif self.interactive:
             plt.show(block=False)
@@ -516,7 +534,7 @@ class Viewer:
         else:
             plt.show()
 
-    def regions(self, bin_size, regions, panels=["rd"], use_mask_rd=False, sep_color="g"):
+    def multiple_regions(self, bin_size, regions, panels=["rd"], use_mask_rd=False, sep_color="g"):
         plt.clf()
         plt.rcParams["font.size"] = 8
         self.fig = plt.figure(1, figsize=(12, 8), facecolor='w', edgecolor='k')
@@ -524,7 +542,7 @@ class Viewer:
         ix = 0
         for i in self.io:
             for r in regions:
-                self.region(i, grid[ix], bin_size, r, panels=panels, use_mask_rd=use_mask_rd, sep_color=sep_color)
+                self.regions(i, grid[ix], bin_size, r, panels=panels, use_mask_rd=use_mask_rd, sep_color=sep_color)
                 ix += 1
         plt.subplots_adjust(bottom=0.05, top=0.95, wspace=0, hspace=0, left=0.05, right=0.95)
 
@@ -537,7 +555,7 @@ class Viewer:
         else:
             plt.show()
 
-    def region(self, io, element, bin_size, region, panels=["rd"], use_mask_rd=False, sep_color="g"):
+    def regions(self, io, element, bin_size, region, panels=["rd"], use_mask_rd=False, sep_color="g"):
         snp_flag = (FLAG_USEMASK if self.use_mask else 0) | (FLAG_USEID if self.use_id else 0)
         grid = gridspec.GridSpecFromSubplotSpec(len(panels), 1, subplot_spec=element, wspace=0, hspace=0.1)
         r = decode_region(region)
@@ -636,6 +654,73 @@ class Viewer:
                     ax.axvline(i, color=sep_color, lw=1)
                 self.fig.add_subplot(ax)
 
+    def circular(self, bin_size, chroms=[], use_mask_rd=True):
+        n = self.plot_files.count(True)
+        ix = [x for x in range(len(self.plot_files)) if self.plot_files[x]]
+        snp_flag = (FLAG_USEMASK if self.use_mask else 0) | (FLAG_USEID if self.use_id else 0)
+        rd_flag = FLAG_GC_CORR | (FLAG_USEMASK if use_mask_rd else 0)
+        if self.grid == "auto":
+            sx, sy = self.panels_shape(n)
+        else:
+            sx, sy = self.grid
+        plt.clf()
+        plt.rcParams["font.size"] = 8
+        self.fig = plt.figure(1, facecolor='w', edgecolor='k')
+        if self.output_filename != "":
+            self.fig.set_figheight(sy * 8)
+            self.fig.set_figwidth(sx * 8)
+        grid = gridspec.GridSpec(sy, sx, wspace=0.2, hspace=0.2)
+        for i in range(n):
+            ax = self.fig.add_subplot(grid[i], projection='polar')
+            ax.set_theta_zero_location("N")
+            ax.set_theta_direction(-1)
+            io = self.io[ix[i]]
+            plot_len = 0
+            plot_chroms = []
+            for c, (l, t) in self.reference_genome["chromosomes"].items():
+                rd_chr = io.rd_chromosome_name(c)
+                if rd_chr is not None and (len(chroms) == 0 or (rd_chr in chroms) or (c in chroms)) and (
+                        Genome.is_autosome(c) or Genome.is_sex_chrom(c)
+                ) and io.signal_exists(rd_chr, bin_size, "SNP maf", snp_flag) and io.signal_exists(
+                    rd_chr, bin_size, "RD", rd_flag):
+                    plot_chroms.append((rd_chr, l))
+                    plot_len += l // bin_size + 1
+            rd_mean = io.get_signal(None, bin_size, "RD stat", FLAG_AUTO)[4]
+            tl = 0
+            dt = 2.0 * np.pi / plot_len
+            theta = np.arange(0, 2.0 * np.pi, dt)
+            angles = []
+            labels = []
+            for j in range(len(plot_chroms)):
+                c, l = plot_chroms[j]
+                rd_color = self.palette1[j % len(self.palette1)]
+                snp_color = self.palette2[j % len(self.palette2)]
+                rd = io.get_signal(c, bin_size, "RD", rd_flag)
+                maf = io.get_signal(c, bin_size, "SNP maf", snp_flag)
+                plt.polar(theta[tl:tl + maf.size], 1 - maf, color=snp_color, linewidth=0.3)
+                plt.fill_between(theta[tl:tl + maf.size], 1 - maf, np.ones_like(maf), color=snp_color, alpha=0.8)
+                plt.polar(theta[tl:tl + rd.size], rd / (3. * rd_mean), color=rd_color, linewidth=0.3)
+                plt.fill_between(theta[tl:tl + rd.size], np.ones_like(rd) / 10., rd / (3. * rd_mean), color=rd_color,
+                                 alpha=0.8)
+                # ax.text(theta[tl + maf.size // 3], 0.8, c, fontsize=8)
+                labels.append(Genome.canonical_chrom_name(c))
+                angles.append(180 * theta[tl + rd.size // 2] / np.pi)
+                tl += l // bin_size + 1
+            ax.set_rmax(0.9)
+            ax.set_rticks([])
+            ax.set_thetagrids(angles, labels=labels, fontsize=10, weight="bold", color="black")
+            ax.set_title(io.filename.split("/")[-1], loc="left", fontsize=10, weight="bold", color="black")
+            ax.grid(False)
+        plt.subplots_adjust(bottom=0.05, top=0.95, wspace=0.2, hspace=0.2, left=0.05, right=0.95)
+        if self.output_filename != "":
+            plt.savefig(self.image_filename("circular"), dpi=200)
+            plt.close(self.fig)
+        elif self.interactive:
+            plt.show(block=False)
+            plt.draw()
+        else:
+            plt.show()
+
 
 def anim_plot_likelihood(likelihood, segments, n, res, iter, prefix, maxp, minp):
     mm = [[0] * res] * n
@@ -644,7 +729,8 @@ def anim_plot_likelihood(likelihood, segments, n, res, iter, prefix, maxp, minp)
             mm[b] = list(likelihood[i])
     fig = plt.figure(1, figsize=(16, 9), dpi=120, facecolor='w', edgecolor='k')
     fig.suptitle(
-        "Iter: " + str(iter) + "   /   Segments: " + str(len(segments)) + "   /   Overlap interval: (" + ('%.4f' % minp) + "," + (
+        "Iter: " + str(iter) + "   /   Segments: " + str(len(segments)) + "   /   Overlap interval: (" + (
+                '%.4f' % minp) + "," + (
                 '%.4f' % maxp) + ")", fontsize='large')
     plt.subplot(211)
     plt.ylabel("BAF")
@@ -658,6 +744,6 @@ def anim_plot_likelihood(likelihood, segments, n, res, iter, prefix, maxp, minp)
     plt.xticks([0, 0.25, 0.50, 0.75, 1.0])
     plt.grid(True, color="b")
     for i in range(len(likelihood)):
-        plt.plot(np.linspace(1./(res+1), 1.-1./(res+1), res), likelihood[i])
+        plt.plot(np.linspace(1. / (res + 1), 1. - 1. / (res + 1), res), likelihood[i])
     plt.savefig(prefix + "_" + str(iter).zfill(4), dpi=150)
     plt.close(fig)

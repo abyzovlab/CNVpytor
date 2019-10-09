@@ -480,8 +480,16 @@ class Root:
 
         """
         if rg in Genome.reference_genomes:
+            _logger.info("Reference genome '%s' found in database." % rg)
             self.io.create_signal(None, None, "reference genome", np.array([np.string_(rg)]))
             self.io.create_signal(None, None, "use reference", np.array([1, 1]).astype("uint8"))
+            if "mask_file" in Genome.reference_genomes[rg]:
+                _logger.info("Strict mask for reference genome '%s' found in database." % rg)
+            if "gc_file" in Genome.reference_genomes[rg]:
+                _logger.info("GC content for reference genome '%s' found in database." % rg)
+        else:
+            _logger.warning("Reference genome '%s' not found in database." % rg)
+
 
     def calculate_histograms(self, bin_sizes, chroms=[]):
         """
@@ -732,7 +740,7 @@ class Root:
                         flag[snp_ix] = flag[snp_ix] & 1
                 self.io.save_snp(c, pos, ref, alt, nref, nalt, gt, flag, qual, update=True)
 
-    def calculate_baf(self, bin_sizes, chroms=[], use_mask=True, use_id=False, res=200, reduce_noise=False):
+    def calculate_baf(self, bin_sizes, chroms=[], use_mask=True, use_id=False, res=200, reduce_noise=True):
         """
         Calculates BAF histograms and store data into cnvpytor file.
 
@@ -810,7 +818,7 @@ class Root:
                                     likelihood[bs][b] *= beta(nalt[i] + (1 if nalt[i] < nref[i] else 0),
                                                               nref[i] + (1 if nref[i] < nalt[i] else 0), lh_x)
                                 else:
-                                    likelihood[bs][b] *= beta(nalt[i] + 1, nref[i] + 1, lh_x)
+                                    likelihood[bs][b] *= beta(nalt[i], nref[i], lh_x)
                                 s = np.sum(likelihood[bs][b])
                                 if s != 0.0:
                                     likelihood[bs][b] /= s

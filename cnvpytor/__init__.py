@@ -13,8 +13,22 @@ Source::
 Bug reports::
     https://github.com/abyzovlab/CNVpytor/issues
 
-Install
--------
+## Dependencies
+
+* gnureadline
+* pysam
+* numpy
+* scipy
+* matplotlib
+* h5py >= 2.9
+
+Optional:
+
+* ROOT - for CNVnator root import/export functionality
+* seaborn - for additional plotting styles
+
+## Install
+
 ```
 > git clone https://github.com/abyzovlab/CNVpytor.git
 > cd CNVpytor
@@ -47,10 +61,10 @@ Plot
 ```
 > cnvpytor -root file.pytor -plot stat
 > cnvpytor -root file.pytor -plot 10000 100000
-> cnvpytor -root file.pytor -plot stat manhattan 100000 -o file.pdf
+> cnvpytor -root file.pytor -plot stat manhattan 100000 -o prefix.pdf
 > cnvpytor -root file.pytor -plot baf -chrom 1 2 3 4
 > cnvpytor -root file.pytor -plot regions 1:10M-20M,2:20M-43M 3:10M-20M 10000
-> TODO: cnvpytor -root file.pytor -plot circular
+> cnvpytor -root file.pytor -plot circular 100000 -use_mask_rd -o prefix.png
 ```
 
 Plot - interactive mode
@@ -61,13 +75,18 @@ cnvpytor> rd
 cnvpytor> set panels rd likelihood
 cnvpytor> show
     Parameters
-        * bin_size: 10000
+        * bin_size: 100000
         * panels: ['rd','likelihood']
         * use_mask_rd: False
-        * plot_files: [('file1.pytor', True),('file2.pytor', True)]
+        * use_mask: True
+        * use_id: False
+        * plot_files:
+             0 file1.pytor True
+             1 file2.pytor True
+             2 file3.pytor True
         * plot_file: 0
         * grid: auto
-    Available plot styles: classic, seaborn, ...
+
 cnvpytor> set bin_size 100000
 cnvpytor> chr1:1M-50M chr2:60M-65M > filename.png
 ```

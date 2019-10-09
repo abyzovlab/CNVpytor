@@ -73,6 +73,7 @@ def main():
     parser.add_argument('-use_mask_rd', '--use_mask_with_rd', action='store_true', help="used P mask in RD histograms")
     parser.add_argument('-rg', '--reference_genome', type=str, help="Manually set reference genome", default=None)
     parser.add_argument('-sample', '--vcf_sample', type=str, help="Sample name in vcf file", default="")
+    parser.add_argument('-conf', '--reference_genomes_conf', type=str, help="Configuration with reference genomes", default=None)
 
     args = parser.parse_args(sys.argv[1:])
 
@@ -101,9 +102,13 @@ def main():
         logger = logging.getLogger('cnvpytor')
     logger.debug("Start logging...")
 
+
     if args.version:
         print('pyCNVnator {}'.format(__version__))
         return 0
+
+    if args.reference_genomes_conf:
+        Genome.load_reference_genomes(args.reference_genomes_conf)
 
     if args.root is not None:
 

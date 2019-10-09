@@ -15,6 +15,20 @@ Source::
 Bug reports::
     https://github.com/abyzovlab/CNVpytor/issues
 
+## Dependencies
+
+* gnureadline
+* pysam
+* numpy
+* scipy
+* matplotlib
+* h5py >= 2.9
+
+Optional:
+
+* ROOT - for CNVnator root import/export functionality
+* seaborn - for additional plotting styles 
+
 ## Install
 ```
 > git clone https://github.com/abyzovlab/CNVpytor.git
@@ -62,14 +76,19 @@ cnvpytor> rd
 cnvpytor> set panels rd likelihood
 cnvpytor> show
     Parameters
-        * bin_size: 10000
+        * bin_size: 100000
         * panels: ['rd','likelihood']
         * use_mask_rd: False
-        * plot_files: [('file1.pytor', True),('file2.pytor', True)]
+        * use_mask: True
+        * use_id: False
+        * plot_files:
+             0 file1.pytor True
+             1 file2.pytor True
+             2 file3.pytor True
         * plot_file: 0
         * grid: auto
-    Available plot styles: classic, seaborn, ...
-cnvpytor> set bin_size 100000    
+
+cnvpytor> set bin_size 100000
 cnvpytor> chr1:1M-50M chr2:60M-65M > filename.png
 ```
 
