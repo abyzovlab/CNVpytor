@@ -960,11 +960,7 @@ class Root:
                         ons = len(segments)
 
                     for i in range(len(segments)):
-                        max_lh = np.amax(likelihood[i])
-                        ix = np.where(likelihood[i] == max_lh)[0][0]
-                        i1 = 1.0 * (res // 2 - ix) / (res + 1) if ix <= (res // 2) else 1.0 * (
-                                ix - res // 2) / (res + 1)
-                        i2 = likelihood[i][res // 2] / max_lh
+                        i1, i2 = likelihood_baf_pval(likelihood[i])
 
                         print(c + ":" + str(segments[i][0] * bin_size + 1) + "-" + str(
                             segments[i][-1] * bin_size + bin_size),

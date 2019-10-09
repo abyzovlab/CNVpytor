@@ -9,6 +9,8 @@ from .utils import *
 from .genome import *
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+import matplotlib.colors as colors
+
 import numpy as np
 import logging
 import readline
@@ -36,6 +38,8 @@ class Viewer:
         self.use_id = False
         self.palette1 = ["#555555", "#aaaaaa"]
         self.palette2 = ["#00ff00", "#0000ff"]
+        self.plevel = 20
+        self.min_segment_size = 0
         self.baf_colors = {(0, 0): "yellow", (0, 1): "orange", (1, 0): "cyan", (1, 1): "blue", (2, 0): "lime",
                            (2, 1): "green", (3, 0): "yellow", (3, 1): "orange"}
         if self.io[0].signal_exists(None, None, "reference genome"):
@@ -57,7 +61,9 @@ class Viewer:
                 if current == "likelihood":
                     self.likelihood(int(p))
                 elif current == "manhattan":
-                    self.manhattan(int(p), args.use_mask_with_rd)
+                    self.manhattan(int(p), use_mask=args.use_mask_with_rd)
+                elif current == "calls":
+                    self.manhattan(int(p), use_mask=args.use_mask_with_rd, plot_type="calls")
                 elif current == "stat":
                     self.stat(int(p))
                 elif current == "circular":
@@ -69,7 +75,7 @@ class Viewer:
                 self.stat()
             elif p == "baf":
                 self.baf()
-            elif p in ["rd", "manhattan", "stat", "regions", "likelihood", "circular"]:
+            elif p in ["rd", "manhattan", "calls", "stat", "regions", "likelihood", "circular"]:
                 current = p
             elif current == "regions":
                 regions.append(p)
@@ -101,7 +107,7 @@ class Viewer:
                                   "xkcd": None
                                   },
                         "save": None, "show": None, "quit": None, "rd": None, "likelihood": None, "baf": None,
-                        "stat": None, "rdstat": None, "circular": None, "manhattan": None
+                        "stat": None, "rdstat": None, "circular": None, "manhattan": None, "calls": None
                         }
         chromosomes = set({})
         for f in self.io:
@@ -467,7 +473,7 @@ class Viewer:
                 sy = int(2. * sx / 3 + 1.)
         return sx, sy
 
-    def manhattan(self, bin_size, use_mask=False):
+    def manhattan(self, bin_size, use_mask=False, plot_type="rd"):
         plt.clf()
         if self.reference_genome is None:
             _logger.warning("Missing reference genome required for gview.")
@@ -486,40 +492,90 @@ class Viewer:
             ax = self.fig.add_subplot(grid[i])
             io = self.io[ix[i]]
 
-            chroms = []
-            for c, (l, t) in self.reference_genome["chromosomes"].items():
-                rd_chr = io.rd_chromosome_name(c)
-                if io.signal_exists(rd_chr, bin_size, "RD", 0) and \
-                        io.signal_exists(rd_chr, bin_size, "RD", FLAG_GC_CORR) and \
-                        (Genome.is_autosome(c) or Genome.is_sex_chrom(c)):
-                    chroms.append((rd_chr, l))
+            if plot_type == "rd":
+                chroms = []
+                for c, (l, t) in self.reference_genome["chromosomes"].items():
+                    rd_chr = io.rd_chromosome_name(c)
+                    if io.signal_exists(rd_chr, bin_size, "RD", 0) and \
+                            io.signal_exists(rd_chr, bin_size, "RD", FLAG_GC_CORR) and \
+                            (Genome.is_autosome(c) or Genome.is_sex_chrom(c)):
+                        chroms.append((rd_chr, l))
 
-            apos = 0
-            xticks = [0]
+                apos = 0
+                xticks = [0]
 
-            max_m = 0
-            for c, l in chroms:
-                flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
-                stat = io.get_signal(None, bin_size, "RD stat", flag)
-                if stat[4] > max_m:
-                    max_m = stat[4]
-                flag_rd = 0
-                if use_mask:
-                    flag_rd = FLAG_USEMASK
-                his_p = io.get_signal(c, bin_size, "RD", flag_rd)
-                his_p_corr = io.get_signal(c, bin_size, "RD", flag_rd | FLAG_GC_CORR)
-                pos = range(apos, apos + len(his_p))
-                ax.text(apos + len(his_p) // 2, stat[4] // 10, Genome.canonical_chrom_name(c),
-                        fontsize=12, verticalalignment='bottom', horizontalalignment='center', )
-                plt.plot(pos, his_p_corr, ls='', marker='.')
-                apos += len(his_p)
-                xticks.append(apos)
+                max_m = 0
+                for c, l in chroms:
+                    flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
+                    stat = io.get_signal(None, bin_size, "RD stat", flag)
+                    if stat[4] > max_m:
+                        max_m = stat[4]
+                    flag_rd = 0
+                    if use_mask:
+                        flag_rd = FLAG_USEMASK
+                    his_p = io.get_signal(c, bin_size, "RD", flag_rd)
+                    his_p_corr = io.get_signal(c, bin_size, "RD", flag_rd | FLAG_GC_CORR)
+                    pos = range(apos, apos + len(his_p))
+                    ax.text(apos + len(his_p) // 2, stat[4] // 10, Genome.canonical_chrom_name(c),
+                            fontsize=12, verticalalignment='bottom', horizontalalignment='center', )
+                    plt.plot(pos, his_p_corr, ls='', marker='.')
+                    apos += len(his_p)
+                    xticks.append(apos)
+                ax.xaxis.set_ticklabels([])
+                ax.yaxis.set_ticklabels([])
+                ax.yaxis.set_ticks(np.arange(0, 3, 0.5) * max_m, [])
+                ax.xaxis.set_ticks(xticks, [])
+                ax.set_ylim([0, 2 * max_m])
+            else:
+                chroms = []
+                snp_flag = (FLAG_USEMASK if self.use_mask else 0) | (FLAG_USEID if self.use_id else 0)
+                for c, (l, t) in self.reference_genome["chromosomes"].items():
+                    snp_chr = io.snp_chromosome_name(c)
+                    if io.signal_exists(snp_chr, bin_size, "SNP likelihood call", snp_flag) and \
+                            io.signal_exists(snp_chr, bin_size, "SNP likelihood segments", snp_flag) and \
+                            (Genome.is_autosome(c) or Genome.is_sex_chrom(c)):
+                        chroms.append((snp_chr, l))
 
-            ax.xaxis.set_ticklabels([])
-            ax.yaxis.set_ticklabels([])
-            ax.yaxis.set_ticks(np.arange(0, 3, 0.5) * max_m, [])
-            ax.xaxis.set_ticks(xticks, [])
-            ax.set_ylim([0, 2 * max_m])
+                apos = 0
+                xticks = [0]
+
+                cix = 0
+                cmap = list(map(colors.to_rgba, plt.rcParams['axes.prop_cycle'].by_key()['color']))
+                for c, l in chroms:
+                    flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
+
+                    likelihood = io.get_signal(c, bin_size, "SNP likelihood call", snp_flag)
+                    segments = segments_decode(io.get_signal(c, bin_size, "SNP likelihood segments", snp_flag))
+                    call_pos = []
+                    call_baf = []
+                    call_c = []
+                    for s, lh in zip(segments, likelihood):
+                        b, p = likelihood_baf_pval(lh)
+                        if b > 0 and len(s)>self.min_segment_size:
+                            alpha = -np.log(p + 1e-40) / self.plevel
+                            if alpha > 1:
+                                alpha = 1
+                            for pos in s:
+                                call_pos.append(apos + pos)
+                                call_baf.append(b)
+                                color = cmap[cix % len(cmap)]
+                                color = (color[0], color[1], color[2], alpha)
+                                call_c.append(color)
+
+                    ax.text(apos + l // bin_size // 2, 0.4, Genome.canonical_chrom_name(c),
+                            fontsize=12, verticalalignment='bottom', horizontalalignment='center', )
+                    plt.scatter(call_pos, call_baf, s=20, color=np.array(call_c), edgecolors='face', marker='|')
+                    # plt.plot(call_pos, call_baf, color=np.array(call_c), ls='', marker='.')
+                    apos += l // bin_size
+                    xticks.append(apos)
+                    cix += 1
+
+                ax.xaxis.set_ticklabels([])
+                ax.yaxis.set_ticklabels([])
+                ax.yaxis.set_ticks(np.arange(0, 0.5, 0.1), [])
+                ax.xaxis.set_ticks(xticks, [])
+                ax.set_ylim([0, 0.5])
+
             n_bins = apos
             ax.set_xlim([0, n_bins])
             ax.grid()

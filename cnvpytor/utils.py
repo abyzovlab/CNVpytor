@@ -408,6 +408,32 @@ def decode_region(s):
         ret.append((chr_interval[0], (decode_position(begin_end[0]), decode_position(begin_end[1]))))
     return ret
 
+def likelihood_baf_pval(likelihood):
+    """
+    Calculates baf level and p-value for given likelihood function.
+    Parameters
+    ----------
+    likelihood
+
+    Returns
+    -------
+    b : float
+        BAF level (difference from 1/2)
+    p : float
+        p-value for event different than 1/2
+
+    """
+    res = likelihood.size
+    max_lh = np.amax(likelihood)
+    ix = np.where(likelihood == max_lh)[0][0]
+    if ix>res//2:
+        ix = res - 1 - ix
+    b = 1.0 * (res // 2 - ix) / (res + 1)
+
+    ix1 = (res // 2 + ix) // 2
+    ix2 = res - 1 - ix1
+    p = np.sum(likelihood[ix1:ix2]) / np.sum(likelihood)
+    return b, p
 
 class PromptCompleter:
     def __init__(self, command_tree):
