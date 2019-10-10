@@ -964,8 +964,8 @@ class Root:
 
                         print(c + ":" + str(segments[i][0] * bin_size + 1) + "-" + str(
                             segments[i][-1] * bin_size + bin_size),
-                              bin_size, i1,
-                              i2, len(segments[i]))
+                              (segments[i][-1]-segments[i][0]+1)*bin_size, bin_size, len(segments[i]),
+                              i1, i2)
 
                     self.io.create_signal(c, bin_size, "SNP likelihood segments",
                                           data=segments_code(segments), flags=snp_flag)
