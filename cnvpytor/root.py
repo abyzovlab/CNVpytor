@@ -740,7 +740,7 @@ class Root:
                         flag[snp_ix] = flag[snp_ix] & 1
                 self.io.save_snp(c, pos, ref, alt, nref, nalt, gt, flag, qual, update=True)
 
-    def calculate_baf(self, bin_sizes, chroms=[], use_mask=True, use_id=False, res=200, reduce_noise=True):
+    def calculate_baf(self, bin_sizes, chroms=[], use_mask=True, use_id=False, use_phase=False, res=200, reduce_noise=False):
         """
         Calculates BAF histograms and store data into cnvpytor file.
 
@@ -793,7 +793,7 @@ class Root:
                         for bs in bin_sizes:
                             b = (pos[i] - 1) // bs
                             count[bs][b] += 1
-                            if gt[i] == 5:
+                            if use_phase and (gt[i] == 5):
                                 count_h1[bs][b] += nref[i]
                                 count_h2[bs][b] += nalt[i]
                                 hets[bs][b] += 1
@@ -802,7 +802,7 @@ class Root:
                                 s = np.sum(likelihood[bs][b])
                                 if s != 0.0:
                                     likelihood[bs][b] /= s
-                            elif gt[i] == 6:
+                            elif use_phase and (gt[i] == 6):
                                 count_h1[bs][b] += nalt[i]
                                 count_h2[bs][b] += nref[i]
                                 hets[bs][b] += 1

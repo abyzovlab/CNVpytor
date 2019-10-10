@@ -52,6 +52,8 @@ def main():
                         help="create BAF histograms for specified bin size (multiple bin sizes separate by space)")
     parser.add_argument('-nomask', '--no_mask', action='store_true', help="do not use P mask in BAF histograms")
     parser.add_argument('-useid', '--use_id', action='store_true', help="use id flag filtering in SNP histograms")
+    parser.add_argument('-usephase', '--use_phase', action='store_true', help="use information about phase while processing SNP data")
+    parser.add_argument('-reducenoise', '--reduce_noise', action='store_true', help="reduce noise in processing SNP data")
 
 
 
@@ -170,7 +172,7 @@ def main():
 
         if args.baf:
             app = Root(args.root[0], max_cores=args.max_cores)
-            app.calculate_baf(args.baf, chroms=args.chrom, use_id=args.use_id, use_mask=not args.no_mask)
+            app.calculate_baf(args.baf, chroms=args.chrom, use_id=args.use_id, use_mask=not args.no_mask, use_phase=args.use_phase, reduce_noise=args.reduce_noise)
 
         if args.call:
             app = Root(args.root[0], max_cores=args.max_cores)
