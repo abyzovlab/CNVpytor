@@ -47,8 +47,8 @@ class Root:
                     _logger.debug("Using strict mask from database for reference genome '%s'." % rg_name)
                     self.io_mask = IO(Genome.reference_genomes[rg_name]["mask_file"], ro=True, buffer=True)
 
-    def read_bam(self, bf, chroms):
-        bamf = Bam(bf)
+    def read_bam(self, bf, chroms, reference_filename=False):
+        bamf = Bam(bf,reference_filename=reference_filename)
         if bamf.reference_genome:
             self.io.create_signal(None, None, "reference genome", np.array([np.string_(bamf.reference_genome)]))
             self.io.create_signal(None, None, "use reference", np.array([1, 1]).astype("uint8"))
@@ -252,7 +252,7 @@ class Root:
         else:
             return vcff.read_all_snp(save_data, sample)
 
-    def rd(self, bamfiles, chroms=[]):
+    def rd(self, bamfiles, chroms=[], reference_filename=False):
         """ Read chromosomes from bam/sam/cram file(s) and store in .cnvnator file
                 Arguments:
                     * list of bam file names
@@ -260,7 +260,7 @@ class Root:
         """
         hm = 0
         for bf in bamfiles:
-            hm += self.read_bam(bf, chroms)
+            hm += self.read_bam(bf, chroms, reference_filename=reference_filename)
 
         if self.io.signal_exists(None, None, "reference genome"):
             rg_name = np.array(self.io.get_signal(None, None, "reference genome")).astype("str")[0]
@@ -320,7 +320,7 @@ class Root:
                 nref[cl[2]] = [x + y for x, y in zip(nref[cl[2]], r[0])]
                 nalt[cl[2]] = [x + y for x, y in zip(nalt[cl[2]], r[1])]
 
-    def pileup(self, bamfiles, chroms=[]):
+    def pileup(self, bamfiles, chroms=[], reference_filename=False):
         """
         Read bam/sam/cram file(s) and pile up SNP counts at positions imported with vcf(vcf_files, ...) method
 
@@ -338,7 +338,7 @@ class Root:
             nref[c] = [0] * len(nref[c])
             nalt[c] = [0] * len(nalt[c])
         for bf in bamfiles:
-            self.pileup_bam(bf, chrs, pos, ref, alt, nref, nalt)
+            self.pileup_bam(bf, chrs, pos, ref, alt, nref, nalt, reference_filename=reference_filename)
 
         for c in chrs:
             _logger.info("Saving SNP data for chromosome '%s' in file '%s'." % (c, self.io.filename))
@@ -740,7 +740,7 @@ class Root:
                         flag[snp_ix] = flag[snp_ix] & 1
                 self.io.save_snp(c, pos, ref, alt, nref, nalt, gt, flag, qual, update=True)
 
-    def calculate_baf(self, bin_sizes, chroms=[], use_mask=True, use_id=False, use_phase=False, res=200, reduce_noise=False):
+    def calculate_baf(self, bin_sizes, chroms=[], use_mask=True, use_id=False, use_phase=False, res=200, reduce_noise=False, blw=0.8):
         """
         Calculates BAF histograms and store data into cnvpytor file.
 
@@ -765,10 +765,14 @@ class Root:
                 _logger.info("Calculating BAF histograms for chromosome '%s'." % c)
                 pos, ref, alt, nref, nalt, gt, flag, qual = self.io.read_snp(c)
                 max_bin = {}
-                count = {}
-                hets = {}
-                count_h1 = {}
-                count_h2 = {}
+                count00 = {}
+                count01 = {}
+                count10 = {}
+                count11 = {}
+                reads00 = {}
+                reads01 = {}
+                reads10 = {}
+                reads11 = {}
                 baf = {}
                 maf = {}
                 likelihood = {}
@@ -777,10 +781,14 @@ class Root:
                 lh_x = np.arange(1.0 / res, 1., 1.0 / res)
                 for bs in bin_sizes:
                     max_bin[bs] = (pos[-1] - 1) // bs + 1
-                    count[bs] = np.zeros(max_bin[bs])
-                    hets[bs] = np.zeros(max_bin[bs])
-                    count_h1[bs] = np.zeros(max_bin[bs])
-                    count_h2[bs] = np.zeros(max_bin[bs])
+                    count00[bs] = np.zeros(max_bin[bs])
+                    count01[bs] = np.zeros(max_bin[bs])
+                    count10[bs] = np.zeros(max_bin[bs])
+                    count11[bs] = np.zeros(max_bin[bs])
+                    reads00[bs] = np.zeros(max_bin[bs])
+                    reads01[bs] = np.zeros(max_bin[bs])
+                    reads10[bs] = np.zeros(max_bin[bs])
+                    reads11[bs] = np.zeros(max_bin[bs])
                     baf[bs] = np.zeros(max_bin[bs])
                     maf[bs] = np.zeros(max_bin[bs])
                     likelihood[bs] = np.ones((max_bin[bs], res - 1)).astype("float") / (res - 1)
@@ -788,59 +796,78 @@ class Root:
                     i2[bs] = np.zeros(max_bin[bs])
 
                 for i in range(len(pos)):
-                    if (gt[i] == 1 or gt[i] == 5 or gt[i] == 6) and (nalt[i] + nref[i]) > 0 and (
-                            not use_id or (flag[i] & 1)) and (not use_mask or (flag[i] & 2)):
-                        for bs in bin_sizes:
-                            b = (pos[i] - 1) // bs
-                            count[bs][b] += 1
-                            if use_phase and (gt[i] == 5):
-                                count_h1[bs][b] += nref[i]
-                                count_h2[bs][b] += nalt[i]
-                                hets[bs][b] += 1
-                                snp_baf = 1.0 * nalt[i] / (nalt[i] + nref[i])
-                                likelihood[bs][b] *= beta(nalt[i], nref[i], lh_x, phased=True)
-                                s = np.sum(likelihood[bs][b])
-                                if s != 0.0:
-                                    likelihood[bs][b] /= s
-                            elif use_phase and (gt[i] == 6):
-                                count_h1[bs][b] += nalt[i]
-                                count_h2[bs][b] += nref[i]
-                                hets[bs][b] += 1
-                                snp_baf = 1.0 * nref[i] / (nalt[i] + nref[i])
-                                likelihood[bs][b] *= beta(nref[i], nalt[i], lh_x, phased=True)
-                                s = np.sum(likelihood[bs][b])
-                                if s != 0.0:
-                                    likelihood[bs][b] /= s
-                            else:
-                                snp_baf = 1.0 * nalt[i] / (nalt[i] + nref[i])
-                                hets[bs][b] += 1
-                                if reduce_noise:
-                                    likelihood[bs][b] *= beta(nalt[i] + (1 if nalt[i] < nref[i] else 0),
-                                                              nref[i] + (1 if nref[i] < nalt[i] else 0), lh_x)
+                    if (nalt[i] + nref[i]) > 0 and (not use_id or (flag[i] & 1)) and (not use_mask or (flag[i] & 2)):
+                        if gt[i] == 1 or gt[i] == 5 or gt[i] == 6:
+                            for bs in bin_sizes:
+                                b = (pos[i] - 1) // bs
+                                if use_phase and (gt[i] == 5):
+                                    reads01[bs][b] += nref[i]
+                                    reads10[bs][b] += nalt[i]
+                                    count10[bs][b] += 1
+                                    snp_baf = 1.0 * nalt[i] / (nalt[i] + nref[i])
+                                    likelihood[bs][b] *= beta(nalt[i], nref[i], lh_x, phased=True)
+                                    s = np.sum(likelihood[bs][b])
+                                    if s != 0.0:
+                                        likelihood[bs][b] /= s
+                                elif use_phase and (gt[i] == 6):
+                                    reads01[bs][b] += nalt[i]
+                                    reads10[bs][b] += nref[i]
+                                    count01[bs][b] += 1
+                                    snp_baf = 1.0 * nref[i] / (nalt[i] + nref[i])
+                                    likelihood[bs][b] *= beta(nref[i], nalt[i], lh_x, phased=True)
+                                    s = np.sum(likelihood[bs][b])
+                                    if s != 0.0:
+                                        likelihood[bs][b] /= s
                                 else:
-                                    likelihood[bs][b] *= beta(nalt[i], nref[i], lh_x)
-                                s = np.sum(likelihood[bs][b])
-                                if s != 0.0:
-                                    likelihood[bs][b] /= s
+                                    snp_baf = 1.0 * nalt[i] / (nalt[i] + nref[i])
+                                    reads01[bs][b] += nalt[i]
+                                    reads10[bs][b] += nref[i]
+                                    count01[bs][b] += 1
+                                    if reduce_noise:
+                                        likelihood[bs][b] *= beta(nalt[i] + (1 if nalt[i] < nref[i] else 0),
+                                                                  nref[i] + (1 if nref[i] < nalt[i] else 0), lh_x)
+                                    else:
+                                        likelihood[bs][b] *= beta(nalt[i]*blw, nref[i]*blw, lh_x)
+                                    s = np.sum(likelihood[bs][b])
+                                    if s != 0.0:
+                                        likelihood[bs][b] /= s
 
-                            baf[bs][b] += snp_baf
-                            maf[bs][b] += 1.0 - snp_baf if snp_baf > 0.5 else snp_baf
+                                baf[bs][b] += snp_baf
+                                maf[bs][b] += 1.0 - snp_baf if snp_baf > 0.5 else snp_baf
+                        else:
+                            for bs in bin_sizes:
+                                b = (pos[i] - 1) // bs
+                                if use_phase and (gt[i]==7):
+                                    count11[bs][b] += 1
+                                    reads11[bs][b] += nalt[i]
+                                    reads00[bs][b] += nref[i]
+                                elif use_phase and (gt[i]==4):
+                                    count00[bs][b] += 1
+                                else:
+                                    count11[bs][b] +=1
+                                    reads11[bs][b] += nalt[i]
+                                    reads00[bs][b] += nref[i]
 
                 for bs in bin_sizes:
                     for i in range(max_bin[bs]):
-                        if count[bs][i] > 0:
-                            baf[bs][i] /= count[bs][i]
-                            maf[bs][i] /= count[bs][i]
+                        count = count01[bs][i]+count10[bs][i]
+                        if count > 0:
+                            baf[bs][i] /= count
+                            maf[bs][i] /= count
                             max_lh = np.amax(likelihood[bs][i])
                             ix = np.where(likelihood[bs][i] == max_lh)[0][0]
                             i1[bs][i] = 1.0 * (res // 2 - 1 - ix) / res if ix <= (res // 2 - 1) else 1.0 * (
                                     ix - res // 2 + 1) / res
                             i2[bs][i] = likelihood[bs][i][res // 2 - 1] / max_lh
                     _logger.info("Saving BAF histograms with bin size %d for chromosome '%s'." % (bs, c))
-                    self.io.create_signal(c, bs, "SNP bin count", count[bs].astype("uint16"), snp_flag)
-                    self.io.create_signal(c, bs, "SNP bin hets", hets[bs].astype("uint16"), snp_flag)
-                    self.io.create_signal(c, bs, "SNP bin count h1", count_h1[bs].astype("uint16"), snp_flag)
-                    self.io.create_signal(c, bs, "SNP bin count h2", count_h2[bs].astype("uint16"), snp_flag)
+                    self.io.create_signal(c, bs, "SNP bin count 0|0", count00[bs].astype("uint16"), snp_flag)
+                    self.io.create_signal(c, bs, "SNP bin count 0|1", count01[bs].astype("uint16"), snp_flag)
+                    self.io.create_signal(c, bs, "SNP bin count 1|0", count10[bs].astype("uint16"), snp_flag)
+                    self.io.create_signal(c, bs, "SNP bin count 1|1", count11[bs].astype("uint16"), snp_flag)
+                    self.io.create_signal(c, bs, "SNP bin reads 0|0", reads00[bs].astype("uint16"), snp_flag)
+                    self.io.create_signal(c, bs, "SNP bin reads 0|1", reads01[bs].astype("uint16"), snp_flag)
+                    self.io.create_signal(c, bs, "SNP bin reads 1|0", reads10[bs].astype("uint16"), snp_flag)
+                    self.io.create_signal(c, bs, "SNP bin reads 1|1", reads11[bs].astype("uint16"), snp_flag)
                     self.io.create_signal(c, bs, "SNP baf", baf[bs].astype("float32"), snp_flag)
                     self.io.create_signal(c, bs, "SNP maf", maf[bs].astype("float32"), snp_flag)
                     self.io.create_signal(c, bs, "SNP likelihood", likelihood[bs].astype("float32"), snp_flag)
@@ -871,7 +898,8 @@ class Root:
                     # _logger.info(
                     #    "Caling CNV-s by merging BAF likelihood with bin size %d for chromosome '%s'." % (bin_size, c))
                     likelihood = list(self.io.get_signal(c, bin_size, "SNP likelihood", snp_flag).astype("float64"))
-                    snp_hets = self.io.get_signal(c, bin_size, "SNP bin hets", snp_flag)
+                    snp_hets = self.io.get_signal(c, bin_size, "SNP bin count 0|1", snp_flag)
+                    snp_hets += self.io.get_signal(c, bin_size, "SNP bin count 1|0", snp_flag)
 
                     bins = len(likelihood)
                     res = likelihood[0].size

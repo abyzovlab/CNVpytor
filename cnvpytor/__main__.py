@@ -32,6 +32,8 @@ def main():
     parser.add_argument('-j', '--max_cores', type=int,
                         help="maximal number of cores to use in calculation", default=8)
     parser.add_argument('-rd', '--rd', nargs="+", type=str, help="read bam/sam/cram and store read depth information")
+    parser.add_argument('-T', '--reference_filename', type=str, help="reference fasta for CRAM")
+
     parser.add_argument('-gc', '--gc', type=str, help="read fasta file and store GC/AT content")
     parser.add_argument('-cgc', '--copy_gc', type=str, help="copy GC/AT content from another cnvnator file")
     parser.add_argument('-his', '--his', type=binsize_type, nargs="+",
@@ -54,6 +56,7 @@ def main():
     parser.add_argument('-useid', '--use_id', action='store_true', help="use id flag filtering in SNP histograms")
     parser.add_argument('-usephase', '--use_phase', action='store_true', help="use information about phase while processing SNP data")
     parser.add_argument('-reducenoise', '--reduce_noise', action='store_true', help="reduce noise in processing SNP data")
+    parser.add_argument('-blw', '--baf_likelihood_width', type=float, help="likelihood width used in processing SNP data (default=0.8)", default=0.8)
 
 
 
@@ -124,7 +127,7 @@ def main():
 
         if args.rd:
             app = Root(args.root[0], max_cores=args.max_cores)
-            app.rd(args.rd, chroms=args.chrom)
+            app.rd(args.rd, chroms=args.chrom, reference_filename=args.reference_filename)
 
         if args.plot:
             view = Viewer(args.root, args.plot_output_file)
@@ -152,7 +155,7 @@ def main():
 
         if args.pileup_bam:
             app = Root(args.root[0], max_cores=args.max_cores)
-            app.pileup(args.pileup_bam, chroms=args.chrom)
+            app.pileup(args.pileup_bam, chroms=args.chrom, reference_filename=args.reference_filename)
 
         if args.mask:
             app = Root(args.root[0], max_cores=args.max_cores)
@@ -172,7 +175,7 @@ def main():
 
         if args.baf:
             app = Root(args.root[0], max_cores=args.max_cores)
-            app.calculate_baf(args.baf, chroms=args.chrom, use_id=args.use_id, use_mask=not args.no_mask, use_phase=args.use_phase, reduce_noise=args.reduce_noise)
+            app.calculate_baf(args.baf, chroms=args.chrom, use_id=args.use_id, use_mask=not args.no_mask, use_phase=args.use_phase, reduce_noise=args.reduce_noise, blw=args.baf_likelihood_width)
 
         if args.call:
             app = Root(args.root[0], max_cores=args.max_cores)

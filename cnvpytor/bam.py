@@ -15,7 +15,7 @@ _logger = logging.getLogger("cnvpytor.bam")
 
 class Bam:
 
-    def __init__(self, filename, max_fragment_len=5000, max_read_len=300):
+    def __init__(self, filename, max_fragment_len=5000, max_read_len=300, reference_filename=False):
         """
         Opens BAM/CRAM/SAM file, reads chromosome names/lengths from header file and detects reference genome
 
@@ -38,7 +38,10 @@ class Bam:
         elif filename[-4:] == ".sam":
             self.file = pysam.AlignmentFile(filename, "r")
         elif filename[-5:] == ".cram":
-            self.file = pysam.AlignmentFile(filename, "rc")
+            if reference_filename:
+                self.file = pysam.AlignmentFile(filename, "rc",reference_filename=reference_filename)
+            else:
+                self.file = pysam.AlignmentFile(filename, "rc")
         else:
             _logger.warning("Unsuported file type: " + filename)
         self.len = {}

@@ -236,7 +236,6 @@ def normal_overlap(m1, s1, m2, s2):
     a = 1. / (2. * s1 ** 2) - 1. / (2. * s2 ** 2)
     b = m2 / (s2 ** 2) - m1 / (s1 ** 2)
     c = m1 ** 2 / (2 * s1 ** 2) - m2 ** 2 / (2 * s2 ** 2) - np.log(s2 / s1)
-    print(np.roots([a, b, c]))
     roots = sorted(np.roots([a, b, c]))
     if len(roots) == 0:
         return 1
