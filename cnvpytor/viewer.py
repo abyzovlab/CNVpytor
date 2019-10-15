@@ -584,7 +584,7 @@ class Viewer:
         plt.subplots_adjust(bottom=0.05, top=0.95, wspace=0, hspace=0, left=0.05, right=0.95)
 
         if self.output_filename != "":
-            plt.savefig(self.image_filename("manhattan" if plot_type="rd" else "snp_calls"), dpi=200)
+            plt.savefig(self.image_filename("manhattan" if plot_type=="rd" else "snp_calls"), dpi=200)
             plt.close(self.fig)
         elif self.interactive:
             plt.show(block=False)
