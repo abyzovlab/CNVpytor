@@ -485,12 +485,14 @@ class Viewer:
         plt.rcParams["font.size"] = 8
         self.fig = plt.figure(1, facecolor='w', edgecolor='k')
         if self.output_filename != "":
-            self.fig.set_figheight(2 * n)
+            self.fig.set_figheight(1.5 * n)
             self.fig.set_figwidth(12)
         grid = gridspec.GridSpec(n, 1, wspace=0.2, hspace=0.2)
         for i in range(n):
             ax = self.fig.add_subplot(grid[i])
             io = self.io[ix[i]]
+            ax.set_title(io.filename, position=(0.01, 1.07),
+                         fontdict={'verticalalignment': 'top', 'horizontalalignment': 'left'})
 
             if plot_type == "rd":
                 chroms = []
@@ -517,7 +519,7 @@ class Viewer:
                     his_p_corr = io.get_signal(c, bin_size, "RD", flag_rd | FLAG_GC_CORR)
                     pos = range(apos, apos + len(his_p))
                     ax.text(apos + len(his_p) // 2, stat[4] // 10, Genome.canonical_chrom_name(c),
-                            fontsize=12, verticalalignment='bottom', horizontalalignment='center', )
+                            fontsize=8, verticalalignment='bottom', horizontalalignment='center', )
                     plt.plot(pos, his_p_corr, ls='', marker='.')
                     apos += len(his_p)
                     xticks.append(apos)
@@ -563,7 +565,7 @@ class Viewer:
                                 call_c.append(color)
 
                     ax.text(apos + l // bin_size // 2, 0.4, Genome.canonical_chrom_name(c),
-                            fontsize=12, verticalalignment='bottom', horizontalalignment='center', )
+                            fontsize=8, verticalalignment='bottom', horizontalalignment='center', )
                     plt.scatter(call_pos, call_baf, s=20, color=np.array(call_c), edgecolors='face', marker='|')
                     # plt.plot(call_pos, call_baf, color=np.array(call_c), ls='', marker='.')
                     apos += l // bin_size
@@ -582,7 +584,7 @@ class Viewer:
         plt.subplots_adjust(bottom=0.05, top=0.95, wspace=0, hspace=0, left=0.05, right=0.95)
 
         if self.output_filename != "":
-            plt.savefig(self.image_filename("manhattan"), dpi=200)
+            plt.savefig(self.image_filename("manhattan" if plot_type="rd" else "snp_calls"), dpi=200)
             plt.close(self.fig)
         elif self.interactive:
             plt.show(block=False)
