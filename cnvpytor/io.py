@@ -481,7 +481,7 @@ class IO:
 
         print("Chromosomes with RD histograms [bin sizes]: " + ", ".join(chrs.keys()) + " " + str(sorted(bss)))
         print()
-        chr_bs = self.chromosomes_bin_sizes_with_signal("SNP bin count")
+        chr_bs = self.chromosomes_bin_sizes_with_signal("SNP bin count 0|1")
         chrs = {}
         bss = []
         for c, b in chr_bs:

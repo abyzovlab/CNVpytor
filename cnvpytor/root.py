@@ -285,7 +285,7 @@ class Root:
             hm += self.read_vcf(vcf_file, chroms, sample)
         return hm
 
-    def pileup_bam(self, bamfile, chroms, pos, ref, alt, nref, nalt):
+    def pileup_bam(self, bamfile, chroms, pos, ref, alt, nref, nalt, reference_filename):
         """
         TODO:
 
@@ -296,7 +296,7 @@ class Root:
 
         """
         _logger.info("Calculating pileup from bam file '%s'." % bamfile)
-        bamf = Bam(bamfile)
+        bamf = Bam(bamfile, reference_filename=reference_filename)
 
         def pileup_chromosome(x):
             c, l, snpc = x
