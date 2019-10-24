@@ -51,7 +51,7 @@ class IO:
         "SNP qual": "%(chr)s_snp_qual",
         "SNP bin count 0|0": "snp_bafc_00_%(chr)s_%(bin_size)d%(snp_flag)s",
         "SNP bin count 0|1": "snp_bafc_01_%(chr)s_%(bin_size)d%(snp_flag)s",
-        "SNP bin count 1|0": "snp_bafc_10_%(chr)s_%(bin_size)d%(snp_flag)s",
+        "SNP bin count 1|0": "snp_bafc_10_%(chr)s_%(bin_size)d%(snp_fl==]]]\ag)s",
         "SNP bin count 1|1": "snp_bafc_11_%(chr)s_%(bin_size)d%(snp_flag)s",
         "SNP bin reads 0|0": "snp_readc_00_%(chr)s_%(bin_size)d%(snp_flag)s",
         "SNP bin reads 0|1": "snp_readc_01_%(chr)s_%(bin_size)d%(snp_flag)s",
@@ -589,7 +589,7 @@ class IO:
         -------
             None
         """
-        _logger.info("Saving chromosome SNP data for chromosome '%s'." % chr_name)
+        _logger.info("Saving SNP data for chromosome '%s'." % chr_name)
         snp_pos, snp_desc, snp_counts, snp_qual = snp_compress(pos, ref, alt, nref, nalt, gt, flag, qual)
         rd_name = self.rd_chromosome_name(chr_name)
         if not update and not (rd_name is None):

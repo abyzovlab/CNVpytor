@@ -403,8 +403,11 @@ def decode_region(s):
     ret = []
     for r in regs:
         chr_interval = r.split(":")
-        begin_end = chr_interval[1].split("-")
-        ret.append((chr_interval[0], (decode_position(begin_end[0]), decode_position(begin_end[1]))))
+        if len(chr_interval)>1:
+            begin_end = chr_interval[1].split("-")
+            ret.append((chr_interval[0], (decode_position(begin_end[0]), decode_position(begin_end[1]))))
+        else:
+            ret.append((chr_interval[0], (1, 1000000000)))
     return ret
 
 def likelihood_baf_pval(likelihood):
