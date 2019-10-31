@@ -4,9 +4,12 @@ class Genome: detect reference / parity / naming functions / reference genome da
 
 """
 from __future__ import absolute_import, print_function, division
+from .utils import *
 from collections import OrderedDict
 import logging
 import pkg_resources
+import os
+
 
 _logger = logging.getLogger("cnvpytor.genome")
 
@@ -85,6 +88,32 @@ class Genome:
 
         """
         return "chr" + Genome.canonical_chrom_name(name)
+
+    @classmethod
+    def download_resorces(cls):
+        """
+        Check do resourece files exists in data foleder. If not it will download files from github.
+
+        """
+        for i in cls.reference_genomes:
+            if "gc_file" in cls.reference_genomes[i] and not os.path.exists(cls.reference_genomes[i]["gc_file"]):
+                _logger.info("Detecting missing GC resource file for reference genome '%s'" % i)
+                res = cls.reference_genomes[i]["gc_file"]
+                fn = res.split("/")[-1]
+                url = "https://github.com/abyzovlab/CNVpytor/raw/master/cnvpytor/data/"+fn
+                if is_downloadable(url):
+                    _logger.info("Downloading GC resource file")
+                    download(url,res)
+                    _logger.info("File downlaoded.")
+                else:
+                    _logger.warning("GC resource file is not downloadable!")
+            if "mask_file" in cls.reference_genomes[i] and not os.path.exists(cls.reference_genomes[i]["mask_file"]):
+                res = cls.reference_genomes[i]["mask_file"]
+                fn = res.split("/")[-1]
+                url = "https://github.com/abyzovlab/CNVpytor/raw/master/cnvpytor/data/"+fn
+                if is_downloadable(url):
+                    download(url,res)
+
 
     @classmethod
     def is_autosome(cls, name):

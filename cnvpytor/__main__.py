@@ -44,7 +44,7 @@ def main():
                         help="calculate segmentation for specified bin size (multiple bin sizes separate by space)")
     parser.add_argument('-call', '--call', type=str, nargs="+",
                         help="CNV caller: [baf] bin_size [bin_size2 ...] (multiple bin sizes separate by space)")
-    parser.add_argument('-vcf', '--vcf', nargs="+", type=str, help="read SNP data from vcf files")
+    parser.add_argument('-vcf', '-snp', '--vcf', nargs="+", type=str, help="read SNP data from vcf files")
     parser.add_argument('-pileup', '--pileup_bam', nargs="+", type=str, help="calculate SNP counts from bam files")
 
     parser.add_argument('-mask', '--mask', type=str, help="read fasta mask file and flag SNPs in P region")

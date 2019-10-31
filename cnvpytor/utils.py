@@ -10,6 +10,8 @@ from scipy.stats import norm
 from scipy.optimize import curve_fit
 import logging
 import readline
+import requests
+
 
 _logger = logging.getLogger("cnvpytor.utils")
 
@@ -437,6 +439,46 @@ def likelihood_baf_pval(likelihood):
     p = np.sum(likelihood[ix1:ix2]) / np.sum(likelihood)
     return b, p
 
+def is_downloadable(url):
+    """
+    Returns does the url contain a downloadable resource
+    Parameters
+    ----------
+    url : str
+        Resource url
+
+    Returns
+    -------
+    downloadable : bool
+        True if the url contain a downloadable resource
+
+    """
+    h = requests.head(url, allow_redirects=True)
+    header = h.headers
+    content_type = header.get('content-type')
+    if 'text' in content_type.lower():
+        return False
+    if 'html' in content_type.lower():
+        return False
+    return True
+
+def download(url,file):
+    """
+    Download resource into file
+
+    Parameters
+    ----------
+    url : str
+        Resource url
+    file : str
+        Filename
+
+    """
+    r = requests.get(url, allow_redirects=True)
+    with open(file, 'wb') as f:
+        f.write(r.content)
+
+
 class PromptCompleter:
     def __init__(self, command_tree):
         """
@@ -469,3 +511,4 @@ class PromptCompleter:
             return results[state]
         except Exception as e:
             print(e)
+

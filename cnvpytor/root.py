@@ -955,7 +955,7 @@ class Root:
                             break
                         maxo = max(overlaps)
                         mino = max(maxo * odec, overlap_min)
-                        if maxo < omin:
+                        if maxo < overlap_min:
                             break
                         i, j = 0, 1
                         while i < len(segments) - 1:
