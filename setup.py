@@ -5,12 +5,12 @@ with open("README.md", "r") as fh:
 
 setup(
     name='CNVpytor',
-    version='1.0a2',
+    version='1.0a3',
     author='Milovan Suvakov, Abyzov Lab, Mayo Clinic',
     author_email='suvakov@gmail.com',
     packages=['cnvpytor'],
     package_dir={'cnvpytor': 'cnvpytor'},
-    package_data={'cnvpytor': ['data/*.pytor']},
+    package_data={'cnvpytor': ['imgs/*.png','data/*']},
     description='Python extension of CNVnator',
     long_description=long_description,
     long_description_content_type='text/markdown',
@@ -18,6 +18,7 @@ setup(
     install_requires=[
         'pysam',
         'gnureadline',
+        'requests',
         'pysam',
         'numpy',
         'scipy',

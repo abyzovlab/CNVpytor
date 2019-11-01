@@ -29,8 +29,8 @@ class Genome:
                  ("chr19", (59128983, "A")), ("chr20", (63025520, "A")), ("chr21", (48129895, "A")),
                  ("chr22", (51304566, "A")), ("chrX", (155270560, "S")), ("chrY", (59373566, "S")),
                  ("chrM", (16571, "M"))]),
-            "gc_file": pkg_resources.resource_filename('cnvpytor', 'data/gc_hg19.pytor'),
-            "mask_file": pkg_resources.resource_filename('cnvpytor', 'data/mask_hg19.pytor')
+            "gc_file": pkg_resources.resource_filename('cnvpytor', 'data')+"/gc_hg19.pytor",
+            "mask_file": pkg_resources.resource_filename('cnvpytor', 'data')+"/mask_hg19.pytor"
         },
         "hg38": {
             "name": "GRCh38",
@@ -89,12 +89,33 @@ class Genome:
         """
         return "chr" + Genome.canonical_chrom_name(name)
 
+
     @classmethod
-    def download_resorces(cls):
+    def check_resources(cls):
         """
-        Check do resourece files exists in data foleder. If not it will download files from github.
+        Check do resource files exist.
+
+        Returns
+        -------
+        ok : bool
+            Returns True if all resource files exist.
 
         """
+        _logger.debug("Checking reference genome resource files.")
+        for i in cls.reference_genomes:
+            if "gc_file" in cls.reference_genomes[i] and not os.path.exists(cls.reference_genomes[i]["gc_file"]):
+                return False
+            if "mask_file" in cls.reference_genomes[i] and not os.path.exists(cls.reference_genomes[i]["mask_file"]):
+                return False
+        return True
+
+    @classmethod
+    def update_resources(cls):
+        """
+        Download missing resource files files from github.
+
+        """
+        _logger.info("Updating reference genome resource files...")
         for i in cls.reference_genomes:
             if "gc_file" in cls.reference_genomes[i] and not os.path.exists(cls.reference_genomes[i]["gc_file"]):
                 _logger.info("Detecting missing GC resource file for reference genome '%s'" % i)
@@ -102,18 +123,30 @@ class Genome:
                 fn = res.split("/")[-1]
                 url = "https://github.com/abyzovlab/CNVpytor/raw/master/cnvpytor/data/"+fn
                 if is_downloadable(url):
-                    _logger.info("Downloading GC resource file")
-                    download(url,res)
-                    _logger.info("File downlaoded.")
+                    _logger.info("Downloading GC resource file: %s",fn)
+                    try:
+                        download(url,res)
+                        _logger.info("File downlaoded.")
+                    except Exception as e:
+                        _logger.error("Problem with downloading/saving resource files.")
+                        _logger.error("Exception details: " + str(e))
+
                 else:
                     _logger.warning("GC resource file is not downloadable!")
             if "mask_file" in cls.reference_genomes[i] and not os.path.exists(cls.reference_genomes[i]["mask_file"]):
+                _logger.info("Detecting missing MASK resource file for reference genome '%s'" % i)
                 res = cls.reference_genomes[i]["mask_file"]
                 fn = res.split("/")[-1]
                 url = "https://github.com/abyzovlab/CNVpytor/raw/master/cnvpytor/data/"+fn
                 if is_downloadable(url):
-                    download(url,res)
-
+                    _logger.info("Downloading MASK resource file: %s",fn)
+                    try:
+                        download(url,res)
+                        _logger.info("File downlaoded.")
+                    except Exception as e:
+                        _logger.error("Problem with downloading/saving resource files.")
+                        _logger.error("Exception details: " + str(e))
+        _logger.info("Done.")
 
     @classmethod
     def is_autosome(cls, name):

@@ -16,6 +16,7 @@ Bug reports::
 ## Dependencies
 
 * gnureadline
+* requests
 * pysam
 * numpy
 * scipy
@@ -29,6 +30,8 @@ Optional:
 
 ## Install
 
+### Install by cloning from GitHub
+
 ```
 > git clone https://github.com/abyzovlab/CNVpytor.git
 > cd CNVpytor
@@ -38,6 +41,14 @@ For single user (without admin privileges) use:
 ```
 > python setup.py install --user
 ```
+
+### Install using pip
+
+```
+> pip install cnvpytor
+> cnvpytor -update
+```
+
 
 ## Simple example
 
@@ -112,5 +123,6 @@ from .fasta import *
 from .vcf import *
 from .root import *
 from .viewer import *
+from .genome import Genome
 
-__version__ = '1.0a2'
+__version__ = '1.0a3'

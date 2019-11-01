@@ -3,14 +3,14 @@ __main__
 
 """
 from __future__ import print_function
-from .__init__ import *
+from .root import *
+from .viewer import *
 import sys
 import logging
 import argparse
 import matplotlib.pyplot as plt
 
-__version__ = '1.0a1'
-
+__version__ = '1.0a3'
 
 def main():
     """ main()
@@ -23,6 +23,7 @@ def main():
     parser.add_argument('-root', '--root', type=str, nargs="+",
                         help="CNVnator hd5 file: data storage for all calculations", default=None)
     parser.add_argument('-ls', '--ls', action='store_true', help='list CNVnator file(s) content')
+    parser.add_argument('-update', '--update_resources', action='store_true', help='update resource files')
     parser.add_argument('-chrom', '--chrom', type=str, nargs="+", help="list of chromosomes to apply calculation",
                         default=[])
     parser.add_argument('-v', '--verbose', type=str,
@@ -107,6 +108,14 @@ def main():
         logger = logging.getLogger('cnvpytor')
     logger.debug("Start logging...")
 
+    if args.update_resources:
+        Genome.update_resources()
+        return 0
+
+    if not Genome.check_resources():
+        logger.error("Some reference genome resource files are missing. "
+                     "Run 'cnvpytor -update' as same user who has installed cnvpytor.")
+        return 0
 
     if args.version:
         print('pyCNVnator {}'.format(__version__))

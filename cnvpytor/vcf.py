@@ -111,7 +111,7 @@ class Vcf:
                 if "PASS" in rec.filter.keys() and rec.alts and len(rec.alts) == 1 and (
                         "GT" in rec.samples[sample].keys()) and (
                         "AD" in rec.samples[sample].keys()) and len(rec.samples[sample]["GT"]) > 1 and len(
-                        rec.samples[sample]["AD"]) > 1:
+                    rec.samples[sample]["AD"]) > 1:
                     if (len(rec.samples[sample]["AD"]) > 1) and (rec.ref in alphabet) and (rec.alts[0] in alphabet):
                         pos.append(rec.pos)
                         ref.append(rec.ref)
@@ -192,7 +192,9 @@ class Vcf:
                         "GT" in rec.samples[sample].keys()) and (
                         "AD" in rec.samples[sample].keys()) and len(rec.samples[sample]["GT"]) > 1 and len(
                     rec.samples[sample]["AD"]) > 1:
-                    if (len(rec.samples[sample]["AD"]) > 1) and (rec.ref in alphabet) and (rec.alts[0] in alphabet):
+                    if (len(rec.samples[sample]["AD"]) > 1) and (rec.ref in alphabet) and (
+                            rec.alts[0] in alphabet) and (rec.samples[sample]["GT"][0] is not None) and (
+                            rec.samples[sample]["GT"][1] is not None):
                         pos.append(rec.pos)
                         ref.append(rec.ref)
                         alt.append(rec.alts[0])

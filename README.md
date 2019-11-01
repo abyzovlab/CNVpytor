@@ -18,6 +18,7 @@ Bug reports::
 ## Dependencies
 
 * gnureadline
+* requests
 * pysam
 * numpy
 * scipy
@@ -30,6 +31,9 @@ Optional:
 * seaborn - for additional plotting styles 
 
 ## Install
+
+### Install by cloning from GitHub
+
 ```
 > git clone https://github.com/abyzovlab/CNVpytor.git
 > cd CNVpytor
@@ -38,6 +42,13 @@ Optional:
 For single user (without admin privileges) use:
 ```
 > python setup.py install --user
+```
+
+### Install using pip
+
+```
+> pip install cnvpytor
+> cnvpytor -update
 ```
 
 ## Simple example
@@ -58,14 +69,14 @@ Call CNV using single nucleotide polymorphism::
 > cnvpytor -root file.pytor -call baf 10000 100000
 ```
 
-Plot - command line
+Plot
 ```
 > cnvpytor -root file.pytor -plot stat
 > cnvpytor -root file.pytor -plot 10000 100000
-> cnvpytor -root file.pytor -plot stat manhattan 100000 -o file.pdf
+> cnvpytor -root file.pytor -plot stat manhattan 100000 -o prefix.pdf
 > cnvpytor -root file.pytor -plot baf -chrom 1 2 3 4
 > cnvpytor -root file.pytor -plot regions 1:10M-20M,2:20M-43M 3:10M-20M 10000
-> TODO: cnvpytor -root file.pytor -plot circular
+> cnvpytor -root file.pytor -plot circular 100000 -use_mask_rd -o prefix.png
 ```
 
 Plot - interactive mode
@@ -91,7 +102,6 @@ cnvpytor> show
 cnvpytor> set bin_size 100000
 cnvpytor> chr1:1M-50M chr2:60M-65M > filename.png
 ```
-
 
 ## Bugs
 
