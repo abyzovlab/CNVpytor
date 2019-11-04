@@ -231,9 +231,9 @@ def binsize_type(x):
     return x
 
 def binsize_format(x):
-    if x>1000000:
+    if x>=1000000:
         return str(x//1000000)+"M"
-    elif x>1000:
+    elif x>=1000:
         return str(x//1000)+"K"
     else:
         return str(x)
@@ -285,6 +285,7 @@ def fit_normal(x, y):
     area = sum(y[:-1] * (x[1:] - x[:-1]))
     try:
         popt, pcov = curve_fit(normal, x, y, p0=[area, mean, sigma])
+        popt[2] = np.abs(popt[2])
         return popt, pcov
     except ValueError:
         _logger.warning("Problem with fit: optimal parameters not found. Using mean and std instead!")

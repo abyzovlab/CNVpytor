@@ -785,24 +785,24 @@ class Viewer:
         for i in self.io:
             i.ls()
 
-    def info(self,bin_sizes):
+    def info(self, bin_sizes):
         bin_sizes = [100] + bin_sizes
-        labels = ["FILE","RL","dRL[%]","FL","dFL[%]"]
+        labels = ["FILE", "RL", "dRL[%]", "FL", "dFL[%]"]
         for bs in bin_sizes:
-            labels.append("RD_AUTO_"+binsize_format(bs))
-            labels.append("dRD_AUTO_" + binsize_format(bs)+"[%]")
-            labels.append("RD_GC_AUTO_"+binsize_format(bs))
-            labels.append("dRD_CG__AUTO_" + binsize_format(bs)+"[%]")
+            labels.append("RD_AUTO_" + binsize_format(bs))
+            labels.append("dRD_AUTO_" + binsize_format(bs) + "[%]")
+            labels.append("RD_GC_AUTO_" + binsize_format(bs))
+            labels.append("dRD_CG__AUTO_" + binsize_format(bs) + "[%]")
             labels.append("RD_XY_" + binsize_format(bs))
             labels.append("dRD_XY_" + binsize_format(bs) + "[%]")
             labels.append("RD_GC_XY_" + binsize_format(bs))
             labels.append("dRD_GC_XY_" + binsize_format(bs) + "[%]")
-            if bs<=500:
+            if bs <= 500:
                 labels.append("RD_MT_" + binsize_format(bs))
                 labels.append("dRD_MT_" + binsize_format(bs) + "[%]")
                 labels.append("RD_GC_MT_" + binsize_format(bs))
                 labels.append("dRD_CG_MT_" + binsize_format(bs) + "[%]")
-        print(("{:25}{:>20}{:>20}{:>20}{:>20}"+"{:>20}"*(len(labels)-5)).format(*tuple(labels)))
+        print(("{:25}{:>20}{:>20}{:>20}{:>20}" + "{:>20}" * (len(labels) - 5)).format(*tuple(labels)))
         for i in self.io:
             rfd = i.get_signal(None, None, "read frg dist")
             rd = np.sum(rfd, axis=1)
@@ -811,28 +811,27 @@ class Viewer:
             mfl = np.sum(fd * np.arange(fd.size)) / np.sum(fd)
             mrl2 = np.sum(rd * np.arange(rd.size) * np.arange(rd.size)) / np.sum(rd)
             mfl2 = np.sum(fd * np.arange(fd.size) * np.arange(fd.size)) / np.sum(fd)
-            sdr = 100. * np.sqrt(mrl2-mrl*mrl)/mrl
-            sdf = 100. * np.sqrt(mfl2-mfl*mfl)/mfl
-            print("{:25}{:20.2f}{:20.2f}{:20.2f}{:20.2f}".format(i.filename, mrl, sdr, mfl, sdf),end="")
+            sdr = 100. * np.sqrt(mrl2 - mrl * mrl) / mrl
+            sdf = 100. * np.sqrt(mfl2 - mfl * mfl) / mfl
+            print("{:25}{:20.2f}{:20.2f}{:20.2f}{:20.2f}".format(i.filename, mrl, sdr, mfl, sdf), end="")
             for bs in bin_sizes:
                 for flag in [FLAG_AUTO, FLAG_SEX, FLAG_MT]:
-                    if bs<=500 or not flag==FLAG_MT:
-                        if i.signal_exists(None,bs,"RD stat",flags=flag):
-                            stat = i.get_signal(None,bs,"RD stat",flags=flag)
-                            if stat[4]>0:
-                                stat[5]/=stat[4]/100
-                            print("{:20.2f}{:20.2f}".format(stat[4],stat[5]),end="")
-                        else:
-                            print("{:20}{:20}".format("-", "-"),end="")
-                        if i.signal_exists(None, bs, "RD stat", flags=(flag|FLAG_GC_CORR)):
-                            stat = i.get_signal(None, bs, "RD stat", flags=(flag|FLAG_GC_CORR))
+                    if bs <= 500 or not flag == FLAG_MT:
+                        if i.signal_exists(None, bs, "RD stat", flags=flag):
+                            stat = i.get_signal(None, bs, "RD stat", flags=flag)
                             if stat[4] > 0:
-                                stat[5] /= stat[4] / 100
+                                stat[5] /= stat[4] / 100.
+                            print("{:20.2f}{:20.2f}".format(stat[4], stat[5]), end="")
+                        else:
+                            print("{:20}{:20}".format("-", "-"), end="")
+                        if i.signal_exists(None, bs, "RD stat", flags=(flag | FLAG_GC_CORR)):
+                            stat = i.get_signal(None, bs, "RD stat", flags=(flag | FLAG_GC_CORR))
+                            if stat[4] > 0:
+                                stat[5] /= stat[4] / 100.
                             print("{:20.2f}{:20.2f}".format(stat[4], stat[5]), end="")
                         else:
                             print("{:>20}{:>20}".format("-", "-"), end="")
             print()
-
 
 
 def anim_plot_likelihood(likelihood, segments, n, res, iter, prefix, maxp, minp):
