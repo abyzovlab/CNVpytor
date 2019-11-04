@@ -556,6 +556,8 @@ class Root:
                     sex = sex or Genome.is_sex_chrom(c)
                     mt = mt or Genome.is_mt_chrom(c)
 
+            mt = mt and (bin_size<=500)
+
             if auto:
                 max_bin_auto = int(
                     max(map(lambda x: 5 * x[1] + 5 * x[2], filter(lambda x: Genome.is_autosome(x[0]), his_stat))))

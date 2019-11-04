@@ -823,7 +823,7 @@ class Viewer:
                                 stat[5] /= stat[4] / 100.
                             print("{:20.2f}{:20.2f}".format(stat[4], stat[5]), end="")
                         else:
-                            print("{:20}{:20}".format("-", "-"), end="")
+                            print("{:>20}{:>20}".format("-", "-"), end="")
                         if i.signal_exists(None, bs, "RD stat", flags=(flag | FLAG_GC_CORR)):
                             stat = i.get_signal(None, bs, "RD stat", flags=(flag | FLAG_GC_CORR))
                             if stat[4] > 0:
