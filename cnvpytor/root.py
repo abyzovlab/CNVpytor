@@ -630,7 +630,7 @@ class Root:
                         dist_p_sex += dist_p
                         dist_u_sex += dist_u
                         dist_p_gc_sex += dist_p_gc
-                    elif Genome.is_mt_chrom(c) and (bin_size <= 1000):
+                    elif Genome.is_mt_chrom(c) and mt:
                         dist_p, bins = np.histogram(his_p, bins=bins_mt)
                         dist_u, bins = np.histogram(his_u, bins=bins_mt)
                         gcat = self.io_gc.get_signal(rd_gc_chromosomes[c], None, "GC/AT")
@@ -694,7 +694,7 @@ class Root:
                     elif Genome.is_sex_chrom(c):
                         dist_p_gc, bins = np.histogram(his_p_corr, bins=bins_sex)
                         dist_p_gccorr_sex += dist_p_gc
-                    elif Genome.is_mt_chrom(c):
+                    elif Genome.is_mt_chrom(c) and mt:
                         dist_p_gc, bins = np.histogram(his_p_corr, bins=bins_mt)
                         dist_p_gccorr_mt += dist_p_gc
 
