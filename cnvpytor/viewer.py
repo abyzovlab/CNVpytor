@@ -833,7 +833,7 @@ class Viewer:
                             print("{:>20}{:>20}".format("-", "-"), end="")
             print()
 
-    def dispersion(self,legend=True):
+    def dispersion(self, legend=True):
         plt.clf()
         plt.rcParams["font.size"] = 8
         self.fig = plt.figure(1, facecolor='w', edgecolor='k')
@@ -844,9 +844,9 @@ class Viewer:
 
         ax = self.fig.add_subplot(grid[0])
         for i in self.io:
-            bin_sizes = set([int(x[1]) for x in  i.chromosomes_bin_sizes_with_signal("RD")])
-            rd=[]
-            drd=[]
+            bin_sizes = sorted(set([int(x[1]) for x in i.chromosomes_bin_sizes_with_signal("RD")]))
+            rd = []
+            drd = []
             for bs in bin_sizes:
                 if i.signal_exists(None, bs, "RD stat", flags=FLAG_AUTO):
                     stat = i.get_signal(None, bs, "RD stat", flags=FLAG_AUTO)
@@ -859,16 +859,16 @@ class Viewer:
             ax.set_ylabel("stdev RD")
             if legend:
                 ax.legend(loc="upper left")
-            ax.plot(rd,drd,"*-",label=i.filename)
+            ax.plot(rd, drd, "*-", label=i.filename)
 
         ax = self.fig.add_subplot(grid[1])
         for i in self.io:
-            bin_sizes = set([int(x[1]) for x in  i.chromosomes_bin_sizes_with_signal("RD")])
-            rd=[]
-            drd=[]
+            bin_sizes = sorted(set([int(x[1]) for x in i.chromosomes_bin_sizes_with_signal("RD")]))
+            rd = []
+            drd = []
             for bs in bin_sizes:
-                if i.signal_exists(None, bs, "RD stat", flags=FLAG_AUTO|FLAG_GC_CORR):
-                    stat = i.get_signal(None, bs, "RD stat", flags=FLAG_AUTO|FLAG_GC_CORR)
+                if i.signal_exists(None, bs, "RD stat", flags=FLAG_AUTO | FLAG_GC_CORR):
+                    stat = i.get_signal(None, bs, "RD stat", flags=FLAG_AUTO | FLAG_GC_CORR)
                     rd.append(stat[4])
                     drd.append(stat[5])
             ax.set_yscale("log")
@@ -878,8 +878,7 @@ class Viewer:
             ax.set_ylabel("stdev RD (GC corr)")
             if legend:
                 ax.legend(loc="upper left")
-            ax.plot(rd,drd,"*-",label=i.filename)
-
+            ax.plot(rd, drd, "*-", label=i.filename)
 
         if self.output_filename != "":
             plt.savefig(self.image_filename("dispersion"), dpi=200)
@@ -889,10 +888,6 @@ class Viewer:
             plt.draw()
         else:
             plt.show()
-
-
-
-
 
 
 def anim_plot_likelihood(likelihood, segments, n, res, iter, prefix, maxp, minp):
