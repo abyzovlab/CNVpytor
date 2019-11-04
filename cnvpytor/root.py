@@ -678,7 +678,7 @@ class Root:
                 self.io.create_signal(None, bin_size, "GC corr", gc_corr_mt, flags=FLAG_MT)
 
             for c in self.io.rd_chromosomes():
-                if c in rd_gc_chromosomes:
+                if c in rd_gc_chromosomes and (mt or not Genome.is_mt_chrom(c)):
                     _logger.info(
                         "Calculating GC corrected RD histogram using bin size %d for chromosome '%s'." % (bin_size, c))
                     flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
