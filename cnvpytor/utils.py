@@ -230,6 +230,14 @@ def binsize_type(x):
         raise ArgumentTypeError("Bin size should be positive integer divisible by 100!")
     return x
 
+def binsize_format(x):
+    if x>1000000:
+        return str(x//1000000)+"M"
+    elif x>1000:
+        return str(x//1000)+"K"
+    else:
+        return str(x)
+
 
 def normal_overlap(m1, s1, m2, s2):
     if m1 > m2:

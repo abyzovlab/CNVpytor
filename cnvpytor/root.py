@@ -568,6 +568,7 @@ class Root:
                 _logger.debug(
                     "Using %d RD bin size, %d bins for autosome RD - GC distributions." % (bin_size_auto, n_bins_auto))
                 dist_p_auto = np.zeros(n_bins_auto)
+                dist_p_gccorr_auto = np.zeros(n_bins_auto)
                 dist_u_auto = np.zeros(n_bins_auto)
                 dist_p_gc_auto = np.zeros((n_bins_auto, 101))
 
@@ -584,6 +585,7 @@ class Root:
                     "Using %d RD bin size, %d bins for sex chromosome RD - GC distributions." % (
                         bin_size_sex, n_bins_sex))
                 dist_p_sex = np.zeros(n_bins_sex)
+                dist_p_gccorr_sex = np.zeros(n_bins_sex)
                 dist_u_sex = np.zeros(n_bins_sex)
                 dist_p_gc_sex = np.zeros((n_bins_sex, 101))
 
@@ -598,6 +600,7 @@ class Root:
                 n_bins_mt = len(bins_mt) - 1
                 _logger.debug("Using %d bin size, %d bins for mitochondria chromosome." % (bin_size_mt, n_bins_mt))
                 dist_p_mt = np.zeros(n_bins_mt)
+                dist_p_gccorr_mt = np.zeros(n_bins_mt)
                 dist_u_mt = np.zeros(n_bins_mt)
                 dist_p_gc_mt = np.zeros((n_bins_mt, 101))
 
@@ -682,8 +685,40 @@ class Root:
                     gc_corr = self.io.get_signal(None, bin_size, "GC corr", flag)
                     gcat = self.io_gc.get_signal(rd_gc_chromosomes[c], None, "GC/AT")
                     his_p_corr = his_p / np.array(list(map(lambda x: gc_corr[int(x)], gcp_decompress(gcat, bin_ratio))))
-
                     self.io.create_signal(c, bin_size, "RD", his_p_corr, flags=FLAG_GC_CORR)
+                    if Genome.is_autosome(c):
+                        dist_p_gc, bins = np.histogram(his_p_corr, bins=bins_auto)
+                        dist_p_gccorr_auto += dist_p_gc
+                    elif Genome.is_sex_chrom(c):
+                        dist_p_gc, bins = np.histogram(his_p_corr, bins=bins_sex)
+                        dist_p_gccorr_sex += dist_p_gc
+                    elif Genome.is_mt_chrom(c):
+                        dist_p_gc, bins = np.histogram(his_p_corr, bins=bins_mt)
+                        dist_p_gccorr_mt += dist_p_gc
+
+            if auto:
+                n_auto, m_auto, s_auto = fit_normal(np.array(bins_auto[1:-1]), dist_p_gccorr_auto[1:])[0]
+                _logger.info("Autosomes stat - RD parity distribution gaussian fit after GC correction:  %.2f +- %.2f" % (m_auto, s_auto))
+                stat_auto = np.array([max_bin_auto, bin_size_auto, n_bins_auto, n_auto, m_auto, s_auto])
+                self.io.create_signal(None, bin_size, "RD p dist", dist_p_gccorr_auto, flags=(FLAG_AUTO|FLAG_GC_CORR))
+                self.io.create_signal(None, bin_size, "RD stat", stat_auto, flags=(FLAG_AUTO|FLAG_GC_CORR))
+
+            if sex:
+                n_sex, m_sex, s_sex = fit_normal(np.array(bins_sex[1:-1]), dist_p_gccorr_sex[1:])[0]
+                _logger.info("Sex chromosomes stat - RD parity distribution gaussian fit after GC correction:  %.2f +- %.2f" % (m_sex, s_sex))
+                stat_sex = np.array([max_bin_sex, bin_size_sex, n_bins_sex, n_sex, m_sex, s_sex])
+                self.io.create_signal(None, bin_size, "RD p dist", dist_p_gccorr_sex, flags=(FLAG_SEX|FLAG_GC_CORR))
+                self.io.create_signal(None, bin_size, "RD stat", stat_sex, flags=(FLAG_SEX|FLAG_GC_CORR))
+
+            if mt:
+                n_mt, m_mt, s_mt = fit_normal(np.array(bins_mt[1:-1]), dist_p_gccorr_mt[1:])[0]
+                _logger.info("Mitochondria stat - RD parity distribution gaussian fit after GC correction:  %.2f +- %.2f" % (m_mt, s_mt))
+                if auto:
+                    _logger.info("Mitochondria stat - number of mitochondria per cell after GC correction:  %.2f +- %.2f" % (
+                        2. * m_mt / m_auto, 2. * s_mt / m_auto + s_auto * m_mt / (m_auto * m_auto)))
+                stat_mt = np.array([max_bin_mt, bin_size_mt, n_bins_mt, n_mt, m_mt, s_mt])
+                self.io.create_signal(None, bin_size, "RD p dist", dist_p_gccorr_mt, flags=(FLAG_MT|FLAG_GC_CORR))
+                self.io.create_signal(None, bin_size, "RD stat", stat_mt, flags=(FLAG_MT|FLAG_GC_CORR))
 
             for c in self.io.rd_chromosomes():
                 if (c in rd_gc_chromosomes) and (c in rd_mask_chromosomes):

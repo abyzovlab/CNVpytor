@@ -20,7 +20,7 @@ _logger = logging.getLogger("cnvpytor.viewer")
 
 
 class Viewer:
-    def __init__(self, files, output_filename):
+    def __init__(self, files, output_filename=""):
         _logger.debug("Viewer class init: files [%s], png_prefix '%s'." % (", ".join(files), output_filename))
         self.io = [IO(f, ro=True) for f in files]
         self.output_filename = output_filename
@@ -107,7 +107,7 @@ class Viewer:
                                   "xkcd": None
                                   },
                         "save": None, "show": None, "quit": None, "rd": None, "likelihood": None, "baf": None,
-                        "stat": None, "rdstat": None, "circular": None, "manhattan": None, "calls": None
+                        "stat": None, "rdstat": None, "circular": None, "manhattan": None, "calls": None, "ls": None
                         }
         chromosomes = set({})
         for f in self.io:
@@ -143,6 +143,8 @@ class Viewer:
                     plt.savefig(f[1])
                 elif f[0] in ["draw", "repaint", "update"] and n == 1:
                     self.fig.canvas.draw()
+                elif f[0] == "ls":
+                    self.ls()
                 elif f[0] == "show":
                     if n == 1:
                         print("    Parameters")
@@ -553,7 +555,7 @@ class Viewer:
                     call_c = []
                     for s, lh in zip(segments, likelihood):
                         b, p = likelihood_baf_pval(lh)
-                        if b > 0 and len(s)>self.min_segment_size:
+                        if b > 0 and len(s) > self.min_segment_size:
                             alpha = -np.log(p + 1e-40) / self.plevel
                             if alpha > 1:
                                 alpha = 1
@@ -584,7 +586,7 @@ class Viewer:
         plt.subplots_adjust(bottom=0.05, top=0.95, wspace=0, hspace=0, left=0.05, right=0.95)
 
         if self.output_filename != "":
-            plt.savefig(self.image_filename("manhattan" if plot_type=="rd" else "snp_calls"), dpi=200)
+            plt.savefig(self.image_filename("manhattan" if plot_type == "rd" else "snp_calls"), dpi=200)
             plt.close(self.fig)
         elif self.interactive:
             plt.show(block=False)
@@ -778,6 +780,59 @@ class Viewer:
             plt.draw()
         else:
             plt.show()
+
+    def ls(self):
+        for i in self.io:
+            i.ls()
+
+    def info(self,bin_sizes):
+        bin_sizes = [100] + bin_sizes
+        labels = ["FILE","RL","dRL[%]","FL","dFL[%]"]
+        for bs in bin_sizes:
+            labels.append("RD_AUTO_"+binsize_format(bs))
+            labels.append("dRD_AUTO_" + binsize_format(bs)+"[%]")
+            labels.append("RD_GC_AUTO_"+binsize_format(bs))
+            labels.append("dRD_CG__AUTO_" + binsize_format(bs)+"[%]")
+            labels.append("RD_XY_" + binsize_format(bs))
+            labels.append("dRD_XY_" + binsize_format(bs) + "[%]")
+            labels.append("RD_GC_XY_" + binsize_format(bs))
+            labels.append("dRD_GC_XY_" + binsize_format(bs) + "[%]")
+            if bs<=500:
+                labels.append("RD_MT_" + binsize_format(bs))
+                labels.append("dRD_MT_" + binsize_format(bs) + "[%]")
+                labels.append("RD_GC_MT_" + binsize_format(bs))
+                labels.append("dRD_CG_MT_" + binsize_format(bs) + "[%]")
+        print(("{:25}{:>20}{:>20}{:>20}{:>20}"+"{:>20}"*(len(labels)-5)).format(*tuple(labels)))
+        for i in self.io:
+            rfd = i.get_signal(None, None, "read frg dist")
+            rd = np.sum(rfd, axis=1)
+            fd = np.sum(rfd, axis=0)
+            mrl = np.sum(rd * np.arange(rd.size)) / np.sum(rd)
+            mfl = np.sum(fd * np.arange(fd.size)) / np.sum(fd)
+            mrl2 = np.sum(rd * np.arange(rd.size) * np.arange(rd.size)) / np.sum(rd)
+            mfl2 = np.sum(fd * np.arange(fd.size) * np.arange(fd.size)) / np.sum(fd)
+            sdr = 100. * np.sqrt(mrl2-mrl*mrl)/mrl
+            sdf = 100. * np.sqrt(mfl2-mfl*mfl)/mfl
+            print("{:25}{:20.2f}{:20.2f}{:20.2f}{:20.2f}".format(i.filename, mrl, sdr, mfl, sdf),end="")
+            for bs in bin_sizes:
+                for flag in [FLAG_AUTO, FLAG_SEX, FLAG_MT]:
+                    if bs<=500 or not flag==FLAG_MT:
+                        if i.signal_exists(None,bs,"RD stat",flags=flag):
+                            stat = i.get_signal(None,bs,"RD stat",flags=flag)
+                            if stat[4]>0:
+                                stat[5]/=stat[4]/100
+                            print("{:20.2f}{:20.2f}".format(stat[4],stat[5]),end="")
+                        else:
+                            print("{:20}{:20}".format("-", "-"),end="")
+                        if i.signal_exists(None, bs, "RD stat", flags=(flag|FLAG_GC_CORR)):
+                            stat = i.get_signal(None, bs, "RD stat", flags=(flag|FLAG_GC_CORR))
+                            if stat[4] > 0:
+                                stat[5] /= stat[4] / 100
+                            print("{:20.2f}{:20.2f}".format(stat[4], stat[5]), end="")
+                        else:
+                            print("{:>20}{:>20}".format("-", "-"), end="")
+            print()
+
 
 
 def anim_plot_likelihood(likelihood, segments, n, res, iter, prefix, maxp, minp):

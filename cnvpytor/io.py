@@ -202,6 +202,8 @@ class IO:
             s += "_sex"
         if flags & FLAG_MT:
             s += "_mt"
+        if flags & FLAG_GC_CORR:
+            s += "_GC"
         return s
 
     def chromosomes_with_signal(self, bin_size, signal, flags=0):
@@ -481,7 +483,7 @@ class IO:
 
         print("Chromosomes with RD histograms [bin sizes]: " + ", ".join(chrs.keys()) + " " + str(sorted(bss)))
         print()
-        chr_bs = self.chromosomes_bin_sizes_with_signal("SNP bin count 0|1")
+        chr_bs = self.chromosomes_bin_sizes_with_signal("SNP likelihood")
         chrs = {}
         bss = []
         for c, b in chr_bs:

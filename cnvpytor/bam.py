@@ -99,7 +99,7 @@ class Bam:
                 if r.template_length and r.reference_length:
                     fl = abs(r.template_length)
                     rl = r.reference_length
-                    if fl and (rl < self.max_read_len) and (fl < self.max_frg_len):
+                    if (rl < self.max_read_len) and (fl < self.max_frg_len):
                         his_read_frg[rl][fl] += 1
                     if r.is_unmapped or r.is_secondary or r.is_duplicate:
                         continue

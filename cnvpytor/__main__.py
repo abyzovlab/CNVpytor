@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 
 __version__ = '1.0a3'
 
+
 def main():
     """ main()
     CNVpytor main commandline program.
@@ -22,7 +23,8 @@ def main():
     parser.add_argument('-version', '--version', action='store_true', help='show version number and exit')
     parser.add_argument('-root', '--root', type=str, nargs="+",
                         help="CNVnator hd5 file: data storage for all calculations", default=None)
-    parser.add_argument('-ls', '--ls', action='store_true', help='list CNVnator file(s) content')
+    parser.add_argument('-ls', '--ls', action='store_true', help='list pytor file(s) content')
+    parser.add_argument('-info', '--info', type=binsize_type, nargs="*", help='print statistics for pythor file(s)')
     parser.add_argument('-update', '--update_resources', action='store_true', help='update resource files')
     parser.add_argument('-chrom', '--chrom', type=str, nargs="+", help="list of chromosomes to apply calculation",
                         default=[])
@@ -55,11 +57,12 @@ def main():
                         help="create BAF histograms for specified bin size (multiple bin sizes separate by space)")
     parser.add_argument('-nomask', '--no_mask', action='store_true', help="do not use P mask in BAF histograms")
     parser.add_argument('-useid', '--use_id', action='store_true', help="use id flag filtering in SNP histograms")
-    parser.add_argument('-usephase', '--use_phase', action='store_true', help="use information about phase while processing SNP data")
-    parser.add_argument('-reducenoise', '--reduce_noise', action='store_true', help="reduce noise in processing SNP data")
-    parser.add_argument('-blw', '--baf_likelihood_width', type=float, help="likelihood width used in processing SNP data (default=0.8)", default=0.8)
-
-
+    parser.add_argument('-usephase', '--use_phase', action='store_true',
+                        help="use information about phase while processing SNP data")
+    parser.add_argument('-reducenoise', '--reduce_noise', action='store_true',
+                        help="reduce noise in processing SNP data")
+    parser.add_argument('-blw', '--baf_likelihood_width', type=float,
+                        help="likelihood width used in processing SNP data (default=0.8)", default=0.8)
 
     parser.add_argument('-plot', '--plot', type=str, nargs="+", help="plotting")
     parser.add_argument('-view', '--view', type=binsize_type,
@@ -79,7 +82,8 @@ def main():
     parser.add_argument('-use_mask_rd', '--use_mask_with_rd', action='store_true', help="used P mask in RD histograms")
     parser.add_argument('-rg', '--reference_genome', type=str, help="Manually set reference genome", default=None)
     parser.add_argument('-sample', '--vcf_sample', type=str, help="Sample name in vcf file", default="")
-    parser.add_argument('-conf', '--reference_genomes_conf', type=str, help="Configuration with reference genomes", default=None)
+    parser.add_argument('-conf', '--reference_genomes_conf', type=str, help="Configuration with reference genomes",
+                        default=None)
 
     args = parser.parse_args(sys.argv[1:])
 
@@ -127,8 +131,12 @@ def main():
     if args.root is not None:
 
         if args.ls:
-            app = Root(args.root[0], max_cores=args.max_cores)
-            app.ls()
+            view = Viewer(args.root)
+            view.ls()
+
+        if args.info is not None:
+            view = Viewer(args.root)
+            view.info(args.info)
 
         if args.reference_genome:
             app = Root(args.root[0], max_cores=args.max_cores)
@@ -184,7 +192,8 @@ def main():
 
         if args.baf:
             app = Root(args.root[0], max_cores=args.max_cores)
-            app.calculate_baf(args.baf, chroms=args.chrom, use_id=args.use_id, use_mask=not args.no_mask, use_phase=args.use_phase, reduce_noise=args.reduce_noise, blw=args.baf_likelihood_width)
+            app.calculate_baf(args.baf, chroms=args.chrom, use_id=args.use_id, use_mask=not args.no_mask,
+                              use_phase=args.use_phase, reduce_noise=args.reduce_noise, blw=args.baf_likelihood_width)
 
         if args.call:
             app = Root(args.root[0], max_cores=args.max_cores)
