@@ -792,7 +792,7 @@ class Viewer:
             labels.append("RD_AUTO_" + binsize_format(bs))
             labels.append("dRD_AUTO_" + binsize_format(bs) + "[%]")
             labels.append("RD_GC_AUTO_" + binsize_format(bs))
-            labels.append("dRD_CG__AUTO_" + binsize_format(bs) + "[%]")
+            labels.append("dRD_GC_AUTO_" + binsize_format(bs) + "[%]")
             labels.append("RD_XY_" + binsize_format(bs))
             labels.append("dRD_XY_" + binsize_format(bs) + "[%]")
             labels.append("RD_GC_XY_" + binsize_format(bs))
