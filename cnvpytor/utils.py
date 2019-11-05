@@ -286,6 +286,9 @@ def fit_normal(x, y):
     try:
         popt, pcov = curve_fit(normal, x, y, p0=[area, mean, sigma])
         popt[2] = np.abs(popt[2])
+        if popt[1]<=0:
+            _logger.warning("Problem with fit: negative mean. Using mean and std instead!")
+            return [area, mean, sigma], None
         return popt, pcov
     except ValueError:
         _logger.warning("Problem with fit: optimal parameters not found. Using mean and std instead!")
