@@ -316,6 +316,9 @@ class Viewer:
                 chroms.append((rd_chr, l))
         sx, sy = self.panels_shape(len(chroms))
         self.fig = plt.figure(1, figsize=(sx, sy), dpi=200, facecolor='w', edgecolor='k')
+        if self.output_filename != "":
+            self.fig.set_figheight(8)
+            self.fig.set_figwidth(12)
         ix = 1
         for c, l in chroms:
             flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
@@ -372,6 +375,9 @@ class Viewer:
                     chroms.append(snp_chr)
         sx, sy = self.panels_shape(len(chroms))
         self.fig = plt.figure(1, figsize=(sx, sy), dpi=200, facecolor='w', edgecolor='k')
+        if self.output_filename != "":
+            self.fig.set_figheight(8)
+            self.fig.set_figwidth(12)
         ix = 1
         for c in chroms:
             likelihood = self.io[self.plot_file].get_signal(c, bin_size, "SNP likelihood", snp_flag)
@@ -394,10 +400,17 @@ class Viewer:
         else:
             plt.show()
 
-    def baf(self):
+    def baf(self, size=10, plot_gt=None, plot_pmask=None):
+        if plot_pmask is None:
+            plot_pmask = [0, 1]
+        if plot_gt is None:
+            plot_gt = [0, 1, 2, 3]
         plt.clf()
         plt.rcParams["font.size"] = 8
         self.fig = plt.figure(1, figsize=(12, 8), dpi=90, facecolor='w', edgecolor='k')
+        if self.output_filename != "":
+            self.fig.set_figheight(8)
+            self.fig.set_figwidth(12)
         chroms = []
         if self.reference_genome is None:
             chroms = self.io[self.plot_file].snp_chromosomes()
@@ -419,12 +432,13 @@ class Viewer:
             color = []
             for i in range(len(pos)):
                 if (nref[i] + nalt[i]) != 0:
-                    hpos.append(pos[i])
-                    if gt[i] % 4 != 2:
-                        baf.append(1.0 * nalt[i] / (nref[i] + nalt[i]))
-                    else:
-                        baf.append(1.0 * nref[i] / (nref[i] + nalt[i]))
-                    color.append(self.baf_colors[(gt[i] % 4, flag[i] >> 1)])
+                    if (gt[i] % 4 in plot_gt) and ((flag[i] >> 1) in plot_pmask):
+                        hpos.append(pos[i])
+                        if gt[i] % 4 != 2:
+                            baf.append(1.0 * nalt[i] / (nref[i] + nalt[i]))
+                        else:
+                            baf.append(1.0 * nref[i] / (nref[i] + nalt[i]))
+                        color.append(self.baf_colors[(gt[i] % 4, flag[i] >> 1)])
 
             ax = plt.subplot(sx, sy, ix)
 
@@ -438,7 +452,7 @@ class Viewer:
             ax.set_ylim([0., 1.])
             ax.set_xlim([-0.05 * l, 1.05 * l])
             ax.grid()
-            plt.scatter(hpos, baf, marker='.', edgecolor=color, c=color, s=10, alpha=0.7)
+            plt.scatter(hpos, baf, marker='.', edgecolor=color, c=color, s=size, alpha=0.7)
             ix += 1
         plt.subplots_adjust(bottom=0., top=1., wspace=0, hspace=0, left=0., right=1.)
         if self.output_filename != "":

@@ -37,11 +37,11 @@ Optional:
 ```
 > git clone https://github.com/abyzovlab/CNVpytor.git
 > cd CNVpytor
-> python setup.py install
+> pip install .
 ```
 For single user (without admin privileges) use:
 ```
-> python setup.py install --user
+> pip install --user .
 ```
 
 ### Install using pip
