@@ -16,13 +16,12 @@ setup(
     long_description_content_type='text/markdown',
     url='https://github.com/abyzovlab/CNVpytor',
     install_requires=[
-        'pysam',
         'gnureadline',
-        'requests',
-        'pysam',
-        'numpy',
-        'scipy',
-        'matplotlib',
+        'requests>=2.0',
+        'pysam>=0.15',
+        'numpy>=1.16',
+        'scipy>=1.1',
+        'matplotlib>=2.2',
         'h5py>=2.9',
     ],
     classifiers=[
