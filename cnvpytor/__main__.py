@@ -48,6 +48,8 @@ def main():
     parser.add_argument('-call', '--call', type=str, nargs="+",
                         help="CNV caller: [baf] bin_size [bin_size2 ...] (multiple bin sizes separate by space)")
     parser.add_argument('-vcf', '-snp', '--vcf', nargs="+", type=str, help="read SNP data from vcf files")
+    parser.add_argument('-noAD', '--no_snp_counts', action='store_true',
+                        help="read positions of snps, not counts (AD tag)")
     parser.add_argument('-pileup', '--pileup_bam', nargs="+", type=str, help="calculate SNP counts from bam files")
 
     parser.add_argument('-mask', '--mask', type=str, help="read fasta mask file and flag SNPs in P region")
@@ -147,16 +149,31 @@ def main():
             app.rd(args.rd, chroms=args.chrom, reference_filename=args.reference_filename)
 
         if args.plot:
-            view = Viewer(args.root, args.plot_output_file)
+            params = {"output_filename" : args.plot_output_file,
+                      "chrom" : args.chrom,
+                      "panels" : args.panels,
+                      "use_mask" : not args.no_mask,
+                      "use_id" : args.use_id,
+                      "use_mask_rd" : args.use_mask_with_rd
+                      }
             if args.plot_style:
-                view.set_style(args.plot_style)
-            view.plot(args)
+                params["style"] = args.plot_style
+            view = Viewer(args.root, params)
+            view.plot(args.plot)
 
         if args.view:
-            view = Viewer(args.root, args.plot_output_file)
+            params = {"bin_size" : args.view,
+                      "output_filename" : args.plot_output_file,
+                      "chrom" : args.chrom,
+                      "panels" : args.panels,
+                      "use_mask" : not args.no_mask,
+                      "use_id" : args.use_id,
+                      "use_mask_rd" : args.use_mask_with_rd
+                      }
             if args.plot_style:
-                view.set_style(args.plot_style)
-            view.prompt(args.view, args)
+                params["style"] = args.plot_style
+            view = Viewer(args.root, params)
+            view.prompt()
 
         if args.gc:
             app = Root(args.root[0], max_cores=args.max_cores)
@@ -168,7 +185,7 @@ def main():
 
         if args.vcf:
             app = Root(args.root[0], max_cores=args.max_cores)
-            app.vcf(args.vcf, chroms=args.chrom, sample=args.vcf_sample)
+            app.vcf(args.vcf, chroms=args.chrom, sample=args.vcf_sample, no_counts=args.no_snp_counts)
 
         if args.pileup_bam:
             app = Root(args.root[0], max_cores=args.max_cores)

@@ -19,8 +19,233 @@ import traceback
 _logger = logging.getLogger("cnvpytor.viewer")
 
 
-class Viewer:
-    def __init__(self, files, output_filename=""):
+class ViewParams:
+    params = {
+        "bin_size": None,
+        "panels": ["rd"],
+        "use_mask_rd": False,
+        "use_mask": True,
+        "use_id": False,
+        "plot_files": [],
+        "plot_file": 0,
+        "chrom": [],
+        "style": None,
+        "grid": "auto",
+        "xkcd": False,
+        "output_filename": "",
+        "palette1": ["#555555", "#aaaaaa"],
+        "palette2": ["#00ff00", "#0000ff"],
+        "contrast": 20,
+        "min_segment_size": 0,
+        "baf_colors": {(0, 0): "yellow", (0, 1): "orange", (1, 0): "cyan", (1, 1): "blue", (2, 0): "lime",
+                       (2, 1): "green", (3, 0): "yellow", (3, 1): "orange"}
+    }
+
+    def __init__(self, params):
+        for key in params:
+            if key in self.params:
+                self.params[key] = params[key]
+
+    def show(self):
+        print("    Parameters")
+        for key in self.params:
+            print("        * %s: %s" % (key,str(self.params[key])))
+        # print("        * bin_size:", bin_size)
+        # print("        * panels:", args.panels)
+        # print("        * use_mask_rd:", args.use_mask_with_rd)
+        # print("        * use_mask:", self.use_mask)
+        # print("        * use_id:", self.use_id)
+        # print("        * plot_files:")
+        # for fi, fn, fs in list(
+        #         zip(range(len(self.plot_files)), map(lambda x: x.filename, self.io), self.plot_files)):
+        #     print("            %2d" % fi, fn, fs)
+        # print("        * plot_file:", self.plot_file)
+        # print("        * grid:", self.grid)
+        # print("    Available plot styles:", ", ".join(plt.style.available))
+
+    @property
+    def bin_size(self):
+        return self.params["bin_size"]
+
+    @bin_size.setter
+    def bin_size(self, x):
+        self.params["bin_size"] = binsize_type(x)
+
+    @property
+    def palette1(self):
+        return self.params["palette1"]
+
+    @palette1.setter
+    def palette1(self, x):
+        self.params["palette1"] = x
+
+    @property
+    def palette2(self):
+        return self.params["palette2"]
+
+    @palette2.setter
+    def palette2(self, x):
+        self.params["palette2"] = x
+
+    @property
+    def contrast(self):
+        return self.params["contrast"]
+
+    @contrast.setter
+    def contrast(self, x):
+        self.params["contrast"] = x
+
+    @property
+    def min_segment_size(self):
+        return self.params["min_segment_size"]
+
+    @min_segment_size.setter
+    def min_segment_size(self, x):
+        self.params["min_segment_size"] = x
+
+    @property
+    def baf_colors(self):
+        return self.params["baf_colors"]
+
+    @baf_colors.setter
+    def baf_colors(self, x):
+        self.params["baf_colors"] = x
+
+    @property
+    def grid(self):
+        return self.params["grid"]
+
+    @grid.setter
+    def grid(self, x):
+        self.params["grid"] = x
+
+    @property
+    def bin_size_f(self):
+        """
+        Formatted bin_size (e.g. 1000 -> "1K", 10000000 -> "10M")
+
+        Returns
+        -------
+        bin_size_f : str
+
+        """
+        return binsize_format(self.params["bin_size"])
+
+    @property
+    def panels(self):
+        return self.params["panels"]
+
+    @panels.setter
+    def panels(self, x):
+        self.params["panels"] = x
+
+    @property
+    def use_mask_rd(self):
+        return self.params["use_mask_rd"]
+
+    @use_mask_rd.setter
+    def use_mask_rd(self, x):
+        self.params["use_mask_rd"] = x
+
+    @property
+    def use_mask(self):
+        return self.params["use_mask"]
+
+    @use_mask.setter
+    def use_mask(self, x):
+        self.params["use_mask"] = x
+
+    @property
+    def use_id(self):
+        return self.params["use_id"]
+
+    @use_id.setter
+    def use_id(self, x):
+        self.params["use_id"] = x
+
+    @property
+    def plot_files(self):
+        return self.params["plot_files"]
+
+    @plot_files.setter
+    def plot_files(self, x):
+        self.params["plot_files"] = x
+
+    @property
+    def plot_file(self):
+        return self.params["plot_file"]
+
+    @plot_file.setter
+    def plot_file(self, x):
+        self.params["plot_file"] = x
+
+    @property
+    def chrom(self):
+        return self.params["chrom"]
+
+    @chrom.setter
+    def chrom(self, x):
+        self.params["chrom"] = x
+
+    @property
+    def style(self):
+        return self.params["style"]
+
+    @style.setter
+    def style(self, x):
+        if x in plt.style.available:
+            plt.style.use("default")
+            plt.style.use(x)
+            self.params["style"] = x
+
+    @property
+    def output_filename(self):
+        return self.params["output_filename"]
+
+    @output_filename.setter
+    def output_filename(self, x):
+        self.params["output_filename"] = x
+
+    @property
+    def xkcd(self):
+        return self.params["xkcd"]
+
+    @xkcd.setter
+    def xkcd(self, x):
+        if x:
+            self.style = "classic"
+            from matplotlib import patheffects
+            plt.xkcd()
+            plt.rcParams["path.effects"] = [patheffects.withStroke(linewidth=0.5, foreground="w")]
+        elif self.params["xkcd"]:
+            plt.rcdefaults()
+            self.style = 'classic'
+            self.xkcd = False
+        self.params["xkcd"] = x
+
+
+class Viewer(ViewParams):
+
+    def __init__(self, files, params):
+        _logger.debug("Viewer class init: files [%s], params %s." % (", ".join(files), str(params)))
+        ViewParams.__init__(self, params)
+        self.io = [IO(f, ro=True) for f in files]
+        self.io_gc = self.io[0]
+        self.io_mask = self.io[0]
+        self.reference_genome = None
+        self.interactive = False
+        self.plot_files = [True for i in files]
+        self.fig = None
+        if self.io[0].signal_exists(None, None, "reference genome"):
+            rg_name = np.array(self.io[0].get_signal(None, None, "reference genome")).astype("str")[0]
+            self.reference_genome = Genome.reference_genomes[rg_name]
+            if "mask_file" in Genome.reference_genomes[rg_name]:
+                self.io_mask = IO(Genome.reference_genomes[rg_name]["mask_file"], ro=True, buffer=True)
+            if "gc_file" in Genome.reference_genomes[rg_name]:
+                self.io_gc = IO(Genome.reference_genomes[rg_name]["gc_file"], ro=True, buffer=True)
+
+    '''
+    def __init__(self, files, bin_size=None, output_filename="", use_mask=True, use_id=):
         _logger.debug("Viewer class init: files [%s], png_prefix '%s'." % (", ".join(files), output_filename))
         self.io = [IO(f, ro=True) for f in files]
         self.output_filename = output_filename
@@ -49,27 +274,28 @@ class Viewer:
                 self.io_mask = IO(Genome.reference_genomes[rg_name]["mask_file"], ro=True, buffer=True)
             if "gc_file" in Genome.reference_genomes[rg_name]:
                 self.io_gc = IO(Genome.reference_genomes[rg_name]["gc_file"], ro=True, buffer=True)
+    '''
 
-    def parse(self, command, args):
+    def parse(self, command):
         current = "regions"
         regions = []
 
         for p in command:
             if p.isdigit() and (int(p) % 100) == 0:
                 if current == "rd":
-                    self.rd(int(p), args.use_mask_with_rd)
+                    self.rd(int(p), self.use_mask_rd)
                 if current == "likelihood":
                     self.likelihood(int(p))
                 elif current == "manhattan":
-                    self.manhattan(int(p), use_mask=args.use_mask_with_rd)
+                    self.manhattan(int(p), use_mask=self.use_mask_rd)
                 elif current == "calls":
-                    self.manhattan(int(p), use_mask=args.use_mask_with_rd, plot_type="calls")
+                    self.manhattan(int(p), use_mask=self.use_mask_rd, plot_type="calls")
                 elif current == "stat":
                     self.stat(int(p))
                 elif current == "circular":
-                    self.circular(int(p), args.chrom, args.use_mask_with_rd)
+                    self.circular(int(p), self.chrom, self.use_mask_rd)
                 elif current == "regions":
-                    self.multiple_regions(int(p), regions, panels=args.panels)
+                    self.multiple_regions(int(p), regions, panels=self.panels)
                     regions = []
             elif p == "rdstat":
                 self.stat()
@@ -82,16 +308,12 @@ class Viewer:
             else:
                 current = p
 
-    def plot(self, args):
+    def plot(self, command):
         self.interactive = False
-        self.use_mask = not args.no_mask
-        self.use_id = args.use_id
-        self.parse(args.plot, args)
+        self.parse(command)
 
-    def prompt(self, bin_size, args):
+    def prompt(self):
         self.interactive = True
-        self.use_mask = not args.no_mask
-        self.use_id = args.use_id
         command_tree = {"set": {"bin_size": None,
                                 "panels": None,
                                 "use_mask_rd": None,
@@ -147,23 +369,11 @@ class Viewer:
                     self.ls()
                 elif f[0] == "show":
                     if n == 1:
-                        print("    Parameters")
-                        print("        * bin_size:", bin_size)
-                        print("        * panels:", args.panels)
-                        print("        * use_mask_rd:", args.use_mask_with_rd)
-                        print("        * use_mask:", self.use_mask)
-                        print("        * use_id:", self.use_id)
-                        print("        * plot_files:")
-                        for fi, fn, fs in list(
-                                zip(range(len(self.plot_files)), map(lambda x: x.filename, self.io), self.plot_files)):
-                            print("            %2d" % fi, fn, fs)
-                        print("        * plot_file:", self.plot_file)
-                        print("        * grid:", self.grid)
-                        # print("    Available plot styles:", ", ".join(plt.style.available))
+                        self.show()
                 elif f[0] == "set":
                     if n > 2 and f[1] == "bin_size":
                         try:
-                            bin_size = binsize_type(f[2])
+                            self.bin_size = binsize_type(f[2])
                         except (ArgumentTypeError, ValueError):
                             _logger.warning("bin_size should be intiger divisible by 100")
                     elif n > 3 and f[1] == "grid" and f[2].isdigit() and f[3].isdigit():
@@ -174,35 +384,29 @@ class Viewer:
                         select = [int(i) for i in f[2:] if i.isdigit()]
                         self.plot_files = list([ix in select for ix in range(len(self.io))])
                     elif n > 2 and f[1] == "panels":
-                        args.panels = f[2:]
+                        self.panels = f[2:]
                     elif n > 2 and f[1] == "style":
-                        self.set_style(f[2])
+                        self.style = f[2]
                         if self.fig:
                             self.fig.canvas.draw()
                     elif n > 1 and f[1] == "use_mask_rd":
-                        args.use_mask_with_rd = True
+                        self.use_mask_rd = True
                     elif n > 1 and f[1] == "use_mask":
                         self.use_mask = True
                     elif n > 1 and f[1] == "use_id":
                         self.use_id = True
                     elif n > 1 and f[1] == "xkcd":
-                        self.set_style("classic")
-                        from matplotlib import patheffects
-                        plt.xkcd()
-                        plt.rcParams["path.effects"] = [patheffects.withStroke(linewidth=0.5, foreground="w")]
                         self.xkcd = True
                     else:
                         print("Unrecognized set argument!")
                 elif f[0] == "unset":
                     if n > 1 and f[1] == "use_mask_rd":
-                        args.use_mask_with_rd = False
+                        self.use_mask_rd = False
                     elif n > 1 and f[1] == "use_mask":
                         self.use_mask = False
                     elif n > 1 and f[1] == "use_id":
                         self.use_id = False
                     elif n > 1 and f[1] == "xkcd" and self.xkcd:
-                        plt.rcdefaults()
-                        self.set_style('classic')
                         self.xkcd = False
 
                     else:
@@ -211,9 +415,9 @@ class Viewer:
 
                     try:
                         if f[0] not in ["rdstat", "baf"]:
-                            self.parse(f + [str(bin_size)], args)
+                            self.parse(f + [str(self.bin_size)])
                         else:
-                            self.parse(f, args)
+                            self.parse(f)
                         if len(pre) > 1:
                             fns = pre[1].strip().split(" ")
                             if fns[0] != "":
@@ -346,6 +550,66 @@ class Viewer:
 
             plt.step(his_p, "grey")
             plt.step(his_p_corr, "k")
+            ix += 1
+        plt.subplots_adjust(bottom=0., top=1., wspace=0, hspace=0, left=0., right=1.)
+        if self.output_filename != "":
+            plt.savefig(self.image_filename("gview"), dpi=150)
+            plt.close(self.fig)
+        elif self.interactive:
+            plt.show(block=False)
+            plt.draw()
+        else:
+            plt.show()
+
+    def rd_diff(self, bin_size, use_mask, file1, file2):
+        plt.clf()
+        if self.reference_genome is None:
+            _logger.warning("Missing reference genome required for gview.")
+            return
+        plt.rcParams["font.size"] = 8
+        chroms = []
+        for c, (l, t) in self.reference_genome["chromosomes"].items():
+            rd_chr = self.io[self.plot_file].rd_chromosome_name(c)
+            if self.io[self.plot_file].signal_exists(rd_chr, bin_size, "RD", 0) and \
+                    self.io[self.plot_file].signal_exists(rd_chr, bin_size, "RD", FLAG_GC_CORR) and \
+                    (Genome.is_autosome(c) or Genome.is_sex_chrom(c)):
+                chroms.append((rd_chr, l))
+        sx, sy = self.panels_shape(len(chroms))
+        self.fig = plt.figure(1, figsize=(sx, sy), dpi=200, facecolor='w', edgecolor='k')
+        if self.output_filename != "":
+            self.fig.set_figheight(8)
+            self.fig.set_figwidth(12)
+        ix = 1
+        for c, l in chroms:
+            flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
+            stat1 = self.io[file1].get_signal(None, bin_size, "RD stat", flag)
+            stat2 = self.io[file2].get_signal(None, bin_size, "RD stat", flag)
+            if stat1 is None:
+                _logger.error(
+                    "Data for bin size %d is missing in file '%s'!" % (bin_size, self.io[file1].filename))
+                return
+            if stat2 is None:
+                _logger.error(
+                    "Data for bin size %d is missing in file '%s'!" % (bin_size, self.io[file2].filename))
+                return
+            flag_rd = 0
+            if use_mask:
+                flag_rd = FLAG_USEMASK
+            his_p_corr1 = self.io[file1].get_signal(c, bin_size, "RD", flag_rd | FLAG_GC_CORR)
+            his_p_corr2 = self.io[file2].get_signal(c, bin_size, "RD", flag_rd | FLAG_GC_CORR)
+            ax = plt.subplot(sx, sy, ix)
+            ax.set_title(c, position=(0.01, 0.9), fontdict={'verticalalignment': 'top', 'horizontalalignment': 'left'},
+                         color='C0')
+            ax.xaxis.set_ticklabels([])
+            ax.yaxis.set_ticklabels([])
+            ax.yaxis.set_ticks(np.arange(0, 2, 0.25), [])
+            ax.xaxis.set_ticks(np.arange(0, (l + 10e6) // bin_size, 10e6 // bin_size), [])
+            ax.set_ylim([0, 1])
+            n_bins = l // bin_size
+            ax.set_xlim([-n_bins * 0.05, n_bins * 1.05])
+            ax.grid()
+
+            plt.step(np.abs(his_p_corr1 / stat1[4] - his_p_corr2 / stat2[4]), "k")
             ix += 1
         plt.subplots_adjust(bottom=0., top=1., wspace=0, hspace=0, left=0., right=1.)
         if self.output_filename != "":
@@ -514,10 +778,11 @@ class Viewer:
                 chroms = []
                 for c, (l, t) in self.reference_genome["chromosomes"].items():
                     rd_chr = io.rd_chromosome_name(c)
-                    if io.signal_exists(rd_chr, bin_size, "RD", 0) and \
-                            io.signal_exists(rd_chr, bin_size, "RD", FLAG_GC_CORR) and \
-                            (Genome.is_autosome(c) or Genome.is_sex_chrom(c)):
-                        chroms.append((rd_chr, l))
+                    if len(self.chrom)==0 or (rd_chr in self.chrom) or (c in self.chrom):
+                        if io.signal_exists(rd_chr, bin_size, "RD", 0) and \
+                                io.signal_exists(rd_chr, bin_size, "RD", FLAG_GC_CORR) and \
+                                (Genome.is_autosome(c) or Genome.is_sex_chrom(c)):
+                            chroms.append((rd_chr, l))
 
                 apos = 0
                 xticks = [0]
@@ -570,7 +835,7 @@ class Viewer:
                     for s, lh in zip(segments, likelihood):
                         b, p = likelihood_baf_pval(lh)
                         if b > 0 and len(s) > self.min_segment_size:
-                            alpha = -np.log(p + 1e-40) / self.plevel
+                            alpha = -np.log(p + 1e-40) / self.contrast
                             if alpha > 1:
                                 alpha = 1
                             for pos in s:
