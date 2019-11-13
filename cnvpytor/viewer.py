@@ -37,8 +37,7 @@ class ViewParams:
         "palette2": ["#00ff00", "#0000ff"],
         "contrast": 20,
         "min_segment_size": 0,
-        "baf_colors": {(0, 0): "yellow", (0, 1): "orange", (1, 0): "cyan", (1, 1): "blue", (2, 0): "lime",
-                       (2, 1): "green", (3, 0): "yellow", (3, 1): "orange"}
+        "snp_colors": ["yellow", "orange", "cyan", "blue", "lime", "green", "yellow", "orange"]
     }
 
     def __init__(self, params):
@@ -48,20 +47,8 @@ class ViewParams:
 
     def show(self):
         print("    Parameters")
-        for key in self.params:
-            print("        * %s: %s" % (key,str(self.params[key])))
-        # print("        * bin_size:", bin_size)
-        # print("        * panels:", args.panels)
-        # print("        * use_mask_rd:", args.use_mask_with_rd)
-        # print("        * use_mask:", self.use_mask)
-        # print("        * use_id:", self.use_id)
-        # print("        * plot_files:")
-        # for fi, fn, fs in list(
-        #         zip(range(len(self.plot_files)), map(lambda x: x.filename, self.io), self.plot_files)):
-        #     print("            %2d" % fi, fn, fs)
-        # print("        * plot_file:", self.plot_file)
-        # print("        * grid:", self.grid)
-        # print("    Available plot styles:", ", ".join(plt.style.available))
+        for key in sorted(self.params.keys()):
+            print("        * %s: %s" % (key, str(self.params[key])))
 
     @property
     def bin_size(self):
@@ -69,7 +56,10 @@ class ViewParams:
 
     @bin_size.setter
     def bin_size(self, x):
-        self.params["bin_size"] = binsize_type(x)
+        try:
+            self.params["bin_size"] = binsize_type(x)
+        except (ArgumentTypeError, ValueError):
+            _logger.warning("bin_size should be intiger divisible by 100")
 
     @property
     def palette1(self):
@@ -104,12 +94,12 @@ class ViewParams:
         self.params["min_segment_size"] = x
 
     @property
-    def baf_colors(self):
-        return self.params["baf_colors"]
+    def snp_colors(self):
+        return self.params["snp_colors"]
 
-    @baf_colors.setter
-    def baf_colors(self, x):
-        self.params["baf_colors"] = x
+    @snp_colors.setter
+    def snp_colors(self, x):
+        self.params["snp_colors"] = x
 
     @property
     def grid(self):
@@ -372,10 +362,7 @@ class Viewer(ViewParams):
                         self.show()
                 elif f[0] == "set":
                     if n > 2 and f[1] == "bin_size":
-                        try:
-                            self.bin_size = binsize_type(f[2])
-                        except (ArgumentTypeError, ValueError):
-                            _logger.warning("bin_size should be intiger divisible by 100")
+                        self.bin_size = f[2]
                     elif n > 3 and f[1] == "grid" and f[2].isdigit() and f[3].isdigit():
                         self.grid = (int(f[2]), int(f[3]))
                     elif n > 2 and f[1] == "plot_file" and f[2].isdigit() and int(f[2]) < len(self.io):
@@ -702,7 +689,7 @@ class Viewer(ViewParams):
                             baf.append(1.0 * nalt[i] / (nref[i] + nalt[i]))
                         else:
                             baf.append(1.0 * nref[i] / (nref[i] + nalt[i]))
-                        color.append(self.baf_colors[(gt[i] % 4, flag[i] >> 1)])
+                        color.append(self.snp_colors[(gt[i] % 4) * 2 + (flag[i] >> 1)])
 
             ax = plt.subplot(sx, sy, ix)
 
@@ -778,7 +765,7 @@ class Viewer(ViewParams):
                 chroms = []
                 for c, (l, t) in self.reference_genome["chromosomes"].items():
                     rd_chr = io.rd_chromosome_name(c)
-                    if len(self.chrom)==0 or (rd_chr in self.chrom) or (c in self.chrom):
+                    if len(self.chrom) == 0 or (rd_chr in self.chrom) or (c in self.chrom):
                         if io.signal_exists(rd_chr, bin_size, "RD", 0) and \
                                 io.signal_exists(rd_chr, bin_size, "RD", FLAG_GC_CORR) and \
                                 (Genome.is_autosome(c) or Genome.is_sex_chrom(c)):
@@ -955,7 +942,7 @@ class Viewer(ViewParams):
                                 baf.append(1.0 * nalt[ix] / (nref[ix] + nalt[ix]))
                             else:
                                 baf.append(1.0 * nref[ix] / (nref[ix] + nalt[ix]))
-                            color.append(self.baf_colors[(gt[ix] % 4, flag[ix] >> 1)])
+                            color.append(self.snp_colors[(gt[ix] % 4) * 2 + (flag[ix] >> 1)])
                         ix += 1
                     start_pos += pos2 - pos1
                     borders.append(start_pos)

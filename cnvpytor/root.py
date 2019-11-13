@@ -48,7 +48,7 @@ class Root:
                     self.io_mask = IO(Genome.reference_genomes[rg_name]["mask_file"], ro=True, buffer=True)
 
     def read_bam(self, bf, chroms, reference_filename=False):
-        bamf = Bam(bf,reference_filename=reference_filename)
+        bamf = Bam(bf, reference_filename=reference_filename)
         if bamf.reference_genome:
             self.io.create_signal(None, None, "reference genome", np.array([np.string_(bamf.reference_genome)]))
             self.io.create_signal(None, None, "use reference", np.array([1, 1]).astype("uint8"))
@@ -242,7 +242,6 @@ class Root:
         def save_data_no_counts(chr, pos, ref, alt, gt, flag, qual):
             if (len(chroms) == 0 or chr in chroms) and (not pos is None) and (len(pos) > 0):
                 self.io.save_snp(chr, pos, ref, alt, np.zeros_like(pos), np.zeros_like(pos), gt, flag, qual)
-
 
         if use_index:
             count = 0
@@ -502,7 +501,6 @@ class Root:
         else:
             _logger.warning("Reference genome '%s' not found in database." % rg)
 
-
     def calculate_histograms(self, bin_sizes, chroms=[]):
         """
         Calculates RD histograms and store data into cnvpytor file.
@@ -568,7 +566,7 @@ class Root:
                     sex = sex or Genome.is_sex_chrom(c)
                     mt = mt or Genome.is_mt_chrom(c)
 
-            mt = mt and (bin_size<=500)
+            mt = mt and (bin_size <= 500)
 
             if auto:
                 max_bin_auto = int(
@@ -712,27 +710,34 @@ class Root:
 
             if auto:
                 n_auto, m_auto, s_auto = fit_normal(np.array(bins_auto[1:-1]), dist_p_gccorr_auto[1:])[0]
-                _logger.info("Autosomes stat - RD parity distribution gaussian fit after GC correction:  %.2f +- %.2f" % (m_auto, s_auto))
+                _logger.info(
+                    "Autosomes stat - RD parity distribution gaussian fit after GC correction:  %.2f +- %.2f" % (
+                        m_auto, s_auto))
                 stat_auto = np.array([max_bin_auto, bin_size_auto, n_bins_auto, n_auto, m_auto, s_auto])
-                self.io.create_signal(None, bin_size, "RD p dist", dist_p_gccorr_auto, flags=(FLAG_AUTO|FLAG_GC_CORR))
-                self.io.create_signal(None, bin_size, "RD stat", stat_auto, flags=(FLAG_AUTO|FLAG_GC_CORR))
+                self.io.create_signal(None, bin_size, "RD p dist", dist_p_gccorr_auto, flags=(FLAG_AUTO | FLAG_GC_CORR))
+                self.io.create_signal(None, bin_size, "RD stat", stat_auto, flags=(FLAG_AUTO | FLAG_GC_CORR))
 
             if sex:
                 n_sex, m_sex, s_sex = fit_normal(np.array(bins_sex[1:-1]), dist_p_gccorr_sex[1:])[0]
-                _logger.info("Sex chromosomes stat - RD parity distribution gaussian fit after GC correction:  %.2f +- %.2f" % (m_sex, s_sex))
+                _logger.info(
+                    "Sex chromosomes stat - RD parity distribution gaussian fit after GC correction:  %.2f +- %.2f" % (
+                        m_sex, s_sex))
                 stat_sex = np.array([max_bin_sex, bin_size_sex, n_bins_sex, n_sex, m_sex, s_sex])
-                self.io.create_signal(None, bin_size, "RD p dist", dist_p_gccorr_sex, flags=(FLAG_SEX|FLAG_GC_CORR))
-                self.io.create_signal(None, bin_size, "RD stat", stat_sex, flags=(FLAG_SEX|FLAG_GC_CORR))
+                self.io.create_signal(None, bin_size, "RD p dist", dist_p_gccorr_sex, flags=(FLAG_SEX | FLAG_GC_CORR))
+                self.io.create_signal(None, bin_size, "RD stat", stat_sex, flags=(FLAG_SEX | FLAG_GC_CORR))
 
             if mt:
                 n_mt, m_mt, s_mt = fit_normal(np.array(bins_mt[1:-1]), dist_p_gccorr_mt[1:])[0]
-                _logger.info("Mitochondria stat - RD parity distribution gaussian fit after GC correction:  %.2f +- %.2f" % (m_mt, s_mt))
+                _logger.info(
+                    "Mitochondria stat - RD parity distribution gaussian fit after GC correction:  %.2f +- %.2f" % (
+                        m_mt, s_mt))
                 if auto:
-                    _logger.info("Mitochondria stat - number of mitochondria per cell after GC correction:  %.2f +- %.2f" % (
-                        2. * m_mt / m_auto, 2. * s_mt / m_auto + s_auto * m_mt / (m_auto * m_auto)))
+                    _logger.info(
+                        "Mitochondria stat - number of mitochondria per cell after GC correction:  %.2f +- %.2f" % (
+                            2. * m_mt / m_auto, 2. * s_mt / m_auto + s_auto * m_mt / (m_auto * m_auto)))
                 stat_mt = np.array([max_bin_mt, bin_size_mt, n_bins_mt, n_mt, m_mt, s_mt])
-                self.io.create_signal(None, bin_size, "RD p dist", dist_p_gccorr_mt, flags=(FLAG_MT|FLAG_GC_CORR))
-                self.io.create_signal(None, bin_size, "RD stat", stat_mt, flags=(FLAG_MT|FLAG_GC_CORR))
+                self.io.create_signal(None, bin_size, "RD p dist", dist_p_gccorr_mt, flags=(FLAG_MT | FLAG_GC_CORR))
+                self.io.create_signal(None, bin_size, "RD stat", stat_mt, flags=(FLAG_MT | FLAG_GC_CORR))
 
             for c in self.io.rd_chromosomes():
                 if (c in rd_gc_chromosomes) and (c in rd_mask_chromosomes):
@@ -762,6 +767,60 @@ class Root:
                     self.io.create_signal(c, bin_size, "RD unique", his_u, flags=FLAG_USEMASK)
                     self.io.create_signal(c, bin_size, "RD", his_p_corr, flags=FLAG_GC_CORR | FLAG_USEMASK)
 
+    def partition(self, bin_sizes, chroms=[], use_gc_corr=True, use_mask=False):
+        """
+        Calculates segmentation of RD signal.
+
+        Parameters
+        ----------
+        bin_sizes : list of int
+            List of histogram bin sizes
+        chroms : list of str
+            List of chromosomes. Calculates for all available if empty.
+        use_gc_corr : bool
+            Use GC corrected signal if True. Default: True.
+        use_mask : bool
+            Use P-mask filter if True. Default: False.
+
+        """
+        rd_gc_chromosomes = {}
+        for c in self.io_gc.gc_chromosomes():
+            rd_name = self.io.rd_chromosome_name(c)
+            if not rd_name is None and (len(chroms) == 0 or (rd_name in chroms) or (c in chroms)):
+                rd_gc_chromosomes[rd_name] = c
+
+        rd_mask_chromosomes = {}
+        for c in self.io_mask.mask_chromosomes():
+            rd_name = self.io.rd_chromosome_name(c)
+            if not rd_name is None and (len(chroms) == 0 or (rd_name in chroms) or (c in chroms)):
+                rd_mask_chromosomes[rd_name] = c
+
+        for bin_size in bin_sizes:
+            if (c in rd_gc_chromosomes) and (c in rd_mask_chromosomes):
+            for c in self.io.rd_chromosomes():
+                return
+
+
+        return
+
+    def call(self, bin_sizes, chrom=[], use_gc_corr=True, use_mask=False):
+        """
+        CNV caller based on the segmented RD signal.
+
+        Parameters
+        ----------
+        bin_sizes : list of int
+            List of histogram bin sizes
+        chroms : list of str
+            List of chromosomes. Calculates for all available if empty.
+        use_gc_corr : bool
+            Use GC corrected signal if True. Default: True.
+        use_mask : bool
+            Use P-mask filter if True. Default: False.
+
+        """
+        return
+
     def mask_snps(self):
         """
         Flags SNPs in P-region (sets second bit of the flag to 1 for SNP inside P region, or to 0 otherwise).
@@ -783,13 +842,15 @@ class Root:
                 for snp_ix in range(len(pos)):
                     while mask_ix < len(mask) and mask[mask_ix][1] < pos[snp_ix]:
                         mask_ix += 1
-                    if mask_ix < len(mask) and mask[mask_ix][0] < pos[snp_ix] and pos[snp_ix] < (mask[mask_ix][1] + 1):
+                    if mask_ix < len(mask) and mask[mask_ix][0] < pos[snp_ix] and pos[snp_ix] < (
+                            mask[mask_ix][1] + 1):
                         flag[snp_ix] = flag[snp_ix] | 2
                     else:
                         flag[snp_ix] = flag[snp_ix] & 1
                 self.io.save_snp(c, pos, ref, alt, nref, nalt, gt, flag, qual, update=True)
 
-    def calculate_baf(self, bin_sizes, chroms=[], use_mask=True, use_id=False, use_phase=False, res=200, reduce_noise=False, blw=0.8):
+    def calculate_baf(self, bin_sizes, chroms=[], use_mask=True, use_id=False, use_phase=False, res=200,
+                      reduce_noise=False, blw=0.8):
         """
         Calculates BAF histograms and store data into cnvpytor file.
 
@@ -876,7 +937,7 @@ class Root:
                                         likelihood[bs][b] *= beta(nalt[i] + (1 if nalt[i] < nref[i] else 0),
                                                                   nref[i] + (1 if nref[i] < nalt[i] else 0), lh_x)
                                     else:
-                                        likelihood[bs][b] *= beta(nalt[i]*blw, nref[i]*blw, lh_x)
+                                        likelihood[bs][b] *= beta(nalt[i] * blw, nref[i] * blw, lh_x)
                                     s = np.sum(likelihood[bs][b])
                                     if s != 0.0:
                                         likelihood[bs][b] /= s
@@ -886,20 +947,20 @@ class Root:
                         else:
                             for bs in bin_sizes:
                                 b = (pos[i] - 1) // bs
-                                if use_phase and (gt[i]==7):
+                                if use_phase and (gt[i] == 7):
                                     count11[bs][b] += 1
                                     reads11[bs][b] += nalt[i]
                                     reads00[bs][b] += nref[i]
-                                elif use_phase and (gt[i]==4):
+                                elif use_phase and (gt[i] == 4):
                                     count00[bs][b] += 1
                                 else:
-                                    count11[bs][b] +=1
+                                    count11[bs][b] += 1
                                     reads11[bs][b] += nalt[i]
                                     reads00[bs][b] += nref[i]
 
                 for bs in bin_sizes:
                     for i in range(max_bin[bs]):
-                        count = count01[bs][i]+count10[bs][i]
+                        count = count01[bs][i] + count10[bs][i]
                         if count > 0:
                             baf[bs][i] /= count
                             maf[bs][i] /= count
@@ -1041,7 +1102,7 @@ class Root:
 
                         print(c + ":" + str(segments[i][0] * bin_size + 1) + "-" + str(
                             segments[i][-1] * bin_size + bin_size),
-                              (segments[i][-1]-segments[i][0]+1)*bin_size, bin_size, len(segments[i]),
+                              (segments[i][-1] - segments[i][0] + 1) * bin_size, bin_size, len(segments[i]),
                               i1, i2)
 
                     self.io.create_signal(c, bin_size, "SNP likelihood segments",
