@@ -106,6 +106,8 @@ cnvpytor> chr1:1M-50M chr2:60M-65M > filename.png
 
 ![scheme](cnvpytor/imgs/CNVpytor.svg)
 
+Diagram made using [Draw.io](https://github.com/jgraph/drawio).
+
 ## Bugs
 
 Please report any bugs that you find on GitHub:
