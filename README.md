@@ -102,6 +102,10 @@ cnvpytor> show
 cnvpytor> set bin_size 100000
 cnvpytor> chr1:1M-50M chr2:60M-65M > filename.png
 ```
+## Pipeline scheme
+
+![CNVpytor Logo](https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/cnvpytor/imgs/CNVpytor.svg)
+
 
 ## Bugs
 
