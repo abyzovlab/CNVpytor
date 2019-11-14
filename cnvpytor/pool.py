@@ -16,7 +16,7 @@ def _fun(f, q_in, q_out):
         q_out.put((i, f(x)))
 
 
-def parmap(f, x_arg, cores=multiprocessing.cpu_count()):
+def parmap(f, x_arg, cores=multiprocessing.cpu_count(), info=True):
     """
     Calculates list(map(f,x_args)) using multiprocessing module.
 
@@ -33,7 +33,10 @@ def parmap(f, x_arg, cores=multiprocessing.cpu_count()):
 
     """
     cores = min(cores, multiprocessing.cpu_count())
-    _logger.info("Parallel processing using %d cores" % cores)
+    if info:
+        _logger.info("Parallel processing using %d cores" % cores)
+    else:
+        _logger.debug("Parallel processing using %d cores" % cores)
     q_in = multiprocessing.Queue(1)
     q_out = multiprocessing.Queue()
 

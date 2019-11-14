@@ -82,6 +82,7 @@ def main():
     parser.add_argument('-make_mask_file', '--make_mask_genome_file', action='store_true',
                         help="used with -mask will create genome mask file")
     parser.add_argument('-use_mask_rd', '--use_mask_with_rd', action='store_true', help="used P mask in RD histograms")
+    parser.add_argument('-nogc', '--no_gc_corr', action='store_true', help="do not use GC correction in RD histograms")
     parser.add_argument('-rg', '--reference_genome', type=str, help="Manually set reference genome", default=None)
     parser.add_argument('-sample', '--vcf_sample', type=str, help="Sample name in vcf file", default="")
     parser.add_argument('-conf', '--reference_genomes_conf', type=str, help="Configuration with reference genomes",
@@ -133,11 +134,11 @@ def main():
     if args.root is not None:
 
         if args.ls:
-            view = Viewer(args.root)
+            view = Viewer(args.root, {})
             view.ls()
 
         if args.info is not None:
-            view = Viewer(args.root)
+            view = Viewer(args.root, {})
             view.info(args.info)
 
         if args.reference_genome:
@@ -149,12 +150,12 @@ def main():
             app.rd(args.rd, chroms=args.chrom, reference_filename=args.reference_filename)
 
         if args.plot:
-            params = {"output_filename" : args.plot_output_file,
-                      "chrom" : args.chrom,
-                      "panels" : args.panels,
-                      "use_mask" : not args.no_mask,
-                      "use_id" : args.use_id,
-                      "use_mask_rd" : args.use_mask_with_rd
+            params = {"output_filename": args.plot_output_file,
+                      "chrom": args.chrom,
+                      "panels": args.panels,
+                      "use_mask": not args.no_mask,
+                      "use_id": args.use_id,
+                      "use_mask_rd": args.use_mask_with_rd
                       }
             if args.plot_style:
                 params["style"] = args.plot_style
@@ -162,13 +163,13 @@ def main():
             view.plot(args.plot)
 
         if args.view:
-            params = {"bin_size" : args.view,
-                      "output_filename" : args.plot_output_file,
-                      "chrom" : args.chrom,
-                      "panels" : args.panels,
-                      "use_mask" : not args.no_mask,
-                      "use_id" : args.use_id,
-                      "use_mask_rd" : args.use_mask_with_rd
+            params = {"bin_size": args.view,
+                      "output_filename": args.plot_output_file,
+                      "chrom": args.chrom,
+                      "panels": args.panels,
+                      "use_mask": not args.no_mask,
+                      "use_id": args.use_id,
+                      "use_mask_rd": args.use_mask_with_rd
                       }
             if args.plot_style:
                 params["style"] = args.plot_style
@@ -211,12 +212,19 @@ def main():
             app = Root(args.root[0], max_cores=args.max_cores)
             app.calculate_baf(args.baf, chroms=args.chrom, use_id=args.use_id, use_mask=not args.no_mask,
                               use_phase=args.use_phase, reduce_noise=args.reduce_noise, blw=args.baf_likelihood_width)
+        if args.partition:
+            app = Root(args.root[0], max_cores=args.max_cores)
+            app.partition(args.partition, chroms=args.chrom, use_gc_corr=not args.no_gc_corr,
+                          use_mask=args.use_mask_with_rd)
 
         if args.call:
             app = Root(args.root[0], max_cores=args.max_cores)
             if args.call[0] == "baf":
                 app.call_baf([binsize_type(x) for x in args.call[1:]], chroms=args.chrom, use_id=args.use_id,
                              use_mask=not args.no_mask, anim=args.animation)
+            else:
+                app.call(args.call, chroms=args.chrom, use_gc_corr=not args.no_gc_corr,
+                         use_mask=args.use_mask_with_rd)
 
 
 if __name__ == '__main__':

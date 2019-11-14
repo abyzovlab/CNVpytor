@@ -767,7 +767,7 @@ class Root:
                     self.io.create_signal(c, bin_size, "RD unique", his_u, flags=FLAG_USEMASK)
                     self.io.create_signal(c, bin_size, "RD", his_p_corr, flags=FLAG_GC_CORR | FLAG_USEMASK)
 
-    def partition(self, bin_sizes, chroms=[], use_gc_corr=True, use_mask=False):
+    def partition(self, bin_sizes, chroms=[], use_gc_corr=True, use_mask=False, repeats=3):
         """
         Calculates segmentation of RD signal.
 
@@ -783,24 +783,135 @@ class Root:
             Use P-mask filter if True. Default: False.
 
         """
+        bin_bands = [2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 16, 20, 24, 28, 32, 40, 48, 56, 64, 80, 96, 112, 128]
+
         rd_gc_chromosomes = {}
         for c in self.io_gc.gc_chromosomes():
             rd_name = self.io.rd_chromosome_name(c)
-            if not rd_name is None and (len(chroms) == 0 or (rd_name in chroms) or (c in chroms)):
+            if not rd_name is None:
                 rd_gc_chromosomes[rd_name] = c
 
         rd_mask_chromosomes = {}
         for c in self.io_mask.mask_chromosomes():
             rd_name = self.io.rd_chromosome_name(c)
-            if not rd_name is None and (len(chroms) == 0 or (rd_name in chroms) or (c in chroms)):
+            if not rd_name is None:
                 rd_mask_chromosomes[rd_name] = c
 
         for bin_size in bin_sizes:
-            if (c in rd_gc_chromosomes) and (c in rd_mask_chromosomes):
             for c in self.io.rd_chromosomes():
-                return
+                if (c in rd_gc_chromosomes or not use_gc_corr) and (c in rd_mask_chromosomes or not use_mask) and (
+                        len(chroms) == 0 or (c in chroms)):
+                    flag_stat = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
+                    if use_gc_corr:
+                        flag_stat += FLAG_GC_CORR
+                    flag_rd = (FLAG_GC_CORR if use_gc_corr else 0) | (FLAG_USEMASK if use_mask else 0)
+                    if self.io.signal_exists(c, bin_size, "RD stat", flag_stat) and self.io.signal_exists(c, bin_size,
+                                                                                                          "RD",
+                                                                                                          flag_rd):
+                        _logger.info("Calculating histograms using bin size %d for chromosome '%s'." % (bin_size, c))
+                        stat = self.io.get_signal(c, bin_size, "RD stat", flag_stat)
+                        mean = stat[4]
+                        std = stat[5]
+                        rd = self.io.get_signal(c, bin_size, "RD", flag_rd)
+                        rd = np.nan_to_num(rd)
+                        masked = np.zeros_like(rd, dtype=bool)
+                        levels = np.copy(rd)
 
+                        for bin_band in bin_bands:
+                            _logger.info("Bin band is %d." % bin_band)
+                            levels[np.logical_not(masked)] = rd[np.logical_not(masked)]
+                            nm_levels = levels[np.logical_not(masked)]
+                            mask_borders = [0]
+                            count = 0
+                            for i in range(len(masked)):
+                                if masked[i]:
+                                    if count > 0:
+                                        mask_borders.append(mask_borders[-1] + count - 1)
+                                        count = 0
+                                else:
+                                    count += 1
 
+                            kk = np.arange(3 * bin_band + 1)
+                            exp_kk = kk * np.exp(-0.5 * kk ** 2 / bin_band ** 2)
+                            for step in range(repeats):
+                                isig = np.ones_like(nm_levels) * 4. / std ** 2
+                                isig[nm_levels >= (mean / 4)] = mean / std ** 2 / nm_levels[nm_levels >= (mean / 4)]
+                                grad = [np.zeros(len(nm_levels)) for i in range(self.max_cores)]
+
+                                def calc_grad(k):
+                                    return exp_kk[k] * np.exp(
+                                        np.concatenate((-0.5 * ((nm_levels - np.roll(nm_levels, -k)) ** 2 * isig)[:-k],[0]*k))) - np.concatenate(([0]*k,exp_kk[
+                                               k] * np.exp(-0.5 * ((nm_levels - np.roll(nm_levels, k)) ** 2 * isig)[k:])))
+
+                                if self.max_cores == 1:
+                                    grad=sum(map(calc_grad,range(1,3*bin_band+1)))
+                                else:
+                                    from .pool import parmap
+                                    jobs = [(i, self.max_cores) for i in range(self.max_cores)]
+                                    grad = sum(parmap(calc_grad, range(1,3*bin_band+1), cores=self.max_cores, info=False))
+
+                                border = [i for i in range(grad.size - 1) if grad[i] < 0 and grad[i + 1] >= 0]
+                                border.append(grad.size - 1)
+                                border = sorted(list(set(border + mask_borders)))
+                                pb = 0
+                                for b in border:
+                                    nm_levels[pb:b + 1] = np.mean(nm_levels[pb:b + 1])
+                                    pb = b + 1
+
+                            levels[np.logical_not(masked)] = nm_levels
+                            border = [0] + list(np.argwhere(np.abs(np.diff(levels)) > 0.01)[:, 0] + 1) + [levels.size]
+                            masked = np.zeros_like(rd, dtype=bool)
+
+                            for i in range(1, len(border)):
+                                seg = [border[i - 1], border[i]]
+                                seg_left = [border[i - 1], border[i - 1]]
+                                if i > 1:
+                                    seg_left[0] = border[i - 2]
+                                else:
+                                    _logger.debug(1)
+                                    continue
+                                seg_right = [border[i], border[i]]
+                                if i < (len(border) - 1):
+                                    seg_right[1] = border[i + 1]
+                                else:
+                                    _logger.debug(2)
+                                    continue
+                                n = seg[1] - seg[0]
+                                n_left = seg_left[1] - seg_left[0]
+                                n_right = seg_right[1] - seg_right[0]
+                                if n <= 1:
+                                    _logger.debug(3)
+                                    continue
+                                seg_mean = np.mean(levels[seg[0]:seg[1]])
+                                seg_std = np.std(levels[seg[0]:seg[1]])
+                                if (n_right <= 15) or (n_left <= 15) or (n <= 15):
+                                    ns = 1.8 * np.sqrt(levels[seg_left[0]] / mean) * std
+                                    if np.abs(levels[seg_left[0]] - levels[seg[0]]) < ns:
+                                        _logger.debug(4)
+                                        continue
+                                    ns = 1.8 * np.sqrt(levels[seg_right[0]] / mean) * std
+                                    if np.abs(levels[seg_right[0]] - levels[seg[0]]) < ns:
+                                        _logger.debug(5)
+                                        continue
+                                else:
+                                    seg_left_mean = np.mean(levels[seg_left[0]:seg_left[1]])
+                                    seg_left_std = np.std(levels[seg_left[0]:seg_left[1]])
+                                    seg_right_mean = np.mean(levels[seg_right[0]:seg_right[1]])
+                                    seg_right_std = np.std(levels[seg_right[0]:seg_right[1]])
+                                    if t_test_2_samples(seg_mean, seg_std, n, seg_left_mean, seg_left_std, n_left) > (
+                                            0.01 / 3.e9 * bin_size * (n + n_left)):
+                                        _logger.debug(6)
+                                        continue
+                                    if t_test_2_samples(seg_mean, seg_std, n, seg_right_mean, seg_right_std,
+                                                        n_right) > (
+                                            0.01 / 3.e9 * bin_size * (n + n_right)):
+                                        _logger.debug(7)
+                                        continue
+                                if t_test_1_sample(mean, seg_mean, seg_std, n) > 0.05:
+                                    _logger.debug(8)
+                                    continue
+                                masked[seg[0]:seg[1]] = True
+                                levels[seg[0]:seg[1]] = np.mean(rd[seg[0]:seg[1]])
         return
 
     def call(self, bin_sizes, chrom=[], use_gc_corr=True, use_mask=False):

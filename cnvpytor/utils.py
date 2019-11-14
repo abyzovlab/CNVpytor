@@ -6,12 +6,12 @@ Misc functions
 from __future__ import absolute_import, print_function, division
 import numpy as np
 from argparse import ArgumentTypeError
+from scipy import stats
 from scipy.stats import norm
 from scipy.optimize import curve_fit
 import logging
 import readline
 import requests
-
 
 _logger = logging.getLogger("cnvpytor.utils")
 
@@ -177,6 +177,7 @@ def rd_decompress(crd_p, crd_u):
     """
     return np.array(crd_p), np.array(crd_p) + np.array(crd_u)
 
+
 def segments_code(segments):
     """
     Convert segments to numpy array e.g. [[1,2],[3]] -> [1,2,MAX,3,MAX]
@@ -190,13 +191,13 @@ def segments_code(segments):
     aseg : numpy.ndarra
 
     """
-    max=2**32-1
+    max = 2 ** 32 - 1
     l = []
     for s in segments:
         for i in s:
             l.append(i)
         l.append(max)
-    return np.array(l,dtype="uint32")
+    return np.array(l, dtype="uint32")
 
 
 def segments_decode(aseg):
@@ -215,13 +216,12 @@ def segments_decode(aseg):
     segments = []
     l = []
     for x in list(aseg):
-        if x==max:
+        if x == max:
             segments.append(l)
             l = []
         else:
             l.append(x)
     return segments
-
 
 
 def binsize_type(x):
@@ -230,11 +230,12 @@ def binsize_type(x):
         raise ArgumentTypeError("Bin size should be positive integer divisible by 100!")
     return x
 
+
 def binsize_format(x):
-    if x>=1000000:
-        return str(x//1000000)+"M"
-    elif x>=1000:
-        return str(x//1000)+"K"
+    if x >= 1000000:
+        return str(x // 1000000) + "M"
+    elif x >= 1000:
+        return str(x // 1000) + "K"
     else:
         return str(x)
 
@@ -283,10 +284,13 @@ def fit_normal(x, y):
         _logger.debug("Problem with fit: sigma equals zero. Return zeros instead fit parameters!")
         return [0, 0, 0], None
     area = sum(y[:-1] * (x[1:] - x[:-1]))
+    if len(x)<3:
+        _logger.warning("Problem with fit: insufficient data points. Using mean and std instead!")
+        return [area, mean, sigma], None
     try:
         popt, pcov = curve_fit(normal, x, y, p0=[area, mean, sigma])
         popt[2] = np.abs(popt[2])
-        if popt[1]<=0:
+        if popt[1] <= 0:
             _logger.warning("Problem with fit: negative mean. Using mean and std instead!")
             return [area, mean, sigma], None
         return popt, pcov
@@ -296,6 +300,26 @@ def fit_normal(x, y):
     except RuntimeError:
         _logger.warning("Problem with fit: optimal parameters not found. Using mean and std instead!")
         return [area, mean, sigma], None
+
+
+def t_test_1_sample(mean, m, s, n):
+    if s == 0:
+        s = 1
+    t = (mean - m) / s * np.sqrt(n)
+    p = 1.0 - stats.t.cdf(np.abs(t), df=n - 1)
+    return 2 * p
+
+
+def t_test_2_samples(m1, s1, n1, m2, s2, n2):
+    if s1 == 0:
+        s1 = 1
+    if s2 == 0:
+        s2 = 1
+    t = (m1 - m2) / np.sqrt(s1 ** 2 / n1 + s2 ** 2 / n2)
+    df = (s1 ** 2 / n1 + s2 ** 2 / n2) ** 2 * (n1 - 1) * (n2 - 1) / (
+            s1 ** 4 * (n2 - 1) / n1 ** 2 + s2 ** 4 * (n1 - 1) / n2 ** 2)
+    p = 1.0 - stats.t.cdf(np.abs(t), df=int(df + 0.5))
+    return 2 * p
 
 
 def calculate_gc_correction(his_rd_gc, mean, sigma, bin_size=1):
@@ -417,12 +441,13 @@ def decode_region(s):
     ret = []
     for r in regs:
         chr_interval = r.split(":")
-        if len(chr_interval)>1:
+        if len(chr_interval) > 1:
             begin_end = chr_interval[1].split("-")
             ret.append((chr_interval[0], (decode_position(begin_end[0]), decode_position(begin_end[1]))))
         else:
             ret.append((chr_interval[0], (1, 1000000000)))
     return ret
+
 
 def likelihood_baf_pval(likelihood):
     """
@@ -442,7 +467,7 @@ def likelihood_baf_pval(likelihood):
     res = likelihood.size
     max_lh = np.amax(likelihood)
     ix = np.where(likelihood == max_lh)[0][0]
-    if ix>res//2:
+    if ix > res // 2:
         ix = res - 1 - ix
     b = 1.0 * (res // 2 - ix) / (res + 1)
 
@@ -450,6 +475,7 @@ def likelihood_baf_pval(likelihood):
     ix2 = res - 1 - ix1
     p = np.sum(likelihood[ix1:ix2]) / np.sum(likelihood)
     return b, p
+
 
 def is_downloadable(url):
     """
@@ -474,7 +500,8 @@ def is_downloadable(url):
         return False
     return True
 
-def download(url,file):
+
+def download(url, file):
     """
     Download resource into file
 
@@ -523,4 +550,3 @@ class PromptCompleter:
             return results[state]
         except Exception as e:
             print(e)
-
