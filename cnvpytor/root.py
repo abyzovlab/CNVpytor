@@ -832,7 +832,7 @@ class Root:
                                     count += 1
 
                             kk = np.arange(-3 * bin_band, 3 * bin_band + 1)
-                            exp_kk = kk * np.exp(-0.5 * kk ** 2 / bin_band ** 2)
+                            exp_kk = list(kk * np.exp(-0.5 * kk ** 2 / bin_band ** 2))
                             # kk = np.arange(3 * bin_band + 1)
                             # exp_kk = kk * np.exp(-0.5 * kk ** 2 / bin_band ** 2)
                             for step in range(repeats):
@@ -841,40 +841,40 @@ class Root:
 
                                 nm_levels_3bb = np.concatenate(([0] * 3 * bin_band, nm_levels, [0] * 3 * bin_band))
 
-
                                 def grad_at(x):
                                     return np.dot(np.exp(
                                         -0.5 * (nm_levels_3bb[x:x + 6 * bin_band + 1] - nm_levels[x]) ** 2 * isig[x]),
                                         exp_kk)
 
 
-                                def grad_range(xstart,xstop,i,out_q):
-                                    out_q.put({i:map(grad_at, range(xstart,xstop))})
 
 
                                 if self.max_cores == 1:
                                     grad=map(grad_at,range(len(nm_levels)))
                                 else:
                                     import multiprocessing
+                                    from multiprocessing import sharedctypes
+                                    grad = np.ctypeslib.as_ctypes(np.zeros(len(nm_levels)))
+                                    shared_array = sharedctypes.RawArray(grad._type_, grad)
+
+                                    def grad_range(xstart, xstop):
+                                        tmp = np.ctypeslib.as_array(shared_array)
+                                        tmp[xstart:xstop]=map(grad_at, range(xstart, xstop))
 
                                     n_part = len(nm_levels) // self.max_cores
-                                    out_q = multiprocessing.Queue()
                                     jobs = []
                                     for i in range(self.max_cores):
-                                        out_list = list()
                                         process = multiprocessing.Process(target=grad_range,
-                                                                          args=(i*n_part, min((i + 1) * n_part, len(nm_levels)),i,out_q))
+                                                                          args=(i*n_part, min((i + 1) * n_part, len(nm_levels))))
                                         jobs.append(process)
                                         process.start()
-
-                                    res = {}
-                                    for j in jobs:
-                                        res.update(out_q.get())
 
                                     for j in jobs:
                                         j.join()
 
-                                    grad = np.concatenate([res[i] for i in range(self.max_cores)])
+                                    grad = np.ctypeslib.as_array(shared_array)
+
+
 
 
                                     # parmap(grad_range, [range(x, min(x + n_part, len(nm_levels))) for x in
