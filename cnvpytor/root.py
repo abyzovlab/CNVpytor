@@ -831,24 +831,81 @@ class Root:
                                 else:
                                     count += 1
 
-                            kk = np.arange(3 * bin_band + 1)
+                            kk = np.arange(-3 * bin_band, 3 * bin_band + 1)
                             exp_kk = kk * np.exp(-0.5 * kk ** 2 / bin_band ** 2)
+                            # kk = np.arange(3 * bin_band + 1)
+                            # exp_kk = kk * np.exp(-0.5 * kk ** 2 / bin_band ** 2)
                             for step in range(repeats):
                                 isig = np.ones_like(nm_levels) * 4. / std ** 2
                                 isig[nm_levels >= (mean / 4)] = mean / std ** 2 / nm_levels[nm_levels >= (mean / 4)]
-                                grad = [np.zeros(len(nm_levels)) for i in range(self.max_cores)]
 
-                                def calc_grad(k):
-                                    return exp_kk[k] * np.exp(
-                                        np.concatenate((-0.5 * ((nm_levels - np.roll(nm_levels, -k)) ** 2 * isig)[:-k],[0]*k))) - np.concatenate(([0]*k,exp_kk[
-                                               k] * np.exp(-0.5 * ((nm_levels - np.roll(nm_levels, k)) ** 2 * isig)[k:])))
+                                nm_levels_3bb = np.concatenate(([0] * 3 * bin_band, nm_levels, [0] * 3 * bin_band))
+
+
+                                def grad_at(x):
+                                    return np.dot(np.exp(
+                                        -0.5 * (nm_levels_3bb[x:x + 6 * bin_band + 1] - nm_levels[x]) ** 2 * isig[x]),
+                                        exp_kk)
+
+
+                                def grad_range(xstart,xstop,i,out_q):
+                                    out_q.put({i:map(grad_at, range(xstart,xstop))})
+
 
                                 if self.max_cores == 1:
-                                    grad=sum(map(calc_grad,range(1,3*bin_band+1)))
+                                    grad=map(grad_at,range(len(nm_levels)))
                                 else:
-                                    from .pool import parmap
-                                    jobs = [(i, self.max_cores) for i in range(self.max_cores)]
-                                    grad = sum(parmap(calc_grad, range(1,3*bin_band+1), cores=self.max_cores, info=False))
+                                    import multiprocessing
+
+                                    n_part = len(nm_levels) // self.max_cores
+                                    out_q = multiprocessing.Queue()
+                                    jobs = []
+                                    for i in range(self.max_cores):
+                                        out_list = list()
+                                        process = multiprocessing.Process(target=grad_range,
+                                                                          args=(i*n_part, min((i + 1) * n_part, len(nm_levels)),i,out_q))
+                                        jobs.append(process)
+                                        process.start()
+
+                                    res = {}
+                                    for j in jobs:
+                                        res.update(out_q.get())
+
+                                    for j in jobs:
+                                        j.join()
+
+                                    grad = np.concatenate([res[i] for i in range(self.max_cores)])
+
+
+                                    # parmap(grad_range, [range(x, min(x + n_part, len(nm_levels))) for x in
+                                    #                                         range(0, len(nm_levels), n_part)], cores=self.max_cores,
+                                    #                            info=False)
+
+
+                                    #parmap(lambda x:grad_at(x,grad), range(len(nm_levels)), cores=self.max_cores, info=False)
+                                    #n_part = len(nm_levels) // 4
+                                    #grad=np.concatenate(parmap(grad_range, [range(x, min(x + n_part, len(nm_levels))) for x in
+                                    #                    range(0, len(nm_levels), n_part)], cores=self.max_cores,
+                                    #       info=False))
+                                grad=np.array(grad)
+
+                                # grad = np.array(map(grad_at,range(len(nm_levels))))
+                                # from .pool import parmap
+                                # grad = np.array(parmap(grad_at,range(len(nm_levels)),cores=self.max_cores, info=False))
+
+                                # def calc_grad(k):
+                                #     return exp_kk[k] * np.exp(
+                                #         np.concatenate((-0.5 * ((nm_levels - np.roll(nm_levels, -k)) ** 2 * isig)[:-k],
+                                #                         [0] * k))) - np.concatenate(([0] * k, exp_kk[
+                                #         k] * np.exp(-0.5 * ((nm_levels - np.roll(nm_levels, k)) ** 2 * isig)[k:])))
+                                #
+                                # if self.max_cores == 1:
+                                #     grad = np.sum([calc_grad(k) for k in range(1, 3 * bin_band + 1)], axis=0)
+                                # else:
+                                #     from .pool import parmap
+                                #     res = parmap(calc_grad, range(1, 3 * bin_band + 1), cores=self.max_cores,
+                                #                  info=False)
+                                #     grad = np.sum(res, axis=0)
 
                                 border = [i for i in range(grad.size - 1) if grad[i] < 0 and grad[i + 1] >= 0]
                                 border.append(grad.size - 1)
@@ -868,30 +925,25 @@ class Root:
                                 if i > 1:
                                     seg_left[0] = border[i - 2]
                                 else:
-                                    _logger.debug(1)
                                     continue
                                 seg_right = [border[i], border[i]]
                                 if i < (len(border) - 1):
                                     seg_right[1] = border[i + 1]
                                 else:
-                                    _logger.debug(2)
                                     continue
                                 n = seg[1] - seg[0]
                                 n_left = seg_left[1] - seg_left[0]
                                 n_right = seg_right[1] - seg_right[0]
                                 if n <= 1:
-                                    _logger.debug(3)
                                     continue
                                 seg_mean = np.mean(levels[seg[0]:seg[1]])
                                 seg_std = np.std(levels[seg[0]:seg[1]])
                                 if (n_right <= 15) or (n_left <= 15) or (n <= 15):
                                     ns = 1.8 * np.sqrt(levels[seg_left[0]] / mean) * std
                                     if np.abs(levels[seg_left[0]] - levels[seg[0]]) < ns:
-                                        _logger.debug(4)
                                         continue
                                     ns = 1.8 * np.sqrt(levels[seg_right[0]] / mean) * std
                                     if np.abs(levels[seg_right[0]] - levels[seg[0]]) < ns:
-                                        _logger.debug(5)
                                         continue
                                 else:
                                     seg_left_mean = np.mean(levels[seg_left[0]:seg_left[1]])
@@ -900,18 +952,18 @@ class Root:
                                     seg_right_std = np.std(levels[seg_right[0]:seg_right[1]])
                                     if t_test_2_samples(seg_mean, seg_std, n, seg_left_mean, seg_left_std, n_left) > (
                                             0.01 / 3.e9 * bin_size * (n + n_left)):
-                                        _logger.debug(6)
                                         continue
                                     if t_test_2_samples(seg_mean, seg_std, n, seg_right_mean, seg_right_std,
                                                         n_right) > (
                                             0.01 / 3.e9 * bin_size * (n + n_right)):
-                                        _logger.debug(7)
                                         continue
                                 if t_test_1_sample(mean, seg_mean, seg_std, n) > 0.05:
-                                    _logger.debug(8)
                                     continue
                                 masked[seg[0]:seg[1]] = True
                                 levels[seg[0]:seg[1]] = np.mean(rd[seg[0]:seg[1]])
+                    plt.step(np.arange(len(rd)), rd)
+                    plt.step(np.arange(len(rd)), levels)
+                    plt.show()
         return
 
     def call(self, bin_sizes, chrom=[], use_gc_corr=True, use_mask=False):

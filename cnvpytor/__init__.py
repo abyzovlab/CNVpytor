@@ -4,14 +4,14 @@ CNVpytor
 CNVpytor is a Python package and command line tool for CNV analysis
 from depth-of-coverage by mapped reads developed in Abyzov Lab, Mayo Clinic.
 
-Documentation::
-    https://abyzovlab.github.io/CNVpytor/
-
 Source::
     https://github.com/abyzovlab/CNVpytor
 
 Bug reports::
     https://github.com/abyzovlab/CNVpytor/issues
+
+API Documentation::
+    https://abyzovlab.github.io/CNVpytor/
 
 ## Dependencies
 
@@ -46,9 +46,8 @@ For single user (without admin privileges) use:
 
 ```
 > pip install cnvpytor
-> cnvpytor -update
+> cnvpytor -download
 ```
-
 
 ## Simple example
 
@@ -56,8 +55,8 @@ Call CNV using read depth:
 ```
 > cnvpytor -root file.pytor -rd file.bam
 > cnvpytor -root file.pytor -his 1000 10000 100000
-> TODO: cnvpytor -root file.pytor -partition 1000 10000 100000
-> TODO: cnvpytor -root file.pytor -call 1000 10000 100000
+> cnvpytor -root file.pytor -partition 1000 10000 100000
+> cnvpytor -root file.pytor -call 1000 10000 100000
 ```
 
 Call CNV using single nucleotide polymorphism::

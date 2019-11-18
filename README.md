@@ -48,7 +48,7 @@ For single user (without admin privileges) use:
 
 ```
 > pip install cnvpytor
-> cnvpytor -update
+> cnvpytor -download
 ```
 
 ## Simple example
@@ -57,8 +57,8 @@ Call CNV using read depth:
 ```
 > cnvpytor -root file.pytor -rd file.bam
 > cnvpytor -root file.pytor -his 1000 10000 100000
-> TODO: cnvpytor -root file.pytor -partition 1000 10000 100000
-> TODO: cnvpytor -root file.pytor -call 1000 10000 100000
+> cnvpytor -root file.pytor -partition 1000 10000 100000
+> cnvpytor -root file.pytor -call 1000 10000 100000
 ```
 
 Call CNV using single nucleotide polymorphism::

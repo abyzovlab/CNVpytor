@@ -37,6 +37,7 @@ def parmap(f, x_arg, cores=multiprocessing.cpu_count(), info=True):
         _logger.info("Parallel processing using %d cores" % cores)
     else:
         _logger.debug("Parallel processing using %d cores" % cores)
+
     q_in = multiprocessing.Queue(1)
     q_out = multiprocessing.Queue()
 

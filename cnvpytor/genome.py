@@ -110,7 +110,7 @@ class Genome:
         return True
 
     @classmethod
-    def update_resources(cls):
+    def download_resources(cls):
         """
         Download missing resource files files from github.
 

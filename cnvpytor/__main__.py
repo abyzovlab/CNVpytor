@@ -25,7 +25,7 @@ def main():
                         help="CNVnator hd5 file: data storage for all calculations", default=None)
     parser.add_argument('-ls', '--ls', action='store_true', help='list pytor file(s) content')
     parser.add_argument('-info', '--info', type=binsize_type, nargs="*", help='print statistics for pythor file(s)')
-    parser.add_argument('-update', '--update_resources', action='store_true', help='update resource files')
+    parser.add_argument('-download', '--download_resources', action='store_true', help='download resource files')
     parser.add_argument('-chrom', '--chrom', type=str, nargs="+", help="list of chromosomes to apply calculation",
                         default=[])
     parser.add_argument('-v', '--verbose', type=str,
@@ -115,13 +115,13 @@ def main():
         logger = logging.getLogger('cnvpytor')
     logger.debug("Start logging...")
 
-    if args.update_resources:
-        Genome.update_resources()
+    if args.download_resources:
+        Genome.download_resources()
         return 0
 
     if not Genome.check_resources():
         logger.error("Some reference genome resource files are missing. "
-                     "Run 'cnvpytor -update' as same user who has installed cnvpytor.")
+                     "Run 'cnvpytor -download' as same user who has installed cnvpytor.")
         return 0
 
     if args.version:
