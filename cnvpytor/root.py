@@ -831,81 +831,86 @@ class Root:
                                 else:
                                     count += 1
 
-                            kk = np.arange(-3 * bin_band, 3 * bin_band + 1)
-                            exp_kk = list(kk * np.exp(-0.5 * kk ** 2 / bin_band ** 2))
-                            # kk = np.arange(3 * bin_band + 1)
-                            # exp_kk = kk * np.exp(-0.5 * kk ** 2 / bin_band ** 2)
+                            # kk = np.arange(-3 * bin_band, 3 * bin_band + 1)
+                            # exp_kk = list(kk * np.exp(-0.5 * kk ** 2 / bin_band ** 2))
+                            kk = np.arange(3 * bin_band + 1)
+                            exp_kk = kk * np.exp(-0.5 * kk ** 2 / bin_band ** 2)
                             for step in range(repeats):
                                 isig = np.ones_like(nm_levels) * 4. / std ** 2
                                 isig[nm_levels >= (mean / 4)] = mean / std ** 2 / nm_levels[nm_levels >= (mean / 4)]
 
-                                nm_levels_3bb = np.concatenate(([0] * 3 * bin_band, nm_levels, [0] * 3 * bin_band))
+                                # nm_levels_3bb = np.concatenate(([0] * 3 * bin_band, nm_levels, [0] * 3 * bin_band))
+                                #
+                                # def grad_at(x):
+                                #     return np.dot(np.exp(
+                                #         -0.5 * (nm_levels_3bb[x:x + 6 * bin_band + 1] - nm_levels[x]) ** 2 * isig[x]),
+                                #         exp_kk)
+                                #
+                                # if self.max_cores == 1:
+                                #     grad=list(map(grad_at,range(len(nm_levels))))
+                                # else:
+                                #     import multiprocessing
+                                #     from multiprocessing import sharedctypes
+                                #     grad = np.ctypeslib.as_ctypes(np.zeros(len(nm_levels)))
+                                #     shared_array = sharedctypes.RawArray(grad._type_, grad)
+                                #
+                                #     def grad_range(xstart, xstop):
+                                #         tmp = np.ctypeslib.as_array(shared_array)
+                                #         tmp[xstart:xstop]=list(map(grad_at, range(xstart, xstop)))
+                                #
+                                #     n_part = len(nm_levels) // self.max_cores
+                                #     jobs = []
+                                #     for i in range(self.max_cores):
+                                #         process = multiprocessing.Process(target=grad_range,
+                                #                                           args=(i*n_part, min((i + 1) * n_part, len(nm_levels))))
+                                #         jobs.append(process)
+                                #         process.start()
+                                #
+                                #     for j in jobs:
+                                #         j.join()
+                                #
+                                #     grad = np.ctypeslib.as_array(shared_array)
+                                # grad=np.array(grad)
 
-                                def grad_at(x):
-                                    return np.dot(np.exp(
-                                        -0.5 * (nm_levels_3bb[x:x + 6 * bin_band + 1] - nm_levels[x]) ** 2 * isig[x]),
-                                        exp_kk)
+                                #grad = np.array(map(grad_at,range(len(nm_levels))))
+                                #from .pool import parmap
+                                # grad = np.array(parmap(grad_at,range(len(nm_levels)),cores=self.max_cores, info=False))
 
-
-
+                                def calc_grad(k):
+                                    return exp_kk[k] * np.exp(
+                                        np.concatenate((-0.5 * ((nm_levels - np.roll(nm_levels, -k)) ** 2 * isig)[:-k],
+                                                         [0] * k))) - np.concatenate(([0] * k, exp_kk[
+                                         k] * np.exp(-0.5 * ((nm_levels - np.roll(nm_levels, k)) ** 2 * isig)[k:])))
 
                                 if self.max_cores == 1:
-                                    grad=list(map(grad_at,range(len(nm_levels))))
+                                     grad = np.sum([calc_grad(k) for k in range(1, 3 * bin_band + 1)], axis=0)
                                 else:
                                     import multiprocessing
                                     from multiprocessing import sharedctypes
                                     grad = np.ctypeslib.as_ctypes(np.zeros(len(nm_levels)))
                                     shared_array = sharedctypes.RawArray(grad._type_, grad)
 
-                                    def grad_range(xstart, xstop):
+                                    def calc_grad_par(ks):
                                         tmp = np.ctypeslib.as_array(shared_array)
-                                        tmp[xstart:xstop]=list(map(grad_at, range(xstart, xstop)))
+                                        for k in ks:
+                                            tmp+=exp_kk[k] * np.exp(
+                                                np.concatenate(
+                                                    (-0.5 * ((nm_levels - np.roll(nm_levels, -k)) ** 2 * isig)[:-k],
+                                                    [0] * k))) - np.concatenate(([0] * k, exp_kk[
+                                                k] * np.exp(-0.5 * ((nm_levels - np.roll(nm_levels, k)) ** 2 * isig)[k:])))
 
-                                    n_part = len(nm_levels) // self.max_cores
                                     jobs = []
-                                    for i in range(self.max_cores):
-                                        process = multiprocessing.Process(target=grad_range,
-                                                                          args=(i*n_part, min((i + 1) * n_part, len(nm_levels))))
+                                    nj=self.max_cores
+
+                                    for i in range(nj):
+                                        process = multiprocessing.Process(target=calc_grad_par,args=([k for k in range(1, 3 * bin_band + 1) if k%nj==i],))
                                         jobs.append(process)
                                         process.start()
-
                                     for j in jobs:
                                         j.join()
-
+                                    #parmap(calc_grad_par, range(1, 3 * bin_band + 1), cores=self.max_cores,
+                                    #             info=False)
                                     grad = np.ctypeslib.as_array(shared_array)
-
-
-
-
-                                    # parmap(grad_range, [range(x, min(x + n_part, len(nm_levels))) for x in
-                                    #                                         range(0, len(nm_levels), n_part)], cores=self.max_cores,
-                                    #                            info=False)
-
-
-                                    #parmap(lambda x:grad_at(x,grad), range(len(nm_levels)), cores=self.max_cores, info=False)
-                                    #n_part = len(nm_levels) // 4
-                                    #grad=np.concatenate(parmap(grad_range, [range(x, min(x + n_part, len(nm_levels))) for x in
-                                    #                    range(0, len(nm_levels), n_part)], cores=self.max_cores,
-                                    #       info=False))
-                                grad=np.array(grad)
-
-                                # grad = np.array(map(grad_at,range(len(nm_levels))))
-                                # from .pool import parmap
-                                # grad = np.array(parmap(grad_at,range(len(nm_levels)),cores=self.max_cores, info=False))
-
-                                # def calc_grad(k):
-                                #     return exp_kk[k] * np.exp(
-                                #         np.concatenate((-0.5 * ((nm_levels - np.roll(nm_levels, -k)) ** 2 * isig)[:-k],
-                                #                         [0] * k))) - np.concatenate(([0] * k, exp_kk[
-                                #         k] * np.exp(-0.5 * ((nm_levels - np.roll(nm_levels, k)) ** 2 * isig)[k:])))
-                                #
-                                # if self.max_cores == 1:
-                                #     grad = np.sum([calc_grad(k) for k in range(1, 3 * bin_band + 1)], axis=0)
-                                # else:
-                                #     from .pool import parmap
-                                #     res = parmap(calc_grad, range(1, 3 * bin_band + 1), cores=self.max_cores,
-                                #                  info=False)
-                                #     grad = np.sum(res, axis=0)
 
                                 border = [i for i in range(grad.size - 1) if grad[i] < 0 and grad[i + 1] >= 0]
                                 border.append(grad.size - 1)
