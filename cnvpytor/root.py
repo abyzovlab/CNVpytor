@@ -850,7 +850,7 @@ class Root:
 
 
                                 if self.max_cores == 1:
-                                    grad=map(grad_at,range(len(nm_levels)))
+                                    grad=list(map(grad_at,range(len(nm_levels))))
                                 else:
                                     import multiprocessing
                                     from multiprocessing import sharedctypes
