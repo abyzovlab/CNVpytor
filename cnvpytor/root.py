@@ -859,7 +859,7 @@ class Root:
 
                                     def grad_range(xstart, xstop):
                                         tmp = np.ctypeslib.as_array(shared_array)
-                                        tmp[xstart:xstop]=map(grad_at, range(xstart, xstop))
+                                        tmp[xstart:xstop]=list(map(grad_at, range(xstart, xstop)))
 
                                     n_part = len(nm_levels) // self.max_cores
                                     jobs = []
