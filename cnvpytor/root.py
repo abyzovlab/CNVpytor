@@ -141,6 +141,8 @@ class Root:
             max_bin_mt = int(
                 max(map(lambda x: 5 * x[1] + 5 * x[2], filter(lambda x: Genome.is_mt_chrom(x[0]), rd_stat))))
             _logger.debug("Max RD for mitochondria calculated: %d" % max_bin_mt)
+            if max_bin_mt < 100:
+                max_bin_mt = 100
             bin_size_mt = max_bin_mt // 100
             bins_mt = range(0, max_bin_mt // bin_size_mt * bin_size_mt + bin_size_mt, bin_size_mt)
             n_bins_mt = len(bins_mt) - 1
@@ -543,13 +545,16 @@ class Root:
                         (rd_u, np.zeros(bin_ratio - len(rd_u) + (len(rd_u) // bin_ratio * bin_ratio))))
                     his_u.resize((len(his_u) // bin_ratio, bin_ratio))
                     his_u = his_u.sum(axis=1)
+                    if bin_ratio == 1:
+                        his_p = his_p[:-1]
+                        his_u = his_u[:-1]
                     self.io.create_signal(c, bin_size, "RD", his_p)
                     self.io.create_signal(c, bin_size, "RD unique", his_u)
 
                     max_bin = max(int(10 * np.mean(his_u) + 1), int(10 * np.mean(his_p) + 1))
+                    if max_bin < 10000:
+                        max_bin = 10000
                     rd_bin_size = max_bin // 10000
-                    if rd_bin_size == 0:
-                        rd_bin_size = 1
                     rd_bins = range(0, max_bin // rd_bin_size * rd_bin_size + rd_bin_size, rd_bin_size)
                     dist_p, bins = np.histogram(his_p, bins=rd_bins)
                     dist_u, bins = np.histogram(his_u, bins=rd_bins)
@@ -566,15 +571,15 @@ class Root:
                     sex = sex or Genome.is_sex_chrom(c)
                     mt = mt or Genome.is_mt_chrom(c)
 
-            mt = mt and (bin_size <= 500)
+            mt = mt and (bin_size <= 1000)
 
             if auto:
                 max_bin_auto = int(
                     max(map(lambda x: 5 * x[1] + 5 * x[2], filter(lambda x: Genome.is_autosome(x[0]), his_stat))))
                 _logger.debug("Max RD for autosome histograms calculated: %d." % max_bin_auto)
+                if max_bin_auto < 1000:
+                    max_bin_auto = 1000
                 bin_size_auto = max_bin_auto // 1000
-                if bin_size_auto == 0:
-                    bin_size_auto = 1
                 bins_auto = range(0, max_bin_auto // bin_size_auto * bin_size_auto + bin_size_auto, bin_size_auto)
                 n_bins_auto = len(bins_auto) - 1
                 _logger.debug(
@@ -588,9 +593,9 @@ class Root:
                 max_bin_sex = int(
                     max(map(lambda x: 5 * x[1] + 5 * x[2], filter(lambda x: Genome.is_sex_chrom(x[0]), his_stat))))
                 _logger.debug("Max RD for sex chromosome histograms calculated: %d." % max_bin_sex)
+                if max_bin_sex < 1000:
+                    max_bin_sex = 1000
                 bin_size_sex = max_bin_sex // 1000
-                if bin_size_sex == 0:
-                    bin_size_sex = 1
                 bins_sex = range(0, max_bin_sex // bin_size_sex * bin_size_sex + bin_size_sex, bin_size_sex)
                 n_bins_sex = len(bins_sex) - 1
                 _logger.debug(
@@ -605,9 +610,9 @@ class Root:
                 max_bin_mt = int(
                     max(map(lambda x: 5 * x[1] + 5 * x[2], filter(lambda x: Genome.is_mt_chrom(x[0]), his_stat))))
                 _logger.debug("Max RD for mitochondria histogram calculated: %d." % max_bin_mt)
+                if max_bin_mt < 1000:
+                    max_bin_mt = 1000
                 bin_size_mt = max_bin_mt // 1000
-                if bin_size_mt == 0:
-                    bin_size_mt = 1
                 bins_mt = range(0, max_bin_mt // bin_size_mt * bin_size_mt + bin_size_mt, bin_size_mt)
                 n_bins_mt = len(bins_mt) - 1
                 _logger.debug("Using %d bin size, %d bins for mitochondria chromosome." % (bin_size_mt, n_bins_mt))
@@ -760,6 +765,9 @@ class Root:
                     np.seterr(divide='ignore', invalid='ignore')
                     his_p = his_p / his_count * bin_ratio
                     his_u = his_u / his_count * bin_ratio
+                    if bin_ratio == 1:
+                        his_p = his_p[:-1]
+                        his_u = his_u[:-1]
                     gc_corr = self.io.get_signal(None, bin_size, "GC corr", flag)
                     gcat = self.io_gc.get_signal(rd_gc_chromosomes[c], None, "GC/AT")
                     his_p_corr = his_p / np.array(list(map(lambda x: gc_corr[int(x)], gcp_decompress(gcat, bin_ratio))))
@@ -803,7 +811,7 @@ class Root:
                         len(chroms) == 0 or (c in chroms)):
                     flag_stat = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
                     if use_gc_corr:
-                        flag_stat += FLAG_GC_CORR
+                        flag_stat |= FLAG_GC_CORR
                     flag_rd = (FLAG_GC_CORR if use_gc_corr else 0) | (FLAG_USEMASK if use_mask else 0)
                     if self.io.signal_exists(c, bin_size, "RD stat", flag_stat) and self.io.signal_exists(c, bin_size,
                                                                                                           "RD",
@@ -818,7 +826,7 @@ class Root:
                         levels = np.copy(rd)
 
                         for bin_band in bin_bands:
-                            _logger.info("Bin band is %d." % bin_band)
+                            _logger.debug("Bin band is %d." % bin_band)
                             levels[np.logical_not(masked)] = rd[np.logical_not(masked)]
                             nm_levels = levels[np.logical_not(masked)]
                             mask_borders = [0]
@@ -831,59 +839,24 @@ class Root:
                                 else:
                                     count += 1
 
-                            # kk = np.arange(-3 * bin_band, 3 * bin_band + 1)
-                            # exp_kk = list(kk * np.exp(-0.5 * kk ** 2 / bin_band ** 2))
                             kk = np.arange(3 * bin_band + 1)
                             exp_kk = kk * np.exp(-0.5 * kk ** 2 / bin_band ** 2)
                             for step in range(repeats):
                                 isig = np.ones_like(nm_levels) * 4. / std ** 2
                                 isig[nm_levels >= (mean / 4)] = mean / std ** 2 / nm_levels[nm_levels >= (mean / 4)]
 
-                                # nm_levels_3bb = np.concatenate(([0] * 3 * bin_band, nm_levels, [0] * 3 * bin_band))
-                                #
-                                # def grad_at(x):
-                                #     return np.dot(np.exp(
-                                #         -0.5 * (nm_levels_3bb[x:x + 6 * bin_band + 1] - nm_levels[x]) ** 2 * isig[x]),
-                                #         exp_kk)
-                                #
-                                # if self.max_cores == 1:
-                                #     grad=list(map(grad_at,range(len(nm_levels))))
-                                # else:
-                                #     import multiprocessing
-                                #     from multiprocessing import sharedctypes
-                                #     grad = np.ctypeslib.as_ctypes(np.zeros(len(nm_levels)))
-                                #     shared_array = sharedctypes.RawArray(grad._type_, grad)
-                                #
-                                #     def grad_range(xstart, xstop):
-                                #         tmp = np.ctypeslib.as_array(shared_array)
-                                #         tmp[xstart:xstop]=list(map(grad_at, range(xstart, xstop)))
-                                #
-                                #     n_part = len(nm_levels) // self.max_cores
-                                #     jobs = []
-                                #     for i in range(self.max_cores):
-                                #         process = multiprocessing.Process(target=grad_range,
-                                #                                           args=(i*n_part, min((i + 1) * n_part, len(nm_levels))))
-                                #         jobs.append(process)
-                                #         process.start()
-                                #
-                                #     for j in jobs:
-                                #         j.join()
-                                #
-                                #     grad = np.ctypeslib.as_array(shared_array)
-                                # grad=np.array(grad)
-
-                                #grad = np.array(map(grad_at,range(len(nm_levels))))
-                                #from .pool import parmap
-                                # grad = np.array(parmap(grad_at,range(len(nm_levels)),cores=self.max_cores, info=False))
-
                                 def calc_grad(k):
-                                    return exp_kk[k] * np.exp(
-                                        np.concatenate((-0.5 * ((nm_levels - np.roll(nm_levels, -k)) ** 2 * isig)[:-k],
-                                                         [0] * k))) - np.concatenate(([0] * k, exp_kk[
-                                         k] * np.exp(-0.5 * ((nm_levels - np.roll(nm_levels, k)) ** 2 * isig)[k:])))
+                                    if k < len(nm_levels):
+                                        return exp_kk[k] * np.exp(
+                                            np.concatenate(
+                                                (-0.5 * ((nm_levels - np.roll(nm_levels, -k)) ** 2 * isig)[:-k],
+                                                 [0] * k))) - np.concatenate(([0] * k, exp_kk[
+                                            k] * np.exp(-0.5 * ((nm_levels - np.roll(nm_levels, k)) ** 2 * isig)[k:])))
+                                    else:
+                                        return np.zeros_like(nm_levels)
 
                                 if self.max_cores == 1:
-                                     grad = np.sum([calc_grad(k) for k in range(1, 3 * bin_band + 1)], axis=0)
+                                    grad = np.sum([calc_grad(k) for k in range(1, 3 * bin_band + 1)], axis=0)
                                 else:
                                     import multiprocessing
                                     from multiprocessing import sharedctypes
@@ -893,23 +866,25 @@ class Root:
                                     def calc_grad_par(ks):
                                         tmp = np.ctypeslib.as_array(shared_array)
                                         for k in ks:
-                                            tmp+=exp_kk[k] * np.exp(
-                                                np.concatenate(
-                                                    (-0.5 * ((nm_levels - np.roll(nm_levels, -k)) ** 2 * isig)[:-k],
-                                                    [0] * k))) - np.concatenate(([0] * k, exp_kk[
-                                                k] * np.exp(-0.5 * ((nm_levels - np.roll(nm_levels, k)) ** 2 * isig)[k:])))
+                                            if k < len(nm_levels):
+                                                tmp += exp_kk[k] * np.exp(
+                                                    np.concatenate(
+                                                        (-0.5 * ((nm_levels - np.roll(nm_levels, -k)) ** 2 * isig)[:-k],
+                                                         [0] * k))) - np.concatenate(([0] * k, exp_kk[
+                                                    k] * np.exp(
+                                                    -0.5 * ((nm_levels - np.roll(nm_levels, k)) ** 2 * isig)[k:])))
 
                                     jobs = []
-                                    nj=self.max_cores
+                                    nj = self.max_cores
 
                                     for i in range(nj):
-                                        process = multiprocessing.Process(target=calc_grad_par,args=([k for k in range(1, 3 * bin_band + 1) if k%nj==i],))
-                                        jobs.append(process)
-                                        process.start()
+                                        ks = [k for k in range(1, 3 * bin_band + 1) if k % nj == i]
+                                        if len(ks) > 0:
+                                            process = multiprocessing.Process(target=calc_grad_par, args=(ks,))
+                                            jobs.append(process)
+                                            process.start()
                                     for j in jobs:
                                         j.join()
-                                    #parmap(calc_grad_par, range(1, 3 * bin_band + 1), cores=self.max_cores,
-                                    #             info=False)
                                     grad = np.ctypeslib.as_array(shared_array)
 
                                 border = [i for i in range(grad.size - 1) if grad[i] < 0 and grad[i + 1] >= 0]
@@ -966,12 +941,10 @@ class Root:
                                     continue
                                 masked[seg[0]:seg[1]] = True
                                 levels[seg[0]:seg[1]] = np.mean(rd[seg[0]:seg[1]])
-                    plt.step(np.arange(len(rd)), rd)
-                    plt.step(np.arange(len(rd)), levels)
-                    plt.show()
-        return
 
-    def call(self, bin_sizes, chrom=[], use_gc_corr=True, use_mask=False):
+                    self.io.create_signal(c, bin_size, "RD partition", levels, flags=flag_rd)
+
+    def call(self, bin_sizes, chroms=[], use_gc_corr=True, use_mask=False):
         """
         CNV caller based on the segmented RD signal.
 
@@ -987,7 +960,47 @@ class Root:
             Use P-mask filter if True. Default: False.
 
         """
-        return
+        rd_gc_chromosomes = {}
+        for c in self.io_gc.gc_chromosomes():
+            rd_name = self.io.rd_chromosome_name(c)
+            if not rd_name is None:
+                rd_gc_chromosomes[rd_name] = c
+
+        rd_mask_chromosomes = {}
+        for c in self.io_mask.mask_chromosomes():
+            rd_name = self.io.rd_chromosome_name(c)
+            if not rd_name is None:
+                rd_mask_chromosomes[rd_name] = c
+
+        for bin_size in bin_sizes:
+            for c in self.io.rd_chromosomes():
+                if (c in rd_gc_chromosomes or not use_gc_corr) and (c in rd_mask_chromosomes or not use_mask) and (
+                        len(chroms) == 0 or (c in chroms)):
+                    flag_stat = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
+                    flag_auto = FLAG_AUTO
+                    if use_gc_corr:
+                        flag_stat |= FLAG_GC_CORR
+                        flag_auto |= FLAG_GC_CORR
+                    flag_rd = (FLAG_GC_CORR if use_gc_corr else 0) | (FLAG_USEMASK if use_mask else 0)
+                    print(flag_stat, flag_auto, flag_rd, bin_size)
+                    print(c, self.io.signal_exists(c, bin_size, "RD stat", flag_stat),
+                          self.io.signal_exists(c, bin_size, "RD", flag_rd))
+                    if self.io.signal_exists(c, bin_size, "RD stat", flag_stat) and \
+                            self.io.signal_exists(c, bin_size, "RD", flag_rd) and \
+                            self.io.signal_exists(c, bin_size, "RD partition", flag_rd):
+                        _logger.info("Calculating histograms using bin size %d for chromosome '%s'." % (bin_size, c))
+                        stat = self.io.get_signal(c, bin_size, "RD stat", flag_stat)
+                        mean = stat[4]
+                        std = stat[5]
+                        rd = self.io.get_signal(c, bin_size, "RD", flag_rd)
+                        rd = np.nan_to_num(rd)
+                        levels = self.io.get_signal(c, bin_size, "RD partition", flag_rd)
+                        delta = 0.25
+                        if Genome.is_sex_chrom(c) and self.io.signal_exists(c, bin_size, "RD stat", flag_auto):
+                            stat_auto = self.io.get_signal(c, bin_size, "RD stat", flag_stat)
+                            if stat_auto[4] * 0.66 > mean:
+                                _logger.info("Assuming male individual!")
+                                delta *= 2
 
     def mask_snps(self):
         """

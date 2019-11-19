@@ -523,6 +523,7 @@ class Viewer(ViewParams):
                 flag_rd = FLAG_USEMASK
             his_p = self.io[self.plot_file].get_signal(c, bin_size, "RD", flag_rd)
             his_p_corr = self.io[self.plot_file].get_signal(c, bin_size, "RD", flag_rd | FLAG_GC_CORR)
+            his_p_seg = self.io[self.plot_file].get_signal(c, bin_size, "RD partition", flag_rd | FLAG_GC_CORR)
             ax = plt.subplot(sx, sy, ix)
             ax.set_title(c, position=(0.01, 0.9), fontdict={'verticalalignment': 'top', 'horizontalalignment': 'left'},
                          color='C0')
@@ -537,6 +538,8 @@ class Viewer(ViewParams):
 
             plt.step(his_p, "grey")
             plt.step(his_p_corr, "k")
+            if his_p_seg is not None and len(his_p_seg)>0:
+                plt.step(his_p_seg, "r")
             ix += 1
         plt.subplots_adjust(bottom=0., top=1., wspace=0, hspace=0, left=0., right=1.)
         if self.output_filename != "":
@@ -860,7 +863,7 @@ class Viewer(ViewParams):
         else:
             plt.show()
 
-    def multiple_regions(self, bin_size, regions, panels=["rd"], use_mask_rd=False, sep_color="g"):
+    def multiple_regions(self, bin_size, regions, panels=["rd"], sep_color="g"):
         plt.clf()
         plt.rcParams["font.size"] = 8
         self.fig = plt.figure(1, figsize=(12, 8), facecolor='w', edgecolor='k')
@@ -868,7 +871,7 @@ class Viewer(ViewParams):
         ix = 0
         for i in self.io:
             for r in regions:
-                self.regions(i, grid[ix], bin_size, r, panels=panels, use_mask_rd=use_mask_rd, sep_color=sep_color)
+                self.regions(i, grid[ix], bin_size, r, panels=panels, sep_color=sep_color)
                 ix += 1
         plt.subplots_adjust(bottom=0.05, top=0.95, wspace=0, hspace=0, left=0.05, right=0.95)
 
@@ -881,7 +884,7 @@ class Viewer(ViewParams):
         else:
             plt.show()
 
-    def regions(self, io, element, bin_size, region, panels=["rd"], use_mask_rd=False, sep_color="g"):
+    def regions(self, io, element, bin_size, region, panels=["rd"], sep_color="g"):
         snp_flag = (FLAG_USEMASK if self.use_mask else 0) | (FLAG_USEID if self.use_id else 0)
         grid = gridspec.GridSpecFromSubplotSpec(len(panels), 1, subplot_spec=element, wspace=0, hspace=0.1)
         r = decode_region(region)
@@ -893,23 +896,27 @@ class Viewer(ViewParams):
                              color='C0')
             g_p = []
             g_p_corr = []
+            g_p_seg = []
             if panels[i] == "rd":
                 mean, stdev = 0, 0
                 borders = []
                 for c, (pos1, pos2) in r:
                     flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
                     flag_rd = 0
-                    if use_mask_rd:
+                    if self.use_mask_rd:
                         flag_rd = FLAG_USEMASK
                     stat = io.get_signal(None, bin_size, "RD stat", flag)
                     mean = stat[4]
                     stdev = stat[5]
                     his_p = io.get_signal(c, bin_size, "RD", flag_rd)
                     his_p_corr = io.get_signal(c, bin_size, "RD", flag_rd | FLAG_GC_CORR)
+                    his_p_seg = io.get_signal(c, bin_size, "RD partition", flag_rd | FLAG_GC_CORR)
                     start_bin = (pos1 - 1) // bin_size
                     end_bin = pos2 // bin_size
                     g_p.extend(list(his_p[start_bin:end_bin]))
                     g_p_corr.extend(list(his_p_corr[start_bin:end_bin]))
+                    if his_p_seg is not None and len(his_p_seg) > 0:
+                        g_p_seg.extend(list(his_p_seg[start_bin:end_bin]))
                     borders.append(len(g_p))
 
                 # ax.xaxis.set_ticklabels([])
@@ -923,6 +930,8 @@ class Viewer(ViewParams):
                 ax.yaxis.grid()
                 ax.step(g_p, "grey")
                 ax.step(g_p_corr, "k")
+                if len(g_p_seg)>0:
+                    plt.step(g_p_seg, "r")
                 for i in borders[:-1]:
                     ax.axvline(i, color=sep_color, lw=1)
                 self.fig.add_subplot(ax)
