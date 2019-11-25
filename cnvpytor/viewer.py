@@ -19,8 +19,8 @@ import traceback
 _logger = logging.getLogger("cnvpytor.viewer")
 
 
-class ViewParams(object):
-    params = {
+class ViewParams:
+    default = {
         "bin_size": None,
         "panels": ["rd"],
         "partition": True,
@@ -45,81 +45,19 @@ class ViewParams(object):
     }
 
     def __init__(self, params):
-        for key in params:
-            if key in self.params:
-                self.params[key] = params[key]
-
-    def show(self):
-        print("    Parameters")
-        for key in sorted(self.params.keys()):
-            print("        * %s: %s" % (key, str(self.params[key])))
+        for key in self.default:
+            if key in params:
+                setattr(self, key, params[key])
+            else:
+                setattr(self, key, self.default[key])
 
     @property
-    def bin_size(self):
-        return self.params["bin_size"]
+    def params(self):
+        dct = {}
+        for key in self.default:
+            dct[key] = getattr(self, key)
 
-    @bin_size.setter
-    def bin_size(self, x):
-        try:
-            self.params["bin_size"] = binsize_type(x)
-        except (ArgumentTypeError, ValueError):
-            _logger.warning("bin_size should be intiger divisible by 100")
-
-    @property
-    def manhattan_range(self):
-        return self.params["manhattan_range"]
-
-    @manhattan_range.setter
-    def manhattan_range(self, x):
-        self.params["manhattan_range"] = x
-
-    @property
-    def palette1(self):
-        return self.params["palette1"]
-
-    @palette1.setter
-    def palette1(self, x):
-        self.params["palette1"] = x
-
-    @property
-    def palette2(self):
-        return self.params["palette2"]
-
-    @palette2.setter
-    def palette2(self, x):
-        self.params["palette2"] = x
-
-    @property
-    def contrast(self):
-        return self.params["contrast"]
-
-    @contrast.setter
-    def contrast(self, x):
-        self.params["contrast"] = x
-
-    @property
-    def min_segment_size(self):
-        return self.params["min_segment_size"]
-
-    @min_segment_size.setter
-    def min_segment_size(self, x):
-        self.params["min_segment_size"] = x
-
-    @property
-    def snp_colors(self):
-        return self.params["snp_colors"]
-
-    @snp_colors.setter
-    def snp_colors(self, x):
-        self.params["snp_colors"] = x
-
-    @property
-    def grid(self):
-        return self.params["grid"]
-
-    @grid.setter
-    def grid(self, x):
-        self.params["grid"] = x
+        return dct
 
     @property
     def bin_size_f(self):
@@ -133,121 +71,36 @@ class ViewParams(object):
         """
         return binsize_format(self.params["bin_size"])
 
-    @property
-    def panels(self):
-        return self.params["panels"]
+    def __setattr__(self, name, value):
 
-    @panels.setter
-    def panels(self, x):
-        self.params["panels"] = x
+        if name == 'bin_size':
+            try:
+                value = binsize_type(value)
+            except (ArgumentTypeError, ValueError):
+                _logger.warning("bin_size should be integer divisible by 100")
+        if name == 'style':
+            if value in plt.style.available:
+                plt.style.use("default")
+                plt.style.use(value)
 
-    @property
-    def partition(self):
-        return self.params["partition"]
+        if name == 'xkcd':
+            if value:
+                self.style = "classic"
+                from matplotlib import patheffects
+                plt.xkcd()
+                plt.rcParams["path.effects"] = [patheffects.withStroke(linewidth=0.5, foreground="w")]
 
-    @partition.setter
-    def partition(self, x):
-        self.params["partition"] = x
+            elif hasattr(self, name) and self.xkcd:
+                plt.rcdefaults()
+                self.style = 'classic'
+                self.xkcd = False
 
-    @property
-    def call(self):
-        return self.params["call"]
+        super(ViewParams, self).__setattr__(name, value)
 
-    @call.setter
-    def call(self, x):
-        self.params["call"] = x
-
-    @property
-    def call_mosaic(self):
-        return self.params["call_mosaic"]
-
-    @call_mosaic.setter
-    def call_mosaic(self, x):
-        self.params["call_mosaic"] = x
-
-    @property
-    def use_mask_rd(self):
-        return self.params["use_mask_rd"]
-
-    @use_mask_rd.setter
-    def use_mask_rd(self, x):
-        self.params["use_mask_rd"] = x
-
-    @property
-    def use_mask(self):
-        return self.params["use_mask"]
-
-    @use_mask.setter
-    def use_mask(self, x):
-        self.params["use_mask"] = x
-
-    @property
-    def use_id(self):
-        return self.params["use_id"]
-
-    @use_id.setter
-    def use_id(self, x):
-        self.params["use_id"] = x
-
-    @property
-    def plot_files(self):
-        return self.params["plot_files"]
-
-    @plot_files.setter
-    def plot_files(self, x):
-        self.params["plot_files"] = x
-
-    @property
-    def plot_file(self):
-        return self.params["plot_file"]
-
-    @plot_file.setter
-    def plot_file(self, x):
-        self.params["plot_file"] = x
-
-    @property
-    def chrom(self):
-        return self.params["chrom"]
-
-    @chrom.setter
-    def chrom(self, x):
-        self.params["chrom"] = x
-
-    @property
-    def style(self):
-        return self.params["style"]
-
-    @style.setter
-    def style(self, x):
-        if x in plt.style.available:
-            plt.style.use("default")
-            plt.style.use(x)
-            self.params["style"] = x
-
-    @property
-    def xkcd(self):
-        return self.params["xkcd"]
-
-    @xkcd.setter
-    def xkcd(self, x):
-        if x:
-            self.style = "classic"
-            from matplotlib import patheffects
-            plt.xkcd()
-            plt.rcParams["path.effects"] = [patheffects.withStroke(linewidth=0.5, foreground="w")]
-        elif self.params["xkcd"]:
-            plt.rcdefaults()
-            self.style = 'classic'
-            self.params["xkcd"] = False
-        self.params["xkcd"] = x
-
-    @property
-    def output_filename(self):
-        return self.params["output_filename"]
-
-    @output_filename.setter
-    def output_filename(self, x):
-        self.params["output_filename"] = x
+    def show(self):
+        print("    Parameters")
+        for key in sorted(self.params.keys()):
+            print("        * %s: %s" % (key, str(self.params[key])))
 
 
 class Viewer(ViewParams):
