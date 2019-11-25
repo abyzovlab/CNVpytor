@@ -19,7 +19,7 @@ import traceback
 _logger = logging.getLogger("cnvpytor.viewer")
 
 
-class ViewParams:
+class ViewParams(object):
     default = {
         "bin_size": None,
         "panels": ["rd"],
@@ -93,7 +93,6 @@ class ViewParams:
             elif hasattr(self, name) and self.xkcd:
                 plt.rcdefaults()
                 self.style = 'classic'
-                self.xkcd = False
 
         super(ViewParams, self).__setattr__(name, value)
 
