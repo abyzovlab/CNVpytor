@@ -9,7 +9,7 @@ from .bam import Bam
 from .vcf import Vcf
 from .fasta import Fasta
 from .genome import Genome
-from .viewer import anim_plot_likelihood
+from .viewer import anim_plot_likelihood, anim_plot_rd
 import numpy as np
 import logging
 import matplotlib.pyplot as plt
@@ -942,7 +942,7 @@ class Root:
                                 masked[seg[0]:seg[1]] = True
                                 levels[seg[0]:seg[1]] = np.mean(rd[seg[0]:seg[1]])
 
-                    self.io.create_signal(c, bin_size, "RD partition", levels, flags=flag_rd)
+                        self.io.create_signal(c, bin_size, "RD partition", levels, flags=flag_rd)
 
     def call(self, bin_sizes, chroms=[], use_gc_corr=True, use_mask=False):
         """
@@ -982,13 +982,10 @@ class Root:
                         flag_stat |= FLAG_GC_CORR
                         flag_auto |= FLAG_GC_CORR
                     flag_rd = (FLAG_GC_CORR if use_gc_corr else 0) | (FLAG_USEMASK if use_mask else 0)
-                    print(flag_stat, flag_auto, flag_rd, bin_size)
-                    print(c, self.io.signal_exists(c, bin_size, "RD stat", flag_stat),
-                          self.io.signal_exists(c, bin_size, "RD", flag_rd))
                     if self.io.signal_exists(c, bin_size, "RD stat", flag_stat) and \
                             self.io.signal_exists(c, bin_size, "RD", flag_rd) and \
                             self.io.signal_exists(c, bin_size, "RD partition", flag_rd):
-                        _logger.info("Calculating histograms using bin size %d for chromosome '%s'." % (bin_size, c))
+                        _logger.debug("Calculating CNV calls using bin size %d for chromosome '%s'." % (bin_size, c))
                         stat = self.io.get_signal(c, bin_size, "RD stat", flag_stat)
                         mean = stat[4]
                         std = stat[5]
@@ -997,10 +994,294 @@ class Root:
                         levels = self.io.get_signal(c, bin_size, "RD partition", flag_rd)
                         delta = 0.25
                         if Genome.is_sex_chrom(c) and self.io.signal_exists(c, bin_size, "RD stat", flag_auto):
-                            stat_auto = self.io.get_signal(c, bin_size, "RD stat", flag_stat)
+                            stat_auto = self.io.get_signal(c, bin_size, "RD stat", flag_auto)
                             if stat_auto[4] * 0.66 > mean:
-                                _logger.info("Assuming male individual!")
+                                _logger.debug("Assuming male individual!")
                                 delta *= 2
+
+                        _logger.debug("Merging levels with relative difference smaller than %f.", delta)
+                        delta *= mean
+                        done = False
+                        while not done:
+                            done = True
+                            # border - list of borders between segments
+                            border = [0] + list(np.argwhere(np.abs(np.diff(levels)) > 0.01)[:, 0] + 1) + [levels.size]
+                            for ix in range(len(border) - 2):
+                                if ix < len(border) - 2:
+                                    v1 = np.abs(levels[border[ix]] - levels[border[ix + 1]])
+                                    if v1 < delta:
+                                        v2 = v1 + 1
+                                        v3 = v1 + 1
+                                        if ix > 0:
+                                            v2 = np.abs(levels[border[ix]] - levels[border[ix - 1]])
+                                        if ix < len(border) - 3:
+                                            v3 = np.abs(levels[border[ix + 1]] - levels[border[ix + 2]])
+                                        if v1 < v2 and v1 < v3:
+                                            done = False
+                                            levels[border[ix]:border[ix + 2]] = np.mean(
+                                                levels[border[ix]:border[ix + 2]])
+                                            del border[ix + 1]
+
+                        _logger.debug("Calling segments")
+                        min = mean - delta
+                        max = mean + delta
+
+                        flags = [""] * len(levels)
+                        segments = []
+
+                        b = 0
+                        while b < len(levels):
+                            b0 = b
+                            bs = b
+                            while b < len(levels) and levels[b] < min:
+                                b += 1
+                            be = b
+                            if be > bs + 1:
+                                adj = adjustToEvalue(mean, std, rd, bs, be, 0.05 * bin_size / 3e9)
+                                if adj is not None:
+                                    bs, be = adj
+                                    segments.append([bs, be, -1])
+                                    flags[bs:be] = ["D"] * (be - bs)
+
+                            bs = b
+                            while b < len(levels) and levels[b] > max:
+                                b += 1
+                            be = b
+                            if be > bs + 1:
+                                adj = adjustToEvalue(mean, std, rd, bs, be, 0.05 * bin_size / 3e9)
+                                if adj is not None:
+                                    bs, be = adj
+                                    segments.append([bs, be, +1])
+                                    flags[bs:be] = ["A"] * (be - bs)
+                            if b == b0:
+                                b += 1
+
+                        _logger.debug("Calling additional deletions")
+                        b = 0
+                        while b < len(levels):
+                            while b < len(levels) and flags[b] != "":
+                                b += 1
+                            bs = b
+                            while b < len(levels) and levels[b] < min:
+                                b += 1
+                            be = b
+                            if be > bs + 1:
+                                if gaussianEValue(mean, std, rd, bs, be) < 0.05 / 3e9:
+                                    segments.append([bs, be, -1])
+                                    flags[bs:be] = ["d"] * (be - bs)
+                                b -= 1
+                            b += 1
+
+                        b = 0
+                        if b < len(levels):
+                            cf = flags[b]
+                        bs = 0
+                        while b < len(levels):
+                            while flags[b] == cf:
+                                b += 1
+                                if b >= len(flags):
+                                    break
+                            if b > bs:
+                                rd[bs:b] = np.mean(rd[bs:b])
+                            if b < len(levels):
+                                cf = flags[b]
+                            bs = b
+
+                        self.io.create_signal(c, bin_size, "RD call", rd, flags=flag_rd)
+
+                        _logger.debug("Print calls")
+                        b = 0
+                        while b < len(levels):
+                            cf = flags[b]
+                            if cf == "":
+                                b += 1
+                                continue
+                            bs = b
+                            while b < len(levels) and cf == flags[b]:
+                                b += 1
+                            cnv = np.mean(rd[bs:b]) / mean
+                            if cf.upper() == "D":
+                                etype = "deletion"
+                            else:
+                                etype = "duplication"
+                            start = bin_size * bs + 1
+                            end = bin_size * b
+                            size = end - start + 1
+                            e1 = getEValue(mean, std, rd, bs, b) * 3e9 / bin_size / (b - bs)
+                            e2 = gaussianEValue(mean, std, rd, bs, b) * 3e9
+                            e3, e4 = 1, 1
+                            tmp = int(1000. / bin_size + 0.5)
+                            if bs + tmp < b - tmp:
+                                e3 = getEValue(mean, std, rd, bs + tmp, b - tmp) * 3e9 / bin_size / (b - bs)
+                                e4 = gaussianEValue(mean, std, rd, bs + tmp, b - tmp) * 3e9
+                            rd_p = self.io.get_signal(c, bin_size, "RD")
+                            rd_u = self.io.get_signal(c, bin_size, "RD unique")
+                            q0 = -1
+                            if sum(rd_p[bs:b]) > 0:
+                                q0 = (sum(rd_p[bs:b]) - sum(rd_u[bs:b])) / sum(rd_p[bs:b])
+                            print("%s\t%s:%d-%d\t%d\t%.4f\t%e\t%e\t%e\t%e\t%.4f\t" % (
+                                etype, c, start, end, size, cnv, e1, e2, e3, e4, q0))
+
+    def call_mosaic(self, bin_sizes, chroms=[], use_gc_corr=True, use_mask=False, odec=0.9, omin=None,
+                    max_distance=0.3, anim=""):
+        """
+        CNV caller based on likelihood merger.
+
+        Parameters
+        ----------
+        bin_sizes : list of int
+            List of histogram bin sizes
+        chroms : list of str
+            List of chromosomes. Calculates for all available if empty.
+        use_gc_corr : bool
+            Use GC corrected signal if True. Default: True.
+        use_mask : bool
+            Use P-mask filter if True. Default: False.
+
+        """
+        rd_gc_chromosomes = {}
+        for c in self.io_gc.gc_chromosomes():
+            rd_name = self.io.rd_chromosome_name(c)
+            if not rd_name is None:
+                rd_gc_chromosomes[rd_name] = c
+
+        rd_mask_chromosomes = {}
+        for c in self.io_mask.mask_chromosomes():
+            rd_name = self.io.rd_chromosome_name(c)
+            if not rd_name is None:
+                rd_mask_chromosomes[rd_name] = c
+
+        for bin_size in bin_sizes:
+            if omin is None:
+                overlap_min = 0.05 * bin_size / 3e9
+            else:
+                overlap_min = omin
+
+            for c in self.io.rd_chromosomes():
+                if (c in rd_gc_chromosomes or not use_gc_corr) and (c in rd_mask_chromosomes or not use_mask) and (
+                        len(chroms) == 0 or (c in chroms)):
+                    flag_stat = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
+                    flag_auto = FLAG_AUTO
+                    if use_gc_corr:
+                        flag_stat |= FLAG_GC_CORR
+                        flag_auto |= FLAG_GC_CORR
+                    flag_rd = (FLAG_GC_CORR if use_gc_corr else 0) | (FLAG_USEMASK if use_mask else 0)
+                    if self.io.signal_exists(c, bin_size, "RD stat", flag_stat) and \
+                            self.io.signal_exists(c, bin_size, "RD", flag_rd):
+                        _logger.info("Calculating mosaic calls using bin size %d for chromosome '%s'." % (bin_size, c))
+                        stat = self.io.get_signal(c, bin_size, "RD stat", flag_stat)
+                        mean = stat[4]
+                        std = stat[5]
+                        rd = self.io.get_signal(c, bin_size, "RD", flag_rd)
+                        bins = len(rd)
+                        valid = np.isfinite(rd)
+                        level = rd[valid]
+                        error = np.sqrt(level) + std
+                        loc_fl = np.min(zip(np.abs(np.diff(level))[:-1],np.abs(np.diff(level))[1:]),axis=1)
+                        loc_fl = np.concatenate(([0],loc_fl,[0]))
+                        error += loc_fl / 2
+                        level = list(level)
+                        error = list(error)
+                        segments = [[i] for i in range(bins) if np.isfinite(rd[i])]
+                        overlaps = [normal_overlap(level[i], error[i], level[i + 1], error[i + 1]) for i in
+                                    range(len(segments) - 1)]
+
+                        iter = 0
+                        if anim != "":
+                            anim_plot_rd(level, error, segments, bins, iter, anim + c + "_0_" + str(bin_size), 0,
+                                         0, mean)
+                        while len(overlaps) > 0:
+                            maxo = max(overlaps)
+                            mino = max(maxo * odec, overlap_min)
+                            if maxo < overlap_min:
+                                break
+                            i = 0
+                            while i < len(overlaps):
+                                if overlaps[i] > mino:
+                                    nl, ne = normal_merge(level[i], error[i], level[i + 1], error[i + 1])
+                                    level[i] = nl
+                                    error[i] = ne
+                                    segments[i] += segments[i + 1]
+                                    del level[i + 1]
+                                    del error[i + 1]
+                                    del segments[i + 1]
+                                    del overlaps[i]
+                                    if i < len(overlaps):
+                                        overlaps[i] = normal_overlap(level[i], error[i], level[i + 1], error[i + 1])
+                                    if i > 0:
+                                        overlaps[i - 1] = normal_overlap(level[i - 1], error[i - 1], level[i], error[i])
+                                else:
+                                    i = i + 1
+
+                            iter = iter + 1
+                            if anim != "":
+                                anim_plot_rd(level, error, segments, bins, iter, anim + c + "_0_" + str(bin_size), maxo,
+                                             mino, mean)
+
+                        iter = 0
+                        ons = -1
+
+                        _logger.info("Second stage. Number of segments: %d." % len(level))
+
+                        while True:
+                            overlaps = [normal_overlap(level[i], error[i], level[j], error[j]) for i in
+                                        range(len(level)) for j in range(i + 1, len(level)) if
+                                        (segments[j][0] - segments[i][-1]) < max_distance * (
+                                                len(segments[i]) + len(segments[j]))]
+                            if len(overlaps) == 0:
+                                break
+                            maxo = max(overlaps)
+                            mino = max(maxo * odec, overlap_min)
+                            if maxo < overlap_min:
+                                break
+                            i, j = 0, 1
+                            while i < len(segments) - 1:
+
+                                if (segments[j][0] - segments[i][-1]) < max_distance * (
+                                        len(segments[i]) + len(segments[j])) and normal_overlap(level[i], error[i],
+                                                                                                level[j],
+                                                                                                error[j]) > mino:
+                                    nl, ne = normal_merge(level[i], error[i], level[j], error[j])
+                                    level[i] = nl
+                                    error[i] = ne
+                                    segments[i] += segments[j]
+                                    segments[i] = sorted(segments[i])
+                                    del level[j]
+                                    del error[j]
+                                    del segments[j]
+
+                                    if j >= len(segments):
+                                        i += 1
+                                        j = i + 1
+                                else:
+                                    j += 1
+                                    if j >= len(segments):
+                                        i += 1
+                                        j = i + 1
+                            iter = iter + 1
+                            if anim != "":
+                                anim_plot_rd(level, error, segments, bins, iter, anim + c + "_1_" + str(bin_size), maxo, mino, mean)
+                            _logger.info("Iteration: %d. Number of segments: %d." % (iter, len(level)))
+                            if ons == len(segments):
+                                break
+                            ons = len(segments)
+
+
+
+                        # for i in range(len(segments)):
+                        #     i1, i2 = likelihood_baf_pval(likelihood[i])
+                        #
+                        #     print(c + ":" + str(segments[i][0] * bin_size + 1) + "-" + str(
+                        #         segments[i][-1] * bin_size + bin_size),
+                        #           (segments[i][-1] - segments[i][0] + 1) * bin_size, bin_size, len(segments[i]),
+                        #           i1, i2)
+
+                        self.io.create_signal(c, bin_size, "RD mosaic segments",
+                                              data=segments_code(segments), flags=flag_rd)
+                        self.io.create_signal(c, bin_size, "RD mosaic call",
+                                              data=np.array([level, error], dtype="float32"), flags=flag_rd)
+
+                        # levels = self.io.get_signal(c, bin_size, "RD partition", flag_rd)
 
     def mask_snps(self):
         """

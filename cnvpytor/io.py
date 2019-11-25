@@ -44,6 +44,8 @@ class IO:
         "RD l3": "his_rd_p_%(chr)s_%(bin_size)d%(rd_flag)s_l3",
         "RD partition": "his_rd_p_%(chr)s_%(bin_size)d_partition%(rd_flag)s",
         "RD call": "his_rd_p_%(chr)s_%(bin_size)d_partition%(rd_flag)s_merge",
+        "RD mosaic segments": "his_rd_p_%(chr)s_%(bin_size)d_partition%(rd_flag)s_mosaic_segments",
+        "RD mosaic call": "his_rd_p_%(chr)s_%(bin_size)d_partition%(rd_flag)s_mosaic_call",
         "GC": "%(chr)s_gc_%(bin_size)",
         "SNP pos": "%(chr)s_snp_pos",
         "SNP desc": "%(chr)s_snp_desc",

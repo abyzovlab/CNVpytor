@@ -6,6 +6,7 @@ Misc functions
 from __future__ import absolute_import, print_function, division
 import numpy as np
 from argparse import ArgumentTypeError
+from scipy.special import erf
 from scipy import stats
 from scipy.stats import norm
 from scipy.optimize import curve_fit
@@ -175,7 +176,7 @@ def rd_compress(rd_p, rd_u, data_type="uint16"):
 def rd_decompress(crd_p, crd_u):
     """ Decommpress SNP information
     """
-    return np.array(crd_p), np.array(crd_p) + np.array(crd_u)
+    return np.array(crd_p), np.array(crd_p) - np.array(crd_u)
 
 
 def segments_code(segments):
@@ -268,7 +269,7 @@ def normal_merge(m1, s1, m2, s2):
 
 
 def normal(x, a, x0, sigma):
-    return a * np.exp(-(x - x0) ** 2 / (2 * sigma ** 2))
+    return a * np.exp(-(x - x0) ** 2 / (2 * sigma ** 2)) / np.sqrt(2 * np.pi) / sigma
 
 
 def fit_normal(x, y):
@@ -285,7 +286,7 @@ def fit_normal(x, y):
         _logger.debug("Problem with fit: sigma equals zero. Using mean and std instead fitting parameters!")
         return [area, mean, sigma], None
 
-    if len(x)<3:
+    if len(x) < 3:
         _logger.warning("Problem with fit: insufficient data points. Using mean and std instead fitting parameters!")
         return [area, mean, sigma], None
     try:
@@ -322,6 +323,59 @@ def t_test_2_samples(m1, s1, n1, m2, s2, n2):
     p = 1.0 - stats.t.cdf(np.abs(t), df=int(df + 0.5))
     return 2 * p
 
+
+def getEValue(mean, sigma, rd, start, end):
+    aver = np.mean(rd[start:end])
+    s = np.std(rd[start:end])
+    if s == 0:
+        s = sigma if sigma > 0 else 1
+    return t_test_1_sample(mean, aver, s, end - start) / (end - start)
+
+
+def gaussianEValue(mean, sigma, rd, start, end):
+    aver = np.mean(rd[start:end])
+    max = np.max(rd[start:end])
+    min = np.min(rd[start:end])
+
+    if aver < mean:
+        x = (max - mean) / (sigma * np.sqrt(2.))
+        return np.power(0.5 * (1. + erf(x)), end - start)
+    x = (min - mean) / (sigma * np.sqrt(2.))
+    return np.power(0.5 * (1. - erf(x)), end - start)
+
+
+def adjustToEvalue(mean, sigma, rd, start, end, pval, max_steps=1000):
+    val = getEValue(mean, sigma, rd, start, end)
+    step = 0
+    done = False
+    while val > pval and not done and step < max_steps:
+        done = True
+        step += 1
+        v1, v2, v3, v4 = 1e10, 1e10, 1e10, 1e10
+        if start > 0:
+            v1 = getEValue(mean, sigma, rd, start - 1, end)
+        if end - start > 2:
+            v2 = getEValue(mean, sigma, rd, start + 1, end)
+            v3 = getEValue(mean, sigma, rd, start, end - 1)
+        if end < len(rd):
+            v4 = getEValue(mean, sigma, rd, start, end + 1)
+        if min(v1, v2, v3, v4) < val:
+            done = False
+            if v1 == min(v1, v2, v3, v4):
+                start -= 1
+                val = v1
+            elif v2 == min(v1, v2, v3, v4):
+                start += 1
+                val = v2
+            elif v3 == min(v1, v2, v3, v4):
+                end -= 1
+                val = v3
+            elif v4 == min(v1, v2, v3, v4):
+                end += 1
+                val = v4
+    if val <= pval:
+        return start, end
+    return None
 
 def calculate_gc_correction(his_rd_gc, mean, sigma, bin_size=1):
     """ Calculate GC correction from RD-GC histogram

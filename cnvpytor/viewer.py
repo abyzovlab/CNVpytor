@@ -19,10 +19,13 @@ import traceback
 _logger = logging.getLogger("cnvpytor.viewer")
 
 
-class ViewParams:
+class ViewParams(object):
     params = {
         "bin_size": None,
         "panels": ["rd"],
+        "partition": True,
+        "call": True,
+        "call_mosaic": False,
         "use_mask_rd": False,
         "use_mask": True,
         "use_id": False,
@@ -36,6 +39,7 @@ class ViewParams:
         "palette1": ["#555555", "#aaaaaa"],
         "palette2": ["#00ff00", "#0000ff"],
         "contrast": 20,
+        "manhattan_range": [0, 2],
         "min_segment_size": 0,
         "snp_colors": ["yellow", "orange", "cyan", "blue", "lime", "green", "yellow", "orange"]
     }
@@ -60,6 +64,14 @@ class ViewParams:
             self.params["bin_size"] = binsize_type(x)
         except (ArgumentTypeError, ValueError):
             _logger.warning("bin_size should be intiger divisible by 100")
+
+    @property
+    def manhattan_range(self):
+        return self.params["manhattan_range"]
+
+    @manhattan_range.setter
+    def manhattan_range(self, x):
+        self.params["manhattan_range"] = x
 
     @property
     def palette1(self):
@@ -130,6 +142,30 @@ class ViewParams:
         self.params["panels"] = x
 
     @property
+    def partition(self):
+        return self.params["partition"]
+
+    @partition.setter
+    def partition(self, x):
+        self.params["partition"] = x
+
+    @property
+    def call(self):
+        return self.params["call"]
+
+    @call.setter
+    def call(self, x):
+        self.params["call"] = x
+
+    @property
+    def call_mosaic(self):
+        return self.params["call_mosaic"]
+
+    @call_mosaic.setter
+    def call_mosaic(self, x):
+        self.params["call_mosaic"] = x
+
+    @property
     def use_mask_rd(self):
         return self.params["use_mask_rd"]
 
@@ -189,14 +225,6 @@ class ViewParams:
             self.params["style"] = x
 
     @property
-    def output_filename(self):
-        return self.params["output_filename"]
-
-    @output_filename.setter
-    def output_filename(self, x):
-        self.params["output_filename"] = x
-
-    @property
     def xkcd(self):
         return self.params["xkcd"]
 
@@ -210,8 +238,16 @@ class ViewParams:
         elif self.params["xkcd"]:
             plt.rcdefaults()
             self.style = 'classic'
-            self.xkcd = False
+            self.params["xkcd"] = False
         self.params["xkcd"] = x
+
+    @property
+    def output_filename(self):
+        return self.params["output_filename"]
+
+    @output_filename.setter
+    def output_filename(self, x):
+        self.params["output_filename"] = x
 
 
 class Viewer(ViewParams):
@@ -233,38 +269,6 @@ class Viewer(ViewParams):
                 self.io_mask = IO(Genome.reference_genomes[rg_name]["mask_file"], ro=True, buffer=True)
             if "gc_file" in Genome.reference_genomes[rg_name]:
                 self.io_gc = IO(Genome.reference_genomes[rg_name]["gc_file"], ro=True, buffer=True)
-
-    '''
-    def __init__(self, files, bin_size=None, output_filename="", use_mask=True, use_id=):
-        _logger.debug("Viewer class init: files [%s], png_prefix '%s'." % (", ".join(files), output_filename))
-        self.io = [IO(f, ro=True) for f in files]
-        self.output_filename = output_filename
-        self.set_style('classic')
-        self.io_gc = self.io[0]
-        self.io_mask = self.io[0]
-        self.reference_genome = None
-        self.interactive = False
-        self.plot_files = [True for i in files]
-        self.fig = None
-        self.xkcd = False
-        self.grid = "auto"
-        self.plot_file = 0
-        self.use_mask = True
-        self.use_id = False
-        self.palette1 = ["#555555", "#aaaaaa"]
-        self.palette2 = ["#00ff00", "#0000ff"]
-        self.plevel = 20
-        self.min_segment_size = 0
-        self.baf_colors = {(0, 0): "yellow", (0, 1): "orange", (1, 0): "cyan", (1, 1): "blue", (2, 0): "lime",
-                           (2, 1): "green", (3, 0): "yellow", (3, 1): "orange"}
-        if self.io[0].signal_exists(None, None, "reference genome"):
-            rg_name = np.array(self.io[0].get_signal(None, None, "reference genome")).astype("str")[0]
-            self.reference_genome = Genome.reference_genomes[rg_name]
-            if "mask_file" in Genome.reference_genomes[rg_name]:
-                self.io_mask = IO(Genome.reference_genomes[rg_name]["mask_file"], ro=True, buffer=True)
-            if "gc_file" in Genome.reference_genomes[rg_name]:
-                self.io_gc = IO(Genome.reference_genomes[rg_name]["gc_file"], ro=True, buffer=True)
-    '''
 
     def parse(self, command):
         current = "regions"
@@ -524,6 +528,17 @@ class Viewer(ViewParams):
             his_p = self.io[self.plot_file].get_signal(c, bin_size, "RD", flag_rd)
             his_p_corr = self.io[self.plot_file].get_signal(c, bin_size, "RD", flag_rd | FLAG_GC_CORR)
             his_p_seg = self.io[self.plot_file].get_signal(c, bin_size, "RD partition", flag_rd | FLAG_GC_CORR)
+            his_p_call = self.io[self.plot_file].get_signal(c, bin_size, "RD call", flag_rd | FLAG_GC_CORR)
+            his_p_mosaic_seg = self.io[self.plot_file].get_signal(c, bin_size, "RD mosaic segments",
+                                                                  flag_rd | FLAG_GC_CORR)
+            his_p_mosaic_seg = segments_decode(his_p_mosaic_seg)
+            his_p_mosaic_call = self.io[self.plot_file].get_signal(c, bin_size, "RD mosaic call",
+                                                                   flag_rd | FLAG_GC_CORR)
+            his_p_mosaic = np.zeros_like(his_p) * np.nan
+            if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and self.call_mosaic:
+                for seg, lev in zip(list(his_p_mosaic_seg), list(his_p_mosaic_call[0])):
+                    for segi in seg:
+                        his_p_mosaic[segi] = lev
             ax = plt.subplot(sx, sy, ix)
             ax.set_title(c, position=(0.01, 0.9), fontdict={'verticalalignment': 'top', 'horizontalalignment': 'left'},
                          color='C0')
@@ -538,8 +553,12 @@ class Viewer(ViewParams):
 
             plt.step(his_p, "grey")
             plt.step(his_p_corr, "k")
-            if his_p_seg is not None and len(his_p_seg)>0:
+            if his_p_seg is not None and len(his_p_seg) > 0 and self.partition:
                 plt.step(his_p_seg, "r")
+            if his_p_call is not None and len(his_p_call) > 0 and self.call:
+                plt.step(his_p_call, "g")
+            if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and self.call_mosaic:
+                plt.step(his_p_mosaic, "b")
             ix += 1
         plt.subplots_adjust(bottom=0., top=1., wspace=0, hspace=0, left=0., right=1.)
         if self.output_filename != "":
@@ -788,17 +807,32 @@ class Viewer(ViewParams):
                         flag_rd = FLAG_USEMASK
                     his_p = io.get_signal(c, bin_size, "RD", flag_rd)
                     his_p_corr = io.get_signal(c, bin_size, "RD", flag_rd | FLAG_GC_CORR)
+                    his_p_call = self.io[self.plot_file].get_signal(c, bin_size, "RD call", flag_rd | FLAG_GC_CORR)
+                    his_p_mosaic_seg = self.io[self.plot_file].get_signal(c, bin_size, "RD mosaic segments",
+                                                                          flag_rd | FLAG_GC_CORR)
+                    his_p_mosaic_seg = segments_decode(his_p_mosaic_seg)
+                    his_p_mosaic_call = self.io[self.plot_file].get_signal(c, bin_size, "RD mosaic call",
+                                                                           flag_rd | FLAG_GC_CORR)
+                    his_p_mosaic = np.zeros_like(his_p) * np.nan
+                    if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and self.call_mosaic:
+                        for seg, lev in zip(list(his_p_mosaic_seg), list(his_p_mosaic_call[0])):
+                            for segi in seg:
+                                his_p_mosaic[segi] = lev
                     pos = range(apos, apos + len(his_p))
                     ax.text(apos + len(his_p) // 2, stat[4] // 10, Genome.canonical_chrom_name(c),
                             fontsize=8, verticalalignment='bottom', horizontalalignment='center', )
                     plt.plot(pos, his_p_corr, ls='', marker='.')
+                    if his_p_call is not None and len(his_p_call) > 0 and self.call:
+                        plt.step(pos, his_p_call, "r")
+                    if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and self.call_mosaic:
+                        plt.plot(pos, his_p_mosaic, "k")
                     apos += len(his_p)
                     xticks.append(apos)
                 ax.xaxis.set_ticklabels([])
                 ax.yaxis.set_ticklabels([])
-                ax.yaxis.set_ticks(np.arange(0, 3, 0.5) * max_m, [])
+                ax.yaxis.set_ticks(np.arange(0, 15, 0.5) * max_m, [])
                 ax.xaxis.set_ticks(xticks, [])
-                ax.set_ylim([0, 2 * max_m])
+                ax.set_ylim([self.manhattan_range[0] * max_m, self.manhattan_range[1] * max_m])
             else:
                 chroms = []
                 snp_flag = (FLAG_USEMASK if self.use_mask else 0) | (FLAG_USEID if self.use_id else 0)
@@ -897,6 +931,8 @@ class Viewer(ViewParams):
             g_p = []
             g_p_corr = []
             g_p_seg = []
+            g_p_call = []
+            g_p_call_mosaic = []
             if panels[i] == "rd":
                 mean, stdev = 0, 0
                 borders = []
@@ -911,12 +947,28 @@ class Viewer(ViewParams):
                     his_p = io.get_signal(c, bin_size, "RD", flag_rd)
                     his_p_corr = io.get_signal(c, bin_size, "RD", flag_rd | FLAG_GC_CORR)
                     his_p_seg = io.get_signal(c, bin_size, "RD partition", flag_rd | FLAG_GC_CORR)
+                    his_p_call = self.io[self.plot_file].get_signal(c, bin_size, "RD call", flag_rd | FLAG_GC_CORR)
+                    his_p_mosaic_seg = self.io[self.plot_file].get_signal(c, bin_size, "RD mosaic segments",
+                                                                          flag_rd | FLAG_GC_CORR)
+                    his_p_mosaic_seg = segments_decode(his_p_mosaic_seg)
+                    his_p_mosaic_call = self.io[self.plot_file].get_signal(c, bin_size, "RD mosaic call",
+                                                                           flag_rd | FLAG_GC_CORR)
+                    his_p_mosaic = np.zeros_like(his_p) * np.nan
+                    if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and self.call_mosaic:
+                        for seg, lev in zip(list(his_p_mosaic_seg), list(his_p_mosaic_call[0])):
+                            for segi in seg:
+                                his_p_mosaic[segi] = lev
+
                     start_bin = (pos1 - 1) // bin_size
                     end_bin = pos2 // bin_size
                     g_p.extend(list(his_p[start_bin:end_bin]))
                     g_p_corr.extend(list(his_p_corr[start_bin:end_bin]))
-                    if his_p_seg is not None and len(his_p_seg) > 0:
+                    if his_p_seg is not None and len(his_p_seg) > 0 and self.partition:
                         g_p_seg.extend(list(his_p_seg[start_bin:end_bin]))
+                    if his_p_call is not None and len(his_p_call) > 0 and self.call:
+                        g_p_call.extend(list(his_p_call[start_bin:end_bin]))
+                    if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and self.call_mosaic:
+                        g_p_call_mosaic.extend(list(his_p_mosaic[start_bin:end_bin]))
                     borders.append(len(g_p))
 
                 # ax.xaxis.set_ticklabels([])
@@ -930,8 +982,12 @@ class Viewer(ViewParams):
                 ax.yaxis.grid()
                 ax.step(g_p, "grey")
                 ax.step(g_p_corr, "k")
-                if len(g_p_seg)>0:
+                if len(g_p_seg) > 0:
                     plt.step(g_p_seg, "r")
+                if len(g_p_call) > 0:
+                    plt.step(g_p_call, "g")
+                if len(g_p_call_mosaic) > 0:
+                    plt.step(g_p_call_mosaic, "b")
                 for i in borders[:-1]:
                     ax.axvline(i, color=sep_color, lw=1)
                 self.fig.add_subplot(ax)
@@ -1164,6 +1220,8 @@ class Viewer(ViewParams):
         else:
             plt.show()
 
+    def genotype(self,bin_sizes=[]):
+        return
 
 def anim_plot_likelihood(likelihood, segments, n, res, iter, prefix, maxp, minp):
     mm = [[0] * res] * n
@@ -1188,5 +1246,39 @@ def anim_plot_likelihood(likelihood, segments, n, res, iter, prefix, maxp, minp)
     plt.grid(True, color="b")
     for i in range(len(likelihood)):
         plt.plot(np.linspace(1. / (res + 1), 1. - 1. / (res + 1), res), likelihood[i])
+    plt.savefig(prefix + "_" + str(iter).zfill(4), dpi=150)
+    plt.close(fig)
+
+
+def anim_plot_rd(level, error, segments, n, iter, prefix, maxp, minp, mean):
+    rd = [np.nan] * n
+    for i in range(len(segments)):
+        for b in segments[i]:
+            rd[b] = level[i]
+
+    fig = plt.figure(1, figsize=(16, 9), dpi=120, facecolor='w', edgecolor='k')
+    fig.suptitle(
+        "Iter: " + str(iter) + "   /   Segments: " + str(len(segments)) + "   /   Overlap interval: (" + (
+                '%.4f' % minp) + "," + (
+                '%.4f' % maxp) + ")", fontsize='large')
+    plt.subplot(211)
+    plt.ylabel("RD")
+    plt.step(range(n), rd, "k")
+    plt.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
+    plt.yticks(np.arange(0, 3, 0.5) * mean, [])
+    plt.ylim([0, 3 * mean])
+    plt.grid(True, color="grey")
+
+
+    plt.subplot(212)
+    plt.xlabel("RD")
+    plt.ylabel("Likelihood")
+    plt.xticks(np.arange(0, 3, 0.5) * mean, [])
+    plt.xlim([0, 3 * mean])
+    plt.grid(True, color="grey")
+    for i in range(len(level)):
+        xx = np.linspace(0, 3 * mean, 0.001 * mean)
+        yy = normal(xx,1,level[i],error[i])
+        plt.plot(xx,yy)
     plt.savefig(prefix + "_" + str(iter).zfill(4), dpi=150)
     plt.close(fig)

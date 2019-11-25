@@ -222,8 +222,11 @@ def main():
             if args.call[0] == "baf":
                 app.call_baf([binsize_type(x) for x in args.call[1:]], chroms=args.chrom, use_id=args.use_id,
                              use_mask=not args.no_mask, anim=args.animation)
+            elif args.call[0] == "mosaic":
+                app.call_mosaic(list(map(binsize_type, args.call[1:])), chroms=args.chrom, use_gc_corr=not args.no_gc_corr,
+                         use_mask=args.use_mask_with_rd, anim=args.animation)
             else:
-                app.call(args.call, chroms=args.chrom, use_gc_corr=not args.no_gc_corr,
+                app.call(list(map(binsize_type,args.call)), chroms=args.chrom, use_gc_corr=not args.no_gc_corr,
                          use_mask=args.use_mask_with_rd)
 
 
