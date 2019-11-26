@@ -29,6 +29,7 @@ class ViewParams(object):
         "use_mask_rd": False,
         "use_mask": True,
         "use_id": False,
+        "nogc": False,
         "plot_files": [],
         "plot_file": 0,
         "chrom": [],
@@ -73,7 +74,7 @@ class ViewParams(object):
 
     def __setattr__(self, name, value):
 
-        if name == 'bin_size':
+        if name == 'bin_size' and value is not None:
             try:
                 value = binsize_type(value)
             except (ArgumentTypeError, ValueError):
@@ -251,11 +252,9 @@ class Viewer(ViewParams):
                         self.use_id = False
                     elif n > 1 and f[1] == "xkcd" and self.xkcd:
                         self.xkcd = False
-
                     else:
                         print("Unrecognized unset argument!")
                 else:
-
                     try:
                         if f[0] not in ["rdstat", "baf"]:
                             self.parse(f + [str(self.bin_size)])
@@ -1072,8 +1071,43 @@ class Viewer(ViewParams):
         else:
             plt.show()
 
-    def genotype(self,bin_sizes=[]):
-        return
+    def genotype(self, bin_sizes, region):
+        regs = decode_region(region)
+        for c, (pos1, pos2) in regs:
+            print(c + ":" + str(pos1) + ":" + str(pos2),end="")
+            for bs in bin_sizes:
+                flag_rd = 0 if self.nogc else FLAG_GC_CORR
+                stat = self.io[self.plot_file].get_signal(c, bs, "RD stat", flag_rd)
+                his_p = self.io[self.plot_file].get_signal(c, bs, "RD", flag_rd)
+                bin1 = (pos1 - 1) // bs
+                bin2 = (pos2 - 1) // bs
+                rc = 0
+                if bin1 == bin2:
+                    rc = (pos2-pos1+1) * his_p[bin1] / bs
+                else:
+                    rc += (bin1*bs - pos1 + 1 + bs) * his_p[bin1] / bs
+                    rc += (pos2 - bin2*bs) * his_p[bin1] / bs
+                    for ix in range(bin1+1,bin2):
+                        rc += his_p[ix]
+                print("\t%f" % rc * stat[4] * (pos2-pos1+1) / bs, end="")
+        print()
+
+
+    def genotype_prompt(self, bin_sizes=[]):
+        done = False
+        while not done:
+            try:
+                try:
+                    line = raw_input("")
+                except NameError:
+                    line = input("")
+            except EOFError:
+                return
+            if line is None or line == "":
+                done = True
+            else:
+                self.genotype(bin_sizes,line)
+
 
 def anim_plot_likelihood(likelihood, segments, n, res, iter, prefix, maxp, minp):
     mm = [[0] * res] * n
@@ -1121,7 +1155,6 @@ def anim_plot_rd(level, error, segments, n, iter, prefix, maxp, minp, mean):
     plt.ylim([0, 3 * mean])
     plt.grid(True, color="grey")
 
-
     plt.subplot(212)
     plt.xlabel("RD")
     plt.ylabel("Likelihood")
@@ -1129,8 +1162,8 @@ def anim_plot_rd(level, error, segments, n, iter, prefix, maxp, minp, mean):
     plt.xlim([0, 3 * mean])
     plt.grid(True, color="grey")
     for i in range(len(level)):
-        xx = np.linspace(0, 3 * mean, 0.001 * mean)
-        yy = normal(xx,1,level[i],error[i])
-        plt.plot(xx,yy)
+        xx = np.linspace(0, 3 * mean, 300)
+        yy = normal(xx, 1, level[i], error[i])
+        plt.plot(xx, yy)
     plt.savefig(prefix + "_" + str(iter).zfill(4), dpi=150)
     plt.close(fig)

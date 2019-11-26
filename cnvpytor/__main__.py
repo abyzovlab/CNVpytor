@@ -23,9 +23,9 @@ def main():
     parser.add_argument('-version', '--version', action='store_true', help='show version number and exit')
     parser.add_argument('-root', '--root', type=str, nargs="+",
                         help="CNVnator hd5 file: data storage for all calculations", default=None)
-    parser.add_argument('-ls', '--ls', action='store_true', help='list pytor file(s) content')
-    parser.add_argument('-info', '--info', type=binsize_type, nargs="*", help='print statistics for pythor file(s)')
+
     parser.add_argument('-download', '--download_resources', action='store_true', help='download resource files')
+
     parser.add_argument('-chrom', '--chrom', type=str, nargs="+", help="list of chromosomes to apply calculation",
                         default=[])
     parser.add_argument('-v', '--verbose', type=str,
@@ -88,6 +88,10 @@ def main():
     parser.add_argument('-conf', '--reference_genomes_conf', type=str, help="Configuration with reference genomes",
                         default=None)
 
+    parser.add_argument('-ls', '--ls', action='store_true', help='list pytor file(s) content')
+    parser.add_argument('-info', '--info', type=binsize_type, nargs="*", help='print statistics for pythor file(s)')
+    parser.add_argument('-genotype', '--genotype', type=str, nargs="*")
+
     args = parser.parse_args(sys.argv[1:])
 
     log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -140,6 +144,10 @@ def main():
         if args.info is not None:
             view = Viewer(args.root, {})
             view.info(args.info)
+
+        if args.genotype is not None:
+            view = Viewer(args.root, {})
+            view.genotype_prompt(list(map(binsize_type,args.genotype)))
 
         if args.reference_genome:
             app = Root(args.root[0], max_cores=args.max_cores)
