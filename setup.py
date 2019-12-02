@@ -3,9 +3,11 @@ from setuptools import setup
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
+exec(open('cnvpytor/version.py').read())
+
 setup(
     name='CNVpytor',
-    version='1.0a3',
+    version=__version__,
     author='Milovan Suvakov, Abyzov Lab, Mayo Clinic',
     author_email='suvakov@gmail.com',
     packages=['cnvpytor'],

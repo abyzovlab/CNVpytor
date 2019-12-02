@@ -5,12 +5,12 @@ __main__
 from __future__ import print_function
 from .root import *
 from .viewer import *
+from .version import __version__
 import sys
 import logging
 import argparse
 import matplotlib.pyplot as plt
 
-__version__ = '1.0a3'
 
 
 def main():
@@ -154,7 +154,7 @@ def main():
             app.set_reference_genome(args.reference_genome)
 
         if args.rd:
-            app = Root(args.root[0], max_cores=args.max_cores)
+            app = Root(args.root[0], create=True, max_cores=args.max_cores)
             app.rd(args.rd, chroms=args.chrom, reference_filename=args.reference_filename)
 
         if args.plot:
@@ -185,15 +185,15 @@ def main():
             view.prompt()
 
         if args.gc:
-            app = Root(args.root[0], max_cores=args.max_cores)
+            app = Root(args.root[0], create=True, max_cores=args.max_cores)
             app.gc(args.gc, chroms=args.chrom, make_gc_genome_file=args.make_gc_genome_file)
 
         if args.copy_gc:
-            app = Root(args.root[0], max_cores=args.max_cores)
+            app = Root(args.root[0], create=True, max_cores=args.max_cores)
             app.copy_gc(args.copy_gc, chroms=args.chrom)
 
         if args.vcf:
-            app = Root(args.root[0], max_cores=args.max_cores)
+            app = Root(args.root[0], create=True, max_cores=args.max_cores)
             app.vcf(args.vcf, chroms=args.chrom, sample=args.vcf_sample, no_counts=args.no_snp_counts)
 
         if args.pileup_bam:
@@ -201,7 +201,7 @@ def main():
             app.pileup(args.pileup_bam, chroms=args.chrom, reference_filename=args.reference_filename)
 
         if args.mask:
-            app = Root(args.root[0], max_cores=args.max_cores)
+            app = Root(args.root[0], create=True, max_cores=args.max_cores)
             app.mask(args.mask, chroms=args.chrom, make_mask_genome_file=args.make_mask_genome_file)
 
         if args.mask_snps:

@@ -123,5 +123,4 @@ from .vcf import *
 from .root import *
 from .viewer import *
 from .genome import Genome
-
-__version__ = '1.0a3'
+from .version import __version__

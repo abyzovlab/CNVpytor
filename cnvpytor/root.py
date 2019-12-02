@@ -19,7 +19,7 @@ _logger = logging.getLogger("cnvpytor.root")
 
 class Root:
 
-    def __init__(self, filename, max_cores=8):
+    def __init__(self, filename, create=False, max_cores=8):
         """
         Class constructor opens CNVpytor file. The class implements all core CNVpytor calculations.
 
@@ -27,12 +27,14 @@ class Root:
         ----------
         filename : str
             CNVpytor filename
+        create : bool
+            Creates cnvpytor file if not exists
         max_cores : int
             Maximal number of cores used in parallel calculations
 
         """
         _logger.debug("App class init: filename '%s'; max cores %d." % (filename, max_cores))
-        self.io = IO(filename)
+        self.io = IO(filename, create=create)
         self.max_cores = max_cores
         self.io_gc = self.io
         self.io_mask = self.io

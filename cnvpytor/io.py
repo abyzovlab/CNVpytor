@@ -6,6 +6,8 @@ class IO: Reading/writing CNVpytor files (extension .pytor) using h5py library.
 from __future__ import absolute_import, print_function, division
 from .genome import Genome
 from .utils import *
+from .version import __version__
+import datetime
 import logging
 import os.path
 import io
@@ -25,8 +27,9 @@ FLAG_USEID = 0x0200
 FLAG_USEHAP = 0x0400
 
 
-class IO:
+class Signals(object):
     signals = {
+        "METADATA": "metadata",
         "RD p": "%(chr)s_rd_p",
         "RD u": "%(chr)s_rd_u",
         "GC/AT": "%(chr)s_gc",
@@ -86,50 +89,8 @@ class IO:
         "use reference": "use_reference"
     }
 
-    def __init__(self, filename, ro=False, buffer=False):
-        """
-        Opens CNVpytor file for reading/writing
-
-        Parameters
-        ----------
-        filename : str
-            Name of the file.
-
-        """
-        self.filename = filename
-        self.file = None
-        _logger.debug("Opening h5 file '%s'" % self.filename)
-        if ro:
-            try:
-                if buffer:
-                    with open(filename, 'rb') as f:
-                        self.bytesio = io.BytesIO(f.read())
-                    self.file = h5py.File(self.bytesio, "r")
-                else:
-                    self.file = h5py.File(filename, "r")
-                _logger.debug("File '%s' successfully opened in read-only mode." % self.filename)
-            except IOError:
-                _logger.error("Unable to open file %s!" % filename)
-                exit(0)
-        elif os.path.exists(filename):
-            try:
-                self.file = h5py.File(filename, "r+")
-                _logger.debug("File '%s' successfully opened." % self.filename)
-            except IOError:
-                _logger.error("Unable to open file %s!" % filename)
-                exit(0)
-        else:
-            try:
-                self.file = h5py.File(filename, "w")
-                _logger.debug("File '%s' successfully created." % self.filename)
-            except IOError:
-                _logger.error("Unable to create file %s!" % filename)
-                exit(0)
-
-    def __del__(self):
-        _logger.debug("Closing h5 file '%s'" % self.filename)
-        if self.file:
-            self.file.close()
+    def __init__(self):
+        pass
 
     @staticmethod
     def suffix_rd_flag(flags):
@@ -208,6 +169,101 @@ class IO:
             s += "_GC"
         return s
 
+    def signal_name(self, chr_name, bin_size, signal, flags=0):
+        """
+        Returns h5py variable name for a given signal.
+
+        Parameters
+        ----------
+        chr_name : str or None
+            Name of the chromosome or None.
+        bin_size : int or None
+            Bin size or None.
+        signal : str
+            Signal name.
+        flags : int
+            Binary flag
+            (FLAG_AUTO = 0x0001, FLAG_SEX = 0x0002, FLAG_MT = 0x0004, FLAG_GC_CORR = 0x0010
+            FLAG_AT_CORR = 0x0020, FLAG_USEMASK = 0x0100, FLAG_USEID = 0x0200, FLAG_USEHAP = 0x0400).
+
+        Returns
+        -------
+        sig_name : str
+            Signal h5py variable name
+
+        """
+        if signal in self.signals:
+            try:
+                return self.signals[signal] % {"chr": chr_name, "bin_size": bin_size,
+                                               "rd_flag": self.suffix_rd_flag(flags),
+                                               "snp_flag": self.suffix_snp_flag(flags), "flag": self.suffix_flag(flags)}
+            except TypeError:
+                return None
+        else:
+            return None
+
+
+class IO(Signals):
+
+    def __init__(self, filename, ro=False, buffer=False, create=True):
+        """
+        Opens CNVpytor file for reading/writing
+
+        Parameters
+        ----------
+        filename : str
+            Name of the file.
+        ro : bool
+            Opens file in read-only mode. Default: False.
+        buffer : bool
+            It will copy hdf5 file in RAM buffer before opening. Works with read-only mode. Default: False.
+        create : bool
+            It will create file when set and when file does not exist. Otherwise, if file does not exist
+            it will log an error. Default: True.
+
+        """
+        Signals.__init__(self)
+        self.filename = filename
+        self.file = None
+        _logger.debug("Opening h5 file '%s'" % self.filename)
+        if ro:
+            try:
+                if buffer:
+                    with open(filename, 'rb') as f:
+                        self.bytesio = io.BytesIO(f.read())
+                    self.file = h5py.File(self.bytesio, "r")
+                else:
+                    self.file = h5py.File(filename, "r")
+                _logger.debug("File '%s' successfully opened in read-only mode." % self.filename)
+            except IOError:
+                _logger.error("Unable to open file %s!" % filename)
+                exit(0)
+        elif os.path.exists(filename):
+            try:
+                self.file = h5py.File(filename, "r+")
+                _logger.debug("File '%s' successfully opened." % self.filename)
+            except IOError:
+                _logger.error("Unable to open file %s!" % filename)
+                exit(0)
+        elif create:
+            try:
+                self.file = h5py.File(filename, "w")
+                now = datetime.datetime.now()
+                self.create_signal(None, None, "METADATA",
+                                   np.array([np.string_(__version__), np.string_(now.strftime("%Y-%m-%d %H:%M"))]))
+                _logger.debug("File '%s' successfully created." % self.filename)
+            except IOError:
+                _logger.error("Unable to create file %s!" % filename)
+                exit(0)
+        else:
+            _logger.error("File %s is missing!" % filename)
+            exit(0)
+
+    def __del__(self):
+        _logger.debug("Closing h5 file '%s'" % self.filename)
+        if self.file:
+            self.file.close()
+
     def chromosomes_with_signal(self, bin_size, signal, flags=0):
         """
         Returns list of chromosomes with signal stored in CNVpytor file
@@ -266,39 +322,6 @@ class IO:
             if len(res) > 0:
                 chrs_bss.append(res[0])
         return chrs_bss
-
-    def signal_name(self, chr_name, bin_size, signal, flags=0):
-        """
-        Returns h5py variable name for a given signal.
-
-        Parameters
-        ----------
-        chr_name : str or None
-            Name of the chromosome or None.
-        bin_size : int or None
-            Bin size or None.
-        signal : str
-            Signal name.
-        flags : int
-            Binary flag
-            (FLAG_AUTO = 0x0001, FLAG_SEX = 0x0002, FLAG_MT = 0x0004, FLAG_GC_CORR = 0x0010
-            FLAG_AT_CORR = 0x0020, FLAG_USEMASK = 0x0100, FLAG_USEID = 0x0200, FLAG_USEHAP = 0x0400).
-
-        Returns
-        -------
-        sig_name : str
-            Signal h5py variable name
-
-        """
-        if signal in self.signals:
-            try:
-                return self.signals[signal] % {"chr": chr_name, "bin_size": bin_size,
-                                               "rd_flag": self.suffix_rd_flag(flags),
-                                               "snp_flag": self.suffix_snp_flag(flags), "flag": self.suffix_flag(flags)}
-            except TypeError:
-                return None
-        else:
-            return None
 
     def signal_exists(self, chr_name, bin_size, signal, flags=0):
         """
@@ -449,9 +472,13 @@ class IO:
         None
 
         """
+        meta = np.array(self.get_signal(None, None, "METADATA")).astype("str")
         print()
         print("Filename '%s'" % self.filename)
         print("-----------" + "-" * len(self.filename))
+        if meta is not None and len(meta)>1:
+            print("File created: " + meta[1] + " using CNVpytor ver "+meta[0])
+            print()
         print("Chromosomes with RD signal: " + ", ".join(self.rd_chromosomes()))
         print()
         print("Chromosomes with SNP signal: " + ", ".join(self.snp_chromosomes()))
@@ -485,7 +512,7 @@ class IO:
 
         print("Chromosomes with RD histograms [bin sizes]: " + ", ".join(chrs.keys()) + " " + str(sorted(bss)))
         print()
-        chr_bs = self.chromosomes_bin_sizes_with_signal("SNP likelihood",FLAG_USEMASK)
+        chr_bs = self.chromosomes_bin_sizes_with_signal("SNP likelihood", FLAG_USEMASK)
         chrs = {}
         bss = []
         for c, b in chr_bs:
