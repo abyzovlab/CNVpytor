@@ -41,6 +41,7 @@ class ViewParams(object):
         "palette2": ["#00ff00", "#0000ff"],
         "contrast": 20,
         "manhattan_range": [0, 2],
+        "manhattan_plot_calls": False,
         "min_segment_size": 0,
         "snp_colors": ["yellow", "orange", "cyan", "blue", "lime", "green", "yellow", "orange"]
     }
@@ -51,6 +52,37 @@ class ViewParams(object):
                 setattr(self, key, params[key])
             else:
                 setattr(self, key, self.default[key])
+
+    def set(self, param, args):
+        if param in self.params and self.params[param] is False:
+            self.__setattr__(param, True)
+        elif param == "bin_size" and len(args) > 0:
+            self.__setattr__(param, args[0])
+        elif param == "contrast" and len(args) > 0:
+            self.__setattr__(param, float(args[0]))
+        elif param == "grid" and len(args) > 0:
+            if args[0] == "auto":
+                self.__setattr__(param, "auto")
+            else:
+                self.__setattr__(param, list(map(int, args)))
+        elif param == "manhattan_range" and len(args) > 0:
+            self.__setattr__(param, list(map(float, args)))
+        elif param == "min_segment_size" and len(args) > 0:
+            self.__setattr__(param, int(args[0]))
+        elif param == "output_filename" and len(args) > 0:
+            self.__setattr__(param, args[0])
+        elif param == "plot_file" and len(args) > 0:
+            self.__setattr__(param, int(args[0]))
+        elif param == "plot_files":
+            self.__setattr__(param, list(map(int, args)))
+        elif param == "style":
+            self.__setattr__(param, args[0])
+        else:
+            self.__setattr__(param, args)
+
+    def unset(self, param):
+        if param in self.params and self.params[param] is True:
+            self.__setattr__(param, False)
 
     @property
     def params(self):
@@ -113,7 +145,7 @@ class Viewer(ViewParams):
         self.io_mask = self.io[0]
         self.reference_genome = None
         self.interactive = False
-        self.plot_files = [True for i in files]
+        self.plot_files = list(range(len(files)))
         self.fig = None
         if self.io[0].signal_exists(None, None, "reference genome"):
             rg_name = np.array(self.io[0].get_signal(None, None, "reference genome")).astype("str")[0]
@@ -161,23 +193,15 @@ class Viewer(ViewParams):
 
     def prompt(self):
         self.interactive = True
-        command_tree = {"set": {"bin_size": None,
-                                "panels": None,
-                                "use_mask_rd": None,
-                                "plot_files": None,
-                                "plot_file": None,
-                                "grid": None,
-                                "use_mask": None,
-                                "use_id": None,
-                                "xkcd": None,
-                                "style": {}
-                                },
-                        "unset": {"use_mask_rd": None,
-                                  "xkcd": None
-                                  },
+        command_tree = {"set": {},
+                        "unset": {},
                         "save": None, "show": None, "quit": None, "rd": None, "likelihood": None, "baf": None,
                         "stat": None, "rdstat": None, "circular": None, "manhattan": None, "calls": None, "ls": None
                         }
+        for p in self.params:
+            command_tree["set"][p] = None
+            if type(self.params[p]) == type(True):
+                command_tree["unset"][p] = None
         chromosomes = set({})
         for f in self.io:
             chromosomes = chromosomes.union(set(f.rd_chromosomes()))
@@ -217,43 +241,45 @@ class Viewer(ViewParams):
                 elif f[0] == "show":
                     if n == 1:
                         self.show()
-                elif f[0] == "set":
-                    if n > 2 and f[1] == "bin_size":
-                        self.bin_size = f[2]
-                    elif n > 3 and f[1] == "grid" and f[2].isdigit() and f[3].isdigit():
-                        self.grid = (int(f[2]), int(f[3]))
-                    elif n > 2 and f[1] == "plot_file" and f[2].isdigit() and int(f[2]) < len(self.io):
-                        self.plot_file = int(f[2])
-                    elif n > 2 and f[1] == "plot_files":
-                        select = [int(i) for i in f[2:] if i.isdigit()]
-                        self.plot_files = list([ix in select for ix in range(len(self.io))])
-                    elif n > 2 and f[1] == "panels":
-                        self.panels = f[2:]
-                    elif n > 2 and f[1] == "style":
-                        self.style = f[2]
-                        if self.fig:
-                            self.fig.canvas.draw()
-                    elif n > 1 and f[1] == "use_mask_rd":
-                        self.use_mask_rd = True
-                    elif n > 1 and f[1] == "use_mask":
-                        self.use_mask = True
-                    elif n > 1 and f[1] == "use_id":
-                        self.use_id = True
-                    elif n > 1 and f[1] == "xkcd":
-                        self.xkcd = True
-                    else:
-                        print("Unrecognized set argument!")
-                elif f[0] == "unset":
-                    if n > 1 and f[1] == "use_mask_rd":
-                        self.use_mask_rd = False
-                    elif n > 1 and f[1] == "use_mask":
-                        self.use_mask = False
-                    elif n > 1 and f[1] == "use_id":
-                        self.use_id = False
-                    elif n > 1 and f[1] == "xkcd" and self.xkcd:
-                        self.xkcd = False
-                    else:
-                        print("Unrecognized unset argument!")
+                elif f[0] == "set" and n > 1:
+                    self.set(f[1], f[2:])
+                    # if n > 2 and f[1] == "bin_size":
+                    #     self.bin_size = f[2]
+                    # elif n > 3 and f[1] == "grid" and f[2].isdigit() and f[3].isdigit():
+                    #     self.grid = (int(f[2]), int(f[3]))
+                    # elif n > 2 and f[1] == "plot_file" and f[2].isdigit() and int(f[2]) < len(self.io):
+                    #     self.plot_file = int(f[2])
+                    # elif n > 2 and f[1] == "plot_files":
+                    #     select = [int(i) for i in f[2:] if i.isdigit()]
+                    #     self.plot_files = list([ix in select for ix in range(len(self.io))])
+                    # elif n > 2 and f[1] == "panels":
+                    #     self.panels = f[2:]
+                    # elif n > 2 and f[1] == "style":
+                    #     self.style = f[2]
+                    #     if self.fig:
+                    #         self.fig.canvas.draw()
+                    # elif n > 1 and f[1] == "use_mask_rd":
+                    #     self.use_mask_rd = True
+                    # elif n > 1 and f[1] == "use_mask":
+                    #     self.use_mask = True
+                    # elif n > 1 and f[1] == "use_id":
+                    #     self.use_id = True
+                    # elif n > 1 and f[1] == "xkcd":
+                    #     self.xkcd = True
+                    # else:
+                    #     print("Unrecognized set argument!")
+                elif f[0] == "unset" and n > 1:
+                    self.unset(f[1])
+                    # if n > 1 and f[1] == "use_mask_rd":
+                    #     self.use_mask_rd = False
+                    # elif n > 1 and f[1] == "use_mask":
+                    #     self.use_mask = False
+                    # elif n > 1 and f[1] == "use_id":
+                    #     self.use_id = False
+                    # elif n > 1 and f[1] == "xkcd" and self.xkcd:
+                    #     self.xkcd = False
+                    # else:
+                    #     print("Unrecognized unset argument!")
                 else:
                     try:
                         if f[0] not in ["rdstat", "baf"]:
@@ -618,8 +644,8 @@ class Viewer(ViewParams):
         if self.reference_genome is None:
             _logger.warning("Missing reference genome required for gview.")
             return
-        n = self.plot_files.count(True)
-        ix = [x for x in range(len(self.plot_files)) if self.plot_files[x]]
+        n = len(self.plot_files)
+        ix = self.plot_files
 
         plt.clf()
         plt.rcParams["font.size"] = 8
@@ -658,25 +684,27 @@ class Viewer(ViewParams):
                         flag_rd = FLAG_USEMASK
                     his_p = io.get_signal(c, bin_size, "RD", flag_rd)
                     his_p_corr = io.get_signal(c, bin_size, "RD", flag_rd | FLAG_GC_CORR)
-                    his_p_call = self.io[self.plot_file].get_signal(c, bin_size, "RD call", flag_rd | FLAG_GC_CORR)
-                    his_p_mosaic_seg = self.io[self.plot_file].get_signal(c, bin_size, "RD mosaic segments",
-                                                                          flag_rd | FLAG_GC_CORR)
-                    his_p_mosaic_seg = segments_decode(his_p_mosaic_seg)
-                    his_p_mosaic_call = self.io[self.plot_file].get_signal(c, bin_size, "RD mosaic call",
-                                                                           flag_rd | FLAG_GC_CORR)
-                    his_p_mosaic = np.zeros_like(his_p) * np.nan
-                    if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and self.call_mosaic:
-                        for seg, lev in zip(list(his_p_mosaic_seg), list(his_p_mosaic_call[0])):
-                            for segi in seg:
-                                his_p_mosaic[segi] = lev
+                    if self.manhattan_plot_calls:
+                        his_p_call = self.io[self.plot_file].get_signal(c, bin_size, "RD call", flag_rd | FLAG_GC_CORR)
+                        his_p_mosaic_seg = self.io[self.plot_file].get_signal(c, bin_size, "RD mosaic segments",
+                                                                              flag_rd | FLAG_GC_CORR)
+                        his_p_mosaic_seg = segments_decode(his_p_mosaic_seg)
+                        his_p_mosaic_call = self.io[self.plot_file].get_signal(c, bin_size, "RD mosaic call",
+                                                                               flag_rd | FLAG_GC_CORR)
+                        his_p_mosaic = np.zeros_like(his_p) * np.nan
+                        if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and self.call_mosaic:
+                            for seg, lev in zip(list(his_p_mosaic_seg), list(his_p_mosaic_call[0])):
+                                for segi in seg:
+                                    his_p_mosaic[segi] = lev
                     pos = range(apos, apos + len(his_p))
                     ax.text(apos + len(his_p) // 2, stat[4] // 10, Genome.canonical_chrom_name(c),
                             fontsize=8, verticalalignment='bottom', horizontalalignment='center', )
                     plt.plot(pos, his_p_corr, ls='', marker='.')
-                    if his_p_call is not None and len(his_p_call) > 0 and self.call:
-                        plt.step(pos, his_p_call, "r")
-                    if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and self.call_mosaic:
-                        plt.plot(pos, his_p_mosaic, "k")
+                    if self.manhattan_plot_calls:
+                        if his_p_call is not None and len(his_p_call) > 0 and self.call:
+                            plt.step(pos, his_p_call, "r")
+                        if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and self.call_mosaic:
+                            plt.plot(pos, his_p_mosaic, "k")
                     apos += len(his_p)
                     xticks.append(apos)
                 ax.xaxis.set_ticklabels([])
@@ -897,8 +925,8 @@ class Viewer(ViewParams):
                 self.fig.add_subplot(ax)
 
     def circular(self, bin_size, chroms=[], use_mask_rd=True):
-        n = self.plot_files.count(True)
-        ix = [x for x in range(len(self.plot_files)) if self.plot_files[x]]
+        n = len(self.plot_files)
+        ix = self.plot_files
         snp_flag = (FLAG_USEMASK if self.use_mask else 0) | (FLAG_USEID if self.use_id else 0)
         rd_flag = FLAG_GC_CORR | (FLAG_USEMASK if use_mask_rd else 0)
         if self.grid == "auto":
@@ -1074,7 +1102,7 @@ class Viewer(ViewParams):
     def genotype(self, bin_sizes, region):
         regs = decode_region(region)
         for c, (pos1, pos2) in regs:
-            print(c + ":" + str(pos1) + ":" + str(pos2),end="")
+            print(c + ":" + str(pos1) + ":" + str(pos2), end="")
             for bs in bin_sizes:
                 flag_rd = 0 if self.nogc else FLAG_GC_CORR
                 stat = self.io[self.plot_file].get_signal(c, bs, "RD stat", flag_rd)
@@ -1083,15 +1111,14 @@ class Viewer(ViewParams):
                 bin2 = (pos2 - 1) // bs
                 rc = 0
                 if bin1 == bin2:
-                    rc = (pos2-pos1+1) * his_p[bin1] / bs
+                    rc = (pos2 - pos1 + 1) * his_p[bin1] / bs
                 else:
-                    rc += (bin1*bs - pos1 + 1 + bs) * his_p[bin1] / bs
-                    rc += (pos2 - bin2*bs) * his_p[bin1] / bs
-                    for ix in range(bin1+1,bin2):
+                    rc += (bin1 * bs - pos1 + 1 + bs) * his_p[bin1] / bs
+                    rc += (pos2 - bin2 * bs) * his_p[bin1] / bs
+                    for ix in range(bin1 + 1, bin2):
                         rc += his_p[ix]
-                print("\t%f" % rc * stat[4] * (pos2-pos1+1) / bs, end="")
+                print("\t%f" % rc * stat[4] * (pos2 - pos1 + 1) / bs, end="")
         print()
-
 
     def genotype_prompt(self, bin_sizes=[]):
         done = False
@@ -1106,7 +1133,7 @@ class Viewer(ViewParams):
             if line is None or line == "":
                 done = True
             else:
-                self.genotype(bin_sizes,line)
+                self.genotype(bin_sizes, line)
 
 
 def anim_plot_likelihood(likelihood, segments, n, res, iter, prefix, maxp, minp):
