@@ -90,6 +90,7 @@ def main():
 
     parser.add_argument('-ls', '--ls', action='store_true', help='list pytor file(s) content')
     parser.add_argument('-info', '--info', type=binsize_type, nargs="*", help='print statistics for pythor file(s)')
+    parser.add_argument('-comp', '--compare', type=str, nargs="*", help='compere two regions: -comp reg1 reg2 [n_bins]')
     parser.add_argument('-genotype', '--genotype', type=str, nargs="*")
 
     args = parser.parse_args(sys.argv[1:])
@@ -149,6 +150,16 @@ def main():
             view = Viewer(args.root, {})
             view.genotype_prompt(list(map(binsize_type,args.genotype)))
 
+        if args.compare is not None:
+            params = {"bin_size": binsize_type(args.compare[-1]),
+                      "use_gc_corr": not args.no_gc_corr,
+                      "use_mask_rd": args.use_mask_with_rd
+                      }
+            view = Viewer(args.root, params)
+            if len(args.compare) == 3:
+                view.compare(args.compare[0],args.compare[1])
+            elif len(args.compare) == 4:
+                view.compare(args.compare[0], args.compare[1], int(args.compare[2]))
         if args.reference_genome:
             app = Root(args.root[0], max_cores=args.max_cores)
             app.set_reference_genome(args.reference_genome)

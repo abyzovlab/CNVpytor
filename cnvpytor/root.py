@@ -1179,8 +1179,8 @@ class Root:
                         valid = np.isfinite(rd)
                         level = rd[valid]
                         error = np.sqrt(level) + std
-                        loc_fl = np.min(zip(np.abs(np.diff(level))[:-1],np.abs(np.diff(level))[1:]),axis=1)
-                        loc_fl = np.concatenate(([0],loc_fl,[0]))
+                        loc_fl = np.min(zip(np.abs(np.diff(level))[:-1], np.abs(np.diff(level))[1:]), axis=1)
+                        loc_fl = np.concatenate(([0], loc_fl, [0]))
                         error += loc_fl / 2
                         level = list(level)
                         error = list(error)
@@ -1192,31 +1192,26 @@ class Root:
                         if anim != "":
                             anim_plot_rd(level, error, segments, bins, iter, anim + c + "_0_" + str(bin_size), 0,
                                          0, mean)
+
                         while len(overlaps) > 0:
                             maxo = max(overlaps)
-                            mino = max(maxo * odec, overlap_min)
                             if maxo < overlap_min:
                                 break
-                            i = 0
-                            while i < len(overlaps):
-                                if overlaps[i] > mino:
-                                    nl, ne = normal_merge(level[i], error[i], level[i + 1], error[i + 1])
-                                    level[i] = nl
-                                    error[i] = ne
-                                    segments[i] += segments[i + 1]
-                                    del level[i + 1]
-                                    del error[i + 1]
-                                    del segments[i + 1]
-                                    del overlaps[i]
-                                    if i < len(overlaps):
-                                        overlaps[i] = normal_overlap(level[i], error[i], level[i + 1], error[i + 1])
-                                    if i > 0:
-                                        overlaps[i - 1] = normal_overlap(level[i - 1], error[i - 1], level[i], error[i])
-                                else:
-                                    i = i + 1
-
+                            i = overlaps.index(maxo)
+                            nl, ne = normal_merge(level[i], error[i], level[i + 1], error[i + 1])
+                            level[i] = nl
+                            error[i] = ne
+                            segments[i] += segments[i + 1]
+                            del level[i + 1]
+                            del error[i + 1]
+                            del segments[i + 1]
+                            del overlaps[i]
+                            if i < len(overlaps):
+                                overlaps[i] = normal_overlap(level[i], error[i], level[i + 1], error[i + 1])
+                            if i > 0:
+                                overlaps[i - 1] = normal_overlap(level[i - 1], error[i - 1], level[i], error[i])
                             iter = iter + 1
-                            if anim != "":
+                            if anim != "" and (iter % 100) == 0:
                                 anim_plot_rd(level, error, segments, bins, iter, anim + c + "_0_" + str(bin_size), maxo,
                                              mino, mean)
 
@@ -1232,8 +1227,8 @@ class Root:
                                                 len(segments[i]) + len(segments[j]))]
                             if len(overlaps) == 0:
                                 break
+
                             maxo = max(overlaps)
-                            mino = max(maxo * odec, overlap_min)
                             if maxo < overlap_min:
                                 break
                             i, j = 0, 1
@@ -1242,7 +1237,7 @@ class Root:
                                 if (segments[j][0] - segments[i][-1]) < max_distance * (
                                         len(segments[i]) + len(segments[j])) and normal_overlap(level[i], error[i],
                                                                                                 level[j],
-                                                                                                error[j]) > mino:
+                                                                                                error[j]) == maxo:
                                     nl, ne = normal_merge(level[i], error[i], level[j], error[j])
                                     level[i] = nl
                                     error[i] = ne
@@ -1261,14 +1256,90 @@ class Root:
                                         i += 1
                                         j = i + 1
                             iter = iter + 1
-                            if anim != "":
-                                anim_plot_rd(level, error, segments, bins, iter, anim + c + "_1_" + str(bin_size), maxo, mino, mean)
+                            if anim != "" and (iter % 100) == 0:
+                                anim_plot_rd(level, error, segments, bins, iter, anim + c + "_1_" + str(bin_size), maxo,
+                                             mino, mean)
                             _logger.info("Iteration: %d. Number of segments: %d." % (iter, len(level)))
                             if ons == len(segments):
                                 break
                             ons = len(segments)
 
-
+                        # while len(overlaps) > 0:
+                        #     maxo = max(overlaps)
+                        #     mino = max(maxo * odec, overlap_min)
+                        #     if maxo < overlap_min:
+                        #         break
+                        #     i = 0
+                        #     while i < len(overlaps):
+                        #         if overlaps[i] > mino:
+                        #             nl, ne = normal_merge(level[i], error[i], level[i + 1], error[i + 1])
+                        #             level[i] = nl
+                        #             error[i] = ne
+                        #             segments[i] += segments[i + 1]
+                        #             del level[i + 1]
+                        #             del error[i + 1]
+                        #             del segments[i + 1]
+                        #             del overlaps[i]
+                        #             if i < len(overlaps):
+                        #                 overlaps[i] = normal_overlap(level[i], error[i], level[i + 1], error[i + 1])
+                        #             if i > 0:
+                        #                 overlaps[i - 1] = normal_overlap(level[i - 1], error[i - 1], level[i], error[i])
+                        #         else:
+                        #             i = i + 1
+                        #
+                        #     iter = iter + 1
+                        #     if anim != "":
+                        #         anim_plot_rd(level, error, segments, bins, iter, anim + c + "_0_" + str(bin_size), maxo,
+                        #                      mino, mean)
+                        #
+                        # iter = 0
+                        # ons = -1
+                        #
+                        # _logger.info("Second stage. Number of segments: %d." % len(level))
+                        #
+                        # while True:
+                        #     overlaps = [normal_overlap(level[i], error[i], level[j], error[j]) for i in
+                        #                 range(len(level)) for j in range(i + 1, len(level)) if
+                        #                 (segments[j][0] - segments[i][-1]) < max_distance * (
+                        #                         len(segments[i]) + len(segments[j]))]
+                        #     if len(overlaps) == 0:
+                        #         break
+                        #     maxo = max(overlaps)
+                        #     mino = max(maxo * odec, overlap_min)
+                        #     if maxo < overlap_min:
+                        #         break
+                        #     i, j = 0, 1
+                        #     while i < len(segments) - 1:
+                        #
+                        #         if (segments[j][0] - segments[i][-1]) < max_distance * (
+                        #                 len(segments[i]) + len(segments[j])) and normal_overlap(level[i], error[i],
+                        #                                                                         level[j],
+                        #                                                                         error[j]) > mino:
+                        #             nl, ne = normal_merge(level[i], error[i], level[j], error[j])
+                        #             level[i] = nl
+                        #             error[i] = ne
+                        #             segments[i] += segments[j]
+                        #             segments[i] = sorted(segments[i])
+                        #             del level[j]
+                        #             del error[j]
+                        #             del segments[j]
+                        #
+                        #             if j >= len(segments):
+                        #                 i += 1
+                        #                 j = i + 1
+                        #         else:
+                        #             j += 1
+                        #             if j >= len(segments):
+                        #                 i += 1
+                        #                 j = i + 1
+                        #     iter = iter + 1
+                        #     if anim != "":
+                        #         anim_plot_rd(level, error, segments, bins, iter, anim + c + "_1_" + str(bin_size), maxo,
+                        #                      mino, mean)
+                        #     _logger.info("Iteration: %d. Number of segments: %d." % (iter, len(level)))
+                        #     if ons == len(segments):
+                        #         break
+                        #     ons = len(segments)
 
                         # for i in range(len(segments)):
                         #     i1, i2 = likelihood_baf_pval(likelihood[i])

@@ -29,7 +29,8 @@ class ViewParams(object):
         "use_mask_rd": False,
         "use_mask": True,
         "use_id": False,
-        "nogc": False,
+        "use_phase": False,
+        "use_gc_corr": True,
         "plot_files": [],
         "plot_file": 0,
         "chrom": [],
@@ -77,7 +78,7 @@ class ViewParams(object):
             self.__setattr__(param, list(map(int, args)))
         elif param == "style":
             self.__setattr__(param, args[0])
-        else:
+        elif self.params[param] is not True:
             self.__setattr__(param, args)
 
     def unset(self, param):
@@ -196,7 +197,8 @@ class Viewer(ViewParams):
         command_tree = {"set": {},
                         "unset": {},
                         "save": None, "show": None, "quit": None, "rd": None, "likelihood": None, "baf": None,
-                        "stat": None, "rdstat": None, "circular": None, "manhattan": None, "calls": None, "ls": None
+                        "stat": None, "rdstat": None, "circular": None, "manhattan": None, "calls": None, "ls": None,
+                        "compare": None
                         }
         for p in self.params:
             command_tree["set"][p] = None
@@ -243,43 +245,12 @@ class Viewer(ViewParams):
                         self.show()
                 elif f[0] == "set" and n > 1:
                     self.set(f[1], f[2:])
-                    # if n > 2 and f[1] == "bin_size":
-                    #     self.bin_size = f[2]
-                    # elif n > 3 and f[1] == "grid" and f[2].isdigit() and f[3].isdigit():
-                    #     self.grid = (int(f[2]), int(f[3]))
-                    # elif n > 2 and f[1] == "plot_file" and f[2].isdigit() and int(f[2]) < len(self.io):
-                    #     self.plot_file = int(f[2])
-                    # elif n > 2 and f[1] == "plot_files":
-                    #     select = [int(i) for i in f[2:] if i.isdigit()]
-                    #     self.plot_files = list([ix in select for ix in range(len(self.io))])
-                    # elif n > 2 and f[1] == "panels":
-                    #     self.panels = f[2:]
-                    # elif n > 2 and f[1] == "style":
-                    #     self.style = f[2]
-                    #     if self.fig:
-                    #         self.fig.canvas.draw()
-                    # elif n > 1 and f[1] == "use_mask_rd":
-                    #     self.use_mask_rd = True
-                    # elif n > 1 and f[1] == "use_mask":
-                    #     self.use_mask = True
-                    # elif n > 1 and f[1] == "use_id":
-                    #     self.use_id = True
-                    # elif n > 1 and f[1] == "xkcd":
-                    #     self.xkcd = True
-                    # else:
-                    #     print("Unrecognized set argument!")
                 elif f[0] == "unset" and n > 1:
                     self.unset(f[1])
-                    # if n > 1 and f[1] == "use_mask_rd":
-                    #     self.use_mask_rd = False
-                    # elif n > 1 and f[1] == "use_mask":
-                    #     self.use_mask = False
-                    # elif n > 1 and f[1] == "use_id":
-                    #     self.use_id = False
-                    # elif n > 1 and f[1] == "xkcd" and self.xkcd:
-                    #     self.xkcd = False
-                    # else:
-                    #     print("Unrecognized unset argument!")
+                elif f[0] == "compare" and n == 3:
+                    self.compare(f[1], f[2], plot=True)
+                elif f[0] == "compare" and n == 4:
+                    self.compare(f[1], f[2], n_bins=int(f[3]), plot=True)
                 else:
                     try:
                         if f[0] not in ["rdstat", "baf"]:
@@ -355,7 +326,7 @@ class Viewer(ViewParams):
                 ax.set_ylabel("Normalised distribution")
                 ax.set_xlabel("RD")
                 ax.set_xlim([0, lim_rd])
-                ax.set_ylim([0, 1.1])
+                # ax.set_ylim([0, 1.1])
                 bins = range(0, max_rd, bin_size)
                 x = np.arange(0, max_rd // bin_size * bin_size, 0.1 * bin_size)
                 plt.plot(x, normal(x, 1, stat[4], stat[5]), "g-")
@@ -685,12 +656,12 @@ class Viewer(ViewParams):
                     his_p = io.get_signal(c, bin_size, "RD", flag_rd)
                     his_p_corr = io.get_signal(c, bin_size, "RD", flag_rd | FLAG_GC_CORR)
                     if self.manhattan_plot_calls:
-                        his_p_call = self.io[self.plot_file].get_signal(c, bin_size, "RD call", flag_rd | FLAG_GC_CORR)
-                        his_p_mosaic_seg = self.io[self.plot_file].get_signal(c, bin_size, "RD mosaic segments",
-                                                                              flag_rd | FLAG_GC_CORR)
+                        his_p_call = io.get_signal(c, bin_size, "RD call", flag_rd | FLAG_GC_CORR)
+                        his_p_mosaic_seg = io.get_signal(c, bin_size, "RD mosaic segments",
+                                                         flag_rd | FLAG_GC_CORR)
                         his_p_mosaic_seg = segments_decode(his_p_mosaic_seg)
-                        his_p_mosaic_call = self.io[self.plot_file].get_signal(c, bin_size, "RD mosaic call",
-                                                                               flag_rd | FLAG_GC_CORR)
+                        his_p_mosaic_call = io.get_signal(c, bin_size, "RD mosaic call",
+                                                          flag_rd | FLAG_GC_CORR)
                         his_p_mosaic = np.zeros_like(his_p) * np.nan
                         if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and self.call_mosaic:
                             for seg, lev in zip(list(his_p_mosaic_seg), list(his_p_mosaic_call[0])):
@@ -807,12 +778,13 @@ class Viewer(ViewParams):
                 ax.set_title(io.filename + ": " + region, position=(0.01, 0.9),
                              fontdict={'verticalalignment': 'top', 'horizontalalignment': 'left'},
                              color='C0')
-            g_p = []
-            g_p_corr = []
-            g_p_seg = []
-            g_p_call = []
-            g_p_call_mosaic = []
+
             if panels[i] == "rd":
+                g_p = []
+                g_p_corr = []
+                g_p_seg = []
+                g_p_call = []
+                g_p_call_mosaic = []
                 mean, stdev = 0, 0
                 borders = []
                 for c, (pos1, pos2) in r:
@@ -826,12 +798,12 @@ class Viewer(ViewParams):
                     his_p = io.get_signal(c, bin_size, "RD", flag_rd)
                     his_p_corr = io.get_signal(c, bin_size, "RD", flag_rd | FLAG_GC_CORR)
                     his_p_seg = io.get_signal(c, bin_size, "RD partition", flag_rd | FLAG_GC_CORR)
-                    his_p_call = self.io[self.plot_file].get_signal(c, bin_size, "RD call", flag_rd | FLAG_GC_CORR)
-                    his_p_mosaic_seg = self.io[self.plot_file].get_signal(c, bin_size, "RD mosaic segments",
-                                                                          flag_rd | FLAG_GC_CORR)
+                    his_p_call = io.get_signal(c, bin_size, "RD call", flag_rd | FLAG_GC_CORR)
+                    his_p_mosaic_seg = io.get_signal(c, bin_size, "RD mosaic segments",
+                                                     flag_rd | FLAG_GC_CORR)
                     his_p_mosaic_seg = segments_decode(his_p_mosaic_seg)
-                    his_p_mosaic_call = self.io[self.plot_file].get_signal(c, bin_size, "RD mosaic call",
-                                                                           flag_rd | FLAG_GC_CORR)
+                    his_p_mosaic_call = io.get_signal(c, bin_size, "RD mosaic call",
+                                                      flag_rd | FLAG_GC_CORR)
                     his_p_mosaic = np.zeros_like(his_p) * np.nan
                     if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and self.call_mosaic:
                         for seg, lev in zip(list(his_p_mosaic_seg), list(his_p_mosaic_call[0])):
@@ -848,7 +820,7 @@ class Viewer(ViewParams):
                         g_p_call.extend(list(his_p_call[start_bin:end_bin]))
                     if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and self.call_mosaic:
                         g_p_call_mosaic.extend(list(his_p_mosaic[start_bin:end_bin]))
-                    borders.append(len(g_p))
+                    borders.append(len(g_p) - 1)
 
                 # ax.xaxis.set_ticklabels([])
                 ax.yaxis.set_ticklabels([])
@@ -870,7 +842,8 @@ class Viewer(ViewParams):
                 for i in borders[:-1]:
                     ax.axvline(i, color=sep_color, lw=1)
                 self.fig.add_subplot(ax)
-            elif panels[i] == "baf":
+
+            elif panels[i] == "snp":
                 borders = []
                 hpos = []
                 baf = []
@@ -905,6 +878,41 @@ class Viewer(ViewParams):
                     ax.axvline(i, color=sep_color, lw=1)
                 self.fig.add_subplot(ax)
 
+            elif panels[i] == "baf":
+                g_baf, g_maf, g_i1, g_i2 = [], [], [], []
+                borders = []
+                for c, (pos1, pos2) in r:
+                    flag_snp = (FLAG_USEMASK if self.use_mask else 0) | (FLAG_USEID if self.use_id else 0) | (
+                        FLAG_USEHAP if self.use_phase else 0)
+                    baf = io.get_signal(c, bin_size, "SNP baf", flag_snp)
+                    maf = io.get_signal(c, bin_size, "SNP maf", flag_snp)
+                    i1 = io.get_signal(c, bin_size, "SNP i1", flag_snp)
+                    i2 = io.get_signal(c, bin_size, "SNP i2", flag_snp)
+
+                    start_bin = (pos1 - 1) // bin_size
+                    end_bin = pos2 // bin_size
+                    g_baf.extend(list(baf[start_bin:end_bin]))
+                    g_maf.extend(list(maf[start_bin:end_bin]))
+                    g_i1.extend(list(i1[start_bin:end_bin]))
+                    g_i2.extend(list(i2[start_bin:end_bin]))
+                    borders.append(len(g_baf) - 1)
+
+                # ax.xaxis.set_ticklabels([])
+                ax.yaxis.set_ticklabels([])
+                l = len(g_baf)
+                # ax.xaxis.set_ticks(np.arange(0, l, 10), [])
+                ax.yaxis.set_ticks([0, 0.25, 0.5, 0.75, 1.0], [])
+                ax.set_ylim([0, 1])
+                ax.set_xlim([-l * 0.0, l * 1.0])
+
+                ax.yaxis.grid()
+                ax.step(g_baf, "grey")
+                ax.step(g_maf, "k")
+                ax.step(g_i1, "r")
+                for i in borders[:-1]:
+                    ax.axvline(i, color=sep_color, lw=1)
+                self.fig.add_subplot(ax)
+
             elif panels[i] == "likelihood":
                 borders = []
                 gl = []
@@ -913,7 +921,7 @@ class Viewer(ViewParams):
                     start_bin = (pos1 - 1) // bin_size
                     end_bin = pos2 // bin_size
                     gl.extend(list(likelihood[start_bin:end_bin]))
-                    borders.append(len(gl))
+                    borders.append(len(gl) - 1)
                 img = np.array(gl).transpose()
                 ax.imshow(img, aspect='auto')
                 ax.xaxis.set_ticklabels([])
@@ -1099,12 +1107,102 @@ class Viewer(ViewParams):
         else:
             plt.show()
 
+    def compare(self, region1, region2, n_bins=21, plot=False, legend=True):
+        n = len(self.plot_files)
+        ix = self.plot_files
+        if plot:
+            plt.clf()
+            plt.rcParams["font.size"] = 8
+            if self.grid == "auto":
+                sx, sy = self.panels_shape(n)
+            else:
+                sx, sy = tuple(self.grid)
+            self.fig = plt.figure(1, dpi=200, facecolor='w', edgecolor='k')
+            if self.output_filename != "":
+                self.fig.set_figheight(3 * sy)
+                self.fig.set_figwidth(4 * sx)
+            grid = gridspec.GridSpec(sy, sx, wspace=0.2, hspace=0.2)
+        for i in range(n):
+            io = self.io[ix[i]]
+            if plot:
+                ax = self.fig.add_subplot(grid[i])
+                ax.set_title(io.filename, position=(0.01, 1.07),
+                             fontdict={'verticalalignment': 'top', 'horizontalalignment': 'left'})
+            stat = io.get_signal(None, self.bin_size, "RD stat", FLAG_AUTO)
+            regs1 = decode_region(region1)
+            regs2 = decode_region(region2)
+            data1 = []
+            data2 = []
+            for c, (pos1, pos2) in regs1:
+                flag_rd = (FLAG_GC_CORR if self.use_gc_corr else 0) | (FLAG_USEMASK if self.use_mask_rd else 0)
+                his_p = io.get_signal(c, self.bin_size, "RD", flag_rd)
+                bin1 = (pos1 - 1) // self.bin_size
+                bin2 = (pos2 - 1) // self.bin_size
+                data1 += list(his_p[bin1:bin2 + 1][np.isfinite(his_p[bin1:bin2 + 1])])
+            for c, (pos1, pos2) in regs2:
+                flag_rd = (FLAG_GC_CORR if self.use_gc_corr else 0) | (FLAG_USEMASK if self.use_mask_rd else 0)
+                his_p = io.get_signal(c, self.bin_size, "RD", flag_rd)
+                bin1 = (pos1 - 1) // self.bin_size
+                bin2 = (pos2 - 1) // self.bin_size
+                data2 += list(his_p[bin1:bin2 + 1][np.isfinite(his_p[bin1:bin2 + 1])])
+
+            data1 = np.array(data1)
+            p1_1 = np.percentile(data1, 1)
+            p99_1 = np.percentile(data1, 99)
+            data1 = data1[data1 > p1_1]
+            data1 = data1[data1 < p99_1]
+            mean1 = np.mean(data1)
+            std1 = np.std(data1)
+
+            data2 = np.array(data2)
+            p1_2 = np.percentile(data2, 1)
+            p99_2 = np.percentile(data2, 99)
+            data2 = data2[data2 > p1_2]
+            data2 = data2[data2 < p99_2]
+            mean2 = np.mean(data2)
+            std2 = np.std(data2)
+
+            rd_min = min(mean1 - 5 * std1, mean2 - 5 * std2)
+            rd_max = max(mean1 + 5 * std1, mean2 + 5 * std2)
+            bins = np.linspace(rd_min, rd_max, n_bins)
+
+            hist1, binsr = np.histogram(data1, bins=bins)
+            hist2, binsr = np.histogram(data2, bins=bins)
+
+            fitn1, fitm1, fits1 = fit_normal(bins[:-1], hist1)[0]
+            fitn2, fitm2, fits2 = fit_normal(bins[:-1], hist2)[0]
+
+            pval = t_test_2_samples(fitm1, fits1, sum(hist1), fitm2, fits2, sum(hist2))
+
+            print("%s\t%s\t%.4f\t%.4f\t%.4f\t%.4f\t%e\t%.4f\t%.4f" % (
+                region1, region2, fitm1, fits1, fitm2, fits2, pval, fitm1 / fitm2,
+                fitm1 / fitm2 * (fits1 / fitm1 / np.sqrt(sum(hist1)) + fits2 / fitm2 / np.sqrt(sum(hist2)))))
+
+            if plot:
+                x = np.linspace(bins[0], bins[-1], 1001)
+                plt.plot(x, normal(x, fitn1, fitm1, fits1), "g-", label=region1)
+                plt.plot(x, normal(x, fitn2, fitm2, fits2), "b-", label=region2)
+                plt.plot(bins[:-1], hist1, "g*")
+                plt.plot(bins[:-1], hist2, "b*")
+                if legend:
+                    plt.legend()
+
+        if plot:
+            if self.output_filename != "":
+                plt.savefig(self.image_filename("comp"), dpi=200)
+                plt.close(self.fig)
+            elif self.interactive:
+                plt.show(block=False)
+                plt.draw()
+            else:
+                plt.show()
+
     def genotype(self, bin_sizes, region):
         regs = decode_region(region)
         for c, (pos1, pos2) in regs:
             print(c + ":" + str(pos1) + ":" + str(pos2), end="")
             for bs in bin_sizes:
-                flag_rd = 0 if self.nogc else FLAG_GC_CORR
+                flag_rd = FLAG_GC_CORR if self.use_gc_corr else o
                 stat = self.io[self.plot_file].get_signal(c, bs, "RD stat", flag_rd)
                 his_p = self.io[self.plot_file].get_signal(c, bs, "RD", flag_rd)
                 bin1 = (pos1 - 1) // bs
