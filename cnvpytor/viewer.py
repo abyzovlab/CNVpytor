@@ -1174,8 +1174,8 @@ class Viewer(ViewParams):
 
             pval = t_test_2_samples(fitm1, fits1, sum(hist1), fitm2, fits2, sum(hist2))
 
-            print("%s\t%s\t%.4f\t%.4f\t%.4f\t%.4f\t%e\t%.4f\t%.4f" % (
-                region1, region2, fitm1, fits1, fitm2, fits2, pval, fitm1 / fitm2,
+            print("%s\t%s\t%s\t%.4f\t%.4f\t%.4f\t%.4f\t%e\t%.4f\t%.4f" % (
+                io.filename,region1, region2, fitm1, fits1, fitm2, fits2, pval, fitm1 / fitm2,
                 fitm1 / fitm2 * (fits1 / fitm1 / np.sqrt(sum(hist1)) + fits2 / fitm2 / np.sqrt(sum(hist2)))))
 
             if plot:
