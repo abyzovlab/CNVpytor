@@ -78,7 +78,7 @@ class ViewParams(object):
             self.__setattr__(param, list(map(int, args)))
         elif param == "style":
             self.__setattr__(param, args[0])
-        elif self.params[param] is not True:
+        elif param in self.params and self.params[param] is not True:
             self.__setattr__(param, args)
 
     def unset(self, param):
@@ -130,10 +130,6 @@ class ViewParams(object):
 
         super(ViewParams, self).__setattr__(name, value)
 
-    def show(self):
-        print("    Parameters")
-        for key in sorted(self.params.keys()):
-            print("        * %s: %s" % (key, str(self.params[key])))
 
 
 class Viewer(ViewParams):
@@ -247,6 +243,9 @@ class Viewer(ViewParams):
                     self.set(f[1], f[2:])
                 elif f[0] == "unset" and n > 1:
                     self.unset(f[1])
+                elif f[0] == "genotype" and n > 1 :
+                    for ni in range(1,n):
+                        self.genotype([self.bin_size],f[ni])
                 elif f[0] == "compare" and n == 3:
                     self.compare(f[1], f[2], plot=True)
                 elif f[0] == "compare" and n == 4:
@@ -281,6 +280,15 @@ class Viewer(ViewParams):
             exit(0)
         parts[-1] = sufix + "." + parts[-1]
         return ".".join(parts)
+
+    def show(self):
+        print("    Parameters")
+        for key in sorted(self.params.keys()):
+            print("        * %s: %s" % (key, str(self.params[key])))
+            if key == "plot_files":
+                for i in range(len(self.io)):
+                    print("            %d. %s" % (i, self.io[i].filename))
+
 
     def stat(self, his_bin_size=100):
         plt.clf()
@@ -688,10 +696,11 @@ class Viewer(ViewParams):
                 snp_flag = (FLAG_USEMASK if self.use_mask else 0) | (FLAG_USEID if self.use_id else 0)
                 for c, (l, t) in self.reference_genome["chromosomes"].items():
                     snp_chr = io.snp_chromosome_name(c)
-                    if io.signal_exists(snp_chr, bin_size, "SNP likelihood call", snp_flag) and \
-                            io.signal_exists(snp_chr, bin_size, "SNP likelihood segments", snp_flag) and \
-                            (Genome.is_autosome(c) or Genome.is_sex_chrom(c)):
-                        chroms.append((snp_chr, l))
+                    if len(self.chrom) == 0 or (snp_chr in self.chrom) or (c in self.chrom):
+                        if io.signal_exists(snp_chr, bin_size, "SNP likelihood call", snp_flag) and \
+                                io.signal_exists(snp_chr, bin_size, "SNP likelihood segments", snp_flag) and \
+                                (Genome.is_autosome(c) or Genome.is_sex_chrom(c)):
+                            chroms.append((snp_chr, l))
 
                 apos = 0
                 xticks = [0]
@@ -852,16 +861,19 @@ class Viewer(ViewParams):
                 for c, (pos1, pos2) in r:
                     pos, ref, alt, nref, nalt, gt, flag, qual = io.read_snp(c)
                     ix = 0
+                    mdp = 0
                     while ix < len(pos) and pos[ix] <= pos2:
                         if pos[ix] >= pos1 and (nref[ix] + nalt[ix]) != 0:
                             hpos.append(start_pos + pos[ix] - pos1)
+                            if pos[ix] - pos1 > mdp:
+                                mdp = pos[ix] - pos1
                             if gt[ix] % 4 != 2:
                                 baf.append(1.0 * nalt[ix] / (nref[ix] + nalt[ix]))
                             else:
                                 baf.append(1.0 * nref[ix] / (nref[ix] + nalt[ix]))
                             color.append(self.snp_colors[(gt[ix] % 4) * 2 + (flag[ix] >> 1)])
                         ix += 1
-                    start_pos += pos2 - pos1
+                    start_pos += mdp
                     borders.append(start_pos)
 
                 ax.xaxis.set_ticklabels([])
