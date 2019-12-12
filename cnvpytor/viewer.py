@@ -287,7 +287,7 @@ class Viewer(ViewParams):
             print("        * %s: %s" % (key, str(self.params[key])))
             if key == "plot_files":
                 for i in range(len(self.io)):
-                    print("            %d. %s" % (i, self.io[i].filename))
+                    print("            %d: %s" % (i, self.io[i].filename))
 
 
     def stat(self, his_bin_size=100):
