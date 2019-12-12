@@ -47,12 +47,56 @@ class ViewParams(object):
         "snp_colors": ["yellow", "orange", "cyan", "blue", "lime", "green", "yellow", "orange"]
     }
 
+    param_help = {
+        "bin_size": """
+            Type: binsize_type (int divisible by 100).
+
+            Description: Size of bins used for plotting.
+            
+            Plots affects: all.
+
+            Example:
+                set bin_size 100000
+            
+            See also:
+                output_filename, xkcd
+        """,
+        "panels": "",
+        "partition": "",
+        "call": "",
+        "call_mosaic": "",
+        "use_mask_rd": "",
+        "use_mask": "",
+        "use_id": "",
+        "use_phase": "",
+        "use_gc_corr": "",
+        "plot_files": "",
+        "plot_file": "",
+        "chrom": "",
+        "style": "",
+        "grid": "",
+        "xkcd": "",
+        "output_filename": "",
+        "palette1": "",
+        "palette2": "",
+        "contrast": "",
+        "manhattan_range": "",
+        "manhattan_plot_calls": "",
+        "min_segment_size": "",
+        "snp_colors": ""
+    }
+
     def __init__(self, params):
         for key in self.default:
             if key in params:
                 setattr(self, key, params[key])
             else:
                 setattr(self, key, self.default[key])
+
+    @staticmethod
+    def help(param):
+        if param in ViewParams.param_help:
+            print(ViewParams.param_help[param])
 
     def set(self, param, args):
         if param in self.params and self.params[param] is False:
@@ -191,13 +235,14 @@ class Viewer(ViewParams):
     def prompt(self):
         self.interactive = True
         command_tree = {"set": {},
-                        "unset": {},
+                        "unset": {}, "help": {},
                         "save": None, "show": None, "quit": None, "rd": None, "likelihood": None, "baf": None,
                         "stat": None, "rdstat": None, "circular": None, "manhattan": None, "calls": None, "ls": None,
                         "compare": None
                         }
         for p in self.params:
             command_tree["set"][p] = None
+            command_tree["help"][p] = None
             if type(self.params[p]) == type(True):
                 command_tree["unset"][p] = None
         chromosomes = set({})
@@ -241,6 +286,8 @@ class Viewer(ViewParams):
                         self.show()
                 elif f[0] == "set" and n > 1:
                     self.set(f[1], f[2:])
+                elif f[0] == "help" and n > 1:
+                    self.help(f[1])
                 elif f[0] == "unset" and n > 1:
                     self.unset(f[1])
                 elif f[0] == "genotype" and n > 1 :
