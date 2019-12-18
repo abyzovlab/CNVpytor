@@ -152,8 +152,8 @@ def main():
 
         if args.compare is not None:
             params = {"bin_size": binsize_type(args.compare[-1]),
-                      "use_gc_corr": not args.no_gc_corr,
-                      "use_mask_rd": args.use_mask_with_rd
+                      "rd_use_gc_corr": not args.no_gc_corr,
+                      "rd_use_mask": args.use_mask_with_rd
                       }
             view = Viewer(args.root, params)
             if len(args.compare) == 3:
@@ -172,9 +172,9 @@ def main():
             params = {"output_filename": args.plot_output_file,
                       "chrom": args.chrom,
                       "panels": args.panels,
-                      "use_mask": not args.no_mask,
-                      "use_id": args.use_id,
-                      "use_mask_rd": args.use_mask_with_rd
+                      "snp_use_mask": not args.no_mask,
+                      "snp_use_id": args.use_id,
+                      "rd_use_mask": args.use_mask_with_rd
                       }
             if args.plot_style:
                 params["style"] = args.plot_style
@@ -186,9 +186,9 @@ def main():
                       "output_filename": args.plot_output_file,
                       "chrom": args.chrom,
                       "panels": args.panels,
-                      "use_mask": not args.no_mask,
-                      "use_id": args.use_id,
-                      "use_mask_rd": args.use_mask_with_rd
+                      "snp_use_mask": not args.no_mask,
+                      "snp_use_id": args.use_id,
+                      "rd_use_mask": args.use_mask_with_rd
                       }
             if args.plot_style:
                 params["style"] = args.plot_style

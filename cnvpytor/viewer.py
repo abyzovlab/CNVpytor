@@ -23,14 +23,20 @@ class ViewParams(object):
     default = {
         "bin_size": None,
         "panels": ["rd"],
-        "partition": True,
-        "call": True,
-        "call_mosaic": False,
-        "use_mask_rd": False,
-        "use_mask": True,
-        "use_id": False,
-        "use_phase": False,
-        "use_gc_corr": True,
+        "rd_partition": True,
+        "rd_call": True,
+        "rd_call_mosaic": False,
+        "rd_use_mask": False,
+        "rd_use_gc_corr": True,
+        "rd_manhattan_range": [0, 2],
+        "rd_manhattan_call": False,
+        "snp_use_mask": True,
+        "snp_use_id": False,
+        "snp_use_phase": False,
+        "rd_colors": "",
+        "snp_colors": ["yellow", "orange", "cyan", "blue", "lime", "green", "yellow", "orange"],
+        "baf_colors": "",
+        "lh_colors": "",
         "plot_files": [],
         "plot_file": 0,
         "chrom": [],
@@ -41,49 +47,26 @@ class ViewParams(object):
         "palette1": ["#555555", "#aaaaaa"],
         "palette2": ["#00ff00", "#0000ff"],
         "contrast": 20,
-        "manhattan_range": [0, 2],
-        "manhattan_plot_calls": False,
-        "min_segment_size": 0,
-        "snp_colors": ["yellow", "orange", "cyan", "blue", "lime", "green", "yellow", "orange"]
+        "min_segment_size": 0
     }
 
-    param_help = {
-        "bin_size": """
-            Type: binsize_type (int divisible by 100).
-
-            Description: Size of bins used for plotting.
-            
-            Plots affects: all.
-
-            Example:
-                set bin_size 100000
-            
-            See also:
-                output_filename, xkcd
-        """,
-        "panels": "",
-        "partition": "",
-        "call": "",
-        "call_mosaic": "",
-        "use_mask_rd": "",
-        "use_mask": "",
-        "use_id": "",
-        "use_phase": "",
-        "use_gc_corr": "",
-        "plot_files": "",
-        "plot_file": "",
-        "chrom": "",
-        "style": "",
-        "grid": "",
-        "xkcd": "",
-        "output_filename": "",
-        "palette1": "",
-        "palette2": "",
-        "contrast": "",
-        "manhattan_range": "",
-        "manhattan_plot_calls": "",
-        "min_segment_size": "",
-        "snp_colors": ""
+    command_tree = {
+        "set": {},
+        "unset": {},
+        "help": {},
+        "save": None,
+        "show": None,
+        "quit": None,
+        "rd": None,
+        "likelihood": None,
+        "baf": None,
+        "stat": None,
+        "rdstat": None,
+        "circular": None,
+        "manhattan": None,
+        "calls": None,
+        "ls": None,
+        "compare": None
     }
 
     def __init__(self, params):
@@ -93,10 +76,151 @@ class ViewParams(object):
             else:
                 setattr(self, key, self.default[key])
 
+        self.param_help = {}
+        self.param_help = {
+            "help": self.help_format(
+                param="help",
+                p_desc="Print help for a command or parameter.",
+                p_usage="help param\nList of params: " +
+                        ", ".join(self.default.keys()) +
+                        "\nList of commands: " +
+                        ", ".join(self.command_tree.keys()),
+                p_example="help bin_size"
+            ),
+            "set": self.help_format(
+                param="set",
+                p_desc="Set parameter value. " +
+                       "Requires argument or list of arguments except in the case when parameter type is bool.",
+                p_usage="set param [value]",
+                p_example="set bin_size 100000\nset rd_call_mosaic\nset panels rd likelihood",
+                p_see="unset"
+            ),
+            "unset": self.help_format(
+                param="unset",
+                p_desc="Set bool parameter to False.",
+                p_usage="unset param",
+                p_example="unset rd_call_mosaic",
+                p_see="unset"
+            ),
+            "save": "",
+            "show": "",
+            "quit": "",
+            "rd": "",
+            "likelihood": "",
+            "baf": "",
+            "stat": "",
+            "rdstat": "",
+            "circular": "",
+            "manhattan": "",
+            "calls": "",
+            "ls": "",
+            "compare": "",
+            "bin_size": self.help_format(
+                param="bin_size",
+                p_desc="Size of bins used for plotting",
+                p_type="binsize_type (int divisible by 100)",
+                p_default=str(self.default["bin_size"]),
+                p_affects="all",
+                p_example="set bin_size 100000",
+                p_see="output_filename, xkcd"
+            ),
+            "panels": self.help_format(
+                param="panels",
+                p_desc="List of panels to plot. Possible options are:\n" +
+                       "    rd         - read depth plot,\n" +
+                       "    likelihood - baf likelihood 2D plot,\n" +
+                       "    baf        - binned baf, maf and likelihood peak position,\n" +
+                       "    snp        - plot baf for each particular SNP",
+                p_type="list of strings",
+                p_default=str(self.default["panels"]),
+                p_affects="region plot, manhattan",
+                p_example="set panels rd likelihood",
+                p_see="grid"
+            ),
+            "rd_partition": self.help_format(
+                param="rd_partition",
+                p_desc="Enables plotting partition signal in rd plots",
+                p_type="bool",
+                p_default=str(self.default["rd_partition"]),
+                p_affects="region plot, rd",
+                p_example="set rd_partition\nunset rd_partition",
+                p_see="rd_call, rd_call_mosaic"
+            ),
+            "rd_call": self.help_format(
+                param="rd_call",
+                p_desc="Enables plotting call signal in rd plots",
+                p_type="bool",
+                p_default=str(self.default["rd_call"]),
+                p_affects="region plot, rd",
+                p_example="set rd_call\nunset rd_call",
+                p_see="rd_partition, rd_call_mosaic"
+            ),
+            "rd_call_mosaic": self.help_format(
+                param="rd_call_mosaic",
+                p_desc="Enables plotting mosaic call signal in rd plots",
+                p_type="bool",
+                p_default=str(self.default["rd_call_mosaic"]),
+                p_affects="region plot, rd",
+                p_example="set rd_call_mosaic\nunset rd_call_mosaic",
+                p_see="rd_partition, rd_call"
+            ),
+            "rd_raw": "",
+            "rd_use_mask": "",
+            "rd_use_gc_corr": "",
+            "rd_range": "",
+            "rd_manhattan_range": "",
+            "rd_manhattan_call": "",
+            "snp_use_mask": "",
+            "snp_use_id": "",
+            "snp_use_phase": "",
+            "rd_colors": "",
+            "snp_colors": "",
+            "baf_colors": "",
+            "lh_colors": "",
+            "plot_files": "",
+            "plot_file": "",
+            "chrom": "",
+            "style": "",
+            "grid": "",
+            "xkcd": "",
+            "output_filename": "",
+            "palette1": "",
+            "palette2": "",
+            "contrast": "",
+            "min_segment_size": "",
+        }
+
     @staticmethod
-    def help(param):
-        if param in ViewParams.param_help:
-            print(ViewParams.param_help[param])
+    def help_format(param="", p_desc="", p_usage="", p_type="", p_default="", p_affects="", p_example="", p_see=""):
+        ret_str = "\n"
+        if p_desc != "":
+            ret_str += TerminalColor.BOLD + param + "\n" + TerminalColor.END
+            ret_str += TerminalColor.DARKCYAN + add_tabs(p_desc) + TerminalColor.END + "\n"
+        if p_usage != "":
+            ret_str += TerminalColor.BOLD + "USAGE\n" + TerminalColor.END
+            ret_str += TerminalColor.DARKCYAN + add_tabs(p_usage) + TerminalColor.END + "\n"
+        if p_type != "":
+            ret_str += TerminalColor.BOLD + "TYPE\n" + TerminalColor.END
+            ret_str += TerminalColor.DARKCYAN + add_tabs(p_type) + TerminalColor.END + "\n"
+        if p_default != "":
+            ret_str += TerminalColor.BOLD + "DEFAULT\n" + TerminalColor.END
+            ret_str += TerminalColor.DARKCYAN + add_tabs(p_default) + TerminalColor.END + "\n"
+        if p_affects != "":
+            ret_str += TerminalColor.BOLD + "PLOTS AFFECTS\n" + TerminalColor.END
+            ret_str += TerminalColor.DARKCYAN + add_tabs(p_affects) + TerminalColor.END + "\n"
+        if p_example != "":
+            ret_str += TerminalColor.BOLD + "EXAMPLE\n" + TerminalColor.END
+            ret_str += TerminalColor.DARKCYAN + add_tabs(p_example) + TerminalColor.END + "\n"
+        if p_see != "":
+            ret_str += TerminalColor.BOLD + "SEE ALSO\n" + TerminalColor.END
+            ret_str += TerminalColor.DARKCYAN + add_tabs(p_see) + TerminalColor.END + "\n"
+        return ret_str
+
+    def help(self, param):
+        if param in self.param_help:
+            print(self.param_help[param])
+        else:
+            print("\nUnknown parameter !\n")
 
     def set(self, param, args):
         if param in self.params and self.params[param] is False:
@@ -175,7 +299,6 @@ class ViewParams(object):
         super(ViewParams, self).__setattr__(name, value)
 
 
-
 class Viewer(ViewParams):
 
     def __init__(self, files, params):
@@ -203,17 +326,17 @@ class Viewer(ViewParams):
         for p in command:
             if p.isdigit() and (int(p) % 100) == 0:
                 if current == "rd":
-                    self.rd(int(p), self.use_mask_rd)
+                    self.rd(int(p), self.rd_use_mask)
                 if current == "likelihood":
                     self.likelihood(int(p))
                 elif current == "manhattan":
-                    self.manhattan(int(p), use_mask=self.use_mask_rd)
+                    self.manhattan(int(p), use_mask=self.rd_use_mask)
                 elif current == "calls":
-                    self.manhattan(int(p), use_mask=self.use_mask_rd, plot_type="calls")
+                    self.manhattan(int(p), use_mask=self.rd_use_mask, plot_type="calls")
                 elif current == "stat":
                     self.stat(int(p))
                 elif current == "circular":
-                    self.circular(int(p), self.chrom, self.use_mask_rd)
+                    self.circular(int(p), self.chrom, self.rd_use_mask)
                 elif current == "regions":
                     self.multiple_regions(int(p), regions, panels=self.panels)
                     regions = []
@@ -234,26 +357,24 @@ class Viewer(ViewParams):
 
     def prompt(self):
         self.interactive = True
-        command_tree = {"set": {},
-                        "unset": {}, "help": {},
-                        "save": None, "show": None, "quit": None, "rd": None, "likelihood": None, "baf": None,
-                        "stat": None, "rdstat": None, "circular": None, "manhattan": None, "calls": None, "ls": None,
-                        "compare": None
-                        }
+
         for p in self.params:
-            command_tree["set"][p] = None
-            command_tree["help"][p] = None
+            self.command_tree["set"][p] = None
+            self.command_tree["help"][p] = None
             if type(self.params[p]) == type(True):
-                command_tree["unset"][p] = None
+                self.command_tree["unset"][p] = None
+        for c in self.command_tree:
+            self.command_tree["help"][c] = None
         chromosomes = set({})
         for f in self.io:
             chromosomes = chromosomes.union(set(f.rd_chromosomes()))
             chromosomes = chromosomes.union(set(f.snp_chromosomes()))
         for c in chromosomes:
-            command_tree[c] = None
-        command_tree["set"]["style"] = dict(zip(plt.style.available, [None] * len(plt.style.available)))
+            self.command_tree[c] = None
+        self.command_tree["set"]["style"] = dict(zip(plt.style.available, [None] * len(plt.style.available)))
+
         readline.parse_and_bind("tab: complete")
-        completer = PromptCompleter(command_tree)
+        completer = PromptCompleter(self.command_tree)
         readline.set_completer(completer.complete)
         quit = False
         try:
@@ -288,11 +409,13 @@ class Viewer(ViewParams):
                     self.set(f[1], f[2:])
                 elif f[0] == "help" and n > 1:
                     self.help(f[1])
+                elif f[0] == "help" and n == 1:
+                    self.help("help")
                 elif f[0] == "unset" and n > 1:
                     self.unset(f[1])
-                elif f[0] == "genotype" and n > 1 :
-                    for ni in range(1,n):
-                        self.genotype([self.bin_size],f[ni])
+                elif f[0] == "genotype" and n > 1:
+                    for ni in range(1, n):
+                        self.genotype([self.bin_size], f[ni])
                 elif f[0] == "compare" and n == 3:
                     self.compare(f[1], f[2], plot=True)
                 elif f[0] == "compare" and n == 4:
@@ -329,15 +452,15 @@ class Viewer(ViewParams):
         return ".".join(parts)
 
     def show(self):
-        print("    Parameters")
+        print("\nParameters")
         for key in sorted(self.params.keys()):
-            print("        * %s: %s" % (key, str(self.params[key])))
+            print("    * %s: %s" % (key, str(self.params[key])))
             if key == "plot_files":
                 for i in range(len(self.io)):
                     print("            %d: %s" % (i, self.io[i].filename))
+        print()
 
-
-    def stat(self, his_bin_size=100):
+    def stat(self, his_bin_size=100, return_image=False):
         plt.clf()
         auto = self.io[self.plot_file].signal_exists(None, his_bin_size, "RD stat", FLAG_AUTO)
         sex = self.io[self.plot_file].signal_exists(None, his_bin_size, "RD stat", FLAG_SEX)
@@ -390,7 +513,13 @@ class Viewer(ViewParams):
                 plt.plot(x[:len(his_p)], his_p / stat[3], "b*")
                 ix += 1
         plt.subplots_adjust(bottom=0.08, top=0.95, wspace=0.25, hspace=0, left=0.05 * 3 / n_cols, right=0.95)
-        if self.output_filename != "":
+        if return_image:
+            self.fig.canvas.draw()
+            import PIL
+            pil_image = PIL.Image.frombytes('RGB', self.fig.canvas.get_width_height(),
+                                            self.fig.canvas.tostring_rgb())
+            return pil_image
+        elif self.output_filename != "":
             plt.savefig(self.image_filename("stat"), dpi=150)
             plt.close(self.fig)
         elif self.interactive:
@@ -456,11 +585,11 @@ class Viewer(ViewParams):
 
             plt.step(his_p, "grey")
             plt.step(his_p_corr, "k")
-            if his_p_seg is not None and len(his_p_seg) > 0 and self.partition:
+            if his_p_seg is not None and len(his_p_seg) > 0 and self.rd_partition:
                 plt.step(his_p_seg, "r")
-            if his_p_call is not None and len(his_p_call) > 0 and self.call:
+            if his_p_call is not None and len(his_p_call) > 0 and self.rd_call:
                 plt.step(his_p_call, "g")
-            if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and self.call_mosaic:
+            if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and self.rd_call_mosaic:
                 plt.step(his_p_mosaic, "b")
             ix += 1
         plt.subplots_adjust(bottom=0., top=1., wspace=0, hspace=0, left=0., right=1.)
@@ -535,7 +664,7 @@ class Viewer(ViewParams):
 
     def likelihood(self, bin_size):
         plt.clf()
-        snp_flag = (FLAG_USEMASK if self.use_mask else 0) | (FLAG_USEID if self.use_id else 0)
+        snp_flag = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0)
         if self.reference_genome is None:
             _logger.warning("Missing reference genome required for gview.")
             return
@@ -710,7 +839,7 @@ class Viewer(ViewParams):
                         flag_rd = FLAG_USEMASK
                     his_p = io.get_signal(c, bin_size, "RD", flag_rd)
                     his_p_corr = io.get_signal(c, bin_size, "RD", flag_rd | FLAG_GC_CORR)
-                    if self.manhattan_plot_calls:
+                    if self.rd_manhattan_call:
                         his_p_call = io.get_signal(c, bin_size, "RD call", flag_rd | FLAG_GC_CORR)
                         his_p_mosaic_seg = io.get_signal(c, bin_size, "RD mosaic segments",
                                                          flag_rd | FLAG_GC_CORR)
@@ -726,7 +855,7 @@ class Viewer(ViewParams):
                     ax.text(apos + len(his_p) // 2, stat[4] // 10, Genome.canonical_chrom_name(c),
                             fontsize=8, verticalalignment='bottom', horizontalalignment='center', )
                     plt.plot(pos, his_p_corr, ls='', marker='.')
-                    if self.manhattan_plot_calls:
+                    if self.rd_manhattan_call:
                         if his_p_call is not None and len(his_p_call) > 0 and self.call:
                             plt.step(pos, his_p_call, "r")
                         if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and self.call_mosaic:
@@ -737,10 +866,10 @@ class Viewer(ViewParams):
                 ax.yaxis.set_ticklabels([])
                 ax.yaxis.set_ticks(np.arange(0, 15, 0.5) * max_m, [])
                 ax.xaxis.set_ticks(xticks, [])
-                ax.set_ylim([self.manhattan_range[0] * max_m, self.manhattan_range[1] * max_m])
+                ax.set_ylim([self.rd_manhattan_range[0] * max_m, self.rd_manhattan_range[1] * max_m])
             else:
                 chroms = []
-                snp_flag = (FLAG_USEMASK if self.use_mask else 0) | (FLAG_USEID if self.use_id else 0)
+                snp_flag = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0)
                 for c, (l, t) in self.reference_genome["chromosomes"].items():
                     snp_chr = io.snp_chromosome_name(c)
                     if len(self.chrom) == 0 or (snp_chr in self.chrom) or (c in self.chrom):
@@ -825,7 +954,7 @@ class Viewer(ViewParams):
             plt.show()
 
     def regions(self, io, element, bin_size, region, panels=["rd"], sep_color="g"):
-        snp_flag = (FLAG_USEMASK if self.use_mask else 0) | (FLAG_USEID if self.use_id else 0)
+        snp_flag = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0)
         grid = gridspec.GridSpecFromSubplotSpec(len(panels), 1, subplot_spec=element, wspace=0, hspace=0.1)
         r = decode_region(region)
         for i in range(len(panels)):
@@ -846,7 +975,7 @@ class Viewer(ViewParams):
                 for c, (pos1, pos2) in r:
                     flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
                     flag_rd = 0
-                    if self.use_mask_rd:
+                    if self.rd_use_mask:
                         flag_rd = FLAG_USEMASK
                     stat = io.get_signal(None, bin_size, "RD stat", flag)
                     mean = stat[4]
@@ -870,9 +999,9 @@ class Viewer(ViewParams):
                     end_bin = pos2 // bin_size
                     g_p.extend(list(his_p[start_bin:end_bin]))
                     g_p_corr.extend(list(his_p_corr[start_bin:end_bin]))
-                    if his_p_seg is not None and len(his_p_seg) > 0 and self.partition:
+                    if his_p_seg is not None and len(his_p_seg) > 0 and self.rd_partition:
                         g_p_seg.extend(list(his_p_seg[start_bin:end_bin]))
-                    if his_p_call is not None and len(his_p_call) > 0 and self.call:
+                    if his_p_call is not None and len(his_p_call) > 0 and self.rd_call:
                         g_p_call.extend(list(his_p_call[start_bin:end_bin]))
                     if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and self.call_mosaic:
                         g_p_call_mosaic.extend(list(his_p_mosaic[start_bin:end_bin]))
@@ -941,8 +1070,8 @@ class Viewer(ViewParams):
                 g_baf, g_maf, g_i1, g_i2 = [], [], [], []
                 borders = []
                 for c, (pos1, pos2) in r:
-                    flag_snp = (FLAG_USEMASK if self.use_mask else 0) | (FLAG_USEID if self.use_id else 0) | (
-                        FLAG_USEHAP if self.use_phase else 0)
+                    flag_snp = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0) | (
+                        FLAG_USEHAP if self.snp_use_phase else 0)
                     baf = io.get_signal(c, bin_size, "SNP baf", flag_snp)
                     maf = io.get_signal(c, bin_size, "SNP maf", flag_snp)
                     i1 = io.get_signal(c, bin_size, "SNP i1", flag_snp)
@@ -994,7 +1123,7 @@ class Viewer(ViewParams):
     def circular(self, bin_size, chroms=[], use_mask_rd=True):
         n = len(self.plot_files)
         ix = self.plot_files
-        snp_flag = (FLAG_USEMASK if self.use_mask else 0) | (FLAG_USEID if self.use_id else 0)
+        snp_flag = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0)
         rd_flag = FLAG_GC_CORR | (FLAG_USEMASK if use_mask_rd else 0)
         if self.grid == "auto":
             sx, sy = self.panels_shape(n)
@@ -1193,13 +1322,13 @@ class Viewer(ViewParams):
             data1 = []
             data2 = []
             for c, (pos1, pos2) in regs1:
-                flag_rd = (FLAG_GC_CORR if self.use_gc_corr else 0) | (FLAG_USEMASK if self.use_mask_rd else 0)
+                flag_rd = (FLAG_GC_CORR if self.rd_use_gc_corr else 0) | (FLAG_USEMASK if self.rd_use_mask else 0)
                 his_p = io.get_signal(c, self.bin_size, "RD", flag_rd)
                 bin1 = (pos1 - 1) // self.bin_size
                 bin2 = (pos2 - 1) // self.bin_size
                 data1 += list(his_p[bin1:bin2 + 1][np.isfinite(his_p[bin1:bin2 + 1])])
             for c, (pos1, pos2) in regs2:
-                flag_rd = (FLAG_GC_CORR if self.use_gc_corr else 0) | (FLAG_USEMASK if self.use_mask_rd else 0)
+                flag_rd = (FLAG_GC_CORR if self.rd_use_gc_corr else 0) | (FLAG_USEMASK if self.rd_use_mask else 0)
                 his_p = io.get_signal(c, self.bin_size, "RD", flag_rd)
                 bin1 = (pos1 - 1) // self.bin_size
                 bin2 = (pos2 - 1) // self.bin_size
@@ -1234,7 +1363,7 @@ class Viewer(ViewParams):
             pval = t_test_2_samples(fitm1, fits1, sum(hist1), fitm2, fits2, sum(hist2))
 
             print("%s\t%s\t%s\t%.4f\t%.4f\t%.4f\t%.4f\t%e\t%.4f\t%.4f" % (
-                io.filename,region1, region2, fitm1, fits1, fitm2, fits2, pval, fitm1 / fitm2,
+                io.filename, region1, region2, fitm1, fits1, fitm2, fits2, pval, fitm1 / fitm2,
                 fitm1 / fitm2 * (fits1 / fitm1 / np.sqrt(sum(hist1)) + fits2 / fitm2 / np.sqrt(sum(hist2)))))
 
             if plot:
@@ -1261,7 +1390,7 @@ class Viewer(ViewParams):
         for c, (pos1, pos2) in regs:
             print(c + ":" + str(pos1) + ":" + str(pos2), end="")
             for bs in bin_sizes:
-                flag_rd = FLAG_GC_CORR if self.use_gc_corr else o
+                flag_rd = FLAG_GC_CORR if self.rd_use_gc_corr else o
                 stat = self.io[self.plot_file].get_signal(c, bs, "RD stat", flag_rd)
                 his_p = self.io[self.plot_file].get_signal(c, bs, "RD", flag_rd)
                 bin1 = (pos1 - 1) // bs

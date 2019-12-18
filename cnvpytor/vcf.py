@@ -117,7 +117,10 @@ class Vcf:
                         ref.append(rec.ref)
                         alt.append(rec.alts[0])
                         flag.append(2)  # Assign P region as default (-mask_snps updates this flag)
-                        qual.append(int(rec.qual / 10))  # divide QUAL by factor 10 and truncate to one byte
+                        if rec.qual == "." or rec.qual is None:
+                            qual.append(0)
+                        else:
+                            qual.append(int(rec.qual / 10))  # divide QUAL by factor 10 and truncate to one byte
                         if qual[-1] > 255:
                             qual[-1] = 255
                         nref.append(rec.samples[sample]["AD"][0])
@@ -175,7 +178,10 @@ class Vcf:
                         ref.append(rec.ref)
                         alt.append(rec.alts[0])
                         flag.append(2)  # Assign P region as default (-mask_snps updates this flag)
-                        qual.append(int(rec.qual / 10))  # divide QUAL by factor 10 and truncate to one byte
+                        if rec.qual == "." or rec.qual is None:
+                            qual.append(0)
+                        else:
+                            qual.append(int(rec.qual / 10))  # divide QUAL by factor 10 and truncate to one byte
                         if qual[-1] > 255:
                             qual[-1] = 255
                         gt.append(rec.samples[sample]["GT"][0] * 2 + rec.samples[sample]["GT"][1])
@@ -246,7 +252,10 @@ class Vcf:
                         ref.append(rec.ref)
                         alt.append(rec.alts[0])
                         flag.append(2)   # Assign P region as default (-mask_snps updates this flag)
-                        qual.append(int(rec.qual / 10))  # divide QUAL by factor 10 and truncate to one byte
+                        if rec.qual == "." or rec.qual is None:
+                            qual.append(0)
+                        else:
+                            qual.append(int(rec.qual / 10))  # divide QUAL by factor 10 and truncate to one byte
                         if qual[-1] > 255:
                             qual[-1] = 255
                         nref.append(rec.samples[sample]["AD"][0])
@@ -316,7 +325,10 @@ class Vcf:
                         ref.append(rec.ref)
                         alt.append(rec.alts[0])
                         flag.append(2)  # Assign P region as default (-mask_snps updates this flag)
-                        qual.append(int(rec.qual / 10))  # divide QUAL by factor 10 and truncate to one byte
+                        if rec.qual == "." or rec.qual is None:
+                            qual.append(0)
+                        else:
+                            qual.append(int(rec.qual / 10))  # divide QUAL by factor 10 and truncate to one byte
                         if qual[-1] > 255:
                             qual[-1] = 255
                         gt.append(rec.samples[sample]["GT"][0] * 2 + rec.samples[sample]["GT"][1])

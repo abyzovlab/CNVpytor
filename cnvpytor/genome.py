@@ -44,7 +44,9 @@ class Genome:
                  ("chr16", (90338345, "A")), ("chr17", (83257441, "A")), ("chr18", (80373285, "A")),
                  ("chr19", (58617616, "A")), ("chr20", (64444167, "A")), ("chr21", (46709983, "A")),
                  ("chr22", (50818468, "A")), ("chrX", (156040895, "S")), ("chrY", (57227415, "S")),
-                 ("chrM", (16569, "M"))])
+                 ("chrM", (16569, "M"))]),
+            "gc_file": pkg_resources.resource_filename('cnvpytor', 'data') + "/gc_hg38.pytor",
+            "mask_file": pkg_resources.resource_filename('cnvpytor', 'data') + "/mask_hg38.pytor"
         }
     }
 
