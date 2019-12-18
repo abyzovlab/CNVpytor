@@ -623,3 +623,10 @@ class TerminalColor:
 
 def add_tabs(s, n=4):
     return "\n".join(list(map(lambda x: " " * n + x, s.split("\n"))))
+
+def key_val_str(d, indent=4):
+    s = ""
+    for i in d:
+        s += " " * indent + "* " + i + " - " + d[i] + "\n"
+    return s
+

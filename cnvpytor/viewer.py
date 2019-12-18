@@ -80,12 +80,29 @@ class ViewParams(object):
         self.param_help = {
             "help": self.help_format(
                 param="help",
-                p_desc="Print help for a command or parameter.",
-                p_usage="help param\nList of params: " +
+                p_desc="Print help for a topic, command or parameter.",
+                p_usage="help <topic>\n\nList of params: " +
                         ", ".join(self.default.keys()) +
-                        "\nList of commands: " +
-                        ", ".join(self.command_tree.keys()),
-                p_example="help bin_size"
+                        "\n\nList of commands: " +
+                        ", ".join(self.command_tree.keys()) +
+                        "\n\nList of topics: plotting, signals",
+                p_example="help bin_size\nhelp plotting"
+            ),
+            "plotting": self.help_format(
+                param="PLOTTING",
+                p_desc="There are several types of plots:\n" +
+                       "    * genome wide plots: rdstat, stat, rd, baf, snp, likelihood\n" +
+                       "    * regions: genomic regions space (new subplot) and comma separated (same subplot)\n" +
+                       "    * manhattan: manhattan style whole genome plot\n" +
+                       "    * calls: "
+                       "    * circular: ",
+                p_example="chr1:1M-20M\nchr21\nchr1:1M-20M,chr2:30M-45M chr21",
+                p_see="regions, rdstat, stat, rd, baf, snp, likelihood, manhattan, calls, circular"
+            ),
+            "signals": self.help_format(
+                param="SIGNALS",
+                p_desc="",
+                p_see="plotting"
             ),
             "set": self.help_format(
                 param="set",
@@ -102,7 +119,15 @@ class ViewParams(object):
                 p_example="unset rd_call_mosaic",
                 p_see="unset"
             ),
-            "save": "",
+            "save": self.help_format(
+                param="save",
+                p_desc="Save current figure to file. Shortcut is to use redirection '>' after plotting command.\n" +
+                       "Available formats:\n" +
+                       key_val_str(plt.gcf().canvas.get_supported_filetypes())[:-1],
+                p_usage="save filename",
+                p_example="save image.png\n manhattan > image.png\n chr1:20M-50M > image.png",
+                p_see=">"
+            ),
             "show": "",
             "quit": "",
             "rd": "",
@@ -195,26 +220,26 @@ class ViewParams(object):
         ret_str = "\n"
         if p_desc != "":
             ret_str += TerminalColor.BOLD + param + "\n" + TerminalColor.END
-            ret_str += TerminalColor.DARKCYAN + add_tabs(p_desc) + TerminalColor.END + "\n"
+            ret_str += TerminalColor.DARKCYAN + add_tabs(p_desc) + TerminalColor.END + "\n\n"
         if p_usage != "":
             ret_str += TerminalColor.BOLD + "USAGE\n" + TerminalColor.END
-            ret_str += TerminalColor.DARKCYAN + add_tabs(p_usage) + TerminalColor.END + "\n"
+            ret_str += TerminalColor.DARKCYAN + add_tabs(p_usage) + TerminalColor.END + "\n\n"
         if p_type != "":
             ret_str += TerminalColor.BOLD + "TYPE\n" + TerminalColor.END
-            ret_str += TerminalColor.DARKCYAN + add_tabs(p_type) + TerminalColor.END + "\n"
+            ret_str += TerminalColor.DARKCYAN + add_tabs(p_type) + TerminalColor.END + "\n\n"
         if p_default != "":
             ret_str += TerminalColor.BOLD + "DEFAULT\n" + TerminalColor.END
-            ret_str += TerminalColor.DARKCYAN + add_tabs(p_default) + TerminalColor.END + "\n"
+            ret_str += TerminalColor.DARKCYAN + add_tabs(p_default) + TerminalColor.END + "\n\n"
         if p_affects != "":
             ret_str += TerminalColor.BOLD + "PLOTS AFFECTS\n" + TerminalColor.END
-            ret_str += TerminalColor.DARKCYAN + add_tabs(p_affects) + TerminalColor.END + "\n"
+            ret_str += TerminalColor.DARKCYAN + add_tabs(p_affects) + TerminalColor.END + "\n\n"
         if p_example != "":
-            ret_str += TerminalColor.BOLD + "EXAMPLE\n" + TerminalColor.END
-            ret_str += TerminalColor.DARKCYAN + add_tabs(p_example) + TerminalColor.END + "\n"
+            ret_str += TerminalColor.BOLD + "EXAMPLE(s)\n" + TerminalColor.END
+            ret_str += TerminalColor.DARKCYAN + add_tabs(p_example) + TerminalColor.END + "\n\n"
         if p_see != "":
             ret_str += TerminalColor.BOLD + "SEE ALSO\n" + TerminalColor.END
-            ret_str += TerminalColor.DARKCYAN + add_tabs(p_see) + TerminalColor.END + "\n"
-        return ret_str
+            ret_str += TerminalColor.DARKCYAN + add_tabs(p_see) + TerminalColor.END + "\n\n"
+        return ret_str[:-1]
 
     def help(self, param):
         if param in self.param_help:
@@ -360,10 +385,9 @@ class Viewer(ViewParams):
 
         for p in self.params:
             self.command_tree["set"][p] = None
-            self.command_tree["help"][p] = None
             if type(self.params[p]) == type(True):
                 self.command_tree["unset"][p] = None
-        for c in self.command_tree:
+        for c in self.param_help:
             self.command_tree["help"][c] = None
         chromosomes = set({})
         for f in self.io:
@@ -567,7 +591,7 @@ class Viewer(ViewParams):
             his_p_mosaic_call = self.io[self.plot_file].get_signal(c, bin_size, "RD mosaic call",
                                                                    flag_rd | FLAG_GC_CORR)
             his_p_mosaic = np.zeros_like(his_p) * np.nan
-            if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and self.call_mosaic:
+            if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and self.rd_call_mosaic:
                 for seg, lev in zip(list(his_p_mosaic_seg), list(his_p_mosaic_call[0])):
                     for segi in seg:
                         his_p_mosaic[segi] = lev
@@ -847,7 +871,7 @@ class Viewer(ViewParams):
                         his_p_mosaic_call = io.get_signal(c, bin_size, "RD mosaic call",
                                                           flag_rd | FLAG_GC_CORR)
                         his_p_mosaic = np.zeros_like(his_p) * np.nan
-                        if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and self.call_mosaic:
+                        if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and self.rd_call_mosaic:
                             for seg, lev in zip(list(his_p_mosaic_seg), list(his_p_mosaic_call[0])):
                                 for segi in seg:
                                     his_p_mosaic[segi] = lev
@@ -856,9 +880,9 @@ class Viewer(ViewParams):
                             fontsize=8, verticalalignment='bottom', horizontalalignment='center', )
                     plt.plot(pos, his_p_corr, ls='', marker='.')
                     if self.rd_manhattan_call:
-                        if his_p_call is not None and len(his_p_call) > 0 and self.call:
+                        if his_p_call is not None and len(his_p_call) > 0 and self.rd_call:
                             plt.step(pos, his_p_call, "r")
-                        if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and self.call_mosaic:
+                        if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and self.rd_call_mosaic:
                             plt.plot(pos, his_p_mosaic, "k")
                     apos += len(his_p)
                     xticks.append(apos)
@@ -990,7 +1014,7 @@ class Viewer(ViewParams):
                     his_p_mosaic_call = io.get_signal(c, bin_size, "RD mosaic call",
                                                       flag_rd | FLAG_GC_CORR)
                     his_p_mosaic = np.zeros_like(his_p) * np.nan
-                    if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and self.call_mosaic:
+                    if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and self.rd_call_mosaic:
                         for seg, lev in zip(list(his_p_mosaic_seg), list(his_p_mosaic_call[0])):
                             for segi in seg:
                                 his_p_mosaic[segi] = lev
@@ -1003,7 +1027,7 @@ class Viewer(ViewParams):
                         g_p_seg.extend(list(his_p_seg[start_bin:end_bin]))
                     if his_p_call is not None and len(his_p_call) > 0 and self.rd_call:
                         g_p_call.extend(list(his_p_call[start_bin:end_bin]))
-                    if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and self.call_mosaic:
+                    if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and self.rd_call_mosaic:
                         g_p_call_mosaic.extend(list(his_p_mosaic[start_bin:end_bin]))
                     borders.append(len(g_p) - 1)
 
