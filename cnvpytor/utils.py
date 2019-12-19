@@ -624,9 +624,35 @@ class TerminalColor:
 def add_tabs(s, n=4):
     return "\n".join(list(map(lambda x: " " * n + x, s.split("\n"))))
 
+
 def key_val_str(d, indent=4):
     s = ""
     for i in d:
         s += " " * indent + "* " + i + " - " + d[i] + "\n"
     return s
 
+
+def help_format(topic="", p_desc="", p_usage="", p_type="", p_default="", p_affects="", p_example="", p_see=""):
+    ret_str = "\n"
+    if p_desc != "":
+        ret_str += TerminalColor.BOLD + topic + "\n" + TerminalColor.END
+        ret_str += TerminalColor.DARKCYAN + add_tabs(p_desc) + TerminalColor.END + "\n\n"
+    if p_usage != "":
+        ret_str += TerminalColor.BOLD + "USAGE\n" + TerminalColor.END
+        ret_str += TerminalColor.DARKCYAN + add_tabs(p_usage) + TerminalColor.END + "\n\n"
+    if p_type != "":
+        ret_str += TerminalColor.BOLD + "TYPE\n" + TerminalColor.END
+        ret_str += TerminalColor.DARKCYAN + add_tabs(p_type) + TerminalColor.END + "\n\n"
+    if p_default != "":
+        ret_str += TerminalColor.BOLD + "DEFAULT\n" + TerminalColor.END
+        ret_str += TerminalColor.DARKCYAN + add_tabs(p_default) + TerminalColor.END + "\n\n"
+    if p_affects != "":
+        ret_str += TerminalColor.BOLD + "PLOTS AFFECTS\n" + TerminalColor.END
+        ret_str += TerminalColor.DARKCYAN + add_tabs(p_affects) + TerminalColor.END + "\n\n"
+    if p_example != "":
+        ret_str += TerminalColor.BOLD + "EXAMPLE(s)\n" + TerminalColor.END
+        ret_str += TerminalColor.DARKCYAN + add_tabs(p_example) + TerminalColor.END + "\n\n"
+    if p_see != "":
+        ret_str += TerminalColor.BOLD + "SEE ALSO\n" + TerminalColor.END
+        ret_str += TerminalColor.DARKCYAN + add_tabs(p_see) + TerminalColor.END + "\n\n"
+    return ret_str[:-1]

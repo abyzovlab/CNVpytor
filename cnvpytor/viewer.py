@@ -7,6 +7,7 @@ from __future__ import absolute_import, print_function, division
 from .io import *
 from .utils import *
 from .genome import *
+from .viewparams import ViewParams
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.colors as colors
@@ -60,6 +61,8 @@ class ViewParams(object):
         "rd": None,
         "likelihood": None,
         "baf": None,
+        "snp": None,
+        "info": None,
         "stat": None,
         "rdstat": None,
         "circular": None,
@@ -69,6 +72,161 @@ class ViewParams(object):
         "compare": None
     }
 
+    param_help = {
+        "help": help_format(
+            topic="help",
+            p_desc="Print help for a topic, command or parameter.",
+            p_usage="help <topic>\n\nList of params: " +
+                    ", ".join(default.keys()) +
+                    "\n\nList of commands: " +
+                    ", ".join(command_tree.keys()) +
+                    "\n\nList of topics: plotting, signals",
+            p_example="help bin_size\nhelp plotting"
+        ),
+        "plotting": help_format(
+            topic="PLOTTING",
+            p_desc="There are several types of plots:\n" +
+                   "    * genome wide plots: rdstat, stat, rd, baf, snp, likelihood\n" +
+                   "    * regions: genomic regions separated by space (new subplot) and comma (same subplot)\n" +
+                   "    * manhattan: manhattan style whole genome plot\n" +
+                   "    * calls: plot calls"
+                   "    * circular: circular plots of read-depth and MAF",
+            p_example="chr1:1M-20M\nchr21\nchr1:1M-20M,chr2:30M-45M chr21",
+            p_see="regions, rdstat, stat, rd, baf, snp, likelihood, manhattan, calls, circular"
+        ),
+        "signals": help_format(
+            topic="SIGNALS",
+            p_desc="...",
+            p_see="plotting"
+        ),
+        "set": help_format(
+            topic="set",
+            p_desc="Set parameter value. " +
+                   "Requires argument or list of arguments except in the case when parameter type is bool.",
+            p_usage="set param [value]",
+            p_example="set bin_size 100000\nset rd_call_mosaic\nset panels rd likelihood",
+            p_see="unset"
+        ),
+        "unset": help_format(
+            topic="unset",
+            p_desc="Set bool parameter to False.",
+            p_usage="unset param",
+            p_example="unset rd_call_mosaic",
+            p_see="unset"
+        ),
+        "save": help_format(
+            topic="save",
+            p_desc="Save current figure to file. There is a shortcut (see examples): " +
+                   "redirection '>' after plotting command.\n" +
+                   "Available formats:\n" +
+                   key_val_str(plt.gcf().canvas.get_supported_filetypes())[:-1],
+            p_usage="save filename",
+            p_example="save image.png\n manhattan > image.png\n chr1:20M-50M > image.png",
+            p_see="output_filename"
+        ),
+        "show": help_format(
+            topic="show",
+            p_desc="Lists all parameters with values",
+            p_usage="show",
+            p_see="set, unset"
+        ),
+        "quit": help_format(
+            topic="quit",
+            p_desc="Exists interactive mode.",
+            p_usage="quit",
+            p_see="help"
+        ),
+        "rd": "",
+        "likelihood": "",
+        "snp": "",
+        "baf": "",
+        "stat": "",
+        "rdstat": "",
+        "circular": "",
+        "manhattan": "",
+        "calls": "",
+        "ls": help_format(
+            topic="ls",
+            p_desc="Print content of pytor files",
+            p_usage="ls",
+            p_see="show"
+        ),
+        "compare": "",
+        "bin_size": help_format(
+            topic="bin_size",
+            p_desc="Size of bins used for plotting",
+            p_type="binsize_type (int divisible by 100)",
+            p_default=str(default["bin_size"]),
+            p_affects="all",
+            p_example="set bin_size 100000",
+            p_see="output_filename, xkcd"
+        ),
+        "panels": help_format(
+            topic="panels",
+            p_desc="List of panels to plot. Possible options are:\n" +
+                   "    rd         - read depth plot,\n" +
+                   "    likelihood - baf likelihood 2D plot,\n" +
+                   "    baf        - binned baf, maf and likelihood peak position,\n" +
+                   "    snp        - plot baf for each particular SNP",
+            p_type="list of strings",
+            p_default=str(default["panels"]),
+            p_affects="region plot, manhattan",
+            p_example="set panels rd likelihood",
+            p_see="grid"
+        ),
+        "rd_partition": help_format(
+            topic="rd_partition",
+            p_desc="Enables plotting partition signal in rd plots",
+            p_type="bool",
+            p_default=str(default["rd_partition"]),
+            p_affects="region plot, rd",
+            p_example="set rd_partition\nunset rd_partition",
+            p_see="rd_call, rd_call_mosaic"
+        ),
+        "rd_call": help_format(
+            topic="rd_call",
+            p_desc="Enables plotting call signal in rd plots",
+            p_type="bool",
+            p_default=str(default["rd_call"]),
+            p_affects="region plot, rd",
+            p_example="set rd_call\nunset rd_call",
+            p_see="rd_partition, rd_call_mosaic"
+        ),
+        "rd_call_mosaic": help_format(
+            topic="rd_call_mosaic",
+            p_desc="Enables plotting mosaic call signal in rd plots",
+            p_type="bool",
+            p_default=str(default["rd_call_mosaic"]),
+            p_affects="region plot, rd",
+            p_example="set rd_call_mosaic\nunset rd_call_mosaic",
+            p_see="rd_partition, rd_call"
+        ),
+        "rd_raw": "",
+        "rd_use_mask": "",
+        "rd_use_gc_corr": "",
+        "rd_range": "",
+        "rd_manhattan_range": "",
+        "rd_manhattan_call": "",
+        "snp_use_mask": "",
+        "snp_use_id": "",
+        "snp_use_phase": "",
+        "rd_colors": "",
+        "snp_colors": "",
+        "baf_colors": "",
+        "lh_colors": "",
+        "plot_files": "",
+        "plot_file": "",
+        "chrom": "",
+        "style": "",
+        "grid": "",
+        "xkcd": "",
+        "output_filename": "",
+        "palette1": "",
+        "palette2": "",
+        "contrast": "",
+        "min_segment_size": "",
+    }
+
     def __init__(self, params):
         for key in self.default:
             if key in params:
@@ -76,170 +234,6 @@ class ViewParams(object):
             else:
                 setattr(self, key, self.default[key])
 
-        self.param_help = {}
-        self.param_help = {
-            "help": self.help_format(
-                param="help",
-                p_desc="Print help for a topic, command or parameter.",
-                p_usage="help <topic>\n\nList of params: " +
-                        ", ".join(self.default.keys()) +
-                        "\n\nList of commands: " +
-                        ", ".join(self.command_tree.keys()) +
-                        "\n\nList of topics: plotting, signals",
-                p_example="help bin_size\nhelp plotting"
-            ),
-            "plotting": self.help_format(
-                param="PLOTTING",
-                p_desc="There are several types of plots:\n" +
-                       "    * genome wide plots: rdstat, stat, rd, baf, snp, likelihood\n" +
-                       "    * regions: genomic regions space (new subplot) and comma separated (same subplot)\n" +
-                       "    * manhattan: manhattan style whole genome plot\n" +
-                       "    * calls: "
-                       "    * circular: ",
-                p_example="chr1:1M-20M\nchr21\nchr1:1M-20M,chr2:30M-45M chr21",
-                p_see="regions, rdstat, stat, rd, baf, snp, likelihood, manhattan, calls, circular"
-            ),
-            "signals": self.help_format(
-                param="SIGNALS",
-                p_desc="",
-                p_see="plotting"
-            ),
-            "set": self.help_format(
-                param="set",
-                p_desc="Set parameter value. " +
-                       "Requires argument or list of arguments except in the case when parameter type is bool.",
-                p_usage="set param [value]",
-                p_example="set bin_size 100000\nset rd_call_mosaic\nset panels rd likelihood",
-                p_see="unset"
-            ),
-            "unset": self.help_format(
-                param="unset",
-                p_desc="Set bool parameter to False.",
-                p_usage="unset param",
-                p_example="unset rd_call_mosaic",
-                p_see="unset"
-            ),
-            "save": self.help_format(
-                param="save",
-                p_desc="Save current figure to file. Shortcut is to use redirection '>' after plotting command.\n" +
-                       "Available formats:\n" +
-                       key_val_str(plt.gcf().canvas.get_supported_filetypes())[:-1],
-                p_usage="save filename",
-                p_example="save image.png\n manhattan > image.png\n chr1:20M-50M > image.png",
-                p_see=">"
-            ),
-            "show": "",
-            "quit": "",
-            "rd": "",
-            "likelihood": "",
-            "baf": "",
-            "stat": "",
-            "rdstat": "",
-            "circular": "",
-            "manhattan": "",
-            "calls": "",
-            "ls": "",
-            "compare": "",
-            "bin_size": self.help_format(
-                param="bin_size",
-                p_desc="Size of bins used for plotting",
-                p_type="binsize_type (int divisible by 100)",
-                p_default=str(self.default["bin_size"]),
-                p_affects="all",
-                p_example="set bin_size 100000",
-                p_see="output_filename, xkcd"
-            ),
-            "panels": self.help_format(
-                param="panels",
-                p_desc="List of panels to plot. Possible options are:\n" +
-                       "    rd         - read depth plot,\n" +
-                       "    likelihood - baf likelihood 2D plot,\n" +
-                       "    baf        - binned baf, maf and likelihood peak position,\n" +
-                       "    snp        - plot baf for each particular SNP",
-                p_type="list of strings",
-                p_default=str(self.default["panels"]),
-                p_affects="region plot, manhattan",
-                p_example="set panels rd likelihood",
-                p_see="grid"
-            ),
-            "rd_partition": self.help_format(
-                param="rd_partition",
-                p_desc="Enables plotting partition signal in rd plots",
-                p_type="bool",
-                p_default=str(self.default["rd_partition"]),
-                p_affects="region plot, rd",
-                p_example="set rd_partition\nunset rd_partition",
-                p_see="rd_call, rd_call_mosaic"
-            ),
-            "rd_call": self.help_format(
-                param="rd_call",
-                p_desc="Enables plotting call signal in rd plots",
-                p_type="bool",
-                p_default=str(self.default["rd_call"]),
-                p_affects="region plot, rd",
-                p_example="set rd_call\nunset rd_call",
-                p_see="rd_partition, rd_call_mosaic"
-            ),
-            "rd_call_mosaic": self.help_format(
-                param="rd_call_mosaic",
-                p_desc="Enables plotting mosaic call signal in rd plots",
-                p_type="bool",
-                p_default=str(self.default["rd_call_mosaic"]),
-                p_affects="region plot, rd",
-                p_example="set rd_call_mosaic\nunset rd_call_mosaic",
-                p_see="rd_partition, rd_call"
-            ),
-            "rd_raw": "",
-            "rd_use_mask": "",
-            "rd_use_gc_corr": "",
-            "rd_range": "",
-            "rd_manhattan_range": "",
-            "rd_manhattan_call": "",
-            "snp_use_mask": "",
-            "snp_use_id": "",
-            "snp_use_phase": "",
-            "rd_colors": "",
-            "snp_colors": "",
-            "baf_colors": "",
-            "lh_colors": "",
-            "plot_files": "",
-            "plot_file": "",
-            "chrom": "",
-            "style": "",
-            "grid": "",
-            "xkcd": "",
-            "output_filename": "",
-            "palette1": "",
-            "palette2": "",
-            "contrast": "",
-            "min_segment_size": "",
-        }
-
-    @staticmethod
-    def help_format(param="", p_desc="", p_usage="", p_type="", p_default="", p_affects="", p_example="", p_see=""):
-        ret_str = "\n"
-        if p_desc != "":
-            ret_str += TerminalColor.BOLD + param + "\n" + TerminalColor.END
-            ret_str += TerminalColor.DARKCYAN + add_tabs(p_desc) + TerminalColor.END + "\n\n"
-        if p_usage != "":
-            ret_str += TerminalColor.BOLD + "USAGE\n" + TerminalColor.END
-            ret_str += TerminalColor.DARKCYAN + add_tabs(p_usage) + TerminalColor.END + "\n\n"
-        if p_type != "":
-            ret_str += TerminalColor.BOLD + "TYPE\n" + TerminalColor.END
-            ret_str += TerminalColor.DARKCYAN + add_tabs(p_type) + TerminalColor.END + "\n\n"
-        if p_default != "":
-            ret_str += TerminalColor.BOLD + "DEFAULT\n" + TerminalColor.END
-            ret_str += TerminalColor.DARKCYAN + add_tabs(p_default) + TerminalColor.END + "\n\n"
-        if p_affects != "":
-            ret_str += TerminalColor.BOLD + "PLOTS AFFECTS\n" + TerminalColor.END
-            ret_str += TerminalColor.DARKCYAN + add_tabs(p_affects) + TerminalColor.END + "\n\n"
-        if p_example != "":
-            ret_str += TerminalColor.BOLD + "EXAMPLE(s)\n" + TerminalColor.END
-            ret_str += TerminalColor.DARKCYAN + add_tabs(p_example) + TerminalColor.END + "\n\n"
-        if p_see != "":
-            ret_str += TerminalColor.BOLD + "SEE ALSO\n" + TerminalColor.END
-            ret_str += TerminalColor.DARKCYAN + add_tabs(p_see) + TerminalColor.END + "\n\n"
-        return ret_str[:-1]
 
     def help(self, param):
         if param in self.param_help:
@@ -352,6 +346,8 @@ class Viewer(ViewParams):
             if p.isdigit() and (int(p) % 100) == 0:
                 if current == "rd":
                     self.rd(int(p), self.rd_use_mask)
+                if current == "baf":
+                    self.baf(int(p), self.rd_use_mask)
                 if current == "likelihood":
                     self.likelihood(int(p))
                 elif current == "manhattan":
@@ -367,9 +363,9 @@ class Viewer(ViewParams):
                     regions = []
             elif p == "rdstat":
                 self.stat()
-            elif p == "baf":
-                self.baf()
-            elif p in ["rd", "manhattan", "calls", "stat", "regions", "likelihood", "circular"]:
+            elif p == "snp":
+                self.snp()
+            elif p in ["rd", "baf", "manhattan", "calls", "stat", "regions", "likelihood", "circular"]:
                 current = p
             elif current == "regions":
                 regions.append(p)
@@ -444,9 +440,11 @@ class Viewer(ViewParams):
                     self.compare(f[1], f[2], plot=True)
                 elif f[0] == "compare" and n == 4:
                     self.compare(f[1], f[2], n_bins=int(f[3]), plot=True)
+                elif f[0] == "info" and n > 1:
+                    self.info(list(map(binsize_type,f[1:])))
                 else:
                     try:
-                        if f[0] not in ["rdstat", "baf"]:
+                        if f[0] not in ["rdstat", "snp"]:
                             self.parse(f + [str(self.bin_size)])
                         else:
                             self.parse(f)
@@ -729,7 +727,7 @@ class Viewer(ViewParams):
         else:
             plt.show()
 
-    def baf(self, size=10, plot_gt=None, plot_pmask=None):
+    def snp(self, size=10, plot_gt=None, plot_pmask=None):
         if plot_pmask is None:
             plot_pmask = [0, 1]
         if plot_gt is None:
@@ -770,7 +768,6 @@ class Viewer(ViewParams):
                         color.append(self.snp_colors[(gt[i] % 4) * 2 + (flag[i] >> 1)])
 
             ax = plt.subplot(sx, sy, ix)
-
             ax.set_title(c, position=(0.01, 0.9), fontdict={'verticalalignment': 'top', 'horizontalalignment': 'left'},
                          color='C0')
             ax.xaxis.set_ticklabels([])
@@ -781,7 +778,7 @@ class Viewer(ViewParams):
             ax.set_ylim([0., 1.])
             ax.set_xlim([-0.05 * l, 1.05 * l])
             ax.grid()
-            plt.scatter(hpos, baf, marker='.', edgecolor=color, c=color, s=size, alpha=0.7)
+            ax.scatter(hpos, baf, marker='.', edgecolor=color, c=color, s=size, alpha=0.7)
             ix += 1
         plt.subplots_adjust(bottom=0., top=1., wspace=0, hspace=0, left=0., right=1.)
         if self.output_filename != "":
@@ -792,6 +789,7 @@ class Viewer(ViewParams):
             plt.draw()
         else:
             plt.show()
+
 
     @staticmethod
     def panels_shape(n):

@@ -276,6 +276,7 @@ class Root:
         hm = 0
         for bf in bamfiles:
             hm += self.read_bam(bf, chroms, reference_filename=reference_filename)
+            #self.io.add_mata("BAM",bf)
 
         if self.io.signal_exists(None, None, "reference genome"):
             rg_name = np.array(self.io.get_signal(None, None, "reference genome")).astype("str")[0]
@@ -1178,14 +1179,17 @@ class Root:
                         bins = len(rd)
                         valid = np.isfinite(rd)
                         level = rd[valid]
-                        #error = np.sqrt(level)**2 + std**2
-                        error = std**2
+                        error = np.sqrt(level)**2 + std**2
+                        #error = np.sqrt(level)**2
                         loc_fl = np.min(list(zip(np.abs(np.diff(level))[:-1], np.abs(np.diff(level))[1:])), axis=1)
                         loc_fl = np.concatenate(([0], loc_fl, [0]))
                         error += (loc_fl / 2)**2
                         error = np.sqrt(error)
-                        plt.errorbar(np.arange(0,len(level)),level,yerr=error)
-                        plt.show()
+                        #plt.errorbar(np.arange(0,len(level)),level,yerr=error,c="k")
+                        #plt.errorbar(np.arange(0,len(level))+0.1,level,yerr=np.sqrt(level),c="r")
+                        #plt.errorbar(np.arange(0,len(level))+0.2,level,yerr=std,c="g")
+                        #plt.errorbar(np.arange(0,len(level))+0.3,level,yerr=loc_fl,c="b")
+                        #plt.show()
                         level = list(level)
                         error = list(error)
                         segments = [[i] for i in range(bins) if np.isfinite(rd[i])]
