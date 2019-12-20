@@ -249,8 +249,9 @@ class IO(Signals):
             try:
                 self.file = h5py.File(filename, "w")
                 now = datetime.datetime.now()
-                self.create_signal(None, None, "METADATA",
-                                   np.array([np.string_(__version__), np.string_(now.strftime("%Y-%m-%d %H:%M"))]))
+                # Meta data
+                self.add_meta_attribute('Version', __version__)
+                self.add_meta_attribute('Date', now.strftime("%Y-%m-%d %H:%M"))
                 _logger.debug("File '%s' successfully created." % self.filename)
             except IOError:
                 _logger.error("Unable to create file %s!" % filename)
@@ -801,3 +802,10 @@ class IO(Signals):
             if Genome.canonical_chrom_name(name) == Genome.canonical_chrom_name(snpc):
                 return snpc
         return None
+
+    def add_meta_attribute(self, attribute, value):
+        self.file.attrs[attribute] = str(value)
+
+    def read_meta_attribute(self):
+        for attribute, value in self.file.attrs.items():
+            print("{}: {}".format(attribute, value))

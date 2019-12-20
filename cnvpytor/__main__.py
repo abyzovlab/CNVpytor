@@ -92,6 +92,7 @@ def main():
     parser.add_argument('-info', '--info', type=binsize_type, nargs="*", help='print statistics for pythor file(s)')
     parser.add_argument('-comp', '--compare', type=str, nargs="*", help='compere two regions: -comp reg1 reg2 [n_bins]')
     parser.add_argument('-genotype', '--genotype', type=str, nargs="*")
+    parser.add_argument('-meta', '--metadata', action='store_true', help='list Metadata')
 
     args = parser.parse_args(sys.argv[1:])
 
@@ -141,6 +142,9 @@ def main():
         if args.ls:
             view = Viewer(args.root, {})
             view.ls()
+        if args.metadata:
+            view = Viewer(args.root, {})
+            view.meta()
 
         if args.info is not None:
             view = Viewer(args.root, {})

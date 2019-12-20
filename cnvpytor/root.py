@@ -276,7 +276,8 @@ class Root:
         hm = 0
         for bf in bamfiles:
             hm += self.read_bam(bf, chroms, reference_filename=reference_filename)
-            #self.io.add_mata("BAM",bf)
+            self.io.add_meta_attribute("BAM", bf)
+            print("test def rd")
 
         if self.io.signal_exists(None, None, "reference genome"):
             rg_name = np.array(self.io.get_signal(None, None, "reference genome")).astype("str")[0]
