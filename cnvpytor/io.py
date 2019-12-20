@@ -477,9 +477,13 @@ class IO(Signals):
         print()
         print("Filename '%s'" % self.filename)
         print("-----------" + "-" * len(self.filename))
-        if meta is not None and len(meta)>1:
-            print("File created: " + meta[1] + " using CNVpytor ver "+meta[0])
-            print()
+        parameter_list = ['Date', 'Version']
+        # if parameter_list[0] in self.file.attrs and parameter_list[1] in self.file.attrs:
+        if parameter_list and self.file.attrs.keys():
+            date = self.file.attrs['Date']
+            version = self.file.attrs['Version']
+            print("File created: {} using CNVpytor ver {}\n".format(date, version))
+
         print("Chromosomes with RD signal: " + ", ".join(self.rd_chromosomes()))
         print()
         print("Chromosomes with SNP signal: " + ", ".join(self.snp_chromosomes()))
