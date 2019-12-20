@@ -29,7 +29,6 @@ FLAG_USEHAP = 0x0400
 
 class Signals(object):
     signals = {
-        "METADATA": "metadata",
         "RD p": "%(chr)s_rd_p",
         "RD u": "%(chr)s_rd_u",
         "GC/AT": "%(chr)s_gc",
@@ -473,12 +472,11 @@ class IO(Signals):
         None
 
         """
-        meta = np.array(self.get_signal(None, None, "METADATA")).astype("str")
         print()
         print("Filename '%s'" % self.filename)
         print("-----------" + "-" * len(self.filename))
+
         parameter_list = ['Date', 'Version']
-        # if parameter_list[0] in self.file.attrs and parameter_list[1] in self.file.attrs:
         if parameter_list and self.file.attrs.keys():
             date = self.file.attrs['Date']
             version = self.file.attrs['Version']
