@@ -110,7 +110,19 @@ class ViewParams(object):
             p_desc="Save current figure to file. There is a shortcut (see examples): " +
                    "redirection '>' after plotting command.\n" +
                    "Available formats:\n" +
-                   key_val_str(plt.gcf().canvas.get_supported_filetypes())[:-1],
+                   "    * pgf - PGF code for LaTeX\n" +
+                   "    * svgz - Scalable Vector Graphics\n" +
+                   "    * tiff - Tagged Image File Format\n" +
+                   "    * jpg - Joint Photographic Experts Group\n" +
+                   "    * raw - Raw RGBA bitmap\n" +
+                   "    * jpeg - Joint Photographic Experts Group\n" +
+                   "    * png - Portable Network Graphics\n" +
+                   "    * ps - Postscript\n" +
+                   "    * svg - Scalable Vector Graphics\n" +
+                   "    * eps - Encapsulated Postscript\n"+
+                   "    * rgba - Raw RGBA bitmap\n" +
+                   "    * pdf - Portable Document Format\n" +
+                   "    * tif - Tagged Image File Format",
             p_usage="save filename",
             p_example="save image.png\n manhattan > image.png\n chr1:20M-50M > image.png",
             p_see="output_filename"

@@ -142,6 +142,7 @@ def main():
         if args.ls:
             view = Viewer(args.root, {})
             view.ls()
+
         if args.metadata:
             view = Viewer(args.root, {})
             view.meta()
