@@ -967,8 +967,7 @@ class Viewer(ViewParams):
                             print("{:>20}{:>20}".format("-", "-"), end="")
             print()
 
-    def rd_baf(self):
-        import seaborn
+    def rd_baf(self, hist=True):
         plt.clf()
         plt.rcParams["font.size"] = 8
         self.fig = plt.figure(1, figsize=(12, 8), facecolor='w', edgecolor='k')
@@ -1021,9 +1020,11 @@ class Viewer(ViewParams):
                         x.append(mbaf[p])
                         y.append(mrd[p])
 
-            from matplotlib.colors import LogNorm
-
-            ax.hist2d(x,y,bins=[np.arange(0,0.51,0.01),np.arange(0,max(y),max(y)/100.)],norm=LogNorm())
+            if hist:
+                from matplotlib.colors import LogNorm
+                ax.hist2d(x,y,bins=[np.arange(0,0.51,0.01),np.arange(0,max(y),max(y)/100.)],norm=LogNorm())
+            else:
+                ax.scatter(x,y,marker=".",alpha=0.5)
 
         if self.output_filename != "":
             plt.savefig(self.image_filename("regions"), dpi=150)
