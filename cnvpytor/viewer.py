@@ -967,6 +967,76 @@ class Viewer(ViewParams):
                             print("{:>20}{:>20}".format("-", "-"), end="")
             print()
 
+    def rd_baf(self):
+        import seaborn
+        plt.clf()
+        plt.rcParams["font.size"] = 8
+        self.fig = plt.figure(1, figsize=(12, 8), facecolor='w', edgecolor='k')
+        n = len(self.plot_files)
+        ix = self.plot_files
+        if self.grid == "auto":
+            sx, sy = self.panels_shape(n)
+        else:
+            sx, sy = tuple(self.grid)
+        grid = gridspec.GridSpec(sy, sx, wspace=0.2, hspace=0.2)
+        bin_size = self.bin_size
+        for i in range(n):
+            ax = self.fig.add_subplot(grid[i])
+            io = self.io[ix[i]]
+
+
+            chroms = []
+            snp_flag = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0)
+            rd_flag = FLAG_GC_CORR | (FLAG_USEMASK if self.rd_use_mask else 0)
+            for c, (l, t) in self.reference_genome["chromosomes"].items():
+                snp_chr = io.snp_chromosome_name(c)
+                if len(self.chrom) == 0 or (snp_chr in self.chrom) or (c in self.chrom):
+                    if io.signal_exists(snp_chr, bin_size, "SNP likelihood call", snp_flag) and \
+                            io.signal_exists(snp_chr, bin_size, "SNP likelihood segments", snp_flag) and \
+                            io.signal_exists(snp_chr, bin_size, "RD mosaic call", rd_flag) and \
+                            io.signal_exists(snp_chr, bin_size, "RD mosaic segments", rd_flag) and \
+                            Genome.is_autosome(c):
+                        chroms.append((snp_chr, l))
+            x=[]
+            y=[]
+            for c, l in chroms:
+                flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
+
+                likelihood = io.get_signal(c, bin_size, "SNP likelihood call", snp_flag)
+                segments_baf = segments_decode(io.get_signal(c, bin_size, "SNP likelihood segments", snp_flag))
+                rd = io.get_signal(c, bin_size, "RD mosaic call", rd_flag)
+                segments_rd = segments_decode(io.get_signal(c, bin_size, "RD mosaic segments", rd_flag))
+
+                mbaf={}
+                mrd={}
+                for s, lh in zip(segments_baf, likelihood):
+                    b, p = likelihood_baf_pval(lh)
+                    for pos in s:
+                        mbaf[pos]=0.5-b
+                for s, r in zip(segments_rd, rd[0]):
+                    for pos in s:
+                        mrd[pos]=r
+                for p in mbaf:
+                    if p in mrd:
+                        x.append(mbaf[p])
+                        y.append(mrd[p])
+
+            from matplotlib.colors import LogNorm
+
+            ax.hist2d(x,y,bins=[np.arange(0,0.51,0.01),np.arange(0,max(y),max(y)/100.)],norm=LogNorm())
+
+        if self.output_filename != "":
+            plt.savefig(self.image_filename("regions"), dpi=150)
+            plt.close(self.fig)
+        elif self.interactive:
+            plt.show(block=False)
+            plt.draw()
+        else:
+            plt.show()
+
+
+
+
     def dispersion(self, legend=True):
         plt.clf()
         plt.rcParams["font.size"] = 8
