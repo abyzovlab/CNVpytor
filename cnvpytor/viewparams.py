@@ -42,6 +42,93 @@ class ViewParams(object):
         "min_segment_size": 0
     }
 
+    def __init__(self, params):
+        for key in self.default:
+            if key in params:
+                setattr(self, key, params[key])
+            else:
+                setattr(self, key, self.default[key])
+
+    def set(self, param, args):
+        if param in self.params and self.params[param] is False:
+            self.__setattr__(param, True)
+        elif param == "bin_size" and len(args) > 0:
+            self.__setattr__(param, args[0])
+        elif param == "contrast" and len(args) > 0:
+            self.__setattr__(param, float(args[0]))
+        elif param == "grid" and len(args) > 0:
+            if args[0] == "auto":
+                self.__setattr__(param, "auto")
+            else:
+                self.__setattr__(param, list(map(int, args)))
+        elif param == "manhattan_range" and len(args) > 0:
+            self.__setattr__(param, list(map(float, args)))
+        elif param == "min_segment_size" and len(args) > 0:
+            self.__setattr__(param, int(args[0]))
+        elif param == "output_filename" and len(args) > 0:
+            self.__setattr__(param, args[0])
+        elif param == "plot_file" and len(args) > 0:
+            self.__setattr__(param, int(args[0]))
+        elif param == "plot_files":
+            self.__setattr__(param, list(map(int, args)))
+        elif param == "style":
+            self.__setattr__(param, args[0])
+        elif param in self.params and self.params[param] is not True:
+            self.__setattr__(param, args)
+
+    def unset(self, param):
+        if param in self.params and self.params[param] is True:
+            self.__setattr__(param, False)
+
+    @property
+    def params(self):
+        dct = {}
+        for key in self.default:
+            dct[key] = getattr(self, key)
+
+        return dct
+
+    @property
+    def bin_size_f(self):
+        """
+        Formatted bin_size (e.g. 1000 -> "1K", 10000000 -> "10M")
+
+        Returns
+        -------
+        bin_size_f : str
+
+        """
+        return binsize_format(self.params["bin_size"])
+
+    def __setattr__(self, name, value):
+
+        if name == 'bin_size' and value is not None:
+            try:
+                value = binsize_type(value)
+            except (ArgumentTypeError, ValueError):
+                _logger.warning("bin_size should be integer divisible by 100")
+        if name == 'style':
+            if value in plt.style.available:
+                plt.style.use("default")
+                plt.style.use(value)
+
+        if name == 'xkcd':
+            if value:
+                self.style = "classic"
+                from matplotlib import patheffects
+                plt.xkcd()
+                plt.rcParams["path.effects"] = [patheffects.withStroke(linewidth=0.5, foreground="w")]
+
+            elif hasattr(self, name) and self.xkcd:
+                plt.rcdefaults()
+                self.style = 'classic'
+
+        super(ViewParams, self).__setattr__(name, value)
+
+
+class HelpDescription(object):
+    default = ViewParams.default
+
     command_tree = {
         "set": {},
         "unset": {},
@@ -119,7 +206,7 @@ class ViewParams(object):
                    "    * png - Portable Network Graphics\n" +
                    "    * ps - Postscript\n" +
                    "    * svg - Scalable Vector Graphics\n" +
-                   "    * eps - Encapsulated Postscript\n"+
+                   "    * eps - Encapsulated Postscript\n" +
                    "    * rgba - Raw RGBA bitmap\n" +
                    "    * pdf - Portable Document Format\n" +
                    "    * tif - Tagged Image File Format",
@@ -229,92 +316,3 @@ class ViewParams(object):
         "contrast": "",
         "min_segment_size": "",
     }
-
-    def __init__(self, params):
-        for key in self.default:
-            if key in params:
-                setattr(self, key, params[key])
-            else:
-                setattr(self, key, self.default[key])
-
-    def help(self, param):
-        if param in self.param_help:
-            print(self.param_help[param])
-        else:
-            print("\nUnknown parameter !\n")
-
-    def set(self, param, args):
-        if param in self.params and self.params[param] is False:
-            self.__setattr__(param, True)
-        elif param == "bin_size" and len(args) > 0:
-            self.__setattr__(param, args[0])
-        elif param == "contrast" and len(args) > 0:
-            self.__setattr__(param, float(args[0]))
-        elif param == "grid" and len(args) > 0:
-            if args[0] == "auto":
-                self.__setattr__(param, "auto")
-            else:
-                self.__setattr__(param, list(map(int, args)))
-        elif param == "manhattan_range" and len(args) > 0:
-            self.__setattr__(param, list(map(float, args)))
-        elif param == "min_segment_size" and len(args) > 0:
-            self.__setattr__(param, int(args[0]))
-        elif param == "output_filename" and len(args) > 0:
-            self.__setattr__(param, args[0])
-        elif param == "plot_file" and len(args) > 0:
-            self.__setattr__(param, int(args[0]))
-        elif param == "plot_files":
-            self.__setattr__(param, list(map(int, args)))
-        elif param == "style":
-            self.__setattr__(param, args[0])
-        elif param in self.params and self.params[param] is not True:
-            self.__setattr__(param, args)
-
-    def unset(self, param):
-        if param in self.params and self.params[param] is True:
-            self.__setattr__(param, False)
-
-    @property
-    def params(self):
-        dct = {}
-        for key in self.default:
-            dct[key] = getattr(self, key)
-
-        return dct
-
-    @property
-    def bin_size_f(self):
-        """
-        Formatted bin_size (e.g. 1000 -> "1K", 10000000 -> "10M")
-
-        Returns
-        -------
-        bin_size_f : str
-
-        """
-        return binsize_format(self.params["bin_size"])
-
-    def __setattr__(self, name, value):
-
-        if name == 'bin_size' and value is not None:
-            try:
-                value = binsize_type(value)
-            except (ArgumentTypeError, ValueError):
-                _logger.warning("bin_size should be integer divisible by 100")
-        if name == 'style':
-            if value in plt.style.available:
-                plt.style.use("default")
-                plt.style.use(value)
-
-        if name == 'xkcd':
-            if value:
-                self.style = "classic"
-                from matplotlib import patheffects
-                plt.xkcd()
-                plt.rcParams["path.effects"] = [patheffects.withStroke(linewidth=0.5, foreground="w")]
-
-            elif hasattr(self, name) and self.xkcd:
-                plt.rcdefaults()
-                self.style = 'classic'
-
-        super(ViewParams, self).__setattr__(name, value)

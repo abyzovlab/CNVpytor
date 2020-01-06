@@ -7,7 +7,7 @@ from __future__ import absolute_import, print_function, division
 from .io import *
 from .utils import *
 from .genome import *
-from .viewparams import ViewParams
+from .viewparams import ViewParams, HelpDescription
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.colors as colors
@@ -20,7 +20,7 @@ import traceback
 _logger = logging.getLogger("cnvpytor.viewer")
 
 
-class Viewer(ViewParams):
+class Viewer(ViewParams, HelpDescription):
 
     def __init__(self, files, params):
         _logger.debug("Viewer class init: files [%s], params %s." % (", ".join(files), str(params)))
@@ -159,6 +159,12 @@ class Viewer(ViewParams):
         except (EOFError, KeyboardInterrupt):
             print()
             return
+
+    def help(self, param):
+        if param in self.param_help:
+            print(self.param_help[param])
+        else:
+            print("\nUnknown parameter !\n")
 
     @staticmethod
     def set_style(style):
