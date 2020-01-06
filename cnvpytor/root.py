@@ -277,7 +277,6 @@ class Root:
         for bf in bamfiles:
             hm += self.read_bam(bf, chroms, reference_filename=reference_filename)
             self.io.add_meta_attribute("BAM", bf)
-            print("test def rd")
 
         if self.io.signal_exists(None, None, "reference genome"):
             rg_name = np.array(self.io.get_signal(None, None, "reference genome")).astype("str")[0]
@@ -300,6 +299,7 @@ class Root:
         hm = 0
         for vcf_file in vcf_files:
             hm += self.read_vcf(vcf_file, chroms, sample, no_counts=no_counts)
+            self.io.add_meta_attribute("VCF", vcf_file)
         return hm
 
     def pileup_bam(self, bamfile, chroms, pos, ref, alt, nref, nalt, reference_filename):
