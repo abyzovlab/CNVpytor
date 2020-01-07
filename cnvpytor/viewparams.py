@@ -25,6 +25,7 @@ class ViewParams(object):
         "snp_use_mask": True,
         "snp_use_id": False,
         "snp_use_phase": False,
+        "markersize": "auto",
         "rd_colors": "",
         "snp_colors": ["yellow", "orange", "cyan", "blue", "lime", "green", "yellow", "orange"],
         "baf_colors": "",
@@ -56,6 +57,11 @@ class ViewParams(object):
             self.__setattr__(param, args[0])
         elif param == "contrast" and len(args) > 0:
             self.__setattr__(param, float(args[0]))
+        elif param == "markersize" and len(args) > 0:
+            if args[0] == "auto":
+                self.__setattr__(param, "auto")
+            else:
+                self.__setattr__(param, float(args[0]))
         elif param == "grid" and len(args) > 0:
             if args[0] == "auto":
                 self.__setattr__(param, "auto")
@@ -300,6 +306,15 @@ class HelpDescription(object):
         "snp_use_mask": "",
         "snp_use_id": "",
         "snp_use_phase": "",
+        "markersize": help_format(
+            topic="markersize",
+            p_desc="Size of markers used in scatter like plots (e.g. manhattan, snp).",
+            p_type="float or str",
+            p_default=str(default["markersize"]),
+            p_affects="manhattan, snp, region plot with snp panel",
+            p_example="set markersize 10\nset markersize auto",
+            p_see="rd_colors, snp_colors, baf_colors, lh_colors"
+        ),
         "rd_colors": "",
         "snp_colors": "",
         "baf_colors": "",

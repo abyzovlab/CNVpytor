@@ -486,7 +486,10 @@ class Viewer(ViewParams, HelpDescription):
             ax.set_ylim([0., 1.])
             ax.set_xlim([-0.05 * l, 1.05 * l])
             ax.grid()
-            ax.scatter(hpos, baf, marker='.', edgecolor=color, c=color, s=size, alpha=0.7)
+            if self.markersize == "auto":
+                ax.scatter(hpos, baf, marker='.', edgecolor=color, c=color, s=10, alpha=0.7)
+            else:
+                ax.scatter(hpos, baf, marker='.', edgecolor=color, c=color, s=self.markersize, alpha=0.7)
             ix += 1
         plt.subplots_adjust(bottom=0., top=1., wspace=0, hspace=0, left=0., right=1.)
         if self.output_filename != "":
@@ -584,7 +587,10 @@ class Viewer(ViewParams, HelpDescription):
                     pos = range(apos, apos + len(his_p))
                     ax.text(apos + len(his_p) // 2, stat[4] // 10, Genome.canonical_chrom_name(c),
                             fontsize=8, verticalalignment='bottom', horizontalalignment='center', )
-                    plt.plot(pos, his_p_corr, ls='', marker='.')
+                    if self.markersize == "auto":
+                        plt.plot(pos, his_p_corr, ls='', marker='.')
+                    else:
+                        plt.plot(pos, his_p_corr, ls='', marker='.', markersize=self.markersize)
                     if self.rd_manhattan_call:
                         if his_p_call is not None and len(his_p_call) > 0 and self.rd_call:
                             plt.step(pos, his_p_call, "r")
@@ -790,7 +796,10 @@ class Viewer(ViewParams, HelpDescription):
                 ax.set_ylim([0., 1.])
                 ax.set_xlim([0, borders[-1]])
                 ax.yaxis.grid()
-                ax.scatter(hpos, baf, marker='.', edgecolor=color, c=color, s=10, alpha=0.7)
+                if self.markersize == "auto":
+                    ax.scatter(hpos, baf, marker='.', edgecolor=color, c=color, s=10, alpha=0.7)
+                else:
+                    ax.scatter(hpos, baf, marker='.', edgecolor=color, c=color, s=self.markersize, alpha=0.7)
 
                 for i in borders[:-1]:
                     ax.axvline(i, color=sep_color, lw=1)
@@ -1040,9 +1049,6 @@ class Viewer(ViewParams, HelpDescription):
             plt.draw()
         else:
             plt.show()
-
-
-
 
     def dispersion(self, legend=True):
         plt.clf()
