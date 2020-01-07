@@ -93,7 +93,7 @@ def main():
     parser.add_argument('-comp', '--compare', type=str, nargs="*", help='compere two regions: -comp reg1 reg2 [n_bins]')
     parser.add_argument('-genotype', '--genotype', type=str, nargs="*")
     parser.add_argument('-meta', '--metadata', action='store_true', help='list Metadata')
-
+    parser.add_argument('-export', '--export', type=str, nargs="*", help='Export to jbrowse and cnvnator')
     args = parser.parse_args(sys.argv[1:])
 
     log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -140,16 +140,23 @@ def main():
     if args.root is not None:
 
         if args.ls:
-            view = Viewer(args.root, {})
-            view.ls()
+            show = Show(args.root)
+            show.ls()
 
+        if args.export:
+            export = Export(args.root)
+            if len(args.export)>0:
+                if args.export[0] == 'jbrowse':
+                    export.jbrowse(args.export[1:])
+                elif args.export[0] == 'cnvnator':
+                    export.cnvnator(args.export[1:])
         if args.metadata:
-            view = Viewer(args.root, {})
-            view.meta()
+            show = Show(args.root)
+            show.meta()
 
         if args.info is not None:
-            view = Viewer(args.root, {})
-            view.info(args.info)
+            show = Show(args.root)
+            show.info(args.info)
 
         if args.genotype is not None:
             view = Viewer(args.root, {})
@@ -252,7 +259,6 @@ def main():
             else:
                 app.call(list(map(binsize_type,args.call)), chroms=args.chrom, use_gc_corr=not args.no_gc_corr,
                          use_mask=args.use_mask_with_rd)
-
 
 if __name__ == '__main__':
     main()
