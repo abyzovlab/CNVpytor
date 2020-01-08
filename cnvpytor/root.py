@@ -221,7 +221,7 @@ class Root:
             gc_corr_mt = calculate_gc_correction(dist_p_gc_mt, m_mt, s_mt, bin_size_mt)
             self.io.create_signal(None, 100, "GC corr", gc_corr_mt, flags=FLAG_MT)
 
-    def read_vcf(self, vcf_file, chroms, sample='', use_index=False, no_counts=False):
+    def read_vcf(self, vcf_file, chroms, sample='', use_index=False, no_counts=False, ad_tag="AD", gt_tag="GT", somatic=""):
         """
 
         Parameters
@@ -240,32 +240,33 @@ class Root:
 
         def save_data(chr, pos, ref, alt, nref, nalt, gt, flag, qual):
             if (len(chroms) == 0 or chr in chroms) and (not pos is None) and (len(pos) > 0):
-                self.io.save_snp(chr, pos, ref, alt, nref, nalt, gt, flag, qual)
+                self.io.save_snp(chr, pos, ref, alt, nref, nalt, gt, flag, qual, somatic=somatic)
             # TODO: Stop reading if all from chrom list are read.
 
         def save_data_no_counts(chr, pos, ref, alt, gt, flag, qual):
             if (len(chroms) == 0 or chr in chroms) and (not pos is None) and (len(pos) > 0):
-                self.io.save_snp(chr, pos, ref, alt, np.zeros_like(pos), np.zeros_like(pos), gt, flag, qual)
+                self.io.save_snp(chr, pos, ref, alt, np.zeros_like(pos), np.zeros_like(pos), gt, flag, qual,
+                                 somatic=somatic)
 
         if use_index:
             count = 0
             for c in chrs:
                 _logger.info("Reading variant data for chromosome %s" % c)
                 if no_counts:
-                    pos, ref, alt, gt, flag, qual = vcff.read_chromosome_snp_no_counts(c, sample)
+                    pos, ref, alt, gt, flag, qual = vcff.read_chromosome_snp_no_counts(c, sample, gt_tag=gt_tag)
                     nref, nalt = np.zeros_like(pos), np.zeros_like(pos)
                 else:
-                    pos, ref, alt, nref, nalt, gt, flag, qual = vcff.read_chromosome_snp(c, sample)
+                    pos, ref, alt, nref, nalt, gt, flag, qual = vcff.read_chromosome_snp(c, sample, ad_tag=ad_tag, gt_tag=gt_tag)
 
                 if not pos is None and len(pos) > 0:
-                    self.io.save_snp(c, pos, ref, alt, nref, nalt, gt, flag, qual)
+                    self.io.save_snp(c, pos, ref, alt, nref, nalt, gt, flag, qual, somatic=somatic)
                     count += 1
             return count
         else:
             if no_counts:
-                return vcff.read_all_snp_no_counts(save_data_no_counts, sample)
+                return vcff.read_all_snp_no_counts(save_data_no_counts, sample, gt_tag=gt_tag)
             else:
-                return vcff.read_all_snp(save_data, sample)
+                return vcff.read_all_snp(save_data, sample, ad_tag=ad_tag, gt_tag=gt_tag)
 
     def rd(self, bamfiles, chroms=[], reference_filename=False):
         """ Read chromosomes from bam/sam/cram file(s) and store in .cnvnator file
@@ -290,7 +291,7 @@ class Root:
 
         return hm
 
-    def vcf(self, vcf_files, chroms=[], sample='', no_counts=False):
+    def vcf(self, vcf_files, chroms=[], sample='', no_counts=False, ad_tag="AD", gt_tag="GT", somatic=""):
         """ Read SNP data from variant file(s) and store in .cnvnator file
                 Arguments:
                     * list of variant file names
@@ -298,7 +299,7 @@ class Root:
         """
         hm = 0
         for vcf_file in vcf_files:
-            hm += self.read_vcf(vcf_file, chroms, sample, no_counts=no_counts)
+            hm += self.read_vcf(vcf_file, chroms, sample, no_counts=no_counts, ad_tag=ad_tag, gt_tag=gt_tag, somatic=somatic)
             self.io.add_meta_attribute("VCF", vcf_file)
         return hm
 
@@ -1180,17 +1181,17 @@ class Root:
                         bins = len(rd)
                         valid = np.isfinite(rd)
                         level = rd[valid]
-                        error = np.sqrt(level)**2 + std**2
-                        #error = np.sqrt(level)**2
+                        error = np.sqrt(level) ** 2 + std ** 2
+                        # error = np.sqrt(level)**2
                         loc_fl = np.min(list(zip(np.abs(np.diff(level))[:-1], np.abs(np.diff(level))[1:])), axis=1)
                         loc_fl = np.concatenate(([0], loc_fl, [0]))
-                        error += (loc_fl / 2)**2
+                        error += (loc_fl / 2) ** 2
                         error = np.sqrt(error)
-                        #plt.errorbar(np.arange(0,len(level)),level,yerr=error,c="k")
-                        #plt.errorbar(np.arange(0,len(level))+0.1,level,yerr=np.sqrt(level),c="r")
-                        #plt.errorbar(np.arange(0,len(level))+0.2,level,yerr=std,c="g")
-                        #plt.errorbar(np.arange(0,len(level))+0.3,level,yerr=loc_fl,c="b")
-                        #plt.show()
+                        # plt.errorbar(np.arange(0,len(level)),level,yerr=error,c="k")
+                        # plt.errorbar(np.arange(0,len(level))+0.1,level,yerr=np.sqrt(level),c="r")
+                        # plt.errorbar(np.arange(0,len(level))+0.2,level,yerr=std,c="g")
+                        # plt.errorbar(np.arange(0,len(level))+0.3,level,yerr=loc_fl,c="b")
+                        # plt.show()
                         level = list(level)
                         error = list(error)
                         segments = [[i] for i in range(bins) if np.isfinite(rd[i])]

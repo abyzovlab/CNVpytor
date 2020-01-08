@@ -12,7 +12,6 @@ import argparse
 import matplotlib.pyplot as plt
 
 
-
 def main():
     """ main()
     CNVpytor main commandline program.
@@ -50,6 +49,9 @@ def main():
     parser.add_argument('-vcf', '-snp', '--vcf', nargs="+", type=str, help="read SNP data from vcf files")
     parser.add_argument('-noAD', '--no_snp_counts', action='store_true',
                         help="read positions of snps, not counts (AD tag)")
+    parser.add_argument('-ad', '--ad_tag', type=str, help="counts tag (default: AD)", default="AD")
+    parser.add_argument('-gt', '--gt_tag', type=str, help="genotype tag (default: GT)", default="GT")
+    parser.add_argument('-somatic', '--somatic', type=str, help="name for somatic VCF signal", default="")
     parser.add_argument('-pileup', '--pileup_bam', nargs="+", type=str, help="calculate SNP counts from bam files")
 
     parser.add_argument('-mask', '--mask', type=str, help="read fasta mask file and flag SNPs in P region")
@@ -145,7 +147,7 @@ def main():
 
         if args.export:
             export = Export(args.root)
-            if len(args.export)>0:
+            if len(args.export) > 0:
                 if args.export[0] == 'jbrowse':
                     export.jbrowse(args.export[1:])
                 elif args.export[0] == 'cnvnator':
@@ -160,7 +162,7 @@ def main():
 
         if args.genotype is not None:
             view = Viewer(args.root, {})
-            view.genotype_prompt(list(map(binsize_type,args.genotype)))
+            view.genotype_prompt(list(map(binsize_type, args.genotype)))
 
         if args.compare is not None:
             params = {"bin_size": binsize_type(args.compare[-1]),
@@ -169,7 +171,7 @@ def main():
                       }
             view = Viewer(args.root, params)
             if len(args.compare) == 3:
-                view.compare(args.compare[0],args.compare[1])
+                view.compare(args.compare[0], args.compare[1])
             elif len(args.compare) == 4:
                 view.compare(args.compare[0], args.compare[1], int(args.compare[2]))
         if args.reference_genome:
@@ -217,7 +219,8 @@ def main():
 
         if args.vcf:
             app = Root(args.root[0], create=True, max_cores=args.max_cores)
-            app.vcf(args.vcf, chroms=args.chrom, sample=args.vcf_sample, no_counts=args.no_snp_counts)
+            app.vcf(args.vcf, chroms=args.chrom, sample=args.vcf_sample, no_counts=args.no_snp_counts,
+                    ad_tag=args.ad_tag, gt_tag=args.gt_tag, somatic=args.somatic)
 
         if args.pileup_bam:
             app = Root(args.root[0], max_cores=args.max_cores)
@@ -254,11 +257,13 @@ def main():
                 app.call_baf([binsize_type(x) for x in args.call[1:]], chroms=args.chrom, use_id=args.use_id,
                              use_mask=not args.no_mask, anim=args.animation)
             elif args.call[0] == "mosaic":
-                app.call_mosaic(list(map(binsize_type, args.call[1:])), chroms=args.chrom, use_gc_corr=not args.no_gc_corr,
-                         use_mask=args.use_mask_with_rd, anim=args.animation)
+                app.call_mosaic(list(map(binsize_type, args.call[1:])), chroms=args.chrom,
+                                use_gc_corr=not args.no_gc_corr,
+                                use_mask=args.use_mask_with_rd, anim=args.animation)
             else:
-                app.call(list(map(binsize_type,args.call)), chroms=args.chrom, use_gc_corr=not args.no_gc_corr,
+                app.call(list(map(binsize_type, args.call)), chroms=args.chrom, use_gc_corr=not args.no_gc_corr,
                          use_mask=args.use_mask_with_rd)
+
 
 if __name__ == '__main__':
     main()

@@ -64,7 +64,7 @@ class Vcf:
         """
         return self.samples
 
-    def read_chromosome_snp(self, chr_name, sample=''):
+    def read_chromosome_snp(self, chr_name, sample='', ad_tag='AD', gt_tag='GT'):
         """
         Read SNP/indel data for given chromosome and sample.
 
@@ -109,10 +109,10 @@ class Vcf:
         try:
             for rec in self.file.fetch(chr_name):
                 if "PASS" in rec.filter.keys() and rec.alts and len(rec.alts) == 1 and (
-                        "GT" in rec.samples[sample].keys()) and (
-                        "AD" in rec.samples[sample].keys()) and len(rec.samples[sample]["GT"]) > 1 and len(
-                    rec.samples[sample]["AD"]) > 1:
-                    if (len(rec.samples[sample]["AD"]) > 1) and (rec.ref in alphabet) and (rec.alts[0] in alphabet):
+                        gt_tag in rec.samples[sample].keys()) and (
+                        ad_tag in rec.samples[sample].keys()) and len(rec.samples[sample][gt_tag]) > 1 and len(
+                    rec.samples[sample][ad_tag]) > 1:
+                    if (len(rec.samples[sample][ad_tag]) > 1) and (rec.ref in alphabet) and (rec.alts[0] in alphabet):
                         pos.append(rec.pos)
                         ref.append(rec.ref)
                         alt.append(rec.alts[0])
@@ -123,17 +123,22 @@ class Vcf:
                             qual.append(int(rec.qual / 10))  # divide QUAL by factor 10 and truncate to one byte
                         if qual[-1] > 255:
                             qual[-1] = 255
-                        nref.append(rec.samples[sample]["AD"][0])
-                        nalt.append(rec.samples[sample]["AD"][1])
-                        gt.append(rec.samples[sample]["GT"][0] * 2 + rec.samples[sample]["GT"][1])
-                        if rec.samples[sample].phased:
-                            gt[-1] += 4
+                        nref.append(rec.samples[sample][ad_tag][0])
+                        nalt.append(rec.samples[sample][ad_tag][1])
+                        if isinstance(rec.samples[sample][gt_tag], str) or isinstance(rec.samples[sample][gt_tag], unicode):
+                            gt.append(int(rec.samples[sample][gt_tag][0]) * 2 + int(rec.samples[sample][gt_tag][2]))
+                            if rec.samples[sample][gt_tag][1] == "|":
+                                gt[-1] += 4
+                        else:
+                            gt.append(rec.samples[sample][gt_tag][0] * 2 + rec.samples[sample][gt_tag][1])
+                            if rec.samples[sample].phased:
+                                gt[-1] += 4
         except ValueError:
             _logger.error("Variant file reading problem. Probably index file is missing or corrupted.")
             exit(0)
         return pos, ref, alt, nref, nalt, gt, flag, qual
 
-    def read_chromosome_snp_no_counts(self, chr_name, sample=''):
+    def read_chromosome_snp_no_counts(self, chr_name, sample='', gt_tag='GT'):
         """
         Read SNP/indel data without counts (AD tag) for given chromosome and sample.
 
@@ -172,7 +177,7 @@ class Vcf:
         try:
             for rec in self.file.fetch(chr_name):
                 if "PASS" in rec.filter.keys() and rec.alts and len(rec.alts) == 1 and (
-                        "GT" in rec.samples[sample].keys()) and len(rec.samples[sample]["GT"]) > 1:
+                        gt_tag in rec.samples[sample].keys()) and len(rec.samples[sample][gt_tag]) > 1:
                     if (rec.ref in alphabet) and (rec.alts[0] in alphabet):
                         pos.append(rec.pos)
                         ref.append(rec.ref)
@@ -184,15 +189,21 @@ class Vcf:
                             qual.append(int(rec.qual / 10))  # divide QUAL by factor 10 and truncate to one byte
                         if qual[-1] > 255:
                             qual[-1] = 255
-                        gt.append(rec.samples[sample]["GT"][0] * 2 + rec.samples[sample]["GT"][1])
-                        if rec.samples[sample].phased:
-                            gt[-1] += 4
+                        if isinstance(rec.samples[sample][gt_tag], str) or isinstance(rec.samples[sample][gt_tag], unicode):
+                            gt.append(int(rec.samples[sample][gt_tag][0]) * 2 + int(rec.samples[sample][gt_tag][2]))
+                            if rec.samples[sample][gt_tag][1] == "|":
+                                gt[-1] += 4
+                        else:
+                            gt.append(rec.samples[sample][gt_tag][0] * 2 + rec.samples[sample][gt_tag][1])
+                            if rec.samples[sample].phased:
+                                gt[-1] += 4
+
         except ValueError:
             _logger.error("Variant file reading problem. Probably index file is missing or corrupted.")
             exit(0)
         return pos, ref, alt, gt, flag, qual
 
-    def read_all_snp(self, callback, sample=''):
+    def read_all_snp(self, callback, sample='', ad_tag='AD', gt_tag='GT'):
         """
         Read SNP/indel data for given sample name.
 
@@ -242,12 +253,12 @@ class Vcf:
                     count += 1
 
                 if "PASS" in rec.filter.keys() and rec.alts and len(rec.alts) == 1 and (
-                        "GT" in rec.samples[sample].keys()) and (
-                        "AD" in rec.samples[sample].keys()) and len(rec.samples[sample]["GT"]) > 1 and len(
-                    rec.samples[sample]["AD"]) > 1:
-                    if (len(rec.samples[sample]["AD"]) > 1) and (rec.ref in alphabet) and (
-                            rec.alts[0] in alphabet) and (rec.samples[sample]["GT"][0] is not None) and (
-                            rec.samples[sample]["GT"][1] is not None):
+                        gt_tag in rec.samples[sample].keys()) and (
+                        ad_tag in rec.samples[sample].keys()) and len(rec.samples[sample][gt_tag]) > 1 and len(
+                    rec.samples[sample][ad_tag]) > 1:
+                    if (len(rec.samples[sample][ad_tag]) > 1) and (rec.ref in alphabet) and (
+                            rec.alts[0] in alphabet) and (rec.samples[sample][gt_tag][0] is not None) and (
+                            rec.samples[sample][gt_tag][1] is not None):
                         pos.append(rec.pos)
                         ref.append(rec.ref)
                         alt.append(rec.alts[0])
@@ -258,11 +269,17 @@ class Vcf:
                             qual.append(int(rec.qual / 10))  # divide QUAL by factor 10 and truncate to one byte
                         if qual[-1] > 255:
                             qual[-1] = 255
-                        nref.append(rec.samples[sample]["AD"][0])
-                        nalt.append(rec.samples[sample]["AD"][1])
-                        gt.append(rec.samples[sample]["GT"][0] * 2 + rec.samples[sample]["GT"][1])
-                        if rec.samples[sample].phased:
-                            gt[-1] += 4
+                        nref.append(rec.samples[sample][ad_tag][0])
+                        nalt.append(rec.samples[sample][ad_tag][1])
+                        if isinstance(rec.samples[sample][gt_tag], str) or isinstance(rec.samples[sample][gt_tag], unicode):
+                            gt.append(int(rec.samples[sample][gt_tag][0]) * 2 + int(rec.samples[sample][gt_tag][2]))
+                            if rec.samples[sample][gt_tag][1] == "|":
+                                gt[-1] += 4
+                        else:
+                            gt.append(rec.samples[sample][gt_tag][0] * 2 + rec.samples[sample][gt_tag][1])
+                            if rec.samples[sample].phased:
+                                gt[-1] += 4
+
                 last_chrom = rec.chrom
             if len(pos) > 0:
                 callback(last_chrom, pos, ref, alt, nref, nalt, gt, flag, qual)
@@ -272,7 +289,7 @@ class Vcf:
             _logger.error("Variant file reading problem.")
             exit(0)
 
-    def read_all_snp_no_counts(self, callback, sample=''):
+    def read_all_snp_no_counts(self, callback, sample='', gt_tag='GT'):
         """
         Read SNP/indel data without counts (AD tag) for given sample name.
 
@@ -318,9 +335,9 @@ class Vcf:
                     count += 1
 
                 if "PASS" in rec.filter.keys() and rec.alts and len(rec.alts) == 1 and (
-                        "GT" in rec.samples[sample].keys()) and len(rec.samples[sample]["GT"]) > 1:
+                        gt_tag in rec.samples[sample].keys()) and len(rec.samples[sample][gt_tag]) > 1:
                     if (rec.ref in alphabet) and (rec.alts[0] in alphabet) and (
-                            rec.samples[sample]["GT"][0] is not None) and (rec.samples[sample]["GT"][1] is not None):
+                            rec.samples[sample][gt_tag][0] is not None) and (rec.samples[sample][gt_tag][1] is not None):
                         pos.append(rec.pos)
                         ref.append(rec.ref)
                         alt.append(rec.alts[0])
@@ -331,9 +348,15 @@ class Vcf:
                             qual.append(int(rec.qual / 10))  # divide QUAL by factor 10 and truncate to one byte
                         if qual[-1] > 255:
                             qual[-1] = 255
-                        gt.append(rec.samples[sample]["GT"][0] * 2 + rec.samples[sample]["GT"][1])
-                        if rec.samples[sample].phased:
-                            gt[-1] += 4
+                        if isinstance(rec.samples[sample][gt_tag], str) or isinstance(rec.samples[sample][gt_tag], unicode):
+                            gt.append(int(rec.samples[sample][gt_tag][0]) * 2 + int(rec.samples[sample][gt_tag][2]))
+                            if rec.samples[sample][gt_tag][1] == "|":
+                                gt[-1] += 4
+                        else:
+                            gt.append(rec.samples[sample][gt_tag][0] * 2 + rec.samples[sample][gt_tag][1])
+                            if rec.samples[sample].phased:
+                                gt[-1] += 4
+
                 last_chrom = rec.chrom
             if len(pos) > 0:
                 callback(last_chrom, pos, ref, alt, gt, flag, qual)

@@ -506,7 +506,7 @@ class Viewer(Show, ViewParams, HelpDescription):
         else:
             plt.show()
 
-    def snp(self, size=10, plot_gt=None, plot_pmask=None):
+    def snp(self, size=10, plot_gt=None, plot_pmask=None, somatic=''):
         if plot_pmask is None:
             plot_pmask = [0, 1]
         if plot_gt is None:
@@ -523,16 +523,24 @@ class Viewer(Show, ViewParams, HelpDescription):
         else:
             for c, (l, t) in self.reference_genome["chromosomes"].items():
                 snp_chr = self.io[self.plot_file].snp_chromosome_name(c)
-                if self.io[self.plot_file].signal_exists(snp_chr, None, "SNP pos", 0) and \
-                        self.io[self.plot_file].signal_exists(snp_chr, None, "SNP desc", 0) and \
-                        self.io[self.plot_file].signal_exists(snp_chr, None, "SNP counts", 0) and \
-                        self.io[self.plot_file].signal_exists(snp_chr, None, "SNP qual", 0) and \
-                        (Genome.is_autosome(c) or Genome.is_sex_chrom(c)):
-                    chroms.append(snp_chr)
+                if somatic=='':
+                    if self.io[self.plot_file].signal_exists(snp_chr, None, "SNP pos", 0) and \
+                            self.io[self.plot_file].signal_exists(snp_chr, None, "SNP desc", 0) and \
+                            self.io[self.plot_file].signal_exists(snp_chr, None, "SNP counts", 0) and \
+                            self.io[self.plot_file].signal_exists(snp_chr, None, "SNP qual", 0) and \
+                            (Genome.is_autosome(c) or Genome.is_sex_chrom(c)):
+                        chroms.append(snp_chr)
+                else:
+                    if self.io[self.plot_file].signal_exists(snp_chr, None, "somatic SNP pos", 0, name=somatic) and \
+                            self.io[self.plot_file].signal_exists(snp_chr, None, "somatic SNP desc", 0, name=somatic) and \
+                            self.io[self.plot_file].signal_exists(snp_chr, None, "somatic SNP counts", 0, name=somatic) and \
+                            self.io[self.plot_file].signal_exists(snp_chr, None, "somatic SNP qual", 0, name=somatic) and \
+                            (Genome.is_autosome(c) or Genome.is_sex_chrom(c)):
+                        chroms.append(snp_chr)
         sx, sy = self.panels_shape(len(chroms))
         ix = 1
         for c in chroms:
-            pos, ref, alt, nref, nalt, gt, flag, qual = self.io[self.plot_file].read_snp(c)
+            pos, ref, alt, nref, nalt, gt, flag, qual = self.io[self.plot_file].read_snp(c, somatic=somatic)
             hpos = []
             baf = []
             color = []

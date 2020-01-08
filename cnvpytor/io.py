@@ -81,6 +81,10 @@ class Signals(object):
         "SNP i2 call": "snp_i2_%(chr)s_%(bin_size)d%(snp_flag)s_call",
         "SNP i3 call": "snp_i3_%(chr)s_%(bin_size)d%(snp_flag)s_call",
         "SNP i4 call": "snp_i4_%(chr)s_%(bin_size)d%(snp_flag)s_call",
+        "somatic SNP pos": "somatic_%(name)s_%(chr)s_snp_pos",
+        "somatic SNP desc": "somatic_%(name)s_%(chr)s_snp_desc",
+        "somatic SNP counts": "somatic_%(name)s_%(chr)s_snp_counts",
+        "somatic SNP qual": "somatic_%(name)s_%(chr)s_snp_qual",
         "RD chromosomes": "rd_chromosomes",
         "SNP chromosomes": "snp_chromosomes",
         "read frg dist": "read_frg_len",
@@ -168,7 +172,7 @@ class Signals(object):
             s += "_GC"
         return s
 
-    def signal_name(self, chr_name, bin_size, signal, flags=0):
+    def signal_name(self, chr_name, bin_size, signal, flags=0, name=''):
         """
         Returns h5py variable name for a given signal.
 
@@ -195,7 +199,8 @@ class Signals(object):
             try:
                 return self.signals[signal] % {"chr": chr_name, "bin_size": bin_size,
                                                "rd_flag": self.suffix_rd_flag(flags),
-                                               "snp_flag": self.suffix_snp_flag(flags), "flag": self.suffix_flag(flags)}
+                                               "snp_flag": self.suffix_snp_flag(flags), "flag": self.suffix_flag(flags),
+                                               "name":name}
             except TypeError:
                 return None
         else:
@@ -264,7 +269,7 @@ class IO(Signals):
         if self.file:
             self.file.close()
 
-    def chromosomes_with_signal(self, bin_size, signal, flags=0):
+    def chromosomes_with_signal(self, bin_size, signal, flags=0, name=''):
         """
         Returns list of chromosomes with signal stored in CNVpytor file
 
@@ -285,7 +290,7 @@ class IO(Signals):
             List of chromosome names.
 
         """
-        search_string = "^" + self.signal_name("(.[^_]*)", bin_size, signal, flags) + "$"
+        search_string = "^" + self.signal_name("(.[^_]*)", bin_size, signal, flags, name) + "$"
         chrs = []
         for key in self.file.keys():
             res = re.findall(search_string, key)
@@ -293,7 +298,7 @@ class IO(Signals):
                 chrs.append(res[0])
         return chrs
 
-    def chromosomes_bin_sizes_with_signal(self, signal, flags=0):
+    def chromosomes_bin_sizes_with_signal(self, signal, flags=0, name=''):
         """
         Returns list of chromosome bin_size pairs with signal stored in CNVpytor file
 
@@ -314,7 +319,7 @@ class IO(Signals):
             List of tuples (chromosome name, bin size).
 
         """
-        search_string = "^" + self.signal_name("(.[^_]*)", 17110806, signal, flags) + "$"
+        search_string = "^" + self.signal_name("(.[^_]*)", 17110806, signal, flags, name) + "$"
         search_string = search_string.replace("17110806", "(.[0-9]*)")
         chrs_bss = []
         for key in self.file.keys():
@@ -323,7 +328,7 @@ class IO(Signals):
                 chrs_bss.append(res[0])
         return chrs_bss
 
-    def signal_exists(self, chr_name, bin_size, signal, flags=0):
+    def signal_exists(self, chr_name, bin_size, signal, flags=0, name=''):
         """
         Checks does signal exist.
 
@@ -346,12 +351,12 @@ class IO(Signals):
             True if signal exists in CNVpytor file
 
         """
-        signame = self.signal_name(chr_name, bin_size, signal, flags)
+        signame = self.signal_name(chr_name, bin_size, signal, flags, name)
         if not signame:
             return False
         return signame in self.file
 
-    def create_signal(self, chr_name, bin_size, signal, data, flags=0):
+    def create_signal(self, chr_name, bin_size, signal, data, flags=0, name=''):
         """
         Stores signal data into CNVpytor file and returns data set instance.
 
@@ -376,7 +381,7 @@ class IO(Signals):
             Data set instance.
 
         """
-        signame = self.signal_name(chr_name, bin_size, signal, flags)
+        signame = self.signal_name(chr_name, bin_size, signal, flags, name)
         if not signame:
             return None
         if signame in self.file:
@@ -386,7 +391,7 @@ class IO(Signals):
         self._flush()
         return ds
 
-    def update_signal(self, chr_name, bin_size, signal, data, flags=0):
+    def update_signal(self, chr_name, bin_size, signal, data, flags=0, name=''):
         """
         Updates signal data in CNVpytor file and returns data set instance.
 
@@ -411,7 +416,7 @@ class IO(Signals):
             Data set instance.
 
         """
-        signame = self.signal_name(chr_name, bin_size, signal, flags)
+        signame = self.signal_name(chr_name, bin_size, signal, flags, name)
         if not signame:
             return None
         if not (signame in self.file):
@@ -421,7 +426,7 @@ class IO(Signals):
         self._flush()
         return self.file[signame]
 
-    def get_signal(self, chr_name, bin_size, signal, flags=0):
+    def get_signal(self, chr_name, bin_size, signal, flags=0, name=''):
         """
         Reads signal data from CNVpytor file and returns pointer to data set.
 
@@ -444,7 +449,7 @@ class IO(Signals):
             Array contains data.
 
         """
-        signame = self.signal_name(chr_name, bin_size, signal, flags)
+        signame = self.signal_name(chr_name, bin_size, signal, flags, name)
         if not signame:
             return None
         if not (signame in self.file):
@@ -594,7 +599,7 @@ class IO(Signals):
             self.create_signal(None, None, "RD chromosomes", np.array([np.string_(x) for x in rd_chroms]))
         return ds_p, ds_u
 
-    def save_snp(self, chr_name, pos, ref, alt, nref, nalt, gt, flag, qual, update=False):
+    def save_snp(self, chr_name, pos, ref, alt, nref, nalt, gt, flag, qual, update=False, somatic=''):
         """
         Compress and stores SNP data into CNVpytor file.
 
@@ -623,7 +628,10 @@ class IO(Signals):
         -------
             None
         """
-        _logger.info("Saving SNP data for chromosome '%s'." % chr_name)
+        if somatic=='':
+            _logger.info("Saving SNP data for chromosome '%s'." % chr_name)
+        else:
+            _logger.info("Saving somatic '%s' SNP data for chromosome '%s'." % (somatic, chr_name))
         snp_pos, snp_desc, snp_counts, snp_qual = snp_compress(pos, ref, alt, nref, nalt, gt, flag, qual)
         rd_name = self.rd_chromosome_name(chr_name)
         if not update and not (rd_name is None):
@@ -634,10 +642,16 @@ class IO(Signals):
                     "Detecting RD data in file '%s' for the same chromosome with different name '%s'. RD name will be used." % (
                         self.filename, rd_name))
                 chr_name = rd_name
-        self.create_signal(chr_name, None, "SNP pos", snp_pos)
-        self.create_signal(chr_name, None, "SNP desc", snp_desc)
-        self.create_signal(chr_name, None, "SNP counts", snp_counts)
-        self.create_signal(chr_name, None, "SNP qual", snp_qual)
+        if somatic=='':
+            self.create_signal(chr_name, None, "SNP pos", snp_pos)
+            self.create_signal(chr_name, None, "SNP desc", snp_desc)
+            self.create_signal(chr_name, None, "SNP counts", snp_counts)
+            self.create_signal(chr_name, None, "SNP qual", snp_qual)
+        else:
+            self.create_signal(chr_name, None, "somatic SNP pos", snp_pos, name=somatic)
+            self.create_signal(chr_name, None, "somatic SNP desc", snp_desc, name=somatic)
+            self.create_signal(chr_name, None, "somatic SNP counts", snp_counts, name=somatic)
+            self.create_signal(chr_name, None, "somatic SNP qual", snp_qual, name=somatic)
         if not (chr_name in self.snp_chromosomes()):
             snp_chroms = self.snp_chromosomes()
             snp_chroms.append(chr_name)
@@ -665,7 +679,7 @@ class IO(Signals):
         rd_p, rd_u = rd_decompress(crd_p, crd_u)
         return rd_p, rd_u
 
-    def read_snp(self, chr_name):
+    def read_snp(self, chr_name, somatic=''):
         """
         Reads SNP signals
 
@@ -694,10 +708,16 @@ class IO(Signals):
             SNP quality (scale 0 - 255).
 
         """
-        snp_pos = self.get_signal(chr_name, None, "SNP pos")
-        snp_desc = self.get_signal(chr_name, None, "SNP desc")
-        snp_counts = self.get_signal(chr_name, None, "SNP counts")
-        snp_qual = self.get_signal(chr_name, None, "SNP qual")
+        if somatic=='':
+            snp_pos = self.get_signal(chr_name, None, "SNP pos")
+            snp_desc = self.get_signal(chr_name, None, "SNP desc")
+            snp_counts = self.get_signal(chr_name, None, "SNP counts")
+            snp_qual = self.get_signal(chr_name, None, "SNP qual")
+        else:
+            snp_pos = self.get_signal(chr_name, None, "somatic SNP pos", name=somatic)
+            snp_desc = self.get_signal(chr_name, None, "somatic SNP desc", name=somatic)
+            snp_counts = self.get_signal(chr_name, None, "somatic SNP counts", name=somatic)
+            snp_qual = self.get_signal(chr_name, None, "somatic SNP qual", name=somatic)
         pos, ref, alt, nref, nalt, gt, flag, qual = snp_decompress(snp_pos, snp_desc, snp_counts, snp_qual)
         return pos, ref, alt, nref, nalt, gt, flag, qual
 
