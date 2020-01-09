@@ -6,6 +6,7 @@ from __future__ import print_function
 from .root import *
 from .viewer import *
 from .version import __version__
+from .export import *
 import sys
 import logging
 import argparse
@@ -148,8 +149,14 @@ def main():
         if args.export:
             export = Export(args.root)
             if len(args.export) > 0:
+                dir_name_list = args.export[1:]
+                dir_name = ''
+                if len(dir_name_list) > 0:
+                    dir_name = dir_name_list[0]
                 if args.export[0] == 'jbrowse':
-                    export.jbrowse(args.export[1:])
+                    export_j = ExportJbrowse(args.root[0], dir_name)
+                    export_j.create_tracklist_json()
+                    export_j.rd_signal()
                 elif args.export[0] == 'cnvnator':
                     export.cnvnator(args.export[1:])
         if args.metadata:
