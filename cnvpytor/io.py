@@ -680,7 +680,7 @@ class IO(Signals):
         rd_p, rd_u = rd_decompress(crd_p, crd_u)
         return rd_p, rd_u
 
-    def read_snp(self, chr_name, somatic=''):
+    def read_snp(self, chr_name, callset=None):
         """
         Reads SNP signals
 
@@ -709,16 +709,16 @@ class IO(Signals):
             SNP quality (scale 0 - 255).
 
         """
-        if somatic=='':
+        if callset is None:
             snp_pos = self.get_signal(chr_name, None, "SNP pos")
             snp_desc = self.get_signal(chr_name, None, "SNP desc")
             snp_counts = self.get_signal(chr_name, None, "SNP counts")
             snp_qual = self.get_signal(chr_name, None, "SNP qual")
         else:
-            snp_pos = self.get_signal(chr_name, None, "somatic SNP pos", name=somatic)
-            snp_desc = self.get_signal(chr_name, None, "somatic SNP desc", name=somatic)
-            snp_counts = self.get_signal(chr_name, None, "somatic SNP counts", name=somatic)
-            snp_qual = self.get_signal(chr_name, None, "somatic SNP qual", name=somatic)
+            snp_pos = self.get_signal(chr_name, None, "somatic SNP pos", name=callset)
+            snp_desc = self.get_signal(chr_name, None, "somatic SNP desc", name=callset)
+            snp_counts = self.get_signal(chr_name, None, "somatic SNP counts", name=callset)
+            snp_qual = self.get_signal(chr_name, None, "somatic SNP qual", name=callset)
         pos, ref, alt, nref, nalt, gt, flag, qual = snp_decompress(snp_pos, snp_desc, snp_counts, snp_qual)
         return pos, ref, alt, nref, nalt, gt, flag, qual
 

@@ -1,4 +1,3 @@
-import pyBigWig
 import json
 from pathlib import Path
 from .io import *
@@ -8,7 +7,7 @@ class Wiggle:
     def __init__(self, filename):
         self.filename = filename
         self.file = None
-
+        import pyBigWig
         if not Path(filename).exists():
             try:
                 self.file = pyBigWig.open(filename, 'w')

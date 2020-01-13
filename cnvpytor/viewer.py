@@ -211,6 +211,10 @@ class Viewer(Show, ViewParams, HelpDescription):
                         self.genotype([self.bin_size], f[ni])
                 elif f[0] == "compare" and n == 3:
                     self.compare(f[1], f[2], plot=True)
+                elif f[0] == "snv" and n == 2:
+                    self.snp(callset=f[1])
+                elif f[0] == "snv" and n == 1:
+                    self.snp(callset="default")
                 elif f[0] == "compare" and n == 4:
                     self.compare(f[1], f[2], n_bins=int(f[3]), plot=True)
                 elif f[0] == "info" and n > 1:
@@ -506,7 +510,7 @@ class Viewer(Show, ViewParams, HelpDescription):
         else:
             plt.show()
 
-    def snp(self, size=10, plot_gt=None, plot_pmask=None, somatic=''):
+    def snp(self, size=10, plot_gt=None, plot_pmask=None, callset=None):
         if plot_pmask is None:
             plot_pmask = [0, 1]
         if plot_gt is None:
@@ -523,7 +527,7 @@ class Viewer(Show, ViewParams, HelpDescription):
         else:
             for c, (l, t) in self.reference_genome["chromosomes"].items():
                 snp_chr = self.io[self.plot_file].snp_chromosome_name(c)
-                if somatic=='':
+                if callset is None:
                     if self.io[self.plot_file].signal_exists(snp_chr, None, "SNP pos", 0) and \
                             self.io[self.plot_file].signal_exists(snp_chr, None, "SNP desc", 0) and \
                             self.io[self.plot_file].signal_exists(snp_chr, None, "SNP counts", 0) and \
@@ -531,16 +535,16 @@ class Viewer(Show, ViewParams, HelpDescription):
                             (Genome.is_autosome(c) or Genome.is_sex_chrom(c)):
                         chroms.append(snp_chr)
                 else:
-                    if self.io[self.plot_file].signal_exists(snp_chr, None, "somatic SNP pos", 0, name=somatic) and \
-                            self.io[self.plot_file].signal_exists(snp_chr, None, "somatic SNP desc", 0, name=somatic) and \
-                            self.io[self.plot_file].signal_exists(snp_chr, None, "somatic SNP counts", 0, name=somatic) and \
-                            self.io[self.plot_file].signal_exists(snp_chr, None, "somatic SNP qual", 0, name=somatic) and \
+                    if self.io[self.plot_file].signal_exists(snp_chr, None, "somatic SNP pos", 0, name=callset) and \
+                            self.io[self.plot_file].signal_exists(snp_chr, None, "somatic SNP desc", 0, name=callset) and \
+                            self.io[self.plot_file].signal_exists(snp_chr, None, "somatic SNP counts", 0, name=callset) and \
+                            self.io[self.plot_file].signal_exists(snp_chr, None, "somatic SNP qual", 0, name=callset) and \
                             (Genome.is_autosome(c) or Genome.is_sex_chrom(c)):
                         chroms.append(snp_chr)
         sx, sy = self.panels_shape(len(chroms))
         ix = 1
         for c in chroms:
-            pos, ref, alt, nref, nalt, gt, flag, qual = self.io[self.plot_file].read_snp(c, somatic=somatic)
+            pos, ref, alt, nref, nalt, gt, flag, qual = self.io[self.plot_file].read_snp(c, callset=callset)
             hpos = []
             baf = []
             color = []
@@ -851,6 +855,50 @@ class Viewer(Show, ViewParams, HelpDescription):
                 start_pos = 0
                 for c, (pos1, pos2) in r:
                     pos, ref, alt, nref, nalt, gt, flag, qual = io.read_snp(c)
+                    ix = 0
+                    mdp = 0
+                    while ix < len(pos) and pos[ix] <= pos2:
+                        if pos[ix] >= pos1 and (nref[ix] + nalt[ix]) != 0:
+                            hpos.append(start_pos + pos[ix] - pos1)
+                            if pos[ix] - pos1 > mdp:
+                                mdp = pos[ix] - pos1
+                            if gt[ix] % 4 != 2:
+                                baf.append(1.0 * nalt[ix] / (nref[ix] + nalt[ix]))
+                            else:
+                                baf.append(1.0 * nref[ix] / (nref[ix] + nalt[ix]))
+                            color.append(self.snp_colors[(gt[ix] % 4) * 2 + (flag[ix] >> 1)])
+                        ix += 1
+                    start_pos += mdp
+                    borders.append(start_pos)
+
+                ax.xaxis.set_ticklabels([])
+                ax.yaxis.set_ticklabels([])
+                ax.yaxis.set_ticks([0, 0.25, 0.5, 0.75, 1.0], [])
+                l = max(hpos)
+                # ax.xaxis.set_ticks(np.arange(0, (l + 10e6), 10e6), [])
+                ax.set_ylim([0., 1.])
+                ax.set_xlim([0, borders[-1]])
+                ax.yaxis.grid()
+                if self.markersize == "auto":
+                    ax.scatter(hpos, baf, marker='.', edgecolor=color, c=color, s=10, alpha=0.7)
+                else:
+                    ax.scatter(hpos, baf, marker='.', edgecolor=color, c=color, s=self.markersize, alpha=0.7)
+
+                for i in borders[:-1]:
+                    ax.axvline(i, color=sep_color, lw=1)
+                self.fig.add_subplot(ax)
+
+            elif panels[i] == "snv" or panels[i][:4] == "snv:":
+                callset = "default"
+                if panels[i][:4] == "snv:":
+                    callset=panels[i].split(":")[1]
+                borders = []
+                hpos = []
+                baf = []
+                color = []
+                start_pos = 0
+                for c, (pos1, pos2) in r:
+                    pos, ref, alt, nref, nalt, gt, flag, qual = io.read_snp(c,callset=callset)
                     ix = 0
                     mdp = 0
                     while ix < len(pos) and pos[ix] <= pos2:
