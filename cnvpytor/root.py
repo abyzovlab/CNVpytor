@@ -221,7 +221,7 @@ class Root:
             gc_corr_mt = calculate_gc_correction(dist_p_gc_mt, m_mt, s_mt, bin_size_mt)
             self.io.create_signal(None, 100, "GC corr", gc_corr_mt, flags=FLAG_MT)
 
-    def read_vcf(self, vcf_file, chroms, sample='', use_index=False, no_counts=False, ad_tag="AD", gt_tag="GT", somatic=""):
+    def read_vcf(self, vcf_file, chroms, sample='', use_index=False, no_counts=False, ad_tag="AD", gt_tag="GT", callset=None):
         """
 
         Parameters
@@ -240,13 +240,13 @@ class Root:
 
         def save_data(chr, pos, ref, alt, nref, nalt, gt, flag, qual):
             if (len(chroms) == 0 or chr in chroms) and (not pos is None) and (len(pos) > 0):
-                self.io.save_snp(chr, pos, ref, alt, nref, nalt, gt, flag, qual, somatic=somatic)
+                self.io.save_snp(chr, pos, ref, alt, nref, nalt, gt, flag, qual, callset=callset)
             # TODO: Stop reading if all from chrom list are read.
 
         def save_data_no_counts(chr, pos, ref, alt, gt, flag, qual):
             if (len(chroms) == 0 or chr in chroms) and (not pos is None) and (len(pos) > 0):
                 self.io.save_snp(chr, pos, ref, alt, np.zeros_like(pos), np.zeros_like(pos), gt, flag, qual,
-                                 somatic=somatic)
+                                 callset=callset)
 
         if use_index:
             count = 0
@@ -259,7 +259,7 @@ class Root:
                     pos, ref, alt, nref, nalt, gt, flag, qual = vcff.read_chromosome_snp(c, sample, ad_tag=ad_tag, gt_tag=gt_tag)
 
                 if not pos is None and len(pos) > 0:
-                    self.io.save_snp(c, pos, ref, alt, nref, nalt, gt, flag, qual, somatic=somatic)
+                    self.io.save_snp(c, pos, ref, alt, nref, nalt, gt, flag, qual, callset=callset)
                     count += 1
             return count
         else:
@@ -291,7 +291,7 @@ class Root:
 
         return hm
 
-    def vcf(self, vcf_files, chroms=[], sample='', no_counts=False, ad_tag="AD", gt_tag="GT", somatic=""):
+    def vcf(self, vcf_files, chroms=[], sample='', no_counts=False, ad_tag="AD", gt_tag="GT", callset=None):
         """ Read SNP data from variant file(s) and store in .cnvnator file
                 Arguments:
                     * list of variant file names
@@ -299,7 +299,7 @@ class Root:
         """
         hm = 0
         for vcf_file in vcf_files:
-            hm += self.read_vcf(vcf_file, chroms, sample, no_counts=no_counts, ad_tag=ad_tag, gt_tag=gt_tag, somatic=somatic)
+            hm += self.read_vcf(vcf_file, chroms, sample, no_counts=no_counts, ad_tag=ad_tag, gt_tag=gt_tag, callset=callset)
             self.io.add_meta_attribute("VCF", vcf_file)
         return hm
 

@@ -87,6 +87,7 @@ class Signals(object):
         "somatic SNP qual": "somatic_%(name)s_%(chr)s_snp_qual",
         "RD chromosomes": "rd_chromosomes",
         "SNP chromosomes": "snp_chromosomes",
+        "chromosome lengths": "chr_len""",
         "read frg dist": "read_frg_len",
         "reference genome": "reference_genome",
         "use reference": "use_reference"
@@ -599,7 +600,7 @@ class IO(Signals):
             self.create_signal(None, None, "RD chromosomes", np.array([np.string_(x) for x in rd_chroms]))
         return ds_p, ds_u
 
-    def save_snp(self, chr_name, pos, ref, alt, nref, nalt, gt, flag, qual, update=False, somatic=''):
+    def save_snp(self, chr_name, pos, ref, alt, nref, nalt, gt, flag, qual, update=False, callset=None):
         """
         Compress and stores SNP data into CNVpytor file.
 
@@ -628,10 +629,10 @@ class IO(Signals):
         -------
             None
         """
-        if somatic=='':
+        if callset is None:
             _logger.info("Saving SNP data for chromosome '%s'." % chr_name)
         else:
-            _logger.info("Saving somatic '%s' SNP data for chromosome '%s'." % (somatic, chr_name))
+            _logger.info("Saving somatic '%s' SNV data for chromosome '%s'." % (somatic, chr_name))
         snp_pos, snp_desc, snp_counts, snp_qual = snp_compress(pos, ref, alt, nref, nalt, gt, flag, qual)
         rd_name = self.rd_chromosome_name(chr_name)
         if not update and not (rd_name is None):
@@ -642,16 +643,16 @@ class IO(Signals):
                     "Detecting RD data in file '%s' for the same chromosome with different name '%s'. RD name will be used." % (
                         self.filename, rd_name))
                 chr_name = rd_name
-        if somatic=='':
+        if callset is None:
             self.create_signal(chr_name, None, "SNP pos", snp_pos)
             self.create_signal(chr_name, None, "SNP desc", snp_desc)
             self.create_signal(chr_name, None, "SNP counts", snp_counts)
             self.create_signal(chr_name, None, "SNP qual", snp_qual)
         else:
-            self.create_signal(chr_name, None, "somatic SNP pos", snp_pos, name=somatic)
-            self.create_signal(chr_name, None, "somatic SNP desc", snp_desc, name=somatic)
-            self.create_signal(chr_name, None, "somatic SNP counts", snp_counts, name=somatic)
-            self.create_signal(chr_name, None, "somatic SNP qual", snp_qual, name=somatic)
+            self.create_signal(chr_name, None, "somatic SNP pos", snp_pos, name=callset)
+            self.create_signal(chr_name, None, "somatic SNP desc", snp_desc, name=callset)
+            self.create_signal(chr_name, None, "somatic SNP counts", snp_counts, name=callset)
+            self.create_signal(chr_name, None, "somatic SNP qual", snp_qual, name=callset)
         if not (chr_name in self.snp_chromosomes()):
             snp_chroms = self.snp_chromosomes()
             snp_chroms.append(chr_name)
