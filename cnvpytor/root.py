@@ -221,7 +221,8 @@ class Root:
             gc_corr_mt = calculate_gc_correction(dist_p_gc_mt, m_mt, s_mt, bin_size_mt)
             self.io.create_signal(None, 100, "GC corr", gc_corr_mt, flags=FLAG_MT)
 
-    def read_vcf(self, vcf_file, chroms, sample='', use_index=False, no_counts=False, ad_tag="AD", gt_tag="GT", callset=None):
+    def read_vcf(self, vcf_file, chroms, sample='', use_index=False, no_counts=False, ad_tag="AD", gt_tag="GT",
+                 callset=None):
         """
 
         Parameters
@@ -256,7 +257,8 @@ class Root:
                     pos, ref, alt, gt, flag, qual = vcff.read_chromosome_snp_no_counts(c, sample, gt_tag=gt_tag)
                     nref, nalt = np.zeros_like(pos), np.zeros_like(pos)
                 else:
-                    pos, ref, alt, nref, nalt, gt, flag, qual = vcff.read_chromosome_snp(c, sample, ad_tag=ad_tag, gt_tag=gt_tag)
+                    pos, ref, alt, nref, nalt, gt, flag, qual = vcff.read_chromosome_snp(c, sample, ad_tag=ad_tag,
+                                                                                         gt_tag=gt_tag)
 
                 if not pos is None and len(pos) > 0:
                     self.io.save_snp(c, pos, ref, alt, nref, nalt, gt, flag, qual, callset=callset)
@@ -299,7 +301,8 @@ class Root:
         """
         hm = 0
         for vcf_file in vcf_files:
-            hm += self.read_vcf(vcf_file, chroms, sample, no_counts=no_counts, ad_tag=ad_tag, gt_tag=gt_tag, callset=callset)
+            hm += self.read_vcf(vcf_file, chroms, sample, no_counts=no_counts, ad_tag=ad_tag, gt_tag=gt_tag,
+                                callset=callset)
             self.io.add_meta_attribute("VCF", vcf_file)
         return hm
 
@@ -1366,7 +1369,7 @@ class Root:
 
                         # levels = self.io.get_signal(c, bin_size, "RD partition", flag_rd)
 
-    def mask_snps(self):
+    def mask_snps(self, callset=None):
         """
         Flags SNPs in P-region (sets second bit of the flag to 1 for SNP inside P region, or to 0 otherwise).
         Requires imported mask data or recognized reference genome with mask data.
@@ -1381,7 +1384,7 @@ class Root:
         for c in self.io.snp_chromosomes():
             if c in snp_mask_chromosomes:
                 _logger.info("Masking SNP data for chromosome '%s'." % c)
-                pos, ref, alt, nref, nalt, gt, flag, qual = self.io.read_snp(c)
+                pos, ref, alt, nref, nalt, gt, flag, qual = self.io.read_snp(c, callset=callset)
                 mask = mask_decompress(self.io_mask.get_signal(snp_mask_chromosomes[c], None, "mask"))
                 mask_ix = 0
                 for snp_ix in range(len(pos)):
@@ -1392,7 +1395,8 @@ class Root:
                         flag[snp_ix] = flag[snp_ix] | 2
                     else:
                         flag[snp_ix] = flag[snp_ix] & 1
-                self.io.save_snp(c, pos, ref, alt, nref, nalt, gt, flag, qual, update=True)
+                if len(pos)>0:
+                    self.io.save_snp(c, pos, ref, alt, nref, nalt, gt, flag, qual, update=True, callset=callset)
 
     def calculate_baf(self, bin_sizes, chroms=[], use_mask=True, use_id=False, use_phase=False, res=200,
                       reduce_noise=False, blw=0.8):

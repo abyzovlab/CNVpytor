@@ -59,6 +59,7 @@ def main():
 
     parser.add_argument('-mask', '--mask', type=str, help="read fasta mask file and flag SNPs in P region")
     parser.add_argument('-mask_snps', '--mask_snps', action='store_true', help="flag SNPs in P region")
+    parser.add_argument('-mask_snvs', '--mask_snvs', type=str, help="flag SNVs in P region")
     parser.add_argument('-idvar', '--idvar', type=str, help="read vcf file and flag SNPs that exist in database file")
     parser.add_argument('-baf', '--baf', type=binsize_type, nargs="+",
                         help="create BAF histograms for specified bin size (multiple bin sizes separate by space)")
@@ -247,6 +248,10 @@ def main():
         if args.mask_snps:
             app = Root(args.root[0], max_cores=args.max_cores)
             app.mask_snps()
+
+        if args.mask_snvs:
+            app = Root(args.root[0], max_cores=args.max_cores)
+            app.mask_snps(callset=args.mask_snvs)
 
         if args.stat:
             app = Root(args.root[0], max_cores=args.max_cores)

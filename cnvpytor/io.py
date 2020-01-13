@@ -632,7 +632,7 @@ class IO(Signals):
         if callset is None:
             _logger.info("Saving SNP data for chromosome '%s'." % chr_name)
         else:
-            _logger.info("Saving somatic '%s' SNV data for chromosome '%s'." % (somatic, chr_name))
+            _logger.info("Saving somatic '%s' SNV data for chromosome '%s'." % (callset, chr_name))
         snp_pos, snp_desc, snp_counts, snp_qual = snp_compress(pos, ref, alt, nref, nalt, gt, flag, qual)
         rd_name = self.rd_chromosome_name(chr_name)
         if not update and not (rd_name is None):
