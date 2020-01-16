@@ -125,6 +125,10 @@ class Vcf:
                             qual[-1] = 255
                         nref.append(rec.samples[sample][ad_tag][0])
                         nalt.append(rec.samples[sample][ad_tag][1])
+                        try:
+                            UNICODE_EXISTS = bool(type(unicode))
+                        except NameError:
+                            unicode = str
                         if isinstance(rec.samples[sample][gt_tag], str) or isinstance(rec.samples[sample][gt_tag], unicode):
                             gt.append(int(rec.samples[sample][gt_tag][0]) * 2 + int(rec.samples[sample][gt_tag][2]))
                             if rec.samples[sample][gt_tag][1] == "|":
@@ -189,6 +193,10 @@ class Vcf:
                             qual.append(int(rec.qual / 10))  # divide QUAL by factor 10 and truncate to one byte
                         if qual[-1] > 255:
                             qual[-1] = 255
+                        try:
+                            UNICODE_EXISTS = bool(type(unicode))
+                        except NameError:
+                            unicode = str
                         if isinstance(rec.samples[sample][gt_tag], str) or isinstance(rec.samples[sample][gt_tag], unicode):
                             gt.append(int(rec.samples[sample][gt_tag][0]) * 2 + int(rec.samples[sample][gt_tag][2]))
                             if rec.samples[sample][gt_tag][1] == "|":
@@ -271,6 +279,10 @@ class Vcf:
                             qual[-1] = 255
                         nref.append(rec.samples[sample][ad_tag][0])
                         nalt.append(rec.samples[sample][ad_tag][1])
+                        try:
+                            UNICODE_EXISTS = bool(type(unicode))
+                        except NameError:
+                            unicode = str
                         if isinstance(rec.samples[sample][gt_tag], str) or isinstance(rec.samples[sample][gt_tag], unicode):
                             gt.append(int(rec.samples[sample][gt_tag][0]) * 2 + int(rec.samples[sample][gt_tag][2]))
                             if rec.samples[sample][gt_tag][1] == "|":
@@ -348,6 +360,10 @@ class Vcf:
                             qual.append(int(rec.qual / 10))  # divide QUAL by factor 10 and truncate to one byte
                         if qual[-1] > 255:
                             qual[-1] = 255
+                        try:
+                            UNICODE_EXISTS = bool(type(unicode))
+                        except NameError:
+                            unicode = str
                         if isinstance(rec.samples[sample][gt_tag], str) or isinstance(rec.samples[sample][gt_tag], unicode):
                             gt.append(int(rec.samples[sample][gt_tag][0]) * 2 + int(rec.samples[sample][gt_tag][2]))
                             if rec.samples[sample][gt_tag][1] == "|":
