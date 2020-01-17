@@ -87,7 +87,7 @@ class Signals(object):
         "somatic SNP qual": "somatic_%(name)s_%(chr)s_snp_qual",
         "RD chromosomes": "rd_chromosomes",
         "SNP chromosomes": "snp_chromosomes",
-        "chromosome lengths": "chr_len""",
+        "chromosome lengths": "chr_len",
         "read frg dist": "read_frg_len",
         "reference genome": "reference_genome",
         "use reference": "use_reference"
@@ -825,6 +825,64 @@ class IO(Signals):
             if Genome.canonical_chrom_name(name) == Genome.canonical_chrom_name(snpc):
                 return snpc
         return None
+
+    def set_chromosome_length(self,chr,length):
+        """
+
+        Parameters
+        ----------
+        chr : str
+            Chromosome name
+        length: int
+            Chromosome length
+
+        Returns
+        -------
+            None
+
+        """
+        chr_len = list(np.array(self.get_signal(None, None, "chromosome lengths")).astype("str"))
+        chr_len = dict(zip(chr_len[::2],chr_len[1::2]))
+        chr_len[chr]=str(length)
+        self.create_signal(None, None, "chromosome lengths", np.array([np.string_(x) for s in chr_len.items() for x in s]))
+
+    def get_chromosome_length(self, chr):
+        """
+
+        Parameters
+        ----------
+        chr : str
+            Chromosome name
+
+        Returns
+        -------
+        len : int or None
+            Chromosome length
+
+        """
+        chr_len = list(np.array(self.get_signal(None, None, "chromosome lengths")).astype("str"))
+        chr_len = dict(zip(chr_len[::2],chr_len[1::2]))
+        if chr in chr_len:
+            return int(chr_len[chr])
+        return None
+
+    def is_chromosome_length_set(self, chr):
+        """
+
+        Parameters
+        ----------
+        chr : str
+            Chromosome name
+
+        Returns
+        -------
+        bool
+            True if chromosome length is set
+
+        """
+        chr_len = list(np.array(self.get_signal(None, None, "chromosome lengths")).astype("str"))
+        chr_len = dict(zip(chr_len[::2],chr_len[1::2]))
+        return chr in chr_len
 
     def add_meta_attribute(self, attribute, value):
         self.file.attrs[attribute] = str(value)
