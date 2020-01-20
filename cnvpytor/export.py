@@ -48,9 +48,32 @@ class Wiggle:
 
 
 class ExportJbrowse:
-    rd_signal_list = ['RD', 'RD partition', 'RD call']
-    rd_flag_list = [[0, 0x0010], [0x0010], [0x0010]]
-    snp_signal_list = ['SNP maf', 'SNP baf', 'SNP i1']
+
+    rd_signal_dct = {
+        "RD": {
+            "FLAG": [0, 0x0010],
+            "color": ["gray", "black"]
+        },
+        "RD partition": {
+            "FLAG": [0x0010],
+            "color": ["green"]
+        },
+        "RD call": {
+            "FLAG": [0x0010],
+            "color": ["red"]
+        }
+    }
+    snp_signal_dct = {
+        "SNP maf": {
+            "FLAG": [0x0100]
+        },
+        "SNP baf": {
+            "FLAG": [0x0100]
+        },
+        "SNP i1": {
+            "FLAG": [0x0100]
+        }
+    }
 
     signal_dct = {
         "RD": "his_rd_p_%(bin_size)d%(rd_flag)s",
@@ -146,16 +169,31 @@ class ExportJbrowse:
         rd_chr, rd_bin = self.rd_chr_bin()
         chrom_list = list(rd_chr)
 
-        for index, signal in enumerate(self.rd_signal_list):
-            for flag in self.rd_flag_list[index]:
+        for signal_name, signal_dct in self.rd_signal_dct.items():
+            for index, flag in enumerate(signal_dct['FLAG']):
                 for bin_size in rd_bin:
-                    signal_name = self.signal_name(bin_size, signal, flag)
-                    bigwig_filename = "{}.bw".format(signal_name)
+                    signal = self.signal_name(bin_size, signal_name, flag)
+                    bigwig_filename = "{}.bw".format(signal)
                     bigwig_file = self.export_data_dir.joinpath(bigwig_filename)
                     bigwig_file = str(bigwig_file)
 
                     wig = Wiggle(bigwig_file)
-                    wig.create_wig(self.io, chrom_list, bin_size, signal, flag)
+                    wig.create_wig(self.io, chrom_list, bin_size, signal_name, flag)
+
+    def snp_signal(self):
+        snp_chr, snp_bin = self.snp_chr_bin()
+        chrom_list = list(snp_chr)
+
+        for signal_name, signal_dct in self.snp_signal_dct.items():
+            for index, flag in enumerate(signal_dct['FLAG']):
+                for bin_size in snp_bin:
+                    signal = self.signal_name(bin_size, signal_name, flag)
+                    bigwig_filename = "{}.bw".format(signal)
+                    bigwig_file = self.export_data_dir.joinpath(bigwig_filename)
+                    bigwig_file = str(bigwig_file)
+
+                    wig = Wiggle(bigwig_file)
+                    wig.create_wig(self.io, chrom_list, bin_size, signal_name, flag)
 
     @staticmethod
     def add_config_reference():
@@ -175,46 +213,75 @@ class ExportJbrowse:
     def add_config_track(self):
         rd_chr, rd_bin = self.rd_chr_bin()
         url_template_dct = []
+        for signal_name, signal_dct in self.rd_signal_dct.items():
+            if 'FLAG' in signal_dct:
+                for index, flag in enumerate(signal_dct['FLAG']):
+                    suffix_rd_flag = Signals.suffix_rd_flag(flag)
+                    signal_id = "{}{}".format(signal_name, suffix_rd_flag)
+                    scales = {}
+                    for bin_size in rd_bin:
+                        signal = self.signal_name(bin_size, signal_name, flag)
+                        bigwig_filename = "{}.bw".format(signal)
+                        bigwig_file = self.export_data_dir.joinpath(bigwig_filename)
+                        bigwig_current_path = Path(bigwig_file.parent.name).joinpath(bigwig_file.name).as_posix()
+                        scales[bin_size] = bigwig_current_path
 
-        for index, signal in enumerate(self.rd_signal_list):
-            for flag in self.rd_flag_list[index]:
-                suffix_rd_flag = Signals.suffix_rd_flag(flag)
-                signal_id = "{}{}".format(signal, suffix_rd_flag)
-                scales = {}
-                for bin_size in rd_bin:
-                    signal_name = self.signal_name(bin_size, signal, flag)
-                    bigwig_filename = "{}.bw".format(signal_name)
-                    bigwig_file = self.export_data_dir.joinpath(bigwig_filename)
-                    bigwig_current_path = Path(bigwig_file.parent.name).joinpath(bigwig_file.name).as_posix()
-                    scales[bin_size] = bigwig_current_path
-
-                url_template_dct.append({
-                    "storeClass": "MultiScaleBigWig/Store/SeqFeature/MultiScaleBigWig",
-                    "scales": scales,
-                    "name": signal_id
-                })
+                    url_template_dct.append({
+                        "storeClass": "MultiScaleBigWig/Store/SeqFeature/MultiScaleBigWig",
+                        "scales": scales,
+                        "name": signal_id,
+                        "color": signal_dct['color'][index]
+                    })
 
         track_dct = self.add_config_reference()
 
         track_dct['tracks'].append({
+            "category": self.pytor_name,
             'autoscale': 'local',
             "storeClass": "MultiBigWig/Store/SeqFeature/MultiBigWig",
             "showTooltips": True,
             "showLabels": True,
             "clickTooltips": True,
-            "label": self.pytor_name,
+            "label": "RD",
             "type": "MultiBigWig/View/Track/MultiWiggle/MultiXYPlot",
             'urlTemplates': url_template_dct
         })
         return track_dct
 
+    def add_snp_config_track(self):
+        snp_dct_list = []
+        snp_chr, snp_bin = self.snp_chr_bin()
+        for signal_name, signal_dct in self.snp_signal_dct.items():
+            for index, flag in enumerate(signal_dct['FLAG']):
+                scales = {}
+                for bin_size in snp_bin:
+                    signal = self.signal_name(bin_size, signal_name, flag)
+                    bigwig_filename = "{}.bw".format(signal)
+                    bigwig_file = self.export_data_dir.joinpath(bigwig_filename)
+                    bigwig_current_path = Path(bigwig_file.parent.name).joinpath(bigwig_file.name).as_posix()
+                    scales[bin_size] = bigwig_current_path
+
+                snp_dct = {
+                    "category": self.pytor_name,
+                    "autoscale": "global",
+                    "storeClass": "MultiScaleBigWig/Store/SeqFeature/MultiScaleBigWig",
+                    "scales": scales,
+                    "showTooltips": True,
+                    "label": signal_name,
+                    "type": "JBrowse/View/Track/Wiggle/XYPlot",
+                    "noFill": True
+                }
+                snp_dct_list.append(snp_dct)
+        return snp_dct_list
+
     def create_tracklist_json(self):
 
         track_dct = self.add_config_track()
+        for snp_dct in self.add_snp_config_track():
+            track_dct['tracks'].append(snp_dct)
+
         with open(self.export_tracklist_file, 'w') as f:
             json.dump(track_dct, f, indent=2)
-        with open(self.export_tracks_file, 'w') as f:
-            f.write("# test")
         return track_dct
 
     def create_reference_json(self):
