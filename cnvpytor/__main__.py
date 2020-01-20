@@ -160,6 +160,7 @@ def main():
                     export_j = ExportJbrowse(args.root[0], dir_name)
                     export_j.create_tracklist_json()
                     export_j.rd_signal()
+                    export_j.create_reference_json()
                 elif args.export[0] == 'cnvnator':
                     export.cnvnator(args.export[1:])
         if args.metadata:
