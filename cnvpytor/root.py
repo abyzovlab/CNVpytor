@@ -73,7 +73,7 @@ class Root:
                         cum_his_read_frg = his_read_frg
                     else:
                         cum_his_read_frg += his_read_frg
-                    self.io.save_rd(cl[0], rd_p, rd_u)
+                    self.io.save_rd(cl[0], rd_p, rd_u, chromosome_length=cl[1])
                     count += 1
             if not cum_his_read_frg is None:
                 self.io.create_signal(None, None, "read frg dist", cum_his_read_frg)
@@ -89,7 +89,7 @@ class Root:
                         cum_his_read_frg = r[2]
                     else:
                         cum_his_read_frg += r[2]
-                    self.io.save_rd(c[0], r[0], r[1])
+                    self.io.save_rd(c[0], r[0], r[1], chromosome_length=cl[1])
                     count += 1
             if not cum_his_read_frg is None:
                 self.io.create_signal(None, None, "read frg dist", cum_his_read_frg)
@@ -241,13 +241,14 @@ class Root:
 
         def save_data(chr, pos, ref, alt, nref, nalt, gt, flag, qual):
             if (len(chroms) == 0 or chr in chroms) and (not pos is None) and (len(pos) > 0):
-                self.io.save_snp(chr, pos, ref, alt, nref, nalt, gt, flag, qual, callset=callset)
+                self.io.save_snp(chr, pos, ref, alt, nref, nalt, gt, flag, qual, callset=callset,
+                                 chromosome_length=vcff.lengths[chr])
             # TODO: Stop reading if all from chrom list are read.
 
         def save_data_no_counts(chr, pos, ref, alt, gt, flag, qual):
             if (len(chroms) == 0 or chr in chroms) and (not pos is None) and (len(pos) > 0):
                 self.io.save_snp(chr, pos, ref, alt, np.zeros_like(pos), np.zeros_like(pos), gt, flag, qual,
-                                 callset=callset)
+                                 callset=callset, chromosome_length=vcff.lengths[chr])
 
         if use_index:
             count = 0
@@ -261,7 +262,8 @@ class Root:
                                                                                          gt_tag=gt_tag)
 
                 if not pos is None and len(pos) > 0:
-                    self.io.save_snp(c, pos, ref, alt, nref, nalt, gt, flag, qual, callset=callset)
+                    self.io.save_snp(c, pos, ref, alt, nref, nalt, gt, flag, qual, callset=callset,
+                                     chromosome_length=vcff.lengths[c])
                     count += 1
             return count
         else:
@@ -364,6 +366,25 @@ class Root:
         for c in chrs:
             _logger.info("Saving SNP data for chromosome '%s' in file '%s'." % (c, self.io.filename))
             self.io.save_snp(c, pos[c], ref[c], alt[c], nref[c], nalt[c], gt[c], flag[c], qual[c])
+
+    def rd_from_snp(self, chroms=[], callset=None):
+
+        chromosomes = [c for c in self.io.snp_chromosomes() if (len(chroms) == 0 or c in chroms)]
+
+        snp_mask_chromosomes = {}
+        for c in self.io_mask.mask_chromosomes():
+            snp_name = self.io.snp_chromosome_name(c)
+            if snp_name is not None:
+                snp_mask_chromosomes[snp_name] = c
+
+        for c in chromosomes:
+            _logger.info("Calculating RD signal for chromosome '%s' using SNP counts." % c)
+            pos, ref, alt, nref, nalt, gt, flag, qual = self.io.read_snp(c, callset=callset)
+            n = self.io.get_chromosome_length(c) // 100 + 1
+            rd = np.zeros(n)
+            for p, c1, c2 in zip(pos, nref, nalt):
+                rd[(p-1)//100] += c1+c2
+            self.io.save_rd(c, rd, rd)
 
     def gc(self, filename, chroms=[], make_gc_genome_file=False):
         """ Read GC content from reference fasta file and store in .cnvnator file
@@ -1395,7 +1416,7 @@ class Root:
                         flag[snp_ix] = flag[snp_ix] | 2
                     else:
                         flag[snp_ix] = flag[snp_ix] & 1
-                if len(pos)>0:
+                if len(pos) > 0:
                     self.io.save_snp(c, pos, ref, alt, nref, nalt, gt, flag, qual, update=True, callset=callset)
 
     def calculate_baf(self, bin_sizes, chroms=[], use_mask=True, use_id=False, use_phase=False, res=200,

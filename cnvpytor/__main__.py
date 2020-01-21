@@ -56,6 +56,7 @@ def main():
     parser.add_argument('-callset', '--callset', type=str, help="name for somatic VCF signal", default="default")
 
     parser.add_argument('-pileup', '--pileup_bam', nargs="+", type=str, help="calculate SNP counts from bam files")
+    parser.add_argument('-snp2rd', '--rd_from_snp', action='store_true', help="calculate RD from SNP counts")
 
     parser.add_argument('-mask', '--mask', type=str, help="read fasta mask file and flag SNPs in P region")
     parser.add_argument('-mask_snps', '--mask_snps', action='store_true', help="flag SNPs in P region")
@@ -240,6 +241,10 @@ def main():
         if args.pileup_bam:
             app = Root(args.root[0], max_cores=args.max_cores)
             app.pileup(args.pileup_bam, chroms=args.chrom, reference_filename=args.reference_filename)
+
+        if args.rd_from_snp:
+            app = Root(args.root[0], max_cores=args.max_cores)
+            app.rd_from_snp(chroms=args.chrom)
 
         if args.mask:
             app = Root(args.root[0], create=True, max_cores=args.max_cores)

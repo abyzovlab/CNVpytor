@@ -33,10 +33,13 @@ class Vcf:
 
         self.chrs = []
         self.samples = []
+        self.lengths = {}
         if self.file:
             _logger.info("File: " + filename + " successfully open")
             self.chrs = list(self.file.header.contigs)
             self.samples = list(self.file.header.samples)
+            for c in self.chrs:
+                self.lengths[c] = self.file.header.contigs[c].length
             _logger.debug("Header contigs: %s" % ", ".join(self.chrs))
             _logger.debug("Header samples: %s" % ", ".join(self.samples))
 
@@ -123,8 +126,12 @@ class Vcf:
                             qual.append(int(rec.qual / 10))  # divide QUAL by factor 10 and truncate to one byte
                         if qual[-1] > 255:
                             qual[-1] = 255
-                        nref.append(rec.samples[sample][ad_tag][0])
-                        nalt.append(rec.samples[sample][ad_tag][1])
+                        try:
+                            nref.append(int(rec.samples[sample][ad_tag][0]))
+                            nalt.append(int(rec.samples[sample][ad_tag][1]))
+                        except ValueError:
+                            nref.append(0)
+                            nalt.append(0)
                         try:
                             UNICODE_EXISTS = bool(type(unicode))
                         except NameError:
@@ -277,8 +284,12 @@ class Vcf:
                             qual.append(int(rec.qual / 10))  # divide QUAL by factor 10 and truncate to one byte
                         if qual[-1] > 255:
                             qual[-1] = 255
-                        nref.append(rec.samples[sample][ad_tag][0])
-                        nalt.append(rec.samples[sample][ad_tag][1])
+                        try:
+                            nref.append(int(rec.samples[sample][ad_tag][0]))
+                            nalt.append(int(rec.samples[sample][ad_tag][1]))
+                        except ValueError:
+                            nref.append(0)
+                            nalt.append(0)
                         try:
                             UNICODE_EXISTS = bool(type(unicode))
                         except NameError:

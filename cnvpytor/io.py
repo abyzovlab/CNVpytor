@@ -201,7 +201,7 @@ class Signals(object):
                 return self.signals[signal] % {"chr": chr_name, "bin_size": bin_size,
                                                "rd_flag": self.suffix_rd_flag(flags),
                                                "snp_flag": self.suffix_snp_flag(flags), "flag": self.suffix_flag(flags),
-                                               "name":name}
+                                               "name": name}
             except TypeError:
                 return None
         else:
@@ -533,6 +533,9 @@ class IO(Signals):
 
         print("Chromosomes with SNP histograms [bin sizes]: " + ", ".join(chrs.keys()) + " " + str(sorted(bss)))
         print()
+        chr_len = list(np.array(self.get_signal(None, None, "chromosome lengths")).astype("str"))
+        chr_len = dict(zip(chr_len[::2], chr_len[1::2]))
+        print("Chromosome lengths: " + str(chr_len))
 
     @staticmethod
     def save_root_trees(root_filename):
@@ -559,7 +562,7 @@ class IO(Signals):
             # Save RD and SNP data into root file - TODO
             _logger.debug(root_filename, ROOT.__version__)
 
-    def save_rd(self, chr_name, rd_p, rd_u):
+    def save_rd(self, chr_name, rd_p, rd_u, chromosome_length=None):
         """
         Compress and stores RD data into CNVpytor file and returns data set instances.
 
@@ -592,6 +595,8 @@ class IO(Signals):
                     "Detecting RD data in file '%s' for the same chromosome with different name '%s'. SNP name will be used." % (
                         self.filename, snp_name))
                 chr_name = snp_name
+        if chromosome_length is not None:
+            self.set_chromosome_length(chr_name, chromosome_length)
         ds_p = self.create_signal(chr_name, None, "RD p", crd_p)
         ds_u = self.create_signal(chr_name, None, "RD u", crd_u)
         if not (chr_name in self.rd_chromosomes()):
@@ -600,7 +605,8 @@ class IO(Signals):
             self.create_signal(None, None, "RD chromosomes", np.array([np.string_(x) for x in rd_chroms]))
         return ds_p, ds_u
 
-    def save_snp(self, chr_name, pos, ref, alt, nref, nalt, gt, flag, qual, update=False, callset=None):
+    def save_snp(self, chr_name, pos, ref, alt, nref, nalt, gt, flag, qual, update=False, callset=None,
+                 chromosome_length=None):
         """
         Compress and stores SNP data into CNVpytor file.
 
@@ -643,6 +649,12 @@ class IO(Signals):
                     "Detecting RD data in file '%s' for the same chromosome with different name '%s'. RD name will be used." % (
                         self.filename, rd_name))
                 chr_name = rd_name
+        if not self.is_chromosome_length_set(chr_name):
+            if chromosome_length is not None:
+                self.set_chromosome_length(chr_name, chromosome_length)
+            elif chromosome_length is None:
+                self.set_chromosome_length(chr_name, pos[-1]+1)
+
         if callset is None:
             self.create_signal(chr_name, None, "SNP pos", snp_pos)
             self.create_signal(chr_name, None, "SNP desc", snp_desc)
@@ -826,12 +838,12 @@ class IO(Signals):
                 return snpc
         return None
 
-    def set_chromosome_length(self,chr,length):
+    def set_chromosome_length(self, chromosome, length):
         """
 
         Parameters
         ----------
-        chr : str
+        chromosome : str
             Chromosome name
         length: int
             Chromosome length
@@ -842,16 +854,17 @@ class IO(Signals):
 
         """
         chr_len = list(np.array(self.get_signal(None, None, "chromosome lengths")).astype("str"))
-        chr_len = dict(zip(chr_len[::2],chr_len[1::2]))
-        chr_len[chr]=str(length)
-        self.create_signal(None, None, "chromosome lengths", np.array([np.string_(x) for s in chr_len.items() for x in s]))
+        chr_len = dict(zip(chr_len[::2], chr_len[1::2]))
+        chr_len[chromosome] = str(length)
+        self.create_signal(None, None, "chromosome lengths",
+                           np.array([np.string_(x) for s in chr_len.items() for x in s]))
 
-    def get_chromosome_length(self, chr):
+    def get_chromosome_length(self, chromosome):
         """
 
         Parameters
         ----------
-        chr : str
+        chromosome : str
             Chromosome name
 
         Returns
@@ -861,17 +874,17 @@ class IO(Signals):
 
         """
         chr_len = list(np.array(self.get_signal(None, None, "chromosome lengths")).astype("str"))
-        chr_len = dict(zip(chr_len[::2],chr_len[1::2]))
-        if chr in chr_len:
-            return int(chr_len[chr])
+        chr_len = dict(zip(chr_len[::2], chr_len[1::2]))
+        if chromosome in chr_len:
+            return int(chr_len[chromosome])
         return None
 
-    def is_chromosome_length_set(self, chr):
+    def is_chromosome_length_set(self, chromosome):
         """
 
         Parameters
         ----------
-        chr : str
+        chromosome : str
             Chromosome name
 
         Returns
@@ -881,8 +894,8 @@ class IO(Signals):
 
         """
         chr_len = list(np.array(self.get_signal(None, None, "chromosome lengths")).astype("str"))
-        chr_len = dict(zip(chr_len[::2],chr_len[1::2]))
-        return chr in chr_len
+        chr_len = dict(zip(chr_len[::2], chr_len[1::2]))
+        return chromosome in chr_len
 
     def add_meta_attribute(self, attribute, value):
         self.file.attrs[attribute] = str(value)
