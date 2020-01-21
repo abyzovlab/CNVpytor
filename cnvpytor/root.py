@@ -382,8 +382,15 @@ class Root:
             pos, ref, alt, nref, nalt, gt, flag, qual = self.io.read_snp(c, callset=callset)
             n = self.io.get_chromosome_length(c) // 100 + 1
             rd = np.zeros(n)
+            ncg = self.io.get_chromosome_length(c) // 10000 + 1
+            rdcg = np.zeros(ncg)
+            rdc = np.zeros(ncg)
             for p, c1, c2 in zip(pos, nref, nalt):
-                rd[(p-1)//100] += c1+c2
+                rdcg[(p-1)//10000] += c1+c2
+                rdc[(p-1)//10000] += 1
+            rdcg = rdcg / rdc
+            for i in range(n):
+                rd[i]= rdcg[i//100]
             self.io.save_rd(c, rd, rd)
 
     def gc(self, filename, chroms=[], make_gc_genome_file=False):
