@@ -89,7 +89,7 @@ class Root:
                         cum_his_read_frg = r[2]
                     else:
                         cum_his_read_frg += r[2]
-                    self.io.save_rd(c[0], r[0], r[1], chromosome_length=cl[1])
+                    self.io.save_rd(c[0], r[0], r[1], chromosome_length=c[1])
                     count += 1
             if not cum_his_read_frg is None:
                 self.io.create_signal(None, None, "read frg dist", cum_his_read_frg)
