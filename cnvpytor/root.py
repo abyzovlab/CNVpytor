@@ -1382,13 +1382,14 @@ class Root:
                         #         break
                         #     ons = len(segments)
 
-                        # for i in range(len(segments)):
-                        #     i1, i2 = likelihood_baf_pval(likelihood[i])
-                        #
-                        #     print(c + ":" + str(segments[i][0] * bin_size + 1) + "-" + str(
-                        #         segments[i][-1] * bin_size + bin_size),
-                        #           (segments[i][-1] - segments[i][0] + 1) * bin_size, bin_size, len(segments[i]),
-                        #           i1, i2)
+                        for i in range(len(segments)):
+                            i1=level[i]/mean
+                            i2=t_test_1_sample(mean,level[i],error[i],len(segments[i]))
+                            if i2 is not None and i2<(0.05*bin_size/3e9) and abs(i1-1.)>0.01:
+                                print(c + ":" + str(segments[i][0] * bin_size + 1) + "-" + str(
+                                    segments[i][-1] * bin_size + bin_size),
+                                    (segments[i][-1] - segments[i][0] + 1) * bin_size, bin_size, len(segments[i]),
+                            i1, i2)
 
                         self.io.create_signal(c, bin_size, "RD mosaic segments",
                                               data=segments_code(segments), flags=flag_rd)

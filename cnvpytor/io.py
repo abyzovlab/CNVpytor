@@ -48,6 +48,7 @@ class Signals(object):
         "RD call": "his_rd_p_%(chr)s_%(bin_size)d_partition%(rd_flag)s_merge",
         "RD mosaic segments": "his_rd_p_%(chr)s_%(bin_size)d_partition%(rd_flag)s_mosaic_segments",
         "RD mosaic call": "his_rd_p_%(chr)s_%(bin_size)d_partition%(rd_flag)s_mosaic_call",
+        "RD level": "rd_level_%(bin_size)d%(flag)s",
         "GC": "%(chr)s_gc_%(bin_size)",
         "SNP pos": "%(chr)s_snp_pos",
         "SNP desc": "%(chr)s_snp_desc",
@@ -653,7 +654,7 @@ class IO(Signals):
             if chromosome_length is not None:
                 self.set_chromosome_length(chr_name, chromosome_length)
             elif chromosome_length is None:
-                self.set_chromosome_length(chr_name, pos[-1]+1)
+                self.set_chromosome_length(chr_name, pos[-1] + 1)
 
         if callset is None:
             self.create_signal(chr_name, None, "SNP pos", snp_pos)
