@@ -4,6 +4,8 @@ from pathlib import Path
 from .io import *
 from .genome import *
 
+_logger = logging.getLogger("cnvpytor.export")
+
 
 class Wiggle:
     def __init__(self, filename):
@@ -97,9 +99,13 @@ class ExportJbrowse:
         return root_filename
 
     @property
-    def export_main_dir(self):
+    def export_directory(self):
         main_dir_name = "jbrowse_{}".format(self.pytor_name)
-        main_dir = Path(self.dir).joinpath(main_dir_name)
+        return main_dir_name
+
+    @property
+    def export_main_dir(self):
+        main_dir = Path(self.dir).joinpath(self.export_directory)
         main_dir.mkdir(parents=True, exist_ok=True)
         return main_dir
 
@@ -166,6 +172,7 @@ class ExportJbrowse:
         return chrs, bss
 
     def rd_signal(self):
+        _logger.debug("Create Read depth related signals")
         rd_chr, rd_bin = self.rd_chr_bin()
         chrom_list = list(rd_chr)
 
@@ -181,6 +188,7 @@ class ExportJbrowse:
                     wig.create_wig(self.io, chrom_list, bin_size, signal_name, flag)
 
     def snp_signal(self):
+        _logger.debug("Create SNP related signals")
         snp_chr, snp_bin = self.snp_chr_bin()
         chrom_list = list(snp_chr)
 
@@ -211,6 +219,7 @@ class ExportJbrowse:
         return track_dct
 
     def add_config_track(self):
+        _logger.debug("Get RD config track")
         rd_chr, rd_bin = self.rd_chr_bin()
         url_template_dct = []
         for signal_name, signal_dct in self.rd_signal_dct.items():
@@ -249,6 +258,7 @@ class ExportJbrowse:
         return track_dct
 
     def add_snp_config_track(self):
+        _logger.debug("Get SNP config track info")
         snp_dct_list = []
         snp_chr, snp_bin = self.snp_chr_bin()
         for signal_name, signal_dct in self.snp_signal_dct.items():
@@ -275,7 +285,7 @@ class ExportJbrowse:
         return snp_dct_list
 
     def create_tracklist_json(self):
-
+        _logger.debug("Creates config file: {}".format(self.export_tracklist_file))
         track_dct = self.add_config_track()
         for snp_dct in self.add_snp_config_track():
             track_dct['tracks'].append(snp_dct)
@@ -285,21 +295,23 @@ class ExportJbrowse:
         return track_dct
 
     def create_reference_json(self):
-        rg_name = np.array(self.io.get_signal(None, None, "reference genome")).astype("str")[0]
-        if rg_name in Genome.reference_genomes:
-            genome_dct = Genome.reference_genomes[rg_name]['chromosomes']
-            chr_dct_list = []
-            rdcs = self.io.rd_chromosomes()
-            for key, value in genome_dct.items():
-                if Genome.extended_chrom_name(key) in rdcs:
-                    chr = Genome.extended_chrom_name(key)
-                elif Genome.canonical_chrom_name(key) in rdcs:
-                    chr = Genome.canonical_chrom_name(key)
-                else:
-                    chr = key
-                dct_dct = {"end": value[0], "length": value[0], "name": chr, "start": 0}
-                chr_dct_list.append(dct_dct)
+        _logger.debug("Exporting reference details")
+        # get signal details
+        chr_len = list(np.array(self.io.get_signal(None, None, "chromosome lengths")).astype("str"))
+        chr_dct = dict(zip(chr_len[::2], chr_len[1::2]))
 
-            with open(self.export_ref_file, 'w') as f:
-                json.dump(chr_dct_list, f, indent=2)
+        # create signal list in proper format
+        chr_dct_list = []
+        for chr, length in chr_dct.items():
+            tmp_dct = {"end": length, "length": length, "name": chr, "start": 0}
+            chr_dct_list.append(tmp_dct)
+
+        # save it to file
+        with open(self.export_ref_file, 'w') as f:
+            json.dump(chr_dct_list, f, indent=2)
+
+    def __del__(self):
+        _logger.info("Export to: {}".format(self.export_main_dir))
+        _logger.info("Copy this directory to jbrowse directory if export path is not set to jbrowse path")
+        _logger.info("To access this via localhost: http://localhost/jbrowse/?data={}".format(self.export_directory))
 
