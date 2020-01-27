@@ -1,0 +1,879 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.6.3" />
+<title>cnvpytor.viewparams API documentation</title>
+<meta name="description" content="cnvpytor.viewparams …" />
+<link href='https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.0/normalize.min.css' rel='stylesheet'>
+<link href='https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/8.0.0/sanitize.min.css' rel='stylesheet'>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css" rel="stylesheet">
+<style>.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{font-weight:bold}#index h4 + ul{margin-bottom:.6em}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase;cursor:pointer}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>cnvpytor.viewparams</code></h1>
+</header>
+<section id="section-intro">
+<p>cnvpytor.viewparams</p>
+<p>Class ViewParams: parameters and description for Viewer class</p>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">&#34;&#34;&#34; cnvpytor.viewparams
+
+Class ViewParams: parameters and description for Viewer class
+&#34;&#34;&#34;
+from __future__ import absolute_import, print_function, division
+
+from .genome import *
+import matplotlib.pyplot as plt
+import logging
+
+_logger = logging.getLogger(&#34;cnvpytor.viewparams&#34;)
+
+
+class ViewParams(object):
+    default = {
+        &#34;bin_size&#34;: None,
+        &#34;panels&#34;: [&#34;rd&#34;],
+        &#34;rd_partition&#34;: True,
+        &#34;rd_call&#34;: True,
+        &#34;rd_call_mosaic&#34;: False,
+        &#34;rd_use_mask&#34;: False,
+        &#34;rd_use_gc_corr&#34;: True,
+        &#34;rd_manhattan_range&#34;: [0, 2],
+        &#34;rd_manhattan_call&#34;: False,
+        &#34;snp_use_mask&#34;: True,
+        &#34;snp_use_id&#34;: False,
+        &#34;snp_use_phase&#34;: False,
+        &#34;markersize&#34;: &#34;auto&#34;,
+        &#34;rd_colors&#34;: &#34;&#34;,
+        &#34;snp_colors&#34;: [&#34;yellow&#34;, &#34;orange&#34;, &#34;cyan&#34;, &#34;blue&#34;, &#34;lime&#34;, &#34;green&#34;, &#34;yellow&#34;, &#34;orange&#34;],
+        &#34;baf_colors&#34;: &#34;&#34;,
+        &#34;lh_colors&#34;: &#34;&#34;,
+        &#34;plot_files&#34;: [],
+        &#34;plot_file&#34;: 0,
+        &#34;chrom&#34;: [],
+        &#34;style&#34;: None,
+        &#34;grid&#34;: &#34;auto&#34;,
+        &#34;xkcd&#34;: False,
+        &#34;output_filename&#34;: &#34;&#34;,
+        &#34;palette1&#34;: [&#34;#555555&#34;, &#34;#aaaaaa&#34;],
+        &#34;palette2&#34;: [&#34;#00ff00&#34;, &#34;#0000ff&#34;],
+        &#34;contrast&#34;: 20,
+        &#34;min_segment_size&#34;: 0
+    }
+
+    def __init__(self, params):
+        for key in self.default:
+            if key in params:
+                setattr(self, key, params[key])
+            else:
+                setattr(self, key, self.default[key])
+
+    def set(self, param, args):
+        if param in self.params and self.params[param] is False:
+            self.__setattr__(param, True)
+        elif param == &#34;bin_size&#34; and len(args) &gt; 0:
+            self.__setattr__(param, args[0])
+        elif param == &#34;contrast&#34; and len(args) &gt; 0:
+            self.__setattr__(param, float(args[0]))
+        elif param == &#34;markersize&#34; and len(args) &gt; 0:
+            if args[0] == &#34;auto&#34;:
+                self.__setattr__(param, &#34;auto&#34;)
+            else:
+                self.__setattr__(param, float(args[0]))
+        elif param == &#34;grid&#34; and len(args) &gt; 0:
+            if args[0] == &#34;auto&#34;:
+                self.__setattr__(param, &#34;auto&#34;)
+            else:
+                self.__setattr__(param, list(map(int, args)))
+        elif param == &#34;manhattan_range&#34; and len(args) &gt; 0:
+            self.__setattr__(param, list(map(float, args)))
+        elif param == &#34;min_segment_size&#34; and len(args) &gt; 0:
+            self.__setattr__(param, int(args[0]))
+        elif param == &#34;output_filename&#34; and len(args) &gt; 0:
+            self.__setattr__(param, args[0])
+        elif param == &#34;plot_file&#34; and len(args) &gt; 0:
+            self.__setattr__(param, int(args[0]))
+        elif param == &#34;plot_files&#34;:
+            self.__setattr__(param, list(map(int, args)))
+        elif param == &#34;style&#34;:
+            self.__setattr__(param, args[0])
+        elif param in self.params and self.params[param] is not True:
+            self.__setattr__(param, args)
+
+    def unset(self, param):
+        if param in self.params and self.params[param] is True:
+            self.__setattr__(param, False)
+
+    @property
+    def params(self):
+        dct = {}
+        for key in self.default:
+            dct[key] = getattr(self, key)
+
+        return dct
+
+    @property
+    def bin_size_f(self):
+        &#34;&#34;&#34;
+        Formatted bin_size (e.g. 1000 -&gt; &#34;1K&#34;, 10000000 -&gt; &#34;10M&#34;)
+
+        Returns
+        -------
+        bin_size_f : str
+
+        &#34;&#34;&#34;
+        return binsize_format(self.params[&#34;bin_size&#34;])
+
+    def __setattr__(self, name, value):
+
+        if name == &#39;bin_size&#39; and value is not None:
+            try:
+                value = binsize_type(value)
+            except (ArgumentTypeError, ValueError):
+                _logger.warning(&#34;bin_size should be integer divisible by 100&#34;)
+        if name == &#39;style&#39;:
+            if value in plt.style.available:
+                plt.style.use(&#34;default&#34;)
+                plt.style.use(value)
+
+        if name == &#39;xkcd&#39;:
+            if value:
+                self.style = &#34;classic&#34;
+                from matplotlib import patheffects
+                plt.xkcd()
+                plt.rcParams[&#34;path.effects&#34;] = [patheffects.withStroke(linewidth=0.5, foreground=&#34;w&#34;)]
+
+            elif hasattr(self, name) and self.xkcd:
+                plt.rcdefaults()
+                self.style = &#39;classic&#39;
+
+        super(ViewParams, self).__setattr__(name, value)
+
+
+class HelpDescription(object):
+    default = ViewParams.default
+
+    command_tree = {
+        &#34;set&#34;: {},
+        &#34;unset&#34;: {},
+        &#34;help&#34;: {},
+        &#34;save&#34;: None,
+        &#34;show&#34;: None,
+        &#34;quit&#34;: None,
+        &#34;rd&#34;: None,
+        &#34;likelihood&#34;: None,
+        &#34;baf&#34;: None,
+        &#34;snp&#34;: None,
+        &#34;info&#34;: None,
+        &#34;stat&#34;: None,
+        &#34;rdstat&#34;: None,
+        &#34;circular&#34;: None,
+        &#34;manhattan&#34;: None,
+        &#34;calls&#34;: None,
+        &#34;ls&#34;: None,
+        &#34;compare&#34;: None
+    }
+
+    param_help = {
+        &#34;help&#34;: help_format(
+            topic=&#34;help&#34;,
+            p_desc=&#34;Print help for a topic, command or parameter.&#34;,
+            p_usage=&#34;help &lt;topic&gt;\n\nList of params: &#34; +
+                    &#34;, &#34;.join(default.keys()) +
+                    &#34;\n\nList of commands: &#34; +
+                    &#34;, &#34;.join(command_tree.keys()) +
+                    &#34;\n\nList of topics: plotting, signals&#34;,
+            p_example=&#34;help bin_size\nhelp plotting&#34;
+        ),
+        &#34;plotting&#34;: help_format(
+            topic=&#34;PLOTTING&#34;,
+            p_desc=&#34;There are several types of plots:\n&#34; +
+                   &#34;    * genome wide plots: rdstat, stat, rd, baf, snp, likelihood\n&#34; +
+                   &#34;    * regions: genomic regions separated by space (new subplot) and comma (same subplot)\n&#34; +
+                   &#34;    * manhattan: manhattan style whole genome plot\n&#34; +
+                   &#34;    * calls: plot calls\n&#34;
+                   &#34;    * circular: circular plots of read-depth and MAF&#34;,
+            p_example=&#34;chr1:1M-20M\nchr21\nchr1:1M-20M,chr2:30M-45M chr21&#34;,
+            p_see=&#34;regions, rdstat, stat, rd, baf, snp, likelihood, manhattan, calls, circular&#34;
+        ),
+        &#34;signals&#34;: help_format(
+            topic=&#34;SIGNALS&#34;,
+            p_desc=&#34;...&#34;,
+            p_see=&#34;plotting&#34;
+        ),
+        &#34;set&#34;: help_format(
+            topic=&#34;set&#34;,
+            p_desc=&#34;Set parameter value. &#34; +
+                   &#34;Requires argument or list of arguments except in the case when parameter type is bool.&#34;,
+            p_usage=&#34;set param [value]&#34;,
+            p_example=&#34;set bin_size 100000\nset rd_call_mosaic\nset panels rd likelihood&#34;,
+            p_see=&#34;unset&#34;
+        ),
+        &#34;unset&#34;: help_format(
+            topic=&#34;unset&#34;,
+            p_desc=&#34;Set bool parameter to False.&#34;,
+            p_usage=&#34;unset param&#34;,
+            p_example=&#34;unset rd_call_mosaic&#34;,
+            p_see=&#34;unset&#34;
+        ),
+        &#34;save&#34;: help_format(
+            topic=&#34;save&#34;,
+            p_desc=&#34;Save current figure to file. There is a shortcut (see examples): &#34; +
+                   &#34;redirection &#39;&gt;&#39; after plotting command.\n&#34; +
+                   &#34;Available formats:\n&#34; +
+                   &#34;    * pgf - PGF code for LaTeX\n&#34; +
+                   &#34;    * svgz - Scalable Vector Graphics\n&#34; +
+                   &#34;    * tiff - Tagged Image File Format\n&#34; +
+                   &#34;    * jpg - Joint Photographic Experts Group\n&#34; +
+                   &#34;    * raw - Raw RGBA bitmap\n&#34; +
+                   &#34;    * jpeg - Joint Photographic Experts Group\n&#34; +
+                   &#34;    * png - Portable Network Graphics\n&#34; +
+                   &#34;    * ps - Postscript\n&#34; +
+                   &#34;    * svg - Scalable Vector Graphics\n&#34; +
+                   &#34;    * eps - Encapsulated Postscript\n&#34; +
+                   &#34;    * rgba - Raw RGBA bitmap\n&#34; +
+                   &#34;    * pdf - Portable Document Format\n&#34; +
+                   &#34;    * tif - Tagged Image File Format&#34;,
+            p_usage=&#34;save filename&#34;,
+            p_example=&#34;save image.png\n manhattan &gt; image.png\n chr1:20M-50M &gt; image.png&#34;,
+            p_see=&#34;output_filename&#34;
+        ),
+        &#34;show&#34;: help_format(
+            topic=&#34;show&#34;,
+            p_desc=&#34;Lists all parameters with values&#34;,
+            p_usage=&#34;show&#34;,
+            p_see=&#34;set, unset&#34;
+        ),
+        &#34;quit&#34;: help_format(
+            topic=&#34;quit&#34;,
+            p_desc=&#34;Exists interactive mode.&#34;,
+            p_usage=&#34;quit&#34;,
+            p_see=&#34;help&#34;
+        ),
+        &#34;rd&#34;: &#34;&#34;,
+        &#34;likelihood&#34;: &#34;&#34;,
+        &#34;snp&#34;: &#34;&#34;,
+        &#34;baf&#34;: &#34;&#34;,
+        &#34;stat&#34;: &#34;&#34;,
+        &#34;rdstat&#34;: &#34;&#34;,
+        &#34;circular&#34;: &#34;&#34;,
+        &#34;manhattan&#34;: &#34;&#34;,
+        &#34;calls&#34;: &#34;&#34;,
+        &#34;ls&#34;: help_format(
+            topic=&#34;ls&#34;,
+            p_desc=&#34;Print content of pytor files&#34;,
+            p_usage=&#34;ls&#34;,
+            p_see=&#34;show&#34;
+        ),
+        &#34;compare&#34;: &#34;&#34;,
+        &#34;bin_size&#34;: help_format(
+            topic=&#34;bin_size&#34;,
+            p_desc=&#34;Size of bins used for plotting&#34;,
+            p_type=&#34;binsize_type (int divisible by 100)&#34;,
+            p_default=str(default[&#34;bin_size&#34;]),
+            p_affects=&#34;all&#34;,
+            p_example=&#34;set bin_size 100000&#34;,
+            p_see=&#34;output_filename, xkcd&#34;
+        ),
+        &#34;panels&#34;: help_format(
+            topic=&#34;panels&#34;,
+            p_desc=&#34;List of panels to plot. Possible options are:\n&#34; +
+                   &#34;    rd         - read depth plot,\n&#34; +
+                   &#34;    likelihood - baf likelihood 2D plot,\n&#34; +
+                   &#34;    baf        - binned baf, maf and likelihood peak position,\n&#34; +
+                   &#34;    snp        - plot baf for each particular SNP&#34;,
+            p_type=&#34;list of strings&#34;,
+            p_default=str(default[&#34;panels&#34;]),
+            p_affects=&#34;region plot, manhattan&#34;,
+            p_example=&#34;set panels rd likelihood&#34;,
+            p_see=&#34;grid&#34;
+        ),
+        &#34;rd_partition&#34;: help_format(
+            topic=&#34;rd_partition&#34;,
+            p_desc=&#34;Enables plotting partition signal in rd plots&#34;,
+            p_type=&#34;bool&#34;,
+            p_default=str(default[&#34;rd_partition&#34;]),
+            p_affects=&#34;region plot, rd&#34;,
+            p_example=&#34;set rd_partition\nunset rd_partition&#34;,
+            p_see=&#34;rd_call, rd_call_mosaic&#34;
+        ),
+        &#34;rd_call&#34;: help_format(
+            topic=&#34;rd_call&#34;,
+            p_desc=&#34;Enables plotting call signal in rd plots&#34;,
+            p_type=&#34;bool&#34;,
+            p_default=str(default[&#34;rd_call&#34;]),
+            p_affects=&#34;region plot, rd&#34;,
+            p_example=&#34;set rd_call\nunset rd_call&#34;,
+            p_see=&#34;rd_partition, rd_call_mosaic&#34;
+        ),
+        &#34;rd_call_mosaic&#34;: help_format(
+            topic=&#34;rd_call_mosaic&#34;,
+            p_desc=&#34;Enables plotting mosaic call signal in rd plots&#34;,
+            p_type=&#34;bool&#34;,
+            p_default=str(default[&#34;rd_call_mosaic&#34;]),
+            p_affects=&#34;region plot, rd&#34;,
+            p_example=&#34;set rd_call_mosaic\nunset rd_call_mosaic&#34;,
+            p_see=&#34;rd_partition, rd_call&#34;
+        ),
+        &#34;rd_raw&#34;: &#34;&#34;,
+        &#34;rd_use_mask&#34;: &#34;&#34;,
+        &#34;rd_use_gc_corr&#34;: &#34;&#34;,
+        &#34;rd_range&#34;: &#34;&#34;,
+        &#34;rd_manhattan_range&#34;: &#34;&#34;,
+        &#34;rd_manhattan_call&#34;: &#34;&#34;,
+        &#34;snp_use_mask&#34;: &#34;&#34;,
+        &#34;snp_use_id&#34;: &#34;&#34;,
+        &#34;snp_use_phase&#34;: &#34;&#34;,
+        &#34;markersize&#34;: help_format(
+            topic=&#34;markersize&#34;,
+            p_desc=&#34;Size of markers used in scatter like plots (e.g. manhattan, snp).&#34;,
+            p_type=&#34;float or str&#34;,
+            p_default=str(default[&#34;markersize&#34;]),
+            p_affects=&#34;manhattan, snp, region plot with snp panel&#34;,
+            p_example=&#34;set markersize 10\nset markersize auto&#34;,
+            p_see=&#34;rd_colors, snp_colors, baf_colors, lh_colors&#34;
+        ),
+        &#34;rd_colors&#34;: &#34;&#34;,
+        &#34;snp_colors&#34;: &#34;&#34;,
+        &#34;baf_colors&#34;: &#34;&#34;,
+        &#34;lh_colors&#34;: &#34;&#34;,
+        &#34;plot_files&#34;: &#34;&#34;,
+        &#34;plot_file&#34;: &#34;&#34;,
+        &#34;chrom&#34;: &#34;&#34;,
+        &#34;style&#34;: &#34;&#34;,
+        &#34;grid&#34;: &#34;&#34;,
+        &#34;xkcd&#34;: &#34;&#34;,
+        &#34;output_filename&#34;: &#34;&#34;,
+        &#34;palette1&#34;: &#34;&#34;,
+        &#34;palette2&#34;: &#34;&#34;,
+        &#34;contrast&#34;: &#34;&#34;,
+        &#34;min_segment_size&#34;: &#34;&#34;,
+    }</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="cnvpytor.viewparams.HelpDescription"><code class="flex name class">
+<span>class <span class="ident">HelpDescription</span></span>
+<span>(</span><span>*args, **kwargs)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">class HelpDescription(object):
+    default = ViewParams.default
+
+    command_tree = {
+        &#34;set&#34;: {},
+        &#34;unset&#34;: {},
+        &#34;help&#34;: {},
+        &#34;save&#34;: None,
+        &#34;show&#34;: None,
+        &#34;quit&#34;: None,
+        &#34;rd&#34;: None,
+        &#34;likelihood&#34;: None,
+        &#34;baf&#34;: None,
+        &#34;snp&#34;: None,
+        &#34;info&#34;: None,
+        &#34;stat&#34;: None,
+        &#34;rdstat&#34;: None,
+        &#34;circular&#34;: None,
+        &#34;manhattan&#34;: None,
+        &#34;calls&#34;: None,
+        &#34;ls&#34;: None,
+        &#34;compare&#34;: None
+    }
+
+    param_help = {
+        &#34;help&#34;: help_format(
+            topic=&#34;help&#34;,
+            p_desc=&#34;Print help for a topic, command or parameter.&#34;,
+            p_usage=&#34;help &lt;topic&gt;\n\nList of params: &#34; +
+                    &#34;, &#34;.join(default.keys()) +
+                    &#34;\n\nList of commands: &#34; +
+                    &#34;, &#34;.join(command_tree.keys()) +
+                    &#34;\n\nList of topics: plotting, signals&#34;,
+            p_example=&#34;help bin_size\nhelp plotting&#34;
+        ),
+        &#34;plotting&#34;: help_format(
+            topic=&#34;PLOTTING&#34;,
+            p_desc=&#34;There are several types of plots:\n&#34; +
+                   &#34;    * genome wide plots: rdstat, stat, rd, baf, snp, likelihood\n&#34; +
+                   &#34;    * regions: genomic regions separated by space (new subplot) and comma (same subplot)\n&#34; +
+                   &#34;    * manhattan: manhattan style whole genome plot\n&#34; +
+                   &#34;    * calls: plot calls\n&#34;
+                   &#34;    * circular: circular plots of read-depth and MAF&#34;,
+            p_example=&#34;chr1:1M-20M\nchr21\nchr1:1M-20M,chr2:30M-45M chr21&#34;,
+            p_see=&#34;regions, rdstat, stat, rd, baf, snp, likelihood, manhattan, calls, circular&#34;
+        ),
+        &#34;signals&#34;: help_format(
+            topic=&#34;SIGNALS&#34;,
+            p_desc=&#34;...&#34;,
+            p_see=&#34;plotting&#34;
+        ),
+        &#34;set&#34;: help_format(
+            topic=&#34;set&#34;,
+            p_desc=&#34;Set parameter value. &#34; +
+                   &#34;Requires argument or list of arguments except in the case when parameter type is bool.&#34;,
+            p_usage=&#34;set param [value]&#34;,
+            p_example=&#34;set bin_size 100000\nset rd_call_mosaic\nset panels rd likelihood&#34;,
+            p_see=&#34;unset&#34;
+        ),
+        &#34;unset&#34;: help_format(
+            topic=&#34;unset&#34;,
+            p_desc=&#34;Set bool parameter to False.&#34;,
+            p_usage=&#34;unset param&#34;,
+            p_example=&#34;unset rd_call_mosaic&#34;,
+            p_see=&#34;unset&#34;
+        ),
+        &#34;save&#34;: help_format(
+            topic=&#34;save&#34;,
+            p_desc=&#34;Save current figure to file. There is a shortcut (see examples): &#34; +
+                   &#34;redirection &#39;&gt;&#39; after plotting command.\n&#34; +
+                   &#34;Available formats:\n&#34; +
+                   &#34;    * pgf - PGF code for LaTeX\n&#34; +
+                   &#34;    * svgz - Scalable Vector Graphics\n&#34; +
+                   &#34;    * tiff - Tagged Image File Format\n&#34; +
+                   &#34;    * jpg - Joint Photographic Experts Group\n&#34; +
+                   &#34;    * raw - Raw RGBA bitmap\n&#34; +
+                   &#34;    * jpeg - Joint Photographic Experts Group\n&#34; +
+                   &#34;    * png - Portable Network Graphics\n&#34; +
+                   &#34;    * ps - Postscript\n&#34; +
+                   &#34;    * svg - Scalable Vector Graphics\n&#34; +
+                   &#34;    * eps - Encapsulated Postscript\n&#34; +
+                   &#34;    * rgba - Raw RGBA bitmap\n&#34; +
+                   &#34;    * pdf - Portable Document Format\n&#34; +
+                   &#34;    * tif - Tagged Image File Format&#34;,
+            p_usage=&#34;save filename&#34;,
+            p_example=&#34;save image.png\n manhattan &gt; image.png\n chr1:20M-50M &gt; image.png&#34;,
+            p_see=&#34;output_filename&#34;
+        ),
+        &#34;show&#34;: help_format(
+            topic=&#34;show&#34;,
+            p_desc=&#34;Lists all parameters with values&#34;,
+            p_usage=&#34;show&#34;,
+            p_see=&#34;set, unset&#34;
+        ),
+        &#34;quit&#34;: help_format(
+            topic=&#34;quit&#34;,
+            p_desc=&#34;Exists interactive mode.&#34;,
+            p_usage=&#34;quit&#34;,
+            p_see=&#34;help&#34;
+        ),
+        &#34;rd&#34;: &#34;&#34;,
+        &#34;likelihood&#34;: &#34;&#34;,
+        &#34;snp&#34;: &#34;&#34;,
+        &#34;baf&#34;: &#34;&#34;,
+        &#34;stat&#34;: &#34;&#34;,
+        &#34;rdstat&#34;: &#34;&#34;,
+        &#34;circular&#34;: &#34;&#34;,
+        &#34;manhattan&#34;: &#34;&#34;,
+        &#34;calls&#34;: &#34;&#34;,
+        &#34;ls&#34;: help_format(
+            topic=&#34;ls&#34;,
+            p_desc=&#34;Print content of pytor files&#34;,
+            p_usage=&#34;ls&#34;,
+            p_see=&#34;show&#34;
+        ),
+        &#34;compare&#34;: &#34;&#34;,
+        &#34;bin_size&#34;: help_format(
+            topic=&#34;bin_size&#34;,
+            p_desc=&#34;Size of bins used for plotting&#34;,
+            p_type=&#34;binsize_type (int divisible by 100)&#34;,
+            p_default=str(default[&#34;bin_size&#34;]),
+            p_affects=&#34;all&#34;,
+            p_example=&#34;set bin_size 100000&#34;,
+            p_see=&#34;output_filename, xkcd&#34;
+        ),
+        &#34;panels&#34;: help_format(
+            topic=&#34;panels&#34;,
+            p_desc=&#34;List of panels to plot. Possible options are:\n&#34; +
+                   &#34;    rd         - read depth plot,\n&#34; +
+                   &#34;    likelihood - baf likelihood 2D plot,\n&#34; +
+                   &#34;    baf        - binned baf, maf and likelihood peak position,\n&#34; +
+                   &#34;    snp        - plot baf for each particular SNP&#34;,
+            p_type=&#34;list of strings&#34;,
+            p_default=str(default[&#34;panels&#34;]),
+            p_affects=&#34;region plot, manhattan&#34;,
+            p_example=&#34;set panels rd likelihood&#34;,
+            p_see=&#34;grid&#34;
+        ),
+        &#34;rd_partition&#34;: help_format(
+            topic=&#34;rd_partition&#34;,
+            p_desc=&#34;Enables plotting partition signal in rd plots&#34;,
+            p_type=&#34;bool&#34;,
+            p_default=str(default[&#34;rd_partition&#34;]),
+            p_affects=&#34;region plot, rd&#34;,
+            p_example=&#34;set rd_partition\nunset rd_partition&#34;,
+            p_see=&#34;rd_call, rd_call_mosaic&#34;
+        ),
+        &#34;rd_call&#34;: help_format(
+            topic=&#34;rd_call&#34;,
+            p_desc=&#34;Enables plotting call signal in rd plots&#34;,
+            p_type=&#34;bool&#34;,
+            p_default=str(default[&#34;rd_call&#34;]),
+            p_affects=&#34;region plot, rd&#34;,
+            p_example=&#34;set rd_call\nunset rd_call&#34;,
+            p_see=&#34;rd_partition, rd_call_mosaic&#34;
+        ),
+        &#34;rd_call_mosaic&#34;: help_format(
+            topic=&#34;rd_call_mosaic&#34;,
+            p_desc=&#34;Enables plotting mosaic call signal in rd plots&#34;,
+            p_type=&#34;bool&#34;,
+            p_default=str(default[&#34;rd_call_mosaic&#34;]),
+            p_affects=&#34;region plot, rd&#34;,
+            p_example=&#34;set rd_call_mosaic\nunset rd_call_mosaic&#34;,
+            p_see=&#34;rd_partition, rd_call&#34;
+        ),
+        &#34;rd_raw&#34;: &#34;&#34;,
+        &#34;rd_use_mask&#34;: &#34;&#34;,
+        &#34;rd_use_gc_corr&#34;: &#34;&#34;,
+        &#34;rd_range&#34;: &#34;&#34;,
+        &#34;rd_manhattan_range&#34;: &#34;&#34;,
+        &#34;rd_manhattan_call&#34;: &#34;&#34;,
+        &#34;snp_use_mask&#34;: &#34;&#34;,
+        &#34;snp_use_id&#34;: &#34;&#34;,
+        &#34;snp_use_phase&#34;: &#34;&#34;,
+        &#34;markersize&#34;: help_format(
+            topic=&#34;markersize&#34;,
+            p_desc=&#34;Size of markers used in scatter like plots (e.g. manhattan, snp).&#34;,
+            p_type=&#34;float or str&#34;,
+            p_default=str(default[&#34;markersize&#34;]),
+            p_affects=&#34;manhattan, snp, region plot with snp panel&#34;,
+            p_example=&#34;set markersize 10\nset markersize auto&#34;,
+            p_see=&#34;rd_colors, snp_colors, baf_colors, lh_colors&#34;
+        ),
+        &#34;rd_colors&#34;: &#34;&#34;,
+        &#34;snp_colors&#34;: &#34;&#34;,
+        &#34;baf_colors&#34;: &#34;&#34;,
+        &#34;lh_colors&#34;: &#34;&#34;,
+        &#34;plot_files&#34;: &#34;&#34;,
+        &#34;plot_file&#34;: &#34;&#34;,
+        &#34;chrom&#34;: &#34;&#34;,
+        &#34;style&#34;: &#34;&#34;,
+        &#34;grid&#34;: &#34;&#34;,
+        &#34;xkcd&#34;: &#34;&#34;,
+        &#34;output_filename&#34;: &#34;&#34;,
+        &#34;palette1&#34;: &#34;&#34;,
+        &#34;palette2&#34;: &#34;&#34;,
+        &#34;contrast&#34;: &#34;&#34;,
+        &#34;min_segment_size&#34;: &#34;&#34;,
+    }</code></pre>
+</details>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="cnvpytor.viewer.Viewer" href="viewer.html#cnvpytor.viewer.Viewer">Viewer</a></li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="cnvpytor.viewparams.HelpDescription.command_tree"><code class="name">var <span class="ident">command_tree</span></code></dt>
+<dd>
+<section class="desc"></section>
+</dd>
+<dt id="cnvpytor.viewparams.HelpDescription.default"><code class="name">var <span class="ident">default</span></code></dt>
+<dd>
+<section class="desc"></section>
+</dd>
+<dt id="cnvpytor.viewparams.HelpDescription.param_help"><code class="name">var <span class="ident">param_help</span></code></dt>
+<dd>
+<section class="desc"></section>
+</dd>
+</dl>
+</dd>
+<dt id="cnvpytor.viewparams.ViewParams"><code class="flex name class">
+<span>class <span class="ident">ViewParams</span></span>
+<span>(</span><span>params)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">class ViewParams(object):
+    default = {
+        &#34;bin_size&#34;: None,
+        &#34;panels&#34;: [&#34;rd&#34;],
+        &#34;rd_partition&#34;: True,
+        &#34;rd_call&#34;: True,
+        &#34;rd_call_mosaic&#34;: False,
+        &#34;rd_use_mask&#34;: False,
+        &#34;rd_use_gc_corr&#34;: True,
+        &#34;rd_manhattan_range&#34;: [0, 2],
+        &#34;rd_manhattan_call&#34;: False,
+        &#34;snp_use_mask&#34;: True,
+        &#34;snp_use_id&#34;: False,
+        &#34;snp_use_phase&#34;: False,
+        &#34;markersize&#34;: &#34;auto&#34;,
+        &#34;rd_colors&#34;: &#34;&#34;,
+        &#34;snp_colors&#34;: [&#34;yellow&#34;, &#34;orange&#34;, &#34;cyan&#34;, &#34;blue&#34;, &#34;lime&#34;, &#34;green&#34;, &#34;yellow&#34;, &#34;orange&#34;],
+        &#34;baf_colors&#34;: &#34;&#34;,
+        &#34;lh_colors&#34;: &#34;&#34;,
+        &#34;plot_files&#34;: [],
+        &#34;plot_file&#34;: 0,
+        &#34;chrom&#34;: [],
+        &#34;style&#34;: None,
+        &#34;grid&#34;: &#34;auto&#34;,
+        &#34;xkcd&#34;: False,
+        &#34;output_filename&#34;: &#34;&#34;,
+        &#34;palette1&#34;: [&#34;#555555&#34;, &#34;#aaaaaa&#34;],
+        &#34;palette2&#34;: [&#34;#00ff00&#34;, &#34;#0000ff&#34;],
+        &#34;contrast&#34;: 20,
+        &#34;min_segment_size&#34;: 0
+    }
+
+    def __init__(self, params):
+        for key in self.default:
+            if key in params:
+                setattr(self, key, params[key])
+            else:
+                setattr(self, key, self.default[key])
+
+    def set(self, param, args):
+        if param in self.params and self.params[param] is False:
+            self.__setattr__(param, True)
+        elif param == &#34;bin_size&#34; and len(args) &gt; 0:
+            self.__setattr__(param, args[0])
+        elif param == &#34;contrast&#34; and len(args) &gt; 0:
+            self.__setattr__(param, float(args[0]))
+        elif param == &#34;markersize&#34; and len(args) &gt; 0:
+            if args[0] == &#34;auto&#34;:
+                self.__setattr__(param, &#34;auto&#34;)
+            else:
+                self.__setattr__(param, float(args[0]))
+        elif param == &#34;grid&#34; and len(args) &gt; 0:
+            if args[0] == &#34;auto&#34;:
+                self.__setattr__(param, &#34;auto&#34;)
+            else:
+                self.__setattr__(param, list(map(int, args)))
+        elif param == &#34;manhattan_range&#34; and len(args) &gt; 0:
+            self.__setattr__(param, list(map(float, args)))
+        elif param == &#34;min_segment_size&#34; and len(args) &gt; 0:
+            self.__setattr__(param, int(args[0]))
+        elif param == &#34;output_filename&#34; and len(args) &gt; 0:
+            self.__setattr__(param, args[0])
+        elif param == &#34;plot_file&#34; and len(args) &gt; 0:
+            self.__setattr__(param, int(args[0]))
+        elif param == &#34;plot_files&#34;:
+            self.__setattr__(param, list(map(int, args)))
+        elif param == &#34;style&#34;:
+            self.__setattr__(param, args[0])
+        elif param in self.params and self.params[param] is not True:
+            self.__setattr__(param, args)
+
+    def unset(self, param):
+        if param in self.params and self.params[param] is True:
+            self.__setattr__(param, False)
+
+    @property
+    def params(self):
+        dct = {}
+        for key in self.default:
+            dct[key] = getattr(self, key)
+
+        return dct
+
+    @property
+    def bin_size_f(self):
+        &#34;&#34;&#34;
+        Formatted bin_size (e.g. 1000 -&gt; &#34;1K&#34;, 10000000 -&gt; &#34;10M&#34;)
+
+        Returns
+        -------
+        bin_size_f : str
+
+        &#34;&#34;&#34;
+        return binsize_format(self.params[&#34;bin_size&#34;])
+
+    def __setattr__(self, name, value):
+
+        if name == &#39;bin_size&#39; and value is not None:
+            try:
+                value = binsize_type(value)
+            except (ArgumentTypeError, ValueError):
+                _logger.warning(&#34;bin_size should be integer divisible by 100&#34;)
+        if name == &#39;style&#39;:
+            if value in plt.style.available:
+                plt.style.use(&#34;default&#34;)
+                plt.style.use(value)
+
+        if name == &#39;xkcd&#39;:
+            if value:
+                self.style = &#34;classic&#34;
+                from matplotlib import patheffects
+                plt.xkcd()
+                plt.rcParams[&#34;path.effects&#34;] = [patheffects.withStroke(linewidth=0.5, foreground=&#34;w&#34;)]
+
+            elif hasattr(self, name) and self.xkcd:
+                plt.rcdefaults()
+                self.style = &#39;classic&#39;
+
+        super(ViewParams, self).__setattr__(name, value)</code></pre>
+</details>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="cnvpytor.viewer.Viewer" href="viewer.html#cnvpytor.viewer.Viewer">Viewer</a></li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="cnvpytor.viewparams.ViewParams.default"><code class="name">var <span class="ident">default</span></code></dt>
+<dd>
+<section class="desc"></section>
+</dd>
+</dl>
+<h3>Instance variables</h3>
+<dl>
+<dt id="cnvpytor.viewparams.ViewParams.bin_size_f"><code class="name">var <span class="ident">bin_size_f</span></code></dt>
+<dd>
+<section class="desc"><p>Formatted bin_size (e.g. 1000 -&gt; "1K", 10000000 -&gt; "10M")</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>bin_size_f</code></strong> :&ensp;<code>str</code></dt>
+<dd>&nbsp;</dd>
+</dl></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">@property
+def bin_size_f(self):
+    &#34;&#34;&#34;
+    Formatted bin_size (e.g. 1000 -&gt; &#34;1K&#34;, 10000000 -&gt; &#34;10M&#34;)
+
+    Returns
+    -------
+    bin_size_f : str
+
+    &#34;&#34;&#34;
+    return binsize_format(self.params[&#34;bin_size&#34;])</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.viewparams.ViewParams.params"><code class="name">var <span class="ident">params</span></code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">@property
+def params(self):
+    dct = {}
+    for key in self.default:
+        dct[key] = getattr(self, key)
+
+    return dct</code></pre>
+</details>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="cnvpytor.viewparams.ViewParams.set"><code class="name flex">
+<span>def <span class="ident">set</span></span>(<span>self, param, args)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def set(self, param, args):
+    if param in self.params and self.params[param] is False:
+        self.__setattr__(param, True)
+    elif param == &#34;bin_size&#34; and len(args) &gt; 0:
+        self.__setattr__(param, args[0])
+    elif param == &#34;contrast&#34; and len(args) &gt; 0:
+        self.__setattr__(param, float(args[0]))
+    elif param == &#34;markersize&#34; and len(args) &gt; 0:
+        if args[0] == &#34;auto&#34;:
+            self.__setattr__(param, &#34;auto&#34;)
+        else:
+            self.__setattr__(param, float(args[0]))
+    elif param == &#34;grid&#34; and len(args) &gt; 0:
+        if args[0] == &#34;auto&#34;:
+            self.__setattr__(param, &#34;auto&#34;)
+        else:
+            self.__setattr__(param, list(map(int, args)))
+    elif param == &#34;manhattan_range&#34; and len(args) &gt; 0:
+        self.__setattr__(param, list(map(float, args)))
+    elif param == &#34;min_segment_size&#34; and len(args) &gt; 0:
+        self.__setattr__(param, int(args[0]))
+    elif param == &#34;output_filename&#34; and len(args) &gt; 0:
+        self.__setattr__(param, args[0])
+    elif param == &#34;plot_file&#34; and len(args) &gt; 0:
+        self.__setattr__(param, int(args[0]))
+    elif param == &#34;plot_files&#34;:
+        self.__setattr__(param, list(map(int, args)))
+    elif param == &#34;style&#34;:
+        self.__setattr__(param, args[0])
+    elif param in self.params and self.params[param] is not True:
+        self.__setattr__(param, args)</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.viewparams.ViewParams.unset"><code class="name flex">
+<span>def <span class="ident">unset</span></span>(<span>self, param)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def unset(self, param):
+    if param in self.params and self.params[param] is True:
+        self.__setattr__(param, False)</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="cnvpytor" href="index.html">cnvpytor</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="cnvpytor.viewparams.HelpDescription" href="#cnvpytor.viewparams.HelpDescription">HelpDescription</a></code></h4>
+<ul class="">
+<li><code><a title="cnvpytor.viewparams.HelpDescription.command_tree" href="#cnvpytor.viewparams.HelpDescription.command_tree">command_tree</a></code></li>
+<li><code><a title="cnvpytor.viewparams.HelpDescription.default" href="#cnvpytor.viewparams.HelpDescription.default">default</a></code></li>
+<li><code><a title="cnvpytor.viewparams.HelpDescription.param_help" href="#cnvpytor.viewparams.HelpDescription.param_help">param_help</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="cnvpytor.viewparams.ViewParams" href="#cnvpytor.viewparams.ViewParams">ViewParams</a></code></h4>
+<ul class="">
+<li><code><a title="cnvpytor.viewparams.ViewParams.bin_size_f" href="#cnvpytor.viewparams.ViewParams.bin_size_f">bin_size_f</a></code></li>
+<li><code><a title="cnvpytor.viewparams.ViewParams.default" href="#cnvpytor.viewparams.ViewParams.default">default</a></code></li>
+<li><code><a title="cnvpytor.viewparams.ViewParams.params" href="#cnvpytor.viewparams.ViewParams.params">params</a></code></li>
+<li><code><a title="cnvpytor.viewparams.ViewParams.set" href="#cnvpytor.viewparams.ViewParams.set">set</a></code></li>
+<li><code><a title="cnvpytor.viewparams.ViewParams.unset" href="#cnvpytor.viewparams.ViewParams.unset">unset</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc"><cite>pdoc</cite> 0.6.3</a>.</p>
+</footer>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+<script>hljs.initHighlightingOnLoad()</script>
+</body>
+</html>

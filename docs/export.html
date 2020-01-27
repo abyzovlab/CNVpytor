@@ -1,0 +1,1334 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.6.3" />
+<title>cnvpytor.export API documentation</title>
+<meta name="description" content="" />
+<link href='https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.0/normalize.min.css' rel='stylesheet'>
+<link href='https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/8.0.0/sanitize.min.css' rel='stylesheet'>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css" rel="stylesheet">
+<style>.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{font-weight:bold}#index h4 + ul{margin-bottom:.6em}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase;cursor:pointer}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>cnvpytor.export</code></h1>
+</header>
+<section id="section-intro">
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">import json
+from pathlib import Path
+from .io import *
+from .genome import *
+
+_logger = logging.getLogger(&#34;cnvpytor.export&#34;)
+
+
+class Wiggle:
+    def __init__(self, filename):
+        &#34;&#34;&#34;
+
+        Parameters
+        ----------
+        filename
+        &#34;&#34;&#34;
+        self.filename = filename
+        self.file = None
+        import pyBigWig
+
+        if not Path(filename).exists():
+            try:
+                self.file = pyBigWig.open(filename, &#39;w&#39;)
+            except IOError as e:
+                print(&#34;Unable to open file {}! Error: {}&#34;.format(filename, e))
+            except RuntimeError as e:
+                print(&#34;Unable to open file {}! Error: {}&#34;.format(filename, e))
+        else:
+            self.file = pyBigWig.open(filename)
+
+    def add_header_list(self, chr_len_list):
+        &#34;&#34;&#34;
+
+        Parameters
+        ----------
+        chr_len_list
+
+        Returns
+        -------
+
+        &#34;&#34;&#34;
+        self.file.addHeader(chr_len_list)
+
+    def add_fixedstep(self, chrom, position_int, value_list, span=1, step=1):
+        &#34;&#34;&#34;
+
+        Parameters
+        ----------
+        chrom
+        position_int
+        value_list
+        span
+        step
+
+        Returns
+        -------
+
+        &#34;&#34;&#34;
+        self.file.addEntries(chrom, position_int, values=value_list, span=span, step=step)
+
+    def create_wig(self, md5, chrom_list, bin_size, signal, flag):
+        &#34;&#34;&#34;
+
+        Parameters
+        ----------
+        md5
+        chrom_list
+        bin_size
+        signal
+        flag
+
+        Returns
+        -------
+
+        &#34;&#34;&#34;
+        header_list = []
+
+        for chrom in chrom_list:
+            signal_details = md5.get_signal(chrom, bin_size, signal, flag)
+            header_data = (chrom, signal_details.size * bin_size)
+            header_list.append(header_data)
+        self.add_header_list(header_list)
+
+        for chrom in chrom_list:
+            signal_details = md5.get_signal(chrom, bin_size, signal, flag)
+            signal_value_list = signal_details[()]
+            self.add_fixedstep(chrom, 0, signal_value_list, span=bin_size, step=bin_size)
+
+    def __del__(self):
+        if self.file:
+            self.file.close()
+
+
+class ExportJbrowse:
+
+    rd_signal_dct = {
+        &#34;RD&#34;: {
+            &#34;FLAG&#34;: [0, 0x0010],
+            &#34;color&#34;: [&#34;gray&#34;, &#34;black&#34;]
+        },
+        &#34;RD partition&#34;: {
+            &#34;FLAG&#34;: [0x0010],
+            &#34;color&#34;: [&#34;green&#34;]
+        },
+        &#34;RD call&#34;: {
+            &#34;FLAG&#34;: [0x0010],
+            &#34;color&#34;: [&#34;red&#34;]
+        }
+    }
+    snp_signal_dct = {
+        &#34;SNP maf&#34;: {
+            &#34;FLAG&#34;: [0x0100]
+        },
+        &#34;SNP baf&#34;: {
+            &#34;FLAG&#34;: [0x0100]
+        },
+        &#34;SNP i1&#34;: {
+            &#34;FLAG&#34;: [0x0100]
+        }
+    }
+
+    signal_dct = {
+        &#34;RD&#34;: &#34;his_rd_p_%(bin_size)d%(rd_flag)s&#34;,
+        &#34;RD partition&#34;: &#34;his_rd_p_%(bin_size)d_partition%(rd_flag)s&#34;,
+        &#34;RD call&#34;: &#34;his_rd_p_%(bin_size)d_partition%(rd_flag)s_merge&#34;,
+        &#34;SNP baf&#34;: &#34;snp_baf_%(bin_size)d%(snp_flag)s&#34;,
+        &#34;SNP maf&#34;: &#34;snp_maf_%(bin_size)d%(snp_flag)s&#34;,
+        &#34;SNP i1&#34;: &#34;snp_i1_%(bin_size)d%(snp_flag)s&#34;,
+        &#34;SNP i1 partition&#34;: &#34;snp_i1_%(bin_size)d%(snp_flag)s_partition&#34;,
+
+    }
+
+    def __init__(self, file, dir_name):
+        &#34;&#34;&#34;
+
+        Parameters
+        ----------
+        file
+        dir_name
+
+        &#34;&#34;&#34;
+        self.filename = file
+        self.dir = dir_name
+        self.io = IO(file, ro=True)
+
+    @property
+    def pytor_name(self):
+        root_filename = Path(self.filename).resolve().stem
+        return root_filename
+
+    @property
+    def export_directory(self):
+        main_dir_name = &#34;jbrowse_{}&#34;.format(self.pytor_name)
+        return main_dir_name
+
+    @property
+    def export_main_dir(self):
+        main_dir = Path(self.dir).joinpath(self.export_directory)
+        main_dir.mkdir(parents=True, exist_ok=True)
+        return main_dir
+
+    @property
+    def export_data_dir(self):
+        data_dir = self.export_main_dir.joinpath(&#34;bw&#34;)
+        data_dir.mkdir(parents=True, exist_ok=True)
+        return data_dir
+
+    @property
+    def export_seq_dir(self):
+        seq_dir = self.export_main_dir.joinpath(&#34;seq&#34;)
+        seq_dir.mkdir(parents=True, exist_ok=True)
+        return seq_dir
+
+    @property
+    def export_tracklist_file(self):
+        track_list = self.export_main_dir.joinpath(&#34;trackList.json&#34;)
+        return track_list
+
+    @property
+    def export_tracks_file(self):
+        track_list = self.export_main_dir.joinpath(&#34;tracks.conf&#34;)
+        return track_list
+
+    @property
+    def export_ref_file(self):
+        ref_file = self.export_seq_dir.joinpath(&#34;refSeqs.json&#34;)
+        return ref_file
+
+    def signal_name(self, bin_size, signal, flags=0):
+        if signal in self.signal_dct:
+            try:
+                return self.signal_dct[signal] % {&#34;bin_size&#34;: bin_size, &#34;rd_flag&#34;: Signals().suffix_rd_flag(flags),
+                                                  &#34;snp_flag&#34;: Signals().suffix_snp_flag(flags),
+                                                  &#34;flag&#34;: Signals().suffix_flag(flags)}
+            except TypeError:
+                return None
+        else:
+            return None
+
+    def rd_chr_bin(self):
+        chr_bs = self.io.chromosomes_bin_sizes_with_signal(&#34;RD&#34;)
+        chrs = {}
+        bss = []
+        for c, b in chr_bs:
+            if c not in chrs:
+                chrs[c] = []
+            chrs[c].append(int(b))
+            if int(b) not in bss:
+                bss.append(int(b))
+        return chrs, bss
+
+    def snp_chr_bin(self):
+        chr_bs = self.io.chromosomes_bin_sizes_with_signal(&#34;SNP likelihood&#34;, FLAG_USEMASK)
+        chrs = {}
+        bss = []
+        for c, b in chr_bs:
+            if c not in chrs:
+                chrs[c] = []
+            chrs[c].append(int(b))
+            if int(b) not in bss:
+                bss.append(int(b))
+        return chrs, bss
+
+    def rd_signal(self):
+        _logger.debug(&#34;Create Read depth related signals&#34;)
+        rd_chr, rd_bin = self.rd_chr_bin()
+        chrom_list = list(rd_chr)
+
+        for signal_name, signal_dct in self.rd_signal_dct.items():
+            for index, flag in enumerate(signal_dct[&#39;FLAG&#39;]):
+                for bin_size in rd_bin:
+                    signal = self.signal_name(bin_size, signal_name, flag)
+                    bigwig_filename = &#34;{}.bw&#34;.format(signal)
+                    bigwig_file = self.export_data_dir.joinpath(bigwig_filename)
+                    bigwig_file = str(bigwig_file)
+
+                    wig = Wiggle(bigwig_file)
+                    wig.create_wig(self.io, chrom_list, bin_size, signal_name, flag)
+
+    def snp_signal(self):
+        _logger.debug(&#34;Create SNP related signals&#34;)
+        snp_chr, snp_bin = self.snp_chr_bin()
+        chrom_list = list(snp_chr)
+
+        for signal_name, signal_dct in self.snp_signal_dct.items():
+            for index, flag in enumerate(signal_dct[&#39;FLAG&#39;]):
+                for bin_size in snp_bin:
+                    signal = self.signal_name(bin_size, signal_name, flag)
+                    bigwig_filename = &#34;{}.bw&#34;.format(signal)
+                    bigwig_file = self.export_data_dir.joinpath(bigwig_filename)
+                    bigwig_file = str(bigwig_file)
+
+                    wig = Wiggle(bigwig_file)
+                    wig.create_wig(self.io, chrom_list, bin_size, signal_name, flag)
+
+    @staticmethod
+    def add_config_reference():
+        track_dct = {&#39;formatVersion&#39;: 1, &#39;tracks&#39;: []}
+        track_dct[&#39;tracks&#39;].append({
+            &#34;category&#34;: &#34;Reference sequence&#34;,
+            &#34;chunkSize&#34;: 20000,
+            &#34;key&#34;: &#34;Reference sequence&#34;,
+            &#34;label&#34;: &#34;DNA&#34;,
+            &#34;seqType&#34;: &#34;dna&#34;,
+            &#34;storeClass&#34;: &#34;JBrowse/Store/Sequence/StaticChunked&#34;,
+            &#34;type&#34;: &#34;SequenceTrack&#34;,
+            &#34;urlTemplates&#34;: &#34;seq/{refseq_dirpath}/{refseq}-&#34;
+        })
+        return track_dct
+
+    def add_config_track(self):
+        _logger.debug(&#34;Get RD config track&#34;)
+        rd_chr, rd_bin = self.rd_chr_bin()
+        url_template_dct = []
+        for signal_name, signal_dct in self.rd_signal_dct.items():
+            if &#39;FLAG&#39; in signal_dct:
+                for index, flag in enumerate(signal_dct[&#39;FLAG&#39;]):
+                    suffix_rd_flag = Signals.suffix_rd_flag(flag)
+                    signal_id = &#34;{}{}&#34;.format(signal_name, suffix_rd_flag)
+                    scales = {}
+                    for bin_size in rd_bin:
+                        signal = self.signal_name(bin_size, signal_name, flag)
+                        bigwig_filename = &#34;{}.bw&#34;.format(signal)
+                        bigwig_file = self.export_data_dir.joinpath(bigwig_filename)
+                        bigwig_current_path = Path(bigwig_file.parent.name).joinpath(bigwig_file.name).as_posix()
+                        scales[bin_size] = bigwig_current_path
+
+                    url_template_dct.append({
+                        &#34;storeClass&#34;: &#34;MultiScaleBigWig/Store/SeqFeature/MultiScaleBigWig&#34;,
+                        &#34;scales&#34;: scales,
+                        &#34;name&#34;: signal_id,
+                        &#34;color&#34;: signal_dct[&#39;color&#39;][index]
+                    })
+
+        track_dct = self.add_config_reference()
+
+        track_dct[&#39;tracks&#39;].append({
+            &#34;category&#34;: self.pytor_name,
+            &#39;autoscale&#39;: &#39;local&#39;,
+            &#34;storeClass&#34;: &#34;MultiBigWig/Store/SeqFeature/MultiBigWig&#34;,
+            &#34;showTooltips&#34;: True,
+            &#34;showLabels&#34;: True,
+            &#34;clickTooltips&#34;: True,
+            &#34;label&#34;: &#34;RD&#34;,
+            &#34;type&#34;: &#34;MultiBigWig/View/Track/MultiWiggle/MultiXYPlot&#34;,
+            &#39;urlTemplates&#39;: url_template_dct
+        })
+        return track_dct
+
+    def add_snp_config_track(self):
+        _logger.debug(&#34;Get SNP config track info&#34;)
+        snp_dct_list = []
+        snp_chr, snp_bin = self.snp_chr_bin()
+        for signal_name, signal_dct in self.snp_signal_dct.items():
+            for index, flag in enumerate(signal_dct[&#39;FLAG&#39;]):
+                scales = {}
+                for bin_size in snp_bin:
+                    signal = self.signal_name(bin_size, signal_name, flag)
+                    bigwig_filename = &#34;{}.bw&#34;.format(signal)
+                    bigwig_file = self.export_data_dir.joinpath(bigwig_filename)
+                    bigwig_current_path = Path(bigwig_file.parent.name).joinpath(bigwig_file.name).as_posix()
+                    scales[bin_size] = bigwig_current_path
+
+                snp_dct = {
+                    &#34;category&#34;: self.pytor_name,
+                    &#34;autoscale&#34;: &#34;global&#34;,
+                    &#34;storeClass&#34;: &#34;MultiScaleBigWig/Store/SeqFeature/MultiScaleBigWig&#34;,
+                    &#34;scales&#34;: scales,
+                    &#34;showTooltips&#34;: True,
+                    &#34;label&#34;: signal_name,
+                    &#34;type&#34;: &#34;JBrowse/View/Track/Wiggle/XYPlot&#34;,
+                    &#34;noFill&#34;: True
+                }
+                snp_dct_list.append(snp_dct)
+        return snp_dct_list
+
+    def create_tracklist_json(self):
+        _logger.debug(&#34;Creates config file: {}&#34;.format(self.export_tracklist_file))
+        track_dct = self.add_config_track()
+        for snp_dct in self.add_snp_config_track():
+            track_dct[&#39;tracks&#39;].append(snp_dct)
+
+        with open(self.export_tracklist_file, &#39;w&#39;) as f:
+            json.dump(track_dct, f, indent=2)
+        return track_dct
+
+    def create_reference_json(self):
+        _logger.debug(&#34;Exporting reference details&#34;)
+        # get signal details
+        chr_len = list(np.array(self.io.get_signal(None, None, &#34;chromosome lengths&#34;)).astype(&#34;str&#34;))
+        chr_dct = dict(zip(chr_len[::2], chr_len[1::2]))
+
+        # create signal list in proper format
+        chr_dct_list = []
+        for chr, length in chr_dct.items():
+            tmp_dct = {&#34;end&#34;: length, &#34;length&#34;: length, &#34;name&#34;: chr, &#34;start&#34;: 0}
+            chr_dct_list.append(tmp_dct)
+
+        # save it to file
+        with open(self.export_ref_file, &#39;w&#39;) as f:
+            json.dump(chr_dct_list, f, indent=2)
+
+    def __del__(self):
+        _logger.info(&#34;Export to: {}&#34;.format(self.export_main_dir))
+        _logger.info(&#34;Copy this directory to jbrowse directory if export path is not set to jbrowse path&#34;)
+        _logger.info(&#34;To access this via localhost: http://localhost/jbrowse/?data={}&#34;.format(self.export_directory))</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="cnvpytor.export.ExportJbrowse"><code class="flex name class">
+<span>class <span class="ident">ExportJbrowse</span></span>
+<span>(</span><span>file, dir_name)</span>
+</code></dt>
+<dd>
+<section class="desc"><h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>file</code></strong></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>dir_name</code></strong></dt>
+<dd>&nbsp;</dd>
+</dl></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">class ExportJbrowse:
+
+    rd_signal_dct = {
+        &#34;RD&#34;: {
+            &#34;FLAG&#34;: [0, 0x0010],
+            &#34;color&#34;: [&#34;gray&#34;, &#34;black&#34;]
+        },
+        &#34;RD partition&#34;: {
+            &#34;FLAG&#34;: [0x0010],
+            &#34;color&#34;: [&#34;green&#34;]
+        },
+        &#34;RD call&#34;: {
+            &#34;FLAG&#34;: [0x0010],
+            &#34;color&#34;: [&#34;red&#34;]
+        }
+    }
+    snp_signal_dct = {
+        &#34;SNP maf&#34;: {
+            &#34;FLAG&#34;: [0x0100]
+        },
+        &#34;SNP baf&#34;: {
+            &#34;FLAG&#34;: [0x0100]
+        },
+        &#34;SNP i1&#34;: {
+            &#34;FLAG&#34;: [0x0100]
+        }
+    }
+
+    signal_dct = {
+        &#34;RD&#34;: &#34;his_rd_p_%(bin_size)d%(rd_flag)s&#34;,
+        &#34;RD partition&#34;: &#34;his_rd_p_%(bin_size)d_partition%(rd_flag)s&#34;,
+        &#34;RD call&#34;: &#34;his_rd_p_%(bin_size)d_partition%(rd_flag)s_merge&#34;,
+        &#34;SNP baf&#34;: &#34;snp_baf_%(bin_size)d%(snp_flag)s&#34;,
+        &#34;SNP maf&#34;: &#34;snp_maf_%(bin_size)d%(snp_flag)s&#34;,
+        &#34;SNP i1&#34;: &#34;snp_i1_%(bin_size)d%(snp_flag)s&#34;,
+        &#34;SNP i1 partition&#34;: &#34;snp_i1_%(bin_size)d%(snp_flag)s_partition&#34;,
+
+    }
+
+    def __init__(self, file, dir_name):
+        &#34;&#34;&#34;
+
+        Parameters
+        ----------
+        file
+        dir_name
+
+        &#34;&#34;&#34;
+        self.filename = file
+        self.dir = dir_name
+        self.io = IO(file, ro=True)
+
+    @property
+    def pytor_name(self):
+        root_filename = Path(self.filename).resolve().stem
+        return root_filename
+
+    @property
+    def export_directory(self):
+        main_dir_name = &#34;jbrowse_{}&#34;.format(self.pytor_name)
+        return main_dir_name
+
+    @property
+    def export_main_dir(self):
+        main_dir = Path(self.dir).joinpath(self.export_directory)
+        main_dir.mkdir(parents=True, exist_ok=True)
+        return main_dir
+
+    @property
+    def export_data_dir(self):
+        data_dir = self.export_main_dir.joinpath(&#34;bw&#34;)
+        data_dir.mkdir(parents=True, exist_ok=True)
+        return data_dir
+
+    @property
+    def export_seq_dir(self):
+        seq_dir = self.export_main_dir.joinpath(&#34;seq&#34;)
+        seq_dir.mkdir(parents=True, exist_ok=True)
+        return seq_dir
+
+    @property
+    def export_tracklist_file(self):
+        track_list = self.export_main_dir.joinpath(&#34;trackList.json&#34;)
+        return track_list
+
+    @property
+    def export_tracks_file(self):
+        track_list = self.export_main_dir.joinpath(&#34;tracks.conf&#34;)
+        return track_list
+
+    @property
+    def export_ref_file(self):
+        ref_file = self.export_seq_dir.joinpath(&#34;refSeqs.json&#34;)
+        return ref_file
+
+    def signal_name(self, bin_size, signal, flags=0):
+        if signal in self.signal_dct:
+            try:
+                return self.signal_dct[signal] % {&#34;bin_size&#34;: bin_size, &#34;rd_flag&#34;: Signals().suffix_rd_flag(flags),
+                                                  &#34;snp_flag&#34;: Signals().suffix_snp_flag(flags),
+                                                  &#34;flag&#34;: Signals().suffix_flag(flags)}
+            except TypeError:
+                return None
+        else:
+            return None
+
+    def rd_chr_bin(self):
+        chr_bs = self.io.chromosomes_bin_sizes_with_signal(&#34;RD&#34;)
+        chrs = {}
+        bss = []
+        for c, b in chr_bs:
+            if c not in chrs:
+                chrs[c] = []
+            chrs[c].append(int(b))
+            if int(b) not in bss:
+                bss.append(int(b))
+        return chrs, bss
+
+    def snp_chr_bin(self):
+        chr_bs = self.io.chromosomes_bin_sizes_with_signal(&#34;SNP likelihood&#34;, FLAG_USEMASK)
+        chrs = {}
+        bss = []
+        for c, b in chr_bs:
+            if c not in chrs:
+                chrs[c] = []
+            chrs[c].append(int(b))
+            if int(b) not in bss:
+                bss.append(int(b))
+        return chrs, bss
+
+    def rd_signal(self):
+        _logger.debug(&#34;Create Read depth related signals&#34;)
+        rd_chr, rd_bin = self.rd_chr_bin()
+        chrom_list = list(rd_chr)
+
+        for signal_name, signal_dct in self.rd_signal_dct.items():
+            for index, flag in enumerate(signal_dct[&#39;FLAG&#39;]):
+                for bin_size in rd_bin:
+                    signal = self.signal_name(bin_size, signal_name, flag)
+                    bigwig_filename = &#34;{}.bw&#34;.format(signal)
+                    bigwig_file = self.export_data_dir.joinpath(bigwig_filename)
+                    bigwig_file = str(bigwig_file)
+
+                    wig = Wiggle(bigwig_file)
+                    wig.create_wig(self.io, chrom_list, bin_size, signal_name, flag)
+
+    def snp_signal(self):
+        _logger.debug(&#34;Create SNP related signals&#34;)
+        snp_chr, snp_bin = self.snp_chr_bin()
+        chrom_list = list(snp_chr)
+
+        for signal_name, signal_dct in self.snp_signal_dct.items():
+            for index, flag in enumerate(signal_dct[&#39;FLAG&#39;]):
+                for bin_size in snp_bin:
+                    signal = self.signal_name(bin_size, signal_name, flag)
+                    bigwig_filename = &#34;{}.bw&#34;.format(signal)
+                    bigwig_file = self.export_data_dir.joinpath(bigwig_filename)
+                    bigwig_file = str(bigwig_file)
+
+                    wig = Wiggle(bigwig_file)
+                    wig.create_wig(self.io, chrom_list, bin_size, signal_name, flag)
+
+    @staticmethod
+    def add_config_reference():
+        track_dct = {&#39;formatVersion&#39;: 1, &#39;tracks&#39;: []}
+        track_dct[&#39;tracks&#39;].append({
+            &#34;category&#34;: &#34;Reference sequence&#34;,
+            &#34;chunkSize&#34;: 20000,
+            &#34;key&#34;: &#34;Reference sequence&#34;,
+            &#34;label&#34;: &#34;DNA&#34;,
+            &#34;seqType&#34;: &#34;dna&#34;,
+            &#34;storeClass&#34;: &#34;JBrowse/Store/Sequence/StaticChunked&#34;,
+            &#34;type&#34;: &#34;SequenceTrack&#34;,
+            &#34;urlTemplates&#34;: &#34;seq/{refseq_dirpath}/{refseq}-&#34;
+        })
+        return track_dct
+
+    def add_config_track(self):
+        _logger.debug(&#34;Get RD config track&#34;)
+        rd_chr, rd_bin = self.rd_chr_bin()
+        url_template_dct = []
+        for signal_name, signal_dct in self.rd_signal_dct.items():
+            if &#39;FLAG&#39; in signal_dct:
+                for index, flag in enumerate(signal_dct[&#39;FLAG&#39;]):
+                    suffix_rd_flag = Signals.suffix_rd_flag(flag)
+                    signal_id = &#34;{}{}&#34;.format(signal_name, suffix_rd_flag)
+                    scales = {}
+                    for bin_size in rd_bin:
+                        signal = self.signal_name(bin_size, signal_name, flag)
+                        bigwig_filename = &#34;{}.bw&#34;.format(signal)
+                        bigwig_file = self.export_data_dir.joinpath(bigwig_filename)
+                        bigwig_current_path = Path(bigwig_file.parent.name).joinpath(bigwig_file.name).as_posix()
+                        scales[bin_size] = bigwig_current_path
+
+                    url_template_dct.append({
+                        &#34;storeClass&#34;: &#34;MultiScaleBigWig/Store/SeqFeature/MultiScaleBigWig&#34;,
+                        &#34;scales&#34;: scales,
+                        &#34;name&#34;: signal_id,
+                        &#34;color&#34;: signal_dct[&#39;color&#39;][index]
+                    })
+
+        track_dct = self.add_config_reference()
+
+        track_dct[&#39;tracks&#39;].append({
+            &#34;category&#34;: self.pytor_name,
+            &#39;autoscale&#39;: &#39;local&#39;,
+            &#34;storeClass&#34;: &#34;MultiBigWig/Store/SeqFeature/MultiBigWig&#34;,
+            &#34;showTooltips&#34;: True,
+            &#34;showLabels&#34;: True,
+            &#34;clickTooltips&#34;: True,
+            &#34;label&#34;: &#34;RD&#34;,
+            &#34;type&#34;: &#34;MultiBigWig/View/Track/MultiWiggle/MultiXYPlot&#34;,
+            &#39;urlTemplates&#39;: url_template_dct
+        })
+        return track_dct
+
+    def add_snp_config_track(self):
+        _logger.debug(&#34;Get SNP config track info&#34;)
+        snp_dct_list = []
+        snp_chr, snp_bin = self.snp_chr_bin()
+        for signal_name, signal_dct in self.snp_signal_dct.items():
+            for index, flag in enumerate(signal_dct[&#39;FLAG&#39;]):
+                scales = {}
+                for bin_size in snp_bin:
+                    signal = self.signal_name(bin_size, signal_name, flag)
+                    bigwig_filename = &#34;{}.bw&#34;.format(signal)
+                    bigwig_file = self.export_data_dir.joinpath(bigwig_filename)
+                    bigwig_current_path = Path(bigwig_file.parent.name).joinpath(bigwig_file.name).as_posix()
+                    scales[bin_size] = bigwig_current_path
+
+                snp_dct = {
+                    &#34;category&#34;: self.pytor_name,
+                    &#34;autoscale&#34;: &#34;global&#34;,
+                    &#34;storeClass&#34;: &#34;MultiScaleBigWig/Store/SeqFeature/MultiScaleBigWig&#34;,
+                    &#34;scales&#34;: scales,
+                    &#34;showTooltips&#34;: True,
+                    &#34;label&#34;: signal_name,
+                    &#34;type&#34;: &#34;JBrowse/View/Track/Wiggle/XYPlot&#34;,
+                    &#34;noFill&#34;: True
+                }
+                snp_dct_list.append(snp_dct)
+        return snp_dct_list
+
+    def create_tracklist_json(self):
+        _logger.debug(&#34;Creates config file: {}&#34;.format(self.export_tracklist_file))
+        track_dct = self.add_config_track()
+        for snp_dct in self.add_snp_config_track():
+            track_dct[&#39;tracks&#39;].append(snp_dct)
+
+        with open(self.export_tracklist_file, &#39;w&#39;) as f:
+            json.dump(track_dct, f, indent=2)
+        return track_dct
+
+    def create_reference_json(self):
+        _logger.debug(&#34;Exporting reference details&#34;)
+        # get signal details
+        chr_len = list(np.array(self.io.get_signal(None, None, &#34;chromosome lengths&#34;)).astype(&#34;str&#34;))
+        chr_dct = dict(zip(chr_len[::2], chr_len[1::2]))
+
+        # create signal list in proper format
+        chr_dct_list = []
+        for chr, length in chr_dct.items():
+            tmp_dct = {&#34;end&#34;: length, &#34;length&#34;: length, &#34;name&#34;: chr, &#34;start&#34;: 0}
+            chr_dct_list.append(tmp_dct)
+
+        # save it to file
+        with open(self.export_ref_file, &#39;w&#39;) as f:
+            json.dump(chr_dct_list, f, indent=2)
+
+    def __del__(self):
+        _logger.info(&#34;Export to: {}&#34;.format(self.export_main_dir))
+        _logger.info(&#34;Copy this directory to jbrowse directory if export path is not set to jbrowse path&#34;)
+        _logger.info(&#34;To access this via localhost: http://localhost/jbrowse/?data={}&#34;.format(self.export_directory))</code></pre>
+</details>
+<h3>Class variables</h3>
+<dl>
+<dt id="cnvpytor.export.ExportJbrowse.rd_signal_dct"><code class="name">var <span class="ident">rd_signal_dct</span></code></dt>
+<dd>
+<section class="desc"></section>
+</dd>
+<dt id="cnvpytor.export.ExportJbrowse.signal_dct"><code class="name">var <span class="ident">signal_dct</span></code></dt>
+<dd>
+<section class="desc"></section>
+</dd>
+<dt id="cnvpytor.export.ExportJbrowse.snp_signal_dct"><code class="name">var <span class="ident">snp_signal_dct</span></code></dt>
+<dd>
+<section class="desc"></section>
+</dd>
+</dl>
+<h3>Static methods</h3>
+<dl>
+<dt id="cnvpytor.export.ExportJbrowse.add_config_reference"><code class="name flex">
+<span>def <span class="ident">add_config_reference</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">@staticmethod
+def add_config_reference():
+    track_dct = {&#39;formatVersion&#39;: 1, &#39;tracks&#39;: []}
+    track_dct[&#39;tracks&#39;].append({
+        &#34;category&#34;: &#34;Reference sequence&#34;,
+        &#34;chunkSize&#34;: 20000,
+        &#34;key&#34;: &#34;Reference sequence&#34;,
+        &#34;label&#34;: &#34;DNA&#34;,
+        &#34;seqType&#34;: &#34;dna&#34;,
+        &#34;storeClass&#34;: &#34;JBrowse/Store/Sequence/StaticChunked&#34;,
+        &#34;type&#34;: &#34;SequenceTrack&#34;,
+        &#34;urlTemplates&#34;: &#34;seq/{refseq_dirpath}/{refseq}-&#34;
+    })
+    return track_dct</code></pre>
+</details>
+</dd>
+</dl>
+<h3>Instance variables</h3>
+<dl>
+<dt id="cnvpytor.export.ExportJbrowse.export_data_dir"><code class="name">var <span class="ident">export_data_dir</span></code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">@property
+def export_data_dir(self):
+    data_dir = self.export_main_dir.joinpath(&#34;bw&#34;)
+    data_dir.mkdir(parents=True, exist_ok=True)
+    return data_dir</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.export.ExportJbrowse.export_directory"><code class="name">var <span class="ident">export_directory</span></code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">@property
+def export_directory(self):
+    main_dir_name = &#34;jbrowse_{}&#34;.format(self.pytor_name)
+    return main_dir_name</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.export.ExportJbrowse.export_main_dir"><code class="name">var <span class="ident">export_main_dir</span></code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">@property
+def export_main_dir(self):
+    main_dir = Path(self.dir).joinpath(self.export_directory)
+    main_dir.mkdir(parents=True, exist_ok=True)
+    return main_dir</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.export.ExportJbrowse.export_ref_file"><code class="name">var <span class="ident">export_ref_file</span></code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">@property
+def export_ref_file(self):
+    ref_file = self.export_seq_dir.joinpath(&#34;refSeqs.json&#34;)
+    return ref_file</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.export.ExportJbrowse.export_seq_dir"><code class="name">var <span class="ident">export_seq_dir</span></code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">@property
+def export_seq_dir(self):
+    seq_dir = self.export_main_dir.joinpath(&#34;seq&#34;)
+    seq_dir.mkdir(parents=True, exist_ok=True)
+    return seq_dir</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.export.ExportJbrowse.export_tracklist_file"><code class="name">var <span class="ident">export_tracklist_file</span></code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">@property
+def export_tracklist_file(self):
+    track_list = self.export_main_dir.joinpath(&#34;trackList.json&#34;)
+    return track_list</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.export.ExportJbrowse.export_tracks_file"><code class="name">var <span class="ident">export_tracks_file</span></code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">@property
+def export_tracks_file(self):
+    track_list = self.export_main_dir.joinpath(&#34;tracks.conf&#34;)
+    return track_list</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.export.ExportJbrowse.pytor_name"><code class="name">var <span class="ident">pytor_name</span></code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">@property
+def pytor_name(self):
+    root_filename = Path(self.filename).resolve().stem
+    return root_filename</code></pre>
+</details>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="cnvpytor.export.ExportJbrowse.add_config_track"><code class="name flex">
+<span>def <span class="ident">add_config_track</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def add_config_track(self):
+    _logger.debug(&#34;Get RD config track&#34;)
+    rd_chr, rd_bin = self.rd_chr_bin()
+    url_template_dct = []
+    for signal_name, signal_dct in self.rd_signal_dct.items():
+        if &#39;FLAG&#39; in signal_dct:
+            for index, flag in enumerate(signal_dct[&#39;FLAG&#39;]):
+                suffix_rd_flag = Signals.suffix_rd_flag(flag)
+                signal_id = &#34;{}{}&#34;.format(signal_name, suffix_rd_flag)
+                scales = {}
+                for bin_size in rd_bin:
+                    signal = self.signal_name(bin_size, signal_name, flag)
+                    bigwig_filename = &#34;{}.bw&#34;.format(signal)
+                    bigwig_file = self.export_data_dir.joinpath(bigwig_filename)
+                    bigwig_current_path = Path(bigwig_file.parent.name).joinpath(bigwig_file.name).as_posix()
+                    scales[bin_size] = bigwig_current_path
+
+                url_template_dct.append({
+                    &#34;storeClass&#34;: &#34;MultiScaleBigWig/Store/SeqFeature/MultiScaleBigWig&#34;,
+                    &#34;scales&#34;: scales,
+                    &#34;name&#34;: signal_id,
+                    &#34;color&#34;: signal_dct[&#39;color&#39;][index]
+                })
+
+    track_dct = self.add_config_reference()
+
+    track_dct[&#39;tracks&#39;].append({
+        &#34;category&#34;: self.pytor_name,
+        &#39;autoscale&#39;: &#39;local&#39;,
+        &#34;storeClass&#34;: &#34;MultiBigWig/Store/SeqFeature/MultiBigWig&#34;,
+        &#34;showTooltips&#34;: True,
+        &#34;showLabels&#34;: True,
+        &#34;clickTooltips&#34;: True,
+        &#34;label&#34;: &#34;RD&#34;,
+        &#34;type&#34;: &#34;MultiBigWig/View/Track/MultiWiggle/MultiXYPlot&#34;,
+        &#39;urlTemplates&#39;: url_template_dct
+    })
+    return track_dct</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.export.ExportJbrowse.add_snp_config_track"><code class="name flex">
+<span>def <span class="ident">add_snp_config_track</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def add_snp_config_track(self):
+    _logger.debug(&#34;Get SNP config track info&#34;)
+    snp_dct_list = []
+    snp_chr, snp_bin = self.snp_chr_bin()
+    for signal_name, signal_dct in self.snp_signal_dct.items():
+        for index, flag in enumerate(signal_dct[&#39;FLAG&#39;]):
+            scales = {}
+            for bin_size in snp_bin:
+                signal = self.signal_name(bin_size, signal_name, flag)
+                bigwig_filename = &#34;{}.bw&#34;.format(signal)
+                bigwig_file = self.export_data_dir.joinpath(bigwig_filename)
+                bigwig_current_path = Path(bigwig_file.parent.name).joinpath(bigwig_file.name).as_posix()
+                scales[bin_size] = bigwig_current_path
+
+            snp_dct = {
+                &#34;category&#34;: self.pytor_name,
+                &#34;autoscale&#34;: &#34;global&#34;,
+                &#34;storeClass&#34;: &#34;MultiScaleBigWig/Store/SeqFeature/MultiScaleBigWig&#34;,
+                &#34;scales&#34;: scales,
+                &#34;showTooltips&#34;: True,
+                &#34;label&#34;: signal_name,
+                &#34;type&#34;: &#34;JBrowse/View/Track/Wiggle/XYPlot&#34;,
+                &#34;noFill&#34;: True
+            }
+            snp_dct_list.append(snp_dct)
+    return snp_dct_list</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.export.ExportJbrowse.create_reference_json"><code class="name flex">
+<span>def <span class="ident">create_reference_json</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def create_reference_json(self):
+    _logger.debug(&#34;Exporting reference details&#34;)
+    # get signal details
+    chr_len = list(np.array(self.io.get_signal(None, None, &#34;chromosome lengths&#34;)).astype(&#34;str&#34;))
+    chr_dct = dict(zip(chr_len[::2], chr_len[1::2]))
+
+    # create signal list in proper format
+    chr_dct_list = []
+    for chr, length in chr_dct.items():
+        tmp_dct = {&#34;end&#34;: length, &#34;length&#34;: length, &#34;name&#34;: chr, &#34;start&#34;: 0}
+        chr_dct_list.append(tmp_dct)
+
+    # save it to file
+    with open(self.export_ref_file, &#39;w&#39;) as f:
+        json.dump(chr_dct_list, f, indent=2)</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.export.ExportJbrowse.create_tracklist_json"><code class="name flex">
+<span>def <span class="ident">create_tracklist_json</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def create_tracklist_json(self):
+    _logger.debug(&#34;Creates config file: {}&#34;.format(self.export_tracklist_file))
+    track_dct = self.add_config_track()
+    for snp_dct in self.add_snp_config_track():
+        track_dct[&#39;tracks&#39;].append(snp_dct)
+
+    with open(self.export_tracklist_file, &#39;w&#39;) as f:
+        json.dump(track_dct, f, indent=2)
+    return track_dct</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.export.ExportJbrowse.rd_chr_bin"><code class="name flex">
+<span>def <span class="ident">rd_chr_bin</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def rd_chr_bin(self):
+    chr_bs = self.io.chromosomes_bin_sizes_with_signal(&#34;RD&#34;)
+    chrs = {}
+    bss = []
+    for c, b in chr_bs:
+        if c not in chrs:
+            chrs[c] = []
+        chrs[c].append(int(b))
+        if int(b) not in bss:
+            bss.append(int(b))
+    return chrs, bss</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.export.ExportJbrowse.rd_signal"><code class="name flex">
+<span>def <span class="ident">rd_signal</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def rd_signal(self):
+    _logger.debug(&#34;Create Read depth related signals&#34;)
+    rd_chr, rd_bin = self.rd_chr_bin()
+    chrom_list = list(rd_chr)
+
+    for signal_name, signal_dct in self.rd_signal_dct.items():
+        for index, flag in enumerate(signal_dct[&#39;FLAG&#39;]):
+            for bin_size in rd_bin:
+                signal = self.signal_name(bin_size, signal_name, flag)
+                bigwig_filename = &#34;{}.bw&#34;.format(signal)
+                bigwig_file = self.export_data_dir.joinpath(bigwig_filename)
+                bigwig_file = str(bigwig_file)
+
+                wig = Wiggle(bigwig_file)
+                wig.create_wig(self.io, chrom_list, bin_size, signal_name, flag)</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.export.ExportJbrowse.signal_name"><code class="name flex">
+<span>def <span class="ident">signal_name</span></span>(<span>self, bin_size, signal, flags=0)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def signal_name(self, bin_size, signal, flags=0):
+    if signal in self.signal_dct:
+        try:
+            return self.signal_dct[signal] % {&#34;bin_size&#34;: bin_size, &#34;rd_flag&#34;: Signals().suffix_rd_flag(flags),
+                                              &#34;snp_flag&#34;: Signals().suffix_snp_flag(flags),
+                                              &#34;flag&#34;: Signals().suffix_flag(flags)}
+        except TypeError:
+            return None
+    else:
+        return None</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.export.ExportJbrowse.snp_chr_bin"><code class="name flex">
+<span>def <span class="ident">snp_chr_bin</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def snp_chr_bin(self):
+    chr_bs = self.io.chromosomes_bin_sizes_with_signal(&#34;SNP likelihood&#34;, FLAG_USEMASK)
+    chrs = {}
+    bss = []
+    for c, b in chr_bs:
+        if c not in chrs:
+            chrs[c] = []
+        chrs[c].append(int(b))
+        if int(b) not in bss:
+            bss.append(int(b))
+    return chrs, bss</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.export.ExportJbrowse.snp_signal"><code class="name flex">
+<span>def <span class="ident">snp_signal</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def snp_signal(self):
+    _logger.debug(&#34;Create SNP related signals&#34;)
+    snp_chr, snp_bin = self.snp_chr_bin()
+    chrom_list = list(snp_chr)
+
+    for signal_name, signal_dct in self.snp_signal_dct.items():
+        for index, flag in enumerate(signal_dct[&#39;FLAG&#39;]):
+            for bin_size in snp_bin:
+                signal = self.signal_name(bin_size, signal_name, flag)
+                bigwig_filename = &#34;{}.bw&#34;.format(signal)
+                bigwig_file = self.export_data_dir.joinpath(bigwig_filename)
+                bigwig_file = str(bigwig_file)
+
+                wig = Wiggle(bigwig_file)
+                wig.create_wig(self.io, chrom_list, bin_size, signal_name, flag)</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="cnvpytor.export.Wiggle"><code class="flex name class">
+<span>class <span class="ident">Wiggle</span></span>
+<span>(</span><span>filename)</span>
+</code></dt>
+<dd>
+<section class="desc"><h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>filename</code></strong></dt>
+<dd>&nbsp;</dd>
+</dl></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">class Wiggle:
+    def __init__(self, filename):
+        &#34;&#34;&#34;
+
+        Parameters
+        ----------
+        filename
+        &#34;&#34;&#34;
+        self.filename = filename
+        self.file = None
+        import pyBigWig
+
+        if not Path(filename).exists():
+            try:
+                self.file = pyBigWig.open(filename, &#39;w&#39;)
+            except IOError as e:
+                print(&#34;Unable to open file {}! Error: {}&#34;.format(filename, e))
+            except RuntimeError as e:
+                print(&#34;Unable to open file {}! Error: {}&#34;.format(filename, e))
+        else:
+            self.file = pyBigWig.open(filename)
+
+    def add_header_list(self, chr_len_list):
+        &#34;&#34;&#34;
+
+        Parameters
+        ----------
+        chr_len_list
+
+        Returns
+        -------
+
+        &#34;&#34;&#34;
+        self.file.addHeader(chr_len_list)
+
+    def add_fixedstep(self, chrom, position_int, value_list, span=1, step=1):
+        &#34;&#34;&#34;
+
+        Parameters
+        ----------
+        chrom
+        position_int
+        value_list
+        span
+        step
+
+        Returns
+        -------
+
+        &#34;&#34;&#34;
+        self.file.addEntries(chrom, position_int, values=value_list, span=span, step=step)
+
+    def create_wig(self, md5, chrom_list, bin_size, signal, flag):
+        &#34;&#34;&#34;
+
+        Parameters
+        ----------
+        md5
+        chrom_list
+        bin_size
+        signal
+        flag
+
+        Returns
+        -------
+
+        &#34;&#34;&#34;
+        header_list = []
+
+        for chrom in chrom_list:
+            signal_details = md5.get_signal(chrom, bin_size, signal, flag)
+            header_data = (chrom, signal_details.size * bin_size)
+            header_list.append(header_data)
+        self.add_header_list(header_list)
+
+        for chrom in chrom_list:
+            signal_details = md5.get_signal(chrom, bin_size, signal, flag)
+            signal_value_list = signal_details[()]
+            self.add_fixedstep(chrom, 0, signal_value_list, span=bin_size, step=bin_size)
+
+    def __del__(self):
+        if self.file:
+            self.file.close()</code></pre>
+</details>
+<h3>Methods</h3>
+<dl>
+<dt id="cnvpytor.export.Wiggle.add_fixedstep"><code class="name flex">
+<span>def <span class="ident">add_fixedstep</span></span>(<span>self, chrom, position_int, value_list, span=1, step=1)</span>
+</code></dt>
+<dd>
+<section class="desc"><h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>chrom</code></strong></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>position_int</code></strong></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>value_list</code></strong></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>span</code></strong></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>step</code></strong></dt>
+<dd>&nbsp;</dd>
+</dl>
+<h2 id="returns">Returns</h2></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def add_fixedstep(self, chrom, position_int, value_list, span=1, step=1):
+    &#34;&#34;&#34;
+
+    Parameters
+    ----------
+    chrom
+    position_int
+    value_list
+    span
+    step
+
+    Returns
+    -------
+
+    &#34;&#34;&#34;
+    self.file.addEntries(chrom, position_int, values=value_list, span=span, step=step)</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.export.Wiggle.add_header_list"><code class="name flex">
+<span>def <span class="ident">add_header_list</span></span>(<span>self, chr_len_list)</span>
+</code></dt>
+<dd>
+<section class="desc"><h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>chr_len_list</code></strong></dt>
+<dd>&nbsp;</dd>
+</dl>
+<h2 id="returns">Returns</h2></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def add_header_list(self, chr_len_list):
+    &#34;&#34;&#34;
+
+    Parameters
+    ----------
+    chr_len_list
+
+    Returns
+    -------
+
+    &#34;&#34;&#34;
+    self.file.addHeader(chr_len_list)</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.export.Wiggle.create_wig"><code class="name flex">
+<span>def <span class="ident">create_wig</span></span>(<span>self, md5, chrom_list, bin_size, signal, flag)</span>
+</code></dt>
+<dd>
+<section class="desc"><h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>md5</code></strong></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>chrom_list</code></strong></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>bin_size</code></strong></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>signal</code></strong></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>flag</code></strong></dt>
+<dd>&nbsp;</dd>
+</dl>
+<h2 id="returns">Returns</h2></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def create_wig(self, md5, chrom_list, bin_size, signal, flag):
+    &#34;&#34;&#34;
+
+    Parameters
+    ----------
+    md5
+    chrom_list
+    bin_size
+    signal
+    flag
+
+    Returns
+    -------
+
+    &#34;&#34;&#34;
+    header_list = []
+
+    for chrom in chrom_list:
+        signal_details = md5.get_signal(chrom, bin_size, signal, flag)
+        header_data = (chrom, signal_details.size * bin_size)
+        header_list.append(header_data)
+    self.add_header_list(header_list)
+
+    for chrom in chrom_list:
+        signal_details = md5.get_signal(chrom, bin_size, signal, flag)
+        signal_value_list = signal_details[()]
+        self.add_fixedstep(chrom, 0, signal_value_list, span=bin_size, step=bin_size)</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="cnvpytor" href="index.html">cnvpytor</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="cnvpytor.export.ExportJbrowse" href="#cnvpytor.export.ExportJbrowse">ExportJbrowse</a></code></h4>
+<ul class="">
+<li><code><a title="cnvpytor.export.ExportJbrowse.add_config_reference" href="#cnvpytor.export.ExportJbrowse.add_config_reference">add_config_reference</a></code></li>
+<li><code><a title="cnvpytor.export.ExportJbrowse.add_config_track" href="#cnvpytor.export.ExportJbrowse.add_config_track">add_config_track</a></code></li>
+<li><code><a title="cnvpytor.export.ExportJbrowse.add_snp_config_track" href="#cnvpytor.export.ExportJbrowse.add_snp_config_track">add_snp_config_track</a></code></li>
+<li><code><a title="cnvpytor.export.ExportJbrowse.create_reference_json" href="#cnvpytor.export.ExportJbrowse.create_reference_json">create_reference_json</a></code></li>
+<li><code><a title="cnvpytor.export.ExportJbrowse.create_tracklist_json" href="#cnvpytor.export.ExportJbrowse.create_tracklist_json">create_tracklist_json</a></code></li>
+<li><code><a title="cnvpytor.export.ExportJbrowse.export_data_dir" href="#cnvpytor.export.ExportJbrowse.export_data_dir">export_data_dir</a></code></li>
+<li><code><a title="cnvpytor.export.ExportJbrowse.export_directory" href="#cnvpytor.export.ExportJbrowse.export_directory">export_directory</a></code></li>
+<li><code><a title="cnvpytor.export.ExportJbrowse.export_main_dir" href="#cnvpytor.export.ExportJbrowse.export_main_dir">export_main_dir</a></code></li>
+<li><code><a title="cnvpytor.export.ExportJbrowse.export_ref_file" href="#cnvpytor.export.ExportJbrowse.export_ref_file">export_ref_file</a></code></li>
+<li><code><a title="cnvpytor.export.ExportJbrowse.export_seq_dir" href="#cnvpytor.export.ExportJbrowse.export_seq_dir">export_seq_dir</a></code></li>
+<li><code><a title="cnvpytor.export.ExportJbrowse.export_tracklist_file" href="#cnvpytor.export.ExportJbrowse.export_tracklist_file">export_tracklist_file</a></code></li>
+<li><code><a title="cnvpytor.export.ExportJbrowse.export_tracks_file" href="#cnvpytor.export.ExportJbrowse.export_tracks_file">export_tracks_file</a></code></li>
+<li><code><a title="cnvpytor.export.ExportJbrowse.pytor_name" href="#cnvpytor.export.ExportJbrowse.pytor_name">pytor_name</a></code></li>
+<li><code><a title="cnvpytor.export.ExportJbrowse.rd_chr_bin" href="#cnvpytor.export.ExportJbrowse.rd_chr_bin">rd_chr_bin</a></code></li>
+<li><code><a title="cnvpytor.export.ExportJbrowse.rd_signal" href="#cnvpytor.export.ExportJbrowse.rd_signal">rd_signal</a></code></li>
+<li><code><a title="cnvpytor.export.ExportJbrowse.rd_signal_dct" href="#cnvpytor.export.ExportJbrowse.rd_signal_dct">rd_signal_dct</a></code></li>
+<li><code><a title="cnvpytor.export.ExportJbrowse.signal_dct" href="#cnvpytor.export.ExportJbrowse.signal_dct">signal_dct</a></code></li>
+<li><code><a title="cnvpytor.export.ExportJbrowse.signal_name" href="#cnvpytor.export.ExportJbrowse.signal_name">signal_name</a></code></li>
+<li><code><a title="cnvpytor.export.ExportJbrowse.snp_chr_bin" href="#cnvpytor.export.ExportJbrowse.snp_chr_bin">snp_chr_bin</a></code></li>
+<li><code><a title="cnvpytor.export.ExportJbrowse.snp_signal" href="#cnvpytor.export.ExportJbrowse.snp_signal">snp_signal</a></code></li>
+<li><code><a title="cnvpytor.export.ExportJbrowse.snp_signal_dct" href="#cnvpytor.export.ExportJbrowse.snp_signal_dct">snp_signal_dct</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="cnvpytor.export.Wiggle" href="#cnvpytor.export.Wiggle">Wiggle</a></code></h4>
+<ul class="">
+<li><code><a title="cnvpytor.export.Wiggle.add_fixedstep" href="#cnvpytor.export.Wiggle.add_fixedstep">add_fixedstep</a></code></li>
+<li><code><a title="cnvpytor.export.Wiggle.add_header_list" href="#cnvpytor.export.Wiggle.add_header_list">add_header_list</a></code></li>
+<li><code><a title="cnvpytor.export.Wiggle.create_wig" href="#cnvpytor.export.Wiggle.create_wig">create_wig</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc"><cite>pdoc</cite> 0.6.3</a>.</p>
+</footer>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+<script>hljs.initHighlightingOnLoad()</script>
+</body>
+</html>
