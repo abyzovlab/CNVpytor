@@ -30,9 +30,12 @@ class Genome: detect reference / parity / naming functions / reference genome da
 
 &#34;&#34;&#34;
 from __future__ import absolute_import, print_function, division
+from .utils import *
 from collections import OrderedDict
 import logging
 import pkg_resources
+import os
+
 
 _logger = logging.getLogger(&#34;cnvpytor.genome&#34;)
 
@@ -52,8 +55,8 @@ class Genome:
                  (&#34;chr19&#34;, (59128983, &#34;A&#34;)), (&#34;chr20&#34;, (63025520, &#34;A&#34;)), (&#34;chr21&#34;, (48129895, &#34;A&#34;)),
                  (&#34;chr22&#34;, (51304566, &#34;A&#34;)), (&#34;chrX&#34;, (155270560, &#34;S&#34;)), (&#34;chrY&#34;, (59373566, &#34;S&#34;)),
                  (&#34;chrM&#34;, (16571, &#34;M&#34;))]),
-            &#34;gc_file&#34;: pkg_resources.resource_filename(&#39;cnvpytor&#39;, &#39;data/gc_hg19.pytor&#39;),
-            &#34;mask_file&#34;: pkg_resources.resource_filename(&#39;cnvpytor&#39;, &#39;data/mask_hg19.pytor&#39;)
+            &#34;gc_file&#34;: pkg_resources.resource_filename(&#39;cnvpytor&#39;, &#39;data&#39;)+&#34;/gc_hg19.pytor&#34;,
+            &#34;mask_file&#34;: pkg_resources.resource_filename(&#39;cnvpytor&#39;, &#39;data&#39;)+&#34;/mask_hg19.pytor&#34;
         },
         &#34;hg38&#34;: {
             &#34;name&#34;: &#34;GRCh38&#34;,
@@ -67,7 +70,9 @@ class Genome:
                  (&#34;chr16&#34;, (90338345, &#34;A&#34;)), (&#34;chr17&#34;, (83257441, &#34;A&#34;)), (&#34;chr18&#34;, (80373285, &#34;A&#34;)),
                  (&#34;chr19&#34;, (58617616, &#34;A&#34;)), (&#34;chr20&#34;, (64444167, &#34;A&#34;)), (&#34;chr21&#34;, (46709983, &#34;A&#34;)),
                  (&#34;chr22&#34;, (50818468, &#34;A&#34;)), (&#34;chrX&#34;, (156040895, &#34;S&#34;)), (&#34;chrY&#34;, (57227415, &#34;S&#34;)),
-                 (&#34;chrM&#34;, (16569, &#34;M&#34;))])
+                 (&#34;chrM&#34;, (16569, &#34;M&#34;))]),
+            &#34;gc_file&#34;: pkg_resources.resource_filename(&#39;cnvpytor&#39;, &#39;data&#39;) + &#34;/gc_hg38.pytor&#34;,
+            &#34;mask_file&#34;: pkg_resources.resource_filename(&#39;cnvpytor&#39;, &#39;data&#39;) + &#34;/mask_hg38.pytor&#34;
         }
     }
 
@@ -111,6 +116,65 @@ class Genome:
 
         &#34;&#34;&#34;
         return &#34;chr&#34; + Genome.canonical_chrom_name(name)
+
+
+    @classmethod
+    def check_resources(cls):
+        &#34;&#34;&#34;
+        Check do resource files exist.
+
+        Returns
+        -------
+        ok : bool
+            Returns True if all resource files exist.
+
+        &#34;&#34;&#34;
+        _logger.debug(&#34;Checking reference genome resource files.&#34;)
+        for i in cls.reference_genomes:
+            if &#34;gc_file&#34; in cls.reference_genomes[i] and not os.path.exists(cls.reference_genomes[i][&#34;gc_file&#34;]):
+                return False
+            if &#34;mask_file&#34; in cls.reference_genomes[i] and not os.path.exists(cls.reference_genomes[i][&#34;mask_file&#34;]):
+                return False
+        return True
+
+    @classmethod
+    def download_resources(cls):
+        &#34;&#34;&#34;
+        Download missing resource files files from github.
+
+        &#34;&#34;&#34;
+        _logger.info(&#34;Updating reference genome resource files...&#34;)
+        for i in cls.reference_genomes:
+            if &#34;gc_file&#34; in cls.reference_genomes[i] and not os.path.exists(cls.reference_genomes[i][&#34;gc_file&#34;]):
+                _logger.info(&#34;Detecting missing GC resource file for reference genome &#39;%s&#39;&#34; % i)
+                res = cls.reference_genomes[i][&#34;gc_file&#34;]
+                fn = res.split(&#34;/&#34;)[-1]
+                url = &#34;https://github.com/abyzovlab/CNVpytor/raw/master/cnvpytor/data/&#34;+fn
+                if is_downloadable(url):
+                    _logger.info(&#34;Downloading GC resource file: %s&#34;,fn)
+                    try:
+                        download(url,res)
+                        _logger.info(&#34;File downlaoded.&#34;)
+                    except Exception as e:
+                        _logger.error(&#34;Problem with downloading/saving resource files.&#34;)
+                        _logger.error(&#34;Exception details: &#34; + str(e))
+
+                else:
+                    _logger.warning(&#34;GC resource file is not downloadable!&#34;)
+            if &#34;mask_file&#34; in cls.reference_genomes[i] and not os.path.exists(cls.reference_genomes[i][&#34;mask_file&#34;]):
+                _logger.info(&#34;Detecting missing MASK resource file for reference genome &#39;%s&#39;&#34; % i)
+                res = cls.reference_genomes[i][&#34;mask_file&#34;]
+                fn = res.split(&#34;/&#34;)[-1]
+                url = &#34;https://github.com/abyzovlab/CNVpytor/raw/master/cnvpytor/data/&#34;+fn
+                if is_downloadable(url):
+                    _logger.info(&#34;Downloading MASK resource file: %s&#34;,fn)
+                    try:
+                        download(url,res)
+                        _logger.info(&#34;File downlaoded.&#34;)
+                    except Exception as e:
+                        _logger.error(&#34;Problem with downloading/saving resource files.&#34;)
+                        _logger.error(&#34;Exception details: &#34; + str(e))
+        _logger.info(&#34;Done.&#34;)
 
     @classmethod
     def is_autosome(cls, name):
@@ -243,9 +307,11 @@ class Genome:
             Name of the configuration file
 
         &#34;&#34;&#34;
+        _logger.info(&#34;Reading configuration file &#39;%s&#39;.&#34; % filename)
         import_reference_genomes = {}
         exec(open(filename).read())
         for g in import_reference_genomes:
+            _logger.info(&#34;Importing reference genome data: &#39;%s&#39;.&#34; % g)
             cls.reference_genomes[g] = import_reference_genomes[g]</code></pre>
 </details>
 </section>
@@ -320,6 +386,38 @@ def canonical_chrom_name(name):
     return cname</code></pre>
 </details>
 </dd>
+<dt id="cnvpytor.genome.Genome.check_resources"><code class="name flex">
+<span>def <span class="ident">check_resources</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Check do resource files exist.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>ok</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Returns True if all resource files exist.</dd>
+</dl></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">@classmethod
+def check_resources(cls):
+    &#34;&#34;&#34;
+    Check do resource files exist.
+
+    Returns
+    -------
+    ok : bool
+        Returns True if all resource files exist.
+
+    &#34;&#34;&#34;
+    _logger.debug(&#34;Checking reference genome resource files.&#34;)
+    for i in cls.reference_genomes:
+        if &#34;gc_file&#34; in cls.reference_genomes[i] and not os.path.exists(cls.reference_genomes[i][&#34;gc_file&#34;]):
+            return False
+        if &#34;mask_file&#34; in cls.reference_genomes[i] and not os.path.exists(cls.reference_genomes[i][&#34;mask_file&#34;]):
+            return False
+    return True</code></pre>
+</details>
+</dd>
 <dt id="cnvpytor.genome.Genome.detect_genome"><code class="name flex">
 <span>def <span class="ident">detect_genome</span></span>(<span>names, lengths)</span>
 </code></dt>
@@ -368,6 +466,53 @@ def detect_genome(cls, names, lengths):
             cls.detected_genome = g
             return g
     return None</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.genome.Genome.download_resources"><code class="name flex">
+<span>def <span class="ident">download_resources</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Download missing resource files files from github.</p></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">@classmethod
+def download_resources(cls):
+    &#34;&#34;&#34;
+    Download missing resource files files from github.
+
+    &#34;&#34;&#34;
+    _logger.info(&#34;Updating reference genome resource files...&#34;)
+    for i in cls.reference_genomes:
+        if &#34;gc_file&#34; in cls.reference_genomes[i] and not os.path.exists(cls.reference_genomes[i][&#34;gc_file&#34;]):
+            _logger.info(&#34;Detecting missing GC resource file for reference genome &#39;%s&#39;&#34; % i)
+            res = cls.reference_genomes[i][&#34;gc_file&#34;]
+            fn = res.split(&#34;/&#34;)[-1]
+            url = &#34;https://github.com/abyzovlab/CNVpytor/raw/master/cnvpytor/data/&#34;+fn
+            if is_downloadable(url):
+                _logger.info(&#34;Downloading GC resource file: %s&#34;,fn)
+                try:
+                    download(url,res)
+                    _logger.info(&#34;File downlaoded.&#34;)
+                except Exception as e:
+                    _logger.error(&#34;Problem with downloading/saving resource files.&#34;)
+                    _logger.error(&#34;Exception details: &#34; + str(e))
+
+            else:
+                _logger.warning(&#34;GC resource file is not downloadable!&#34;)
+        if &#34;mask_file&#34; in cls.reference_genomes[i] and not os.path.exists(cls.reference_genomes[i][&#34;mask_file&#34;]):
+            _logger.info(&#34;Detecting missing MASK resource file for reference genome &#39;%s&#39;&#34; % i)
+            res = cls.reference_genomes[i][&#34;mask_file&#34;]
+            fn = res.split(&#34;/&#34;)[-1]
+            url = &#34;https://github.com/abyzovlab/CNVpytor/raw/master/cnvpytor/data/&#34;+fn
+            if is_downloadable(url):
+                _logger.info(&#34;Downloading MASK resource file: %s&#34;,fn)
+                try:
+                    download(url,res)
+                    _logger.info(&#34;File downlaoded.&#34;)
+                except Exception as e:
+                    _logger.error(&#34;Problem with downloading/saving resource files.&#34;)
+                    _logger.error(&#34;Exception details: &#34; + str(e))
+    _logger.info(&#34;Done.&#34;)</code></pre>
 </details>
 </dd>
 <dt id="cnvpytor.genome.Genome.extended_chrom_name"><code class="name flex">
@@ -598,9 +743,11 @@ def load_reference_genomes(cls, filename):
         Name of the configuration file
 
     &#34;&#34;&#34;
+    _logger.info(&#34;Reading configuration file &#39;%s&#39;.&#34; % filename)
     import_reference_genomes = {}
     exec(open(filename).read())
     for g in import_reference_genomes:
+        _logger.info(&#34;Importing reference genome data: &#39;%s&#39;.&#34; % g)
         cls.reference_genomes[g] = import_reference_genomes[g]</code></pre>
 </details>
 </dd>
@@ -626,8 +773,10 @@ def load_reference_genomes(cls, filename):
 <h4><code><a title="cnvpytor.genome.Genome" href="#cnvpytor.genome.Genome">Genome</a></code></h4>
 <ul class="">
 <li><code><a title="cnvpytor.genome.Genome.canonical_chrom_name" href="#cnvpytor.genome.Genome.canonical_chrom_name">canonical_chrom_name</a></code></li>
+<li><code><a title="cnvpytor.genome.Genome.check_resources" href="#cnvpytor.genome.Genome.check_resources">check_resources</a></code></li>
 <li><code><a title="cnvpytor.genome.Genome.detect_genome" href="#cnvpytor.genome.Genome.detect_genome">detect_genome</a></code></li>
 <li><code><a title="cnvpytor.genome.Genome.detected_genome" href="#cnvpytor.genome.Genome.detected_genome">detected_genome</a></code></li>
+<li><code><a title="cnvpytor.genome.Genome.download_resources" href="#cnvpytor.genome.Genome.download_resources">download_resources</a></code></li>
 <li><code><a title="cnvpytor.genome.Genome.extended_chrom_name" href="#cnvpytor.genome.Genome.extended_chrom_name">extended_chrom_name</a></code></li>
 <li><code><a title="cnvpytor.genome.Genome.is_autosome" href="#cnvpytor.genome.Genome.is_autosome">is_autosome</a></code></li>
 <li><code><a title="cnvpytor.genome.Genome.is_mt_chrom" href="#cnvpytor.genome.Genome.is_mt_chrom">is_mt_chrom</a></code></li>

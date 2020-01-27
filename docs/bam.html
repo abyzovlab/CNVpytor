@@ -40,7 +40,7 @@ _logger = logging.getLogger(&#34;cnvpytor.bam&#34;)
 
 class Bam:
 
-    def __init__(self, filename, max_fragment_len=5000, max_read_len=300):
+    def __init__(self, filename, max_fragment_len=5000, max_read_len=300, reference_filename=False):
         &#34;&#34;&#34;
         Opens BAM/CRAM/SAM file, reads chromosome names/lengths from header file and detects reference genome
 
@@ -62,8 +62,11 @@ class Bam:
             self.file = pysam.AlignmentFile(filename, &#34;rb&#34;)
         elif filename[-4:] == &#34;.sam&#34;:
             self.file = pysam.AlignmentFile(filename, &#34;r&#34;)
-        elif filename[-4:] == &#34;.cram&#34;:
-            self.file = pysam.AlignmentFile(filename, &#34;rc&#34;)
+        elif filename[-5:] == &#34;.cram&#34;:
+            if reference_filename:
+                self.file = pysam.AlignmentFile(filename, &#34;rc&#34;,reference_filename=reference_filename)
+            else:
+                self.file = pysam.AlignmentFile(filename, &#34;rc&#34;)
         else:
             _logger.warning(&#34;Unsuported file type: &#34; + filename)
         self.len = {}
@@ -121,7 +124,7 @@ class Bam:
                 if r.template_length and r.reference_length:
                     fl = abs(r.template_length)
                     rl = r.reference_length
-                    if fl and (rl &lt; self.max_read_len) and (fl &lt; self.max_frg_len):
+                    if (rl &lt; self.max_read_len) and (fl &lt; self.max_frg_len):
                         his_read_frg[rl][fl] += 1
                     if r.is_unmapped or r.is_secondary or r.is_duplicate:
                         continue
@@ -171,7 +174,7 @@ class Bam:
 <dl>
 <dt id="cnvpytor.bam.Bam"><code class="flex name class">
 <span>class <span class="ident">Bam</span></span>
-<span>(</span><span>filename, max_fragment_len=5000, max_read_len=300)</span>
+<span>(</span><span>filename, max_fragment_len=5000, max_read_len=300, reference_filename=False)</span>
 </code></dt>
 <dd>
 <section class="desc"><p>Opens BAM/CRAM/SAM file, reads chromosome names/lengths from header file and detects reference genome</p>
@@ -301,7 +304,7 @@ class Bam:
             if r.template_length and r.reference_length:
                 fl = abs(r.template_length)
                 rl = r.reference_length
-                if fl and (rl &lt; self.max_read_len) and (fl &lt; self.max_frg_len):
+                if (rl &lt; self.max_read_len) and (fl &lt; self.max_frg_len):
                     his_read_frg[rl][fl] += 1
                 if r.is_unmapped or r.is_secondary or r.is_duplicate:
                     continue

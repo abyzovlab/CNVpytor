@@ -9,6 +9,12 @@ _logger = logging.getLogger("cnvpytor.export")
 
 class Wiggle:
     def __init__(self, filename):
+        """
+
+        Parameters
+        ----------
+        filename
+        """
         self.filename = filename
         self.file = None
         import pyBigWig
@@ -24,12 +30,50 @@ class Wiggle:
             self.file = pyBigWig.open(filename)
 
     def add_header_list(self, chr_len_list):
+        """
+
+        Parameters
+        ----------
+        chr_len_list
+
+        Returns
+        -------
+
+        """
         self.file.addHeader(chr_len_list)
 
     def add_fixedstep(self, chrom, position_int, value_list, span=1, step=1):
+        """
+
+        Parameters
+        ----------
+        chrom
+        position_int
+        value_list
+        span
+        step
+
+        Returns
+        -------
+
+        """
         self.file.addEntries(chrom, position_int, values=value_list, span=span, step=step)
 
     def create_wig(self, md5, chrom_list, bin_size, signal, flag):
+        """
+
+        Parameters
+        ----------
+        md5
+        chrom_list
+        bin_size
+        signal
+        flag
+
+        Returns
+        -------
+
+        """
         header_list = []
 
         for chrom in chrom_list:
@@ -44,7 +88,6 @@ class Wiggle:
             self.add_fixedstep(chrom, 0, signal_value_list, span=bin_size, step=bin_size)
 
     def __del__(self):
-
         if self.file:
             self.file.close()
 
@@ -89,6 +132,14 @@ class ExportJbrowse:
     }
 
     def __init__(self, file, dir_name):
+        """
+
+        Parameters
+        ----------
+        file
+        dir_name
+
+        """
         self.filename = file
         self.dir = dir_name
         self.io = IO(file, ro=True)

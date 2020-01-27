@@ -42,7 +42,7 @@ def _fun(f, q_in, q_out):
         q_out.put((i, f(x)))
 
 
-def parmap(f, x_arg, cores=multiprocessing.cpu_count()):
+def parmap(f, x_arg, cores=multiprocessing.cpu_count(), info=True):
     &#34;&#34;&#34;
     Calculates list(map(f,x_args)) using multiprocessing module.
 
@@ -59,7 +59,11 @@ def parmap(f, x_arg, cores=multiprocessing.cpu_count()):
 
     &#34;&#34;&#34;
     cores = min(cores, multiprocessing.cpu_count())
-    _logger.info(&#34;Parallel processing using %d cores&#34; % cores)
+    if info:
+        _logger.info(&#34;Parallel processing using %d cores&#34; % cores)
+    else:
+        _logger.debug(&#34;Parallel processing using %d cores&#34; % cores)
+
     q_in = multiprocessing.Queue(1)
     q_out = multiprocessing.Queue()
 
@@ -86,7 +90,7 @@ def parmap(f, x_arg, cores=multiprocessing.cpu_count()):
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
 <dt id="cnvpytor.pool.parmap"><code class="name flex">
-<span>def <span class="ident">parmap</span></span>(<span>f, x_arg, cores=4)</span>
+<span>def <span class="ident">parmap</span></span>(<span>f, x_arg, cores=4, info=True)</span>
 </code></dt>
 <dd>
 <section class="desc"><p>Calculates list(map(f,x_args)) using multiprocessing module.</p>
@@ -106,7 +110,7 @@ def parmap(f, x_arg, cores=multiprocessing.cpu_count()):
 </dl></section>
 <details class="source">
 <summary>Source code</summary>
-<pre><code class="python">def parmap(f, x_arg, cores=multiprocessing.cpu_count()):
+<pre><code class="python">def parmap(f, x_arg, cores=multiprocessing.cpu_count(), info=True):
     &#34;&#34;&#34;
     Calculates list(map(f,x_args)) using multiprocessing module.
 
@@ -123,7 +127,11 @@ def parmap(f, x_arg, cores=multiprocessing.cpu_count()):
 
     &#34;&#34;&#34;
     cores = min(cores, multiprocessing.cpu_count())
-    _logger.info(&#34;Parallel processing using %d cores&#34; % cores)
+    if info:
+        _logger.info(&#34;Parallel processing using %d cores&#34; % cores)
+    else:
+        _logger.debug(&#34;Parallel processing using %d cores&#34; % cores)
+
     q_in = multiprocessing.Queue(1)
     q_out = multiprocessing.Queue()
 

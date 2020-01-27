@@ -32,10 +32,13 @@ Misc functions
 from __future__ import absolute_import, print_function, division
 import numpy as np
 from argparse import ArgumentTypeError
+from scipy.special import erf
+from scipy import stats
 from scipy.stats import norm
 from scipy.optimize import curve_fit
 import logging
 import readline
+import requests
 
 _logger = logging.getLogger(&#34;cnvpytor.utils&#34;)
 
@@ -199,7 +202,53 @@ def rd_compress(rd_p, rd_u, data_type=&#34;uint16&#34;):
 def rd_decompress(crd_p, crd_u):
     &#34;&#34;&#34; Decommpress SNP information
     &#34;&#34;&#34;
-    return np.array(crd_p), np.array(crd_p) + np.array(crd_u)
+    return np.array(crd_p), np.array(crd_p) - np.array(crd_u)
+
+
+def segments_code(segments):
+    &#34;&#34;&#34;
+    Convert segments to numpy array e.g. [[1,2],[3]] -&gt; [1,2,MAX,3,MAX]
+    Parameters
+    ----------
+    segments : list of list of int
+        Segments e.g. [[1,2],[3]].
+
+    Returns
+    -------
+    aseg : numpy.ndarra
+
+    &#34;&#34;&#34;
+    max = 2 ** 32 - 1
+    l = []
+    for s in segments:
+        for i in s:
+            l.append(i)
+        l.append(max)
+    return np.array(l, dtype=&#34;uint32&#34;)
+
+
+def segments_decode(aseg):
+    &#34;&#34;&#34;
+    Decode segments.
+    Parameters
+    ----------
+    aseg : numpy.ndarra of uint32
+
+    Returns
+    -------
+    segments : list of list of int
+
+    &#34;&#34;&#34;
+    max = 2 ** 32 - 1
+    segments = []
+    l = []
+    for x in list(aseg):
+        if x == max:
+            segments.append(l)
+            l = []
+        else:
+            l.append(x)
+    return segments
 
 
 def binsize_type(x):
@@ -209,6 +258,15 @@ def binsize_type(x):
     return x
 
 
+def binsize_format(x):
+    if x &gt;= 1000000:
+        return str(x // 1000000) + &#34;M&#34;
+    elif x &gt;= 1000:
+        return str(x // 1000) + &#34;K&#34;
+    else:
+        return str(x)
+
+
 def normal_overlap(m1, s1, m2, s2):
     if m1 &gt; m2:
         m1, m2 = m2, m1
@@ -216,7 +274,6 @@ def normal_overlap(m1, s1, m2, s2):
     a = 1. / (2. * s1 ** 2) - 1. / (2. * s2 ** 2)
     b = m2 / (s2 ** 2) - m1 / (s1 ** 2)
     c = m1 ** 2 / (2 * s1 ** 2) - m2 ** 2 / (2 * s2 ** 2) - np.log(s2 / s1)
-    print(np.roots([a, b, c]))
     roots = sorted(np.roots([a, b, c]))
     if len(roots) == 0:
         return 1
@@ -238,7 +295,7 @@ def normal_merge(m1, s1, m2, s2):
 
 
 def normal(x, a, x0, sigma):
-    return a * np.exp(-(x - x0) ** 2 / (2 * sigma ** 2))
+    return a * np.exp(-(x - x0) ** 2 / (2 * sigma ** 2)) / np.sqrt(2 * np.pi) / sigma
 
 
 def fit_normal(x, y):
@@ -249,20 +306,102 @@ def fit_normal(x, y):
         return [0, 0, 0], None
     mean = sum(x * y) / sum(y)
     sigma = np.sqrt(sum(y * (x - mean) ** 2) / sum(y))
-    _logger.debug(&#34;%f %f %d&#34; % (mean, sigma, len(x)))
-    if sigma == 0:
-        _logger.debug(&#34;Problem with fit: sigma equals zero. Return zeros instead fit parameters!&#34;)
-        return [0, 0, 0], None
     area = sum(y[:-1] * (x[1:] - x[:-1]))
+    _logger.debug(&#34;%f %f %f %d&#34; % (area, mean, sigma, len(x)))
+    if sigma == 0:
+        _logger.debug(&#34;Problem with fit: sigma equals zero. Using mean and std instead fitting parameters!&#34;)
+        return [area, mean, sigma], None
+
+    if len(x) &lt; 3:
+        _logger.warning(&#34;Problem with fit: insufficient data points. Using mean and std instead fitting parameters!&#34;)
+        return [area, mean, sigma], None
     try:
         popt, pcov = curve_fit(normal, x, y, p0=[area, mean, sigma])
+        popt[2] = np.abs(popt[2])
+        if popt[1] &lt;= 0:
+            _logger.warning(&#34;Problem with fit: negative mean. Using mean and std instead fitting parameters!&#34;)
+            return [area, mean, sigma], None
         return popt, pcov
     except ValueError:
-        _logger.warning(&#34;Problem with fit: optimal parameters not found. Using mean and std instead!&#34;)
+        _logger.warning(&#34;Problem with fit: Value Error. Using mean and std instead fitting parameters!&#34;)
         return [area, mean, sigma], None
     except RuntimeError:
-        _logger.warning(&#34;Problem with fit: optimal parameters not found. Using mean and std instead!&#34;)
+        _logger.warning(&#34;Problem with fit: Runtime Error. Using mean and std instead fitting parameters!&#34;)
         return [area, mean, sigma], None
+
+
+def t_test_1_sample(mean, m, s, n):
+    if s == 0:
+        s = 1
+    t = (mean - m) / s * np.sqrt(n)
+    p = 1.0 - stats.t.cdf(np.abs(t), df=n - 1)
+    return 2 * p
+
+
+def t_test_2_samples(m1, s1, n1, m2, s2, n2):
+    if s1 == 0:
+        s1 = 1
+    if s2 == 0:
+        s2 = 1
+    t = (m1 - m2) / np.sqrt(s1 ** 2 / n1 + s2 ** 2 / n2)
+    df = (s1 ** 2 / n1 + s2 ** 2 / n2) ** 2 * (n1 - 1) * (n2 - 1) / (
+            s1 ** 4 * (n2 - 1) / n1 ** 2 + s2 ** 4 * (n1 - 1) / n2 ** 2)
+    p = 1.0 - stats.t.cdf(np.abs(t), df=int(df + 0.5))
+    return 2 * p
+
+
+def getEValue(mean, sigma, rd, start, end):
+    aver = np.mean(rd[start:end])
+    s = np.std(rd[start:end])
+    if s == 0:
+        s = sigma if sigma &gt; 0 else 1
+    return t_test_1_sample(mean, aver, s, end - start) / (end - start)
+
+
+def gaussianEValue(mean, sigma, rd, start, end):
+    aver = np.mean(rd[start:end])
+    max = np.max(rd[start:end])
+    min = np.min(rd[start:end])
+
+    if aver &lt; mean:
+        x = (max - mean) / (sigma * np.sqrt(2.))
+        return np.power(0.5 * (1. + erf(x)), end - start)
+    x = (min - mean) / (sigma * np.sqrt(2.))
+    return np.power(0.5 * (1. - erf(x)), end - start)
+
+
+def adjustToEvalue(mean, sigma, rd, start, end, pval, max_steps=1000):
+    val = getEValue(mean, sigma, rd, start, end)
+    step = 0
+    done = False
+    while val &gt; pval and not done and step &lt; max_steps:
+        done = True
+        step += 1
+        v1, v2, v3, v4 = 1e10, 1e10, 1e10, 1e10
+        if start &gt; 0:
+            v1 = getEValue(mean, sigma, rd, start - 1, end)
+        if end - start &gt; 2:
+            v2 = getEValue(mean, sigma, rd, start + 1, end)
+            v3 = getEValue(mean, sigma, rd, start, end - 1)
+        if end &lt; len(rd):
+            v4 = getEValue(mean, sigma, rd, start, end + 1)
+        if min(v1, v2, v3, v4) &lt; val:
+            done = False
+            if v1 == min(v1, v2, v3, v4):
+                start -= 1
+                val = v1
+            elif v2 == min(v1, v2, v3, v4):
+                start += 1
+                val = v2
+            elif v3 == min(v1, v2, v3, v4):
+                end -= 1
+                val = v3
+            elif v4 == min(v1, v2, v3, v4):
+                end += 1
+                val = v4
+    if val &lt;= pval:
+        return start, end
+    return None
 
 
 def calculate_gc_correction(his_rd_gc, mean, sigma, bin_size=1):
@@ -384,9 +523,81 @@ def decode_region(s):
     ret = []
     for r in regs:
         chr_interval = r.split(&#34;:&#34;)
-        begin_end = chr_interval[1].split(&#34;-&#34;)
-        ret.append((chr_interval[0], (decode_position(begin_end[0]), decode_position(begin_end[1]))))
+        if len(chr_interval) &gt; 1:
+            begin_end = chr_interval[1].split(&#34;-&#34;)
+            ret.append((chr_interval[0], (decode_position(begin_end[0]), decode_position(begin_end[1]))))
+        else:
+            ret.append((chr_interval[0], (1, 1000000000)))
     return ret
+
+
+def likelihood_baf_pval(likelihood):
+    &#34;&#34;&#34;
+    Calculates baf level and p-value for given likelihood function.
+    Parameters
+    ----------
+    likelihood
+
+    Returns
+    -------
+    b : float
+        BAF level (difference from 1/2)
+    p : float
+        p-value for event different than 1/2
+
+    &#34;&#34;&#34;
+    res = likelihood.size
+    max_lh = np.amax(likelihood)
+    ix = np.where(likelihood == max_lh)[0][0]
+    if ix &gt; res // 2:
+        ix = res - 1 - ix
+    b = 1.0 * (res // 2 - ix) / (res + 1)
+
+    ix1 = (res // 2 + ix) // 2
+    ix2 = res - 1 - ix1
+    p = np.sum(likelihood[ix1:ix2]) / np.sum(likelihood)
+    return b, p
+
+
+def is_downloadable(url):
+    &#34;&#34;&#34;
+    Returns does the url contain a downloadable resource
+    Parameters
+    ----------
+    url : str
+        Resource url
+
+    Returns
+    -------
+    downloadable : bool
+        True if the url contain a downloadable resource
+
+    &#34;&#34;&#34;
+    h = requests.head(url, allow_redirects=True)
+    header = h.headers
+    content_type = header.get(&#39;content-type&#39;)
+    if &#39;text&#39; in content_type.lower():
+        return False
+    if &#39;html&#39; in content_type.lower():
+        return False
+    return True
+
+
+def download(url, file):
+    &#34;&#34;&#34;
+    Download resource into file
+
+    Parameters
+    ----------
+    url : str
+        Resource url
+    file : str
+        Filename
+
+    &#34;&#34;&#34;
+    r = requests.get(url, allow_redirects=True)
+    with open(file, &#39;wb&#39;) as f:
+        f.write(r.content)
 
 
 class PromptCompleter:
@@ -420,7 +631,57 @@ class PromptCompleter:
             results = self._traverse(tokens, self.command_tree) + [None]
             return results[state]
         except Exception as e:
-            print(e)</code></pre>
+            print(e)
+
+
+class TerminalColor:
+    PURPLE = &#39;\033[95m&#39;
+    CYAN = &#39;\033[96m&#39;
+    DARKCYAN = &#39;\033[36m&#39;
+    BLUE = &#39;\033[94m&#39;
+    GREEN = &#39;\033[92m&#39;
+    YELLOW = &#39;\033[93m&#39;
+    RED = &#39;\033[91m&#39;
+    BOLD = &#39;\033[1m&#39;
+    UNDERLINE = &#39;\033[4m&#39;
+    END = &#39;\033[0m&#39;
+
+
+def add_tabs(s, n=4):
+    return &#34;\n&#34;.join(list(map(lambda x: &#34; &#34; * n + x, s.split(&#34;\n&#34;))))
+
+
+def key_val_str(d, indent=4):
+    s = &#34;&#34;
+    for i in d:
+        s += &#34; &#34; * indent + &#34;* &#34; + i + &#34; - &#34; + d[i] + &#34;\n&#34;
+    return s
+
+
+def help_format(topic=&#34;&#34;, p_desc=&#34;&#34;, p_usage=&#34;&#34;, p_type=&#34;&#34;, p_default=&#34;&#34;, p_affects=&#34;&#34;, p_example=&#34;&#34;, p_see=&#34;&#34;):
+    ret_str = &#34;\n&#34;
+    if p_desc != &#34;&#34;:
+        ret_str += TerminalColor.BOLD + topic + &#34;\n&#34; + TerminalColor.END
+        ret_str += TerminalColor.DARKCYAN + add_tabs(p_desc) + TerminalColor.END + &#34;\n\n&#34;
+    if p_usage != &#34;&#34;:
+        ret_str += TerminalColor.BOLD + &#34;USAGE\n&#34; + TerminalColor.END
+        ret_str += TerminalColor.DARKCYAN + add_tabs(p_usage) + TerminalColor.END + &#34;\n\n&#34;
+    if p_type != &#34;&#34;:
+        ret_str += TerminalColor.BOLD + &#34;TYPE\n&#34; + TerminalColor.END
+        ret_str += TerminalColor.DARKCYAN + add_tabs(p_type) + TerminalColor.END + &#34;\n\n&#34;
+    if p_default != &#34;&#34;:
+        ret_str += TerminalColor.BOLD + &#34;DEFAULT\n&#34; + TerminalColor.END
+        ret_str += TerminalColor.DARKCYAN + add_tabs(p_default) + TerminalColor.END + &#34;\n\n&#34;
+    if p_affects != &#34;&#34;:
+        ret_str += TerminalColor.BOLD + &#34;PLOTS AFFECTS\n&#34; + TerminalColor.END
+        ret_str += TerminalColor.DARKCYAN + add_tabs(p_affects) + TerminalColor.END + &#34;\n\n&#34;
+    if p_example != &#34;&#34;:
+        ret_str += TerminalColor.BOLD + &#34;EXAMPLE(s)\n&#34; + TerminalColor.END
+        ret_str += TerminalColor.DARKCYAN + add_tabs(p_example) + TerminalColor.END + &#34;\n\n&#34;
+    if p_see != &#34;&#34;:
+        ret_str += TerminalColor.BOLD + &#34;SEE ALSO\n&#34; + TerminalColor.END
+        ret_str += TerminalColor.DARKCYAN + add_tabs(p_see) + TerminalColor.END + &#34;\n\n&#34;
+    return ret_str[:-1]</code></pre>
 </details>
 </section>
 <section>
@@ -430,6 +691,58 @@ class PromptCompleter:
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
+<dt id="cnvpytor.utils.add_tabs"><code class="name flex">
+<span>def <span class="ident">add_tabs</span></span>(<span>s, n=4)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def add_tabs(s, n=4):
+    return &#34;\n&#34;.join(list(map(lambda x: &#34; &#34; * n + x, s.split(&#34;\n&#34;))))</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.utils.adjustToEvalue"><code class="name flex">
+<span>def <span class="ident">adjustToEvalue</span></span>(<span>mean, sigma, rd, start, end, pval, max_steps=1000)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def adjustToEvalue(mean, sigma, rd, start, end, pval, max_steps=1000):
+    val = getEValue(mean, sigma, rd, start, end)
+    step = 0
+    done = False
+    while val &gt; pval and not done and step &lt; max_steps:
+        done = True
+        step += 1
+        v1, v2, v3, v4 = 1e10, 1e10, 1e10, 1e10
+        if start &gt; 0:
+            v1 = getEValue(mean, sigma, rd, start - 1, end)
+        if end - start &gt; 2:
+            v2 = getEValue(mean, sigma, rd, start + 1, end)
+            v3 = getEValue(mean, sigma, rd, start, end - 1)
+        if end &lt; len(rd):
+            v4 = getEValue(mean, sigma, rd, start, end + 1)
+        if min(v1, v2, v3, v4) &lt; val:
+            done = False
+            if v1 == min(v1, v2, v3, v4):
+                start -= 1
+                val = v1
+            elif v2 == min(v1, v2, v3, v4):
+                start += 1
+                val = v2
+            elif v3 == min(v1, v2, v3, v4):
+                end -= 1
+                val = v3
+            elif v4 == min(v1, v2, v3, v4):
+                end += 1
+                val = v4
+    if val &lt;= pval:
+        return start, end
+    return None</code></pre>
+</details>
+</dd>
 <dt id="cnvpytor.utils.beta"><code class="name flex">
 <span>def <span class="ident">beta</span></span>(<span>k, m, p, phased=False)</span>
 </code></dt>
@@ -480,6 +793,22 @@ Function is not normalized.</p>
         return 1.0 * p ** k * (1. - p) ** m
     else:
         return 1.0 * p ** k * (1. - p) ** m + 1.0 * p ** m * (1. - p) ** k</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.utils.binsize_format"><code class="name flex">
+<span>def <span class="ident">binsize_format</span></span>(<span>x)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def binsize_format(x):
+    if x &gt;= 1000000:
+        return str(x // 1000000) + &#34;M&#34;
+    elif x &gt;= 1000:
+        return str(x // 1000) + &#34;K&#34;
+    else:
+        return str(x)</code></pre>
 </details>
 </dd>
 <dt id="cnvpytor.utils.binsize_type"><code class="name flex">
@@ -578,9 +907,43 @@ Function is not normalized.</p>
     ret = []
     for r in regs:
         chr_interval = r.split(&#34;:&#34;)
-        begin_end = chr_interval[1].split(&#34;-&#34;)
-        ret.append((chr_interval[0], (decode_position(begin_end[0]), decode_position(begin_end[1]))))
+        if len(chr_interval) &gt; 1:
+            begin_end = chr_interval[1].split(&#34;-&#34;)
+            ret.append((chr_interval[0], (decode_position(begin_end[0]), decode_position(begin_end[1]))))
+        else:
+            ret.append((chr_interval[0], (1, 1000000000)))
     return ret</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.utils.download"><code class="name flex">
+<span>def <span class="ident">download</span></span>(<span>url, file)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Download resource into file</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>url</code></strong> :&ensp;<code>str</code></dt>
+<dd>Resource url</dd>
+<dt><strong><code>file</code></strong> :&ensp;<code>str</code></dt>
+<dd>Filename</dd>
+</dl></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def download(url, file):
+    &#34;&#34;&#34;
+    Download resource into file
+
+    Parameters
+    ----------
+    url : str
+        Resource url
+    file : str
+        Filename
+
+    &#34;&#34;&#34;
+    r = requests.get(url, allow_redirects=True)
+    with open(file, &#39;wb&#39;) as f:
+        f.write(r.content)</code></pre>
 </details>
 </dd>
 <dt id="cnvpytor.utils.fit_normal"><code class="name flex">
@@ -598,20 +961,47 @@ Function is not normalized.</p>
         return [0, 0, 0], None
     mean = sum(x * y) / sum(y)
     sigma = np.sqrt(sum(y * (x - mean) ** 2) / sum(y))
-    _logger.debug(&#34;%f %f %d&#34; % (mean, sigma, len(x)))
-    if sigma == 0:
-        _logger.debug(&#34;Problem with fit: sigma equals zero. Return zeros instead fit parameters!&#34;)
-        return [0, 0, 0], None
     area = sum(y[:-1] * (x[1:] - x[:-1]))
+    _logger.debug(&#34;%f %f %f %d&#34; % (area, mean, sigma, len(x)))
+    if sigma == 0:
+        _logger.debug(&#34;Problem with fit: sigma equals zero. Using mean and std instead fitting parameters!&#34;)
+        return [area, mean, sigma], None
+
+    if len(x) &lt; 3:
+        _logger.warning(&#34;Problem with fit: insufficient data points. Using mean and std instead fitting parameters!&#34;)
+        return [area, mean, sigma], None
     try:
         popt, pcov = curve_fit(normal, x, y, p0=[area, mean, sigma])
+        popt[2] = np.abs(popt[2])
+        if popt[1] &lt;= 0:
+            _logger.warning(&#34;Problem with fit: negative mean. Using mean and std instead fitting parameters!&#34;)
+            return [area, mean, sigma], None
         return popt, pcov
     except ValueError:
-        _logger.warning(&#34;Problem with fit: optimal parameters not found. Using mean and std instead!&#34;)
+        _logger.warning(&#34;Problem with fit: Value Error. Using mean and std instead fitting parameters!&#34;)
         return [area, mean, sigma], None
     except RuntimeError:
-        _logger.warning(&#34;Problem with fit: optimal parameters not found. Using mean and std instead!&#34;)
+        _logger.warning(&#34;Problem with fit: Runtime Error. Using mean and std instead fitting parameters!&#34;)
         return [area, mean, sigma], None</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.utils.gaussianEValue"><code class="name flex">
+<span>def <span class="ident">gaussianEValue</span></span>(<span>mean, sigma, rd, start, end)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def gaussianEValue(mean, sigma, rd, start, end):
+    aver = np.mean(rd[start:end])
+    max = np.max(rd[start:end])
+    min = np.min(rd[start:end])
+
+    if aver &lt; mean:
+        x = (max - mean) / (sigma * np.sqrt(2.))
+        return np.power(0.5 * (1. + erf(x)), end - start)
+    x = (min - mean) / (sigma * np.sqrt(2.))
+    return np.power(0.5 * (1. - erf(x)), end - start)</code></pre>
 </details>
 </dd>
 <dt id="cnvpytor.utils.gc_at_compress"><code class="name flex">
@@ -743,6 +1133,158 @@ Transforms #at, #gc -&gt; #at, 100-#at-#gc</p>
     his_at = his_at.sum(axis=1)
 
     return 100. * his_gc / (his_at + his_gc + 1e-10)</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.utils.getEValue"><code class="name flex">
+<span>def <span class="ident">getEValue</span></span>(<span>mean, sigma, rd, start, end)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def getEValue(mean, sigma, rd, start, end):
+    aver = np.mean(rd[start:end])
+    s = np.std(rd[start:end])
+    if s == 0:
+        s = sigma if sigma &gt; 0 else 1
+    return t_test_1_sample(mean, aver, s, end - start) / (end - start)</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.utils.help_format"><code class="name flex">
+<span>def <span class="ident">help_format</span></span>(<span>topic='', p_desc='', p_usage='', p_type='', p_default='', p_affects='', p_example='', p_see='')</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def help_format(topic=&#34;&#34;, p_desc=&#34;&#34;, p_usage=&#34;&#34;, p_type=&#34;&#34;, p_default=&#34;&#34;, p_affects=&#34;&#34;, p_example=&#34;&#34;, p_see=&#34;&#34;):
+    ret_str = &#34;\n&#34;
+    if p_desc != &#34;&#34;:
+        ret_str += TerminalColor.BOLD + topic + &#34;\n&#34; + TerminalColor.END
+        ret_str += TerminalColor.DARKCYAN + add_tabs(p_desc) + TerminalColor.END + &#34;\n\n&#34;
+    if p_usage != &#34;&#34;:
+        ret_str += TerminalColor.BOLD + &#34;USAGE\n&#34; + TerminalColor.END
+        ret_str += TerminalColor.DARKCYAN + add_tabs(p_usage) + TerminalColor.END + &#34;\n\n&#34;
+    if p_type != &#34;&#34;:
+        ret_str += TerminalColor.BOLD + &#34;TYPE\n&#34; + TerminalColor.END
+        ret_str += TerminalColor.DARKCYAN + add_tabs(p_type) + TerminalColor.END + &#34;\n\n&#34;
+    if p_default != &#34;&#34;:
+        ret_str += TerminalColor.BOLD + &#34;DEFAULT\n&#34; + TerminalColor.END
+        ret_str += TerminalColor.DARKCYAN + add_tabs(p_default) + TerminalColor.END + &#34;\n\n&#34;
+    if p_affects != &#34;&#34;:
+        ret_str += TerminalColor.BOLD + &#34;PLOTS AFFECTS\n&#34; + TerminalColor.END
+        ret_str += TerminalColor.DARKCYAN + add_tabs(p_affects) + TerminalColor.END + &#34;\n\n&#34;
+    if p_example != &#34;&#34;:
+        ret_str += TerminalColor.BOLD + &#34;EXAMPLE(s)\n&#34; + TerminalColor.END
+        ret_str += TerminalColor.DARKCYAN + add_tabs(p_example) + TerminalColor.END + &#34;\n\n&#34;
+    if p_see != &#34;&#34;:
+        ret_str += TerminalColor.BOLD + &#34;SEE ALSO\n&#34; + TerminalColor.END
+        ret_str += TerminalColor.DARKCYAN + add_tabs(p_see) + TerminalColor.END + &#34;\n\n&#34;
+    return ret_str[:-1]</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.utils.is_downloadable"><code class="name flex">
+<span>def <span class="ident">is_downloadable</span></span>(<span>url)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Returns does the url contain a downloadable resource
+Parameters</p>
+<hr>
+<dl>
+<dt><strong><code>url</code></strong> :&ensp;<code>str</code></dt>
+<dd>Resource url</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>downloadable</code></strong> :&ensp;<code>bool</code></dt>
+<dd>True if the url contain a downloadable resource</dd>
+</dl></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def is_downloadable(url):
+    &#34;&#34;&#34;
+    Returns does the url contain a downloadable resource
+    Parameters
+    ----------
+    url : str
+        Resource url
+
+    Returns
+    -------
+    downloadable : bool
+        True if the url contain a downloadable resource
+
+    &#34;&#34;&#34;
+    h = requests.head(url, allow_redirects=True)
+    header = h.headers
+    content_type = header.get(&#39;content-type&#39;)
+    if &#39;text&#39; in content_type.lower():
+        return False
+    if &#39;html&#39; in content_type.lower():
+        return False
+    return True</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.utils.key_val_str"><code class="name flex">
+<span>def <span class="ident">key_val_str</span></span>(<span>d, indent=4)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def key_val_str(d, indent=4):
+    s = &#34;&#34;
+    for i in d:
+        s += &#34; &#34; * indent + &#34;* &#34; + i + &#34; - &#34; + d[i] + &#34;\n&#34;
+    return s</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.utils.likelihood_baf_pval"><code class="name flex">
+<span>def <span class="ident">likelihood_baf_pval</span></span>(<span>likelihood)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Calculates baf level and p-value for given likelihood function.
+Parameters</p>
+<hr>
+<dl>
+<dt><strong><code>likelihood</code></strong></dt>
+<dd>&nbsp;</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>b</code></strong> :&ensp;<code>float</code></dt>
+<dd>BAF level (difference from 1/2)</dd>
+<dt><strong><code>p</code></strong> :&ensp;<code>float</code></dt>
+<dd>p-value for event different than 1/2</dd>
+</dl></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def likelihood_baf_pval(likelihood):
+    &#34;&#34;&#34;
+    Calculates baf level and p-value for given likelihood function.
+    Parameters
+    ----------
+    likelihood
+
+    Returns
+    -------
+    b : float
+        BAF level (difference from 1/2)
+    p : float
+        p-value for event different than 1/2
+
+    &#34;&#34;&#34;
+    res = likelihood.size
+    max_lh = np.amax(likelihood)
+    ix = np.where(likelihood == max_lh)[0][0]
+    if ix &gt; res // 2:
+        ix = res - 1 - ix
+    b = 1.0 * (res // 2 - ix) / (res + 1)
+
+    ix1 = (res // 2 + ix) // 2
+    ix2 = res - 1 - ix1
+    p = np.sum(likelihood[ix1:ix2]) / np.sum(likelihood)
+    return b, p</code></pre>
 </details>
 </dd>
 <dt id="cnvpytor.utils.likelihood_overlap"><code class="name flex">
@@ -881,7 +1423,7 @@ Function is not normalized.</p>
 <details class="source">
 <summary>Source code</summary>
 <pre><code class="python">def normal(x, a, x0, sigma):
-    return a * np.exp(-(x - x0) ** 2 / (2 * sigma ** 2))</code></pre>
+    return a * np.exp(-(x - x0) ** 2 / (2 * sigma ** 2)) / np.sqrt(2 * np.pi) / sigma</code></pre>
 </details>
 </dd>
 <dt id="cnvpytor.utils.normal_merge"><code class="name flex">
@@ -912,7 +1454,6 @@ Function is not normalized.</p>
     a = 1. / (2. * s1 ** 2) - 1. / (2. * s2 ** 2)
     b = m2 / (s2 ** 2) - m1 / (s1 ** 2)
     c = m1 ** 2 / (2 * s1 ** 2) - m2 ** 2 / (2 * s2 ** 2) - np.log(s2 / s1)
-    print(np.roots([a, b, c]))
     roots = sorted(np.roots([a, b, c]))
     if len(roots) == 0:
         return 1
@@ -949,7 +1490,89 @@ Function is not normalized.</p>
 <pre><code class="python">def rd_decompress(crd_p, crd_u):
     &#34;&#34;&#34; Decommpress SNP information
     &#34;&#34;&#34;
-    return np.array(crd_p), np.array(crd_p) + np.array(crd_u)</code></pre>
+    return np.array(crd_p), np.array(crd_p) - np.array(crd_u)</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.utils.segments_code"><code class="name flex">
+<span>def <span class="ident">segments_code</span></span>(<span>segments)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Convert segments to numpy array e.g. [[1,2],[3]] -&gt; [1,2,MAX,3,MAX]
+Parameters</p>
+<hr>
+<dl>
+<dt><strong><code>segments</code></strong> :&ensp;<code>list</code> of <code>list</code> of <code>int</code></dt>
+<dd>Segments e.g. [[1,2],[3]].</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>aseg</code></strong> :&ensp;<code>numpy.ndarra</code></dt>
+<dd>&nbsp;</dd>
+</dl></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def segments_code(segments):
+    &#34;&#34;&#34;
+    Convert segments to numpy array e.g. [[1,2],[3]] -&gt; [1,2,MAX,3,MAX]
+    Parameters
+    ----------
+    segments : list of list of int
+        Segments e.g. [[1,2],[3]].
+
+    Returns
+    -------
+    aseg : numpy.ndarra
+
+    &#34;&#34;&#34;
+    max = 2 ** 32 - 1
+    l = []
+    for s in segments:
+        for i in s:
+            l.append(i)
+        l.append(max)
+    return np.array(l, dtype=&#34;uint32&#34;)</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.utils.segments_decode"><code class="name flex">
+<span>def <span class="ident">segments_decode</span></span>(<span>aseg)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Decode segments.
+Parameters</p>
+<hr>
+<dl>
+<dt><strong><code>aseg</code></strong> :&ensp;<code>numpy.ndarra</code> of <code>uint32</code></dt>
+<dd>&nbsp;</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>segments</code></strong> :&ensp;<code>list</code> of <code>list</code> of <code>int</code></dt>
+<dd>&nbsp;</dd>
+</dl></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def segments_decode(aseg):
+    &#34;&#34;&#34;
+    Decode segments.
+    Parameters
+    ----------
+    aseg : numpy.ndarra of uint32
+
+    Returns
+    -------
+    segments : list of list of int
+
+    &#34;&#34;&#34;
+    max = 2 ** 32 - 1
+    segments = []
+    l = []
+    for x in list(aseg):
+        if x == max:
+            segments.append(l)
+            l = []
+        else:
+            l.append(x)
+    return segments</code></pre>
 </details>
 </dd>
 <dt id="cnvpytor.utils.snp_compress"><code class="name flex">
@@ -1019,6 +1642,40 @@ snp_qual - 8 bits</p></section>
     qual = list(snp_qual)
 
     return pos, ref, alt, nref, nalt, gt, flag, qual</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.utils.t_test_1_sample"><code class="name flex">
+<span>def <span class="ident">t_test_1_sample</span></span>(<span>mean, m, s, n)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def t_test_1_sample(mean, m, s, n):
+    if s == 0:
+        s = 1
+    t = (mean - m) / s * np.sqrt(n)
+    p = 1.0 - stats.t.cdf(np.abs(t), df=n - 1)
+    return 2 * p</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.utils.t_test_2_samples"><code class="name flex">
+<span>def <span class="ident">t_test_2_samples</span></span>(<span>m1, s1, n1, m2, s2, n2)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def t_test_2_samples(m1, s1, n1, m2, s2, n2):
+    if s1 == 0:
+        s1 = 1
+    if s2 == 0:
+        s2 = 1
+    t = (m1 - m2) / np.sqrt(s1 ** 2 / n1 + s2 ** 2 / n2)
+    df = (s1 ** 2 / n1 + s2 ** 2 / n2) ** 2 * (n1 - 1) * (n2 - 1) / (
+            s1 ** 4 * (n2 - 1) / n1 ** 2 + s2 ** 4 * (n1 - 1) / n2 ** 2)
+    p = 1.0 - stats.t.cdf(np.abs(t), df=int(df + 0.5))
+    return 2 * p</code></pre>
 </details>
 </dd>
 </dl>
@@ -1094,6 +1751,70 @@ snp_qual - 8 bits</p></section>
 </dd>
 </dl>
 </dd>
+<dt id="cnvpytor.utils.TerminalColor"><code class="flex name class">
+<span>class <span class="ident">TerminalColor</span></span>
+<span>(</span><span>*args, **kwargs)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">class TerminalColor:
+    PURPLE = &#39;\033[95m&#39;
+    CYAN = &#39;\033[96m&#39;
+    DARKCYAN = &#39;\033[36m&#39;
+    BLUE = &#39;\033[94m&#39;
+    GREEN = &#39;\033[92m&#39;
+    YELLOW = &#39;\033[93m&#39;
+    RED = &#39;\033[91m&#39;
+    BOLD = &#39;\033[1m&#39;
+    UNDERLINE = &#39;\033[4m&#39;
+    END = &#39;\033[0m&#39;</code></pre>
+</details>
+<h3>Class variables</h3>
+<dl>
+<dt id="cnvpytor.utils.TerminalColor.BLUE"><code class="name">var <span class="ident">BLUE</span></code></dt>
+<dd>
+<section class="desc"></section>
+</dd>
+<dt id="cnvpytor.utils.TerminalColor.BOLD"><code class="name">var <span class="ident">BOLD</span></code></dt>
+<dd>
+<section class="desc"></section>
+</dd>
+<dt id="cnvpytor.utils.TerminalColor.CYAN"><code class="name">var <span class="ident">CYAN</span></code></dt>
+<dd>
+<section class="desc"></section>
+</dd>
+<dt id="cnvpytor.utils.TerminalColor.DARKCYAN"><code class="name">var <span class="ident">DARKCYAN</span></code></dt>
+<dd>
+<section class="desc"></section>
+</dd>
+<dt id="cnvpytor.utils.TerminalColor.END"><code class="name">var <span class="ident">END</span></code></dt>
+<dd>
+<section class="desc"></section>
+</dd>
+<dt id="cnvpytor.utils.TerminalColor.GREEN"><code class="name">var <span class="ident">GREEN</span></code></dt>
+<dd>
+<section class="desc"></section>
+</dd>
+<dt id="cnvpytor.utils.TerminalColor.PURPLE"><code class="name">var <span class="ident">PURPLE</span></code></dt>
+<dd>
+<section class="desc"></section>
+</dd>
+<dt id="cnvpytor.utils.TerminalColor.RED"><code class="name">var <span class="ident">RED</span></code></dt>
+<dd>
+<section class="desc"></section>
+</dd>
+<dt id="cnvpytor.utils.TerminalColor.UNDERLINE"><code class="name">var <span class="ident">UNDERLINE</span></code></dt>
+<dd>
+<section class="desc"></section>
+</dd>
+<dt id="cnvpytor.utils.TerminalColor.YELLOW"><code class="name">var <span class="ident">YELLOW</span></code></dt>
+<dd>
+<section class="desc"></section>
+</dd>
+</dl>
+</dd>
 </dl>
 </section>
 </article>
@@ -1110,15 +1831,25 @@ snp_qual - 8 bits</p></section>
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
+<li><code><a title="cnvpytor.utils.add_tabs" href="#cnvpytor.utils.add_tabs">add_tabs</a></code></li>
+<li><code><a title="cnvpytor.utils.adjustToEvalue" href="#cnvpytor.utils.adjustToEvalue">adjustToEvalue</a></code></li>
 <li><code><a title="cnvpytor.utils.beta" href="#cnvpytor.utils.beta">beta</a></code></li>
+<li><code><a title="cnvpytor.utils.binsize_format" href="#cnvpytor.utils.binsize_format">binsize_format</a></code></li>
 <li><code><a title="cnvpytor.utils.binsize_type" href="#cnvpytor.utils.binsize_type">binsize_type</a></code></li>
 <li><code><a title="cnvpytor.utils.calculate_gc_correction" href="#cnvpytor.utils.calculate_gc_correction">calculate_gc_correction</a></code></li>
 <li><code><a title="cnvpytor.utils.decode_position" href="#cnvpytor.utils.decode_position">decode_position</a></code></li>
 <li><code><a title="cnvpytor.utils.decode_region" href="#cnvpytor.utils.decode_region">decode_region</a></code></li>
+<li><code><a title="cnvpytor.utils.download" href="#cnvpytor.utils.download">download</a></code></li>
 <li><code><a title="cnvpytor.utils.fit_normal" href="#cnvpytor.utils.fit_normal">fit_normal</a></code></li>
+<li><code><a title="cnvpytor.utils.gaussianEValue" href="#cnvpytor.utils.gaussianEValue">gaussianEValue</a></code></li>
 <li><code><a title="cnvpytor.utils.gc_at_compress" href="#cnvpytor.utils.gc_at_compress">gc_at_compress</a></code></li>
 <li><code><a title="cnvpytor.utils.gc_at_decompress" href="#cnvpytor.utils.gc_at_decompress">gc_at_decompress</a></code></li>
 <li><code><a title="cnvpytor.utils.gcp_decompress" href="#cnvpytor.utils.gcp_decompress">gcp_decompress</a></code></li>
+<li><code><a title="cnvpytor.utils.getEValue" href="#cnvpytor.utils.getEValue">getEValue</a></code></li>
+<li><code><a title="cnvpytor.utils.help_format" href="#cnvpytor.utils.help_format">help_format</a></code></li>
+<li><code><a title="cnvpytor.utils.is_downloadable" href="#cnvpytor.utils.is_downloadable">is_downloadable</a></code></li>
+<li><code><a title="cnvpytor.utils.key_val_str" href="#cnvpytor.utils.key_val_str">key_val_str</a></code></li>
+<li><code><a title="cnvpytor.utils.likelihood_baf_pval" href="#cnvpytor.utils.likelihood_baf_pval">likelihood_baf_pval</a></code></li>
 <li><code><a title="cnvpytor.utils.likelihood_overlap" href="#cnvpytor.utils.likelihood_overlap">likelihood_overlap</a></code></li>
 <li><code><a title="cnvpytor.utils.log_beta" href="#cnvpytor.utils.log_beta">log_beta</a></code></li>
 <li><code><a title="cnvpytor.utils.mask_compress" href="#cnvpytor.utils.mask_compress">mask_compress</a></code></li>
@@ -1128,8 +1859,12 @@ snp_qual - 8 bits</p></section>
 <li><code><a title="cnvpytor.utils.normal_overlap" href="#cnvpytor.utils.normal_overlap">normal_overlap</a></code></li>
 <li><code><a title="cnvpytor.utils.rd_compress" href="#cnvpytor.utils.rd_compress">rd_compress</a></code></li>
 <li><code><a title="cnvpytor.utils.rd_decompress" href="#cnvpytor.utils.rd_decompress">rd_decompress</a></code></li>
+<li><code><a title="cnvpytor.utils.segments_code" href="#cnvpytor.utils.segments_code">segments_code</a></code></li>
+<li><code><a title="cnvpytor.utils.segments_decode" href="#cnvpytor.utils.segments_decode">segments_decode</a></code></li>
 <li><code><a title="cnvpytor.utils.snp_compress" href="#cnvpytor.utils.snp_compress">snp_compress</a></code></li>
 <li><code><a title="cnvpytor.utils.snp_decompress" href="#cnvpytor.utils.snp_decompress">snp_decompress</a></code></li>
+<li><code><a title="cnvpytor.utils.t_test_1_sample" href="#cnvpytor.utils.t_test_1_sample">t_test_1_sample</a></code></li>
+<li><code><a title="cnvpytor.utils.t_test_2_samples" href="#cnvpytor.utils.t_test_2_samples">t_test_2_samples</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
@@ -1138,6 +1873,21 @@ snp_qual - 8 bits</p></section>
 <h4><code><a title="cnvpytor.utils.PromptCompleter" href="#cnvpytor.utils.PromptCompleter">PromptCompleter</a></code></h4>
 <ul class="">
 <li><code><a title="cnvpytor.utils.PromptCompleter.complete" href="#cnvpytor.utils.PromptCompleter.complete">complete</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="cnvpytor.utils.TerminalColor" href="#cnvpytor.utils.TerminalColor">TerminalColor</a></code></h4>
+<ul class="two-column">
+<li><code><a title="cnvpytor.utils.TerminalColor.BLUE" href="#cnvpytor.utils.TerminalColor.BLUE">BLUE</a></code></li>
+<li><code><a title="cnvpytor.utils.TerminalColor.BOLD" href="#cnvpytor.utils.TerminalColor.BOLD">BOLD</a></code></li>
+<li><code><a title="cnvpytor.utils.TerminalColor.CYAN" href="#cnvpytor.utils.TerminalColor.CYAN">CYAN</a></code></li>
+<li><code><a title="cnvpytor.utils.TerminalColor.DARKCYAN" href="#cnvpytor.utils.TerminalColor.DARKCYAN">DARKCYAN</a></code></li>
+<li><code><a title="cnvpytor.utils.TerminalColor.END" href="#cnvpytor.utils.TerminalColor.END">END</a></code></li>
+<li><code><a title="cnvpytor.utils.TerminalColor.GREEN" href="#cnvpytor.utils.TerminalColor.GREEN">GREEN</a></code></li>
+<li><code><a title="cnvpytor.utils.TerminalColor.PURPLE" href="#cnvpytor.utils.TerminalColor.PURPLE">PURPLE</a></code></li>
+<li><code><a title="cnvpytor.utils.TerminalColor.RED" href="#cnvpytor.utils.TerminalColor.RED">RED</a></code></li>
+<li><code><a title="cnvpytor.utils.TerminalColor.UNDERLINE" href="#cnvpytor.utils.TerminalColor.UNDERLINE">UNDERLINE</a></code></li>
+<li><code><a title="cnvpytor.utils.TerminalColor.YELLOW" href="#cnvpytor.utils.TerminalColor.YELLOW">YELLOW</a></code></li>
 </ul>
 </li>
 </ul>
