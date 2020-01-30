@@ -386,11 +386,11 @@ class Root:
             rdcg = np.zeros(ncg)
             rdc = np.zeros(ncg)
             for p, c1, c2 in zip(pos, nref, nalt):
-                rdcg[(p-1)//10000] += c1+c2
-                rdc[(p-1)//10000] += 1
+                rdcg[(p - 1) // 10000] += c1 + c2
+                rdc[(p - 1) // 10000] += 1
             rdcg = rdcg / rdc
             for i in range(n):
-                rd[i]= rdcg[i//100]
+                rd[i] = rdcg[i // 100]
             self.io.save_rd(c, rd, rd)
 
     def gc(self, filename, chroms=[], make_gc_genome_file=False):
@@ -1213,16 +1213,10 @@ class Root:
                         valid = np.isfinite(rd)
                         level = rd[valid]
                         error = np.sqrt(level) ** 2 + std ** 2
-                        # error = np.sqrt(level)**2
                         loc_fl = np.min(list(zip(np.abs(np.diff(level))[:-1], np.abs(np.diff(level))[1:])), axis=1)
                         loc_fl = np.concatenate(([0], loc_fl, [0]))
                         error += (loc_fl / 2) ** 2
                         error = np.sqrt(error)
-                        # plt.errorbar(np.arange(0,len(level)),level,yerr=error,c="k")
-                        # plt.errorbar(np.arange(0,len(level))+0.1,level,yerr=np.sqrt(level),c="r")
-                        # plt.errorbar(np.arange(0,len(level))+0.2,level,yerr=std,c="g")
-                        # plt.errorbar(np.arange(0,len(level))+0.3,level,yerr=loc_fl,c="b")
-                        # plt.show()
                         level = list(level)
                         error = list(error)
                         segments = [[i] for i in range(bins) if np.isfinite(rd[i])]
@@ -1305,98 +1299,19 @@ class Root:
                                 break
                             ons = len(segments)
 
-                        # while len(overlaps) > 0:
-                        #     maxo = max(overlaps)
-                        #     mino = max(maxo * odec, overlap_min)
-                        #     if maxo < overlap_min:
-                        #         break
-                        #     i = 0
-                        #     while i < len(overlaps):
-                        #         if overlaps[i] > mino:
-                        #             nl, ne = normal_merge(level[i], error[i], level[i + 1], error[i + 1])
-                        #             level[i] = nl
-                        #             error[i] = ne
-                        #             segments[i] += segments[i + 1]
-                        #             del level[i + 1]
-                        #             del error[i + 1]
-                        #             del segments[i + 1]
-                        #             del overlaps[i]
-                        #             if i < len(overlaps):
-                        #                 overlaps[i] = normal_overlap(level[i], error[i], level[i + 1], error[i + 1])
-                        #             if i > 0:
-                        #                 overlaps[i - 1] = normal_overlap(level[i - 1], error[i - 1], level[i], error[i])
-                        #         else:
-                        #             i = i + 1
-                        #
-                        #     iter = iter + 1
-                        #     if anim != "":
-                        #         anim_plot_rd(level, error, segments, bins, iter, anim + c + "_0_" + str(bin_size), maxo,
-                        #                      mino, mean)
-                        #
-                        # iter = 0
-                        # ons = -1
-                        #
-                        # _logger.info("Second stage. Number of segments: %d." % len(level))
-                        #
-                        # while True:
-                        #     overlaps = [normal_overlap(level[i], error[i], level[j], error[j]) for i in
-                        #                 range(len(level)) for j in range(i + 1, len(level)) if
-                        #                 (segments[j][0] - segments[i][-1]) < max_distance * (
-                        #                         len(segments[i]) + len(segments[j]))]
-                        #     if len(overlaps) == 0:
-                        #         break
-                        #     maxo = max(overlaps)
-                        #     mino = max(maxo * odec, overlap_min)
-                        #     if maxo < overlap_min:
-                        #         break
-                        #     i, j = 0, 1
-                        #     while i < len(segments) - 1:
-                        #
-                        #         if (segments[j][0] - segments[i][-1]) < max_distance * (
-                        #                 len(segments[i]) + len(segments[j])) and normal_overlap(level[i], error[i],
-                        #                                                                         level[j],
-                        #                                                                         error[j]) > mino:
-                        #             nl, ne = normal_merge(level[i], error[i], level[j], error[j])
-                        #             level[i] = nl
-                        #             error[i] = ne
-                        #             segments[i] += segments[j]
-                        #             segments[i] = sorted(segments[i])
-                        #             del level[j]
-                        #             del error[j]
-                        #             del segments[j]
-                        #
-                        #             if j >= len(segments):
-                        #                 i += 1
-                        #                 j = i + 1
-                        #         else:
-                        #             j += 1
-                        #             if j >= len(segments):
-                        #                 i += 1
-                        #                 j = i + 1
-                        #     iter = iter + 1
-                        #     if anim != "":
-                        #         anim_plot_rd(level, error, segments, bins, iter, anim + c + "_1_" + str(bin_size), maxo,
-                        #                      mino, mean)
-                        #     _logger.info("Iteration: %d. Number of segments: %d." % (iter, len(level)))
-                        #     if ons == len(segments):
-                        #         break
-                        #     ons = len(segments)
-
                         for i in range(len(segments)):
-                            i1=level[i]/mean
-                            i2=t_test_1_sample(mean,level[i],error[i],len(segments[i]))
-                            if i2 is not None and i2<(0.05*bin_size/3e9) and abs(i1-1.)>0.01:
+                            i1 = level[i] / mean
+                            i2 = t_test_1_sample(mean, level[i], error[i], len(segments[i]))
+                            if i2 is not None and i2 < (0.05 * bin_size / 3e9) and abs(i1 - 1.) > 0.01:
                                 print(c + ":" + str(segments[i][0] * bin_size + 1) + "-" + str(
                                     segments[i][-1] * bin_size + bin_size),
-                                    (segments[i][-1] - segments[i][0] + 1) * bin_size, bin_size, len(segments[i]),
-                            i1, i2)
+                                      (segments[i][-1] - segments[i][0] + 1) * bin_size, bin_size, len(segments[i]),
+                                      i1, i2)
 
                         self.io.create_signal(c, bin_size, "RD mosaic segments",
                                               data=segments_code(segments), flags=flag_rd)
                         self.io.create_signal(c, bin_size, "RD mosaic call",
                                               data=np.array([level, error], dtype="float32"), flags=flag_rd)
-
-                        # levels = self.io.get_signal(c, bin_size, "RD partition", flag_rd)
 
     def mask_snps(self, callset=None):
         """
@@ -1687,6 +1602,190 @@ class Root:
                                           data=segments_code(segments), flags=snp_flag)
                     self.io.create_signal(c, bin_size, "SNP likelihood call",
                                           data=np.array(likelihood, dtype="float32"), flags=snp_flag)
+
+    def call_2d(self, bin_sizes, chroms=[], use_gc_corr=True, rd_use_mask=False, snp_use_mask=True, snp_use_id=False,
+                odec=0.9, omin=None, mcount=None, max_distance=0.1, anim=""):
+        """
+        CNV caller using combined RD and BAF sigal based on likelihood merger.
+
+        Parameters
+        ----------
+        bin_sizes : list of int
+            List of histogram bin sizes
+        chroms : list of str
+            List of chromosomes. Calculates for all available if empty.
+        use_gc_corr : bool
+            Use GC corrected signal if True. Default: True.
+        rd_use_mask : bool
+            Use P-mask filter for RD if True. Default: False.
+        snp_use_mask : bool
+            Use P-mask filter for SNP if True. Default: True.
+        snp_use_id : bool
+            Use ID filter for SNP if True. Default: False.
+
+        """
+        rd_gc_chromosomes = {}
+        for c in self.io_gc.gc_chromosomes():
+            rd_name = self.io.rd_chromosome_name(c)
+            if not rd_name is None:
+                rd_gc_chromosomes[rd_name] = c
+
+        rd_mask_chromosomes = {}
+        for c in self.io_mask.mask_chromosomes():
+            rd_name = self.io.rd_chromosome_name(c)
+            if not rd_name is None:
+                rd_mask_chromosomes[rd_name] = c
+
+        for bin_size in bin_sizes:
+            if omin is None:
+                overlap_min = 0.05 * bin_size / 3e9
+            else:
+                overlap_min = omin
+            if mcount is None:
+                min_count = bin_size // 10000
+            else:
+                min_count = mcount
+
+            for c in self.io.rd_chromosomes():
+                if (c in rd_gc_chromosomes or not use_gc_corr) and (c in rd_mask_chromosomes or not use_mask) and (
+                        self.io.signal_exists(c, bin_size, "SNP likelihood", snp_flag)) and (
+                        len(chroms) == 0 or (c in chroms)):
+                    flag_stat = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
+                    flag_auto = FLAG_AUTO
+                    if use_gc_corr:
+                        flag_stat |= FLAG_GC_CORR
+                        flag_auto |= FLAG_GC_CORR
+                    flag_rd = (FLAG_GC_CORR if use_gc_corr else 0) | (FLAG_USEMASK if rd_use_mask else 0)
+                    snp_flag = (FLAG_USEMASK if snp_use_mask else 0) | (FLAG_USEID if snp_use_id else 0)
+                    if self.io.signal_exists(c, bin_size, "RD stat", flag_stat) and \
+                            self.io.signal_exists(c, bin_size, "RD", flag_rd):
+                        _logger.info("Calculating 2d calls using bin size %d for chromosome '%s'." % (bin_size, c))
+                        stat = self.io.get_signal(c, bin_size, "RD stat", flag_stat)
+                        mean = stat[4]
+                        std = stat[5]
+                        rd = self.io.get_signal(c, bin_size, "RD", flag_rd)
+                        rd_bins = len(rd)
+
+                        snp_likelihood = list(
+                            self.io.get_signal(c, bin_size, "SNP likelihood", snp_flag).astype("float64"))
+                        snp_hets = self.io.get_signal(c, bin_size, "SNP bin count 0|1", snp_flag)
+                        snp_hets += self.io.get_signal(c, bin_size, "SNP bin count 1|0", snp_flag)
+
+                        snp_bins = len(likelihood)
+                        res = likelihood[0].size
+                        bins = min(rd_bins, snp_bins)
+
+                        segments = [[i] for i in range(bins) if
+                                    snp_hets[i] >= min_count and np.sum(likelihood[i]) > 0.0 and np.isfinite(rd[i])]
+
+                        level = [rd[i] for i in range(bins) if
+                                 snp_hets[i] >= min_count and np.sum(likelihood[i]) > 0.0 and np.isfinite(rd[i])]
+                        level = np.array(level)
+                        error = np.sqrt(level) ** 2 + std ** 2
+                        loc_fl = np.min(list(zip(np.abs(np.diff(level))[:-1], np.abs(np.diff(level))[1:])), axis=1)
+                        loc_fl = np.concatenate(([0], loc_fl, [0]))
+                        error += (loc_fl / 2) ** 2
+                        error = np.sqrt(error)
+                        level = list(level)
+                        error = list(error)
+
+                        likelihood = [likelihood[i] for i in range(bins) if
+                                      snp_hets[i] >= min_count and np.sum(likelihood[i]) > 0.0 and np.isfinite(rd[i])]
+
+                        overlaps = [normal_overlap(level[i], error[i], level[i + 1], error[i + 1]) * likelihood_overlap(
+                            likelihood[i], likelihood[i + 1]) for i in range(len(segments) - 1)]
+
+                        iter = 0
+                        if anim != "":
+                            anim_plot_rd(level, error, segments, bins, iter, anim + c + "_0_" + str(bin_size), 0,
+                                         0, mean)
+
+                        while len(overlaps) > 0:
+                            maxo = max(overlaps)
+                            if maxo < overlap_min:
+                                break
+                            i = overlaps.index(maxo)
+                            nl, ne = normal_merge(level[i], error[i], level[i + 1], error[i + 1])
+                            level[i] = nl
+                            error[i] = ne
+                            segments[i] += segments[i + 1]
+                            del level[i + 1]
+                            del error[i + 1]
+                            del segments[i + 1]
+                            del overlaps[i]
+                            if i < len(overlaps):
+                                overlaps[i] = normal_overlap(level[i], error[i], level[i + 1], error[i + 1])
+                            if i > 0:
+                                overlaps[i - 1] = normal_overlap(level[i - 1], error[i - 1], level[i], error[i])
+                            iter = iter + 1
+                            if anim != "" and (iter % 100) == 0:
+                                anim_plot_rd(level, error, segments, bins, iter, anim + c + "_0_" + str(bin_size), maxo,
+                                             mino, mean)
+
+                        iter = 0
+                        ons = -1
+
+                        _logger.info("Second stage. Number of segments: %d." % len(level))
+
+                        while True:
+                            overlaps = [normal_overlap(level[i], error[i], level[j], error[j]) for i in
+                                        range(len(level)) for j in range(i + 1, len(level)) if
+                                        (segments[j][0] - segments[i][-1]) < max_distance * (
+                                                len(segments[i]) + len(segments[j]))]
+                            if len(overlaps) == 0:
+                                break
+
+                            maxo = max(overlaps)
+                            if maxo < overlap_min:
+                                break
+                            i, j = 0, 1
+                            while i < len(segments) - 1:
+
+                                if (segments[j][0] - segments[i][-1]) < max_distance * (
+                                        len(segments[i]) + len(segments[j])) and normal_overlap(level[i], error[i],
+                                                                                                level[j],
+                                                                                                error[j]) == maxo:
+                                    nl, ne = normal_merge(level[i], error[i], level[j], error[j])
+                                    level[i] = nl
+                                    error[i] = ne
+                                    segments[i] += segments[j]
+                                    segments[i] = sorted(segments[i])
+                                    del level[j]
+                                    del error[j]
+                                    del segments[j]
+
+                                    if j >= len(segments):
+                                        i += 1
+                                        j = i + 1
+                                else:
+                                    j += 1
+                                    if j >= len(segments):
+                                        i += 1
+                                        j = i + 1
+                            iter = iter + 1
+                            if anim != "" and (iter % 100) == 0:
+                                anim_plot_rd(level, error, segments, bins, iter, anim + c + "_1_" + str(bin_size), maxo,
+                                             mino, mean)
+                            _logger.info("Iteration: %d. Number of segments: %d." % (iter, len(level)))
+                            if ons == len(segments):
+                                break
+                            ons = len(segments)
+
+                        for i in range(len(segments)):
+                            i1 = level[i] / mean
+                            i2 = t_test_1_sample(mean, level[i], error[i], len(segments[i]))
+                            if i2 is not None and i2 < (0.05 * bin_size / 3e9) and abs(i1 - 1.) > 0.01:
+                                print(c + ":" + str(segments[i][0] * bin_size + 1) + "-" + str(
+                                    segments[i][-1] * bin_size + bin_size),
+                                      (segments[i][-1] - segments[i][0] + 1) * bin_size, bin_size, len(segments[i]),
+                                      i1, i2)
+
+                        self.io.create_signal(c, bin_size, "RD mosaic segments",
+                                              data=segments_code(segments), flags=flag_rd)
+                        self.io.create_signal(c, bin_size, "RD mosaic call",
+                                              data=np.array([level, error], dtype="float32"), flags=flag_rd)
+
+        return
 
     def ls(self):
         self.io.ls()

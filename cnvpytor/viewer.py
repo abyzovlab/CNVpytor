@@ -1267,6 +1267,54 @@ class Viewer(Show, ViewParams, HelpDescription):
             else:
                 plt.show()
 
+    def snp_dist(self, regions, callset=None, n_bins=100):
+        regions = regions.split(" ")
+        n = len(regions)
+        plt.clf()
+        plt.rcParams["font.size"] = 8
+        if self.grid == "auto":
+            sx, sy = self.panels_shape(n)
+        else:
+            sx, sy = tuple(self.grid)
+        self.fig = plt.figure(1, dpi=200, facecolor='w', edgecolor='k')
+        if self.output_filename != "":
+            self.fig.set_figheight(3 * sy)
+            self.fig.set_figwidth(4 * sx)
+        grid = gridspec.GridSpec(sy, sx, wspace=0.2, hspace=0.2)
+        for i in range(n):
+            ax = self.fig.add_subplot(grid[i])
+            ax.set_title(regions[i], position=(0.01, 1.07),
+                     fontdict={'verticalalignment': 'top', 'horizontalalignment': 'left'})
+            regs = decode_region(regions[i])
+            baf = []
+            for c, (pos1, pos2) in regs:
+                pos, ref, alt, nref, nalt, gt, flag, qual = self.io[self.plot_file].read_snp(c, callset=callset)
+                ix = 0
+                while ix < len(pos) and pos[ix] <= pos2:
+                    if pos[ix] >= pos1 and (nref[ix] + nalt[ix]) != 0:
+                        if gt[ix] % 4 != 2:
+                            baf.append(1.0 * nalt[ix] / (nref[ix] + nalt[ix]))
+                        else:
+                            baf.append(1.0 * nref[ix] / (nref[ix] + nalt[ix]))
+                    ix += 1
+            ax.hist(baf,bins=np.arange(0,1.0+1./(n_bins+1),1./(n_bins+1)))
+            ax.set_xlabel("VAF")
+            ax.set_ylabel("distribution")
+        if self.output_filename != "":
+            plt.savefig(self.image_filename("snp_dist"), dpi=200)
+            plt.close(self.fig)
+        elif self.interactive:
+            plt.show(block=False)
+            plt.draw()
+        else:
+            plt.show()
+
+
+
+
+
+
+
     def genotype(self, bin_sizes, region):
         regs = decode_region(region)
         for c, (pos1, pos2) in regs:
