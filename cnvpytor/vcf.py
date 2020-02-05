@@ -248,7 +248,7 @@ class Vcf:
         try:
             for rec in self.file.fetch(chr_name):
                 if (ad_tag in rec.samples[sample].keys()) and len(rec.samples[sample][ad_tag]) > 1 and (
-                        dp_tag in rec.samples[sample].keys()):
+                        dp_tag in rec.samples[sample].keys()) and (rec.samples[sample][dp_tag] is not None):
                     try:
                         rd1 = sum(map(int, rec.samples[sample][ad_tag]))
                         rd2 = int(rec.samples[sample][dp_tag])
@@ -271,13 +271,13 @@ class Vcf:
         rd_u = np.zeros(n)
         count = np.zeros(n)
         for p, rd1, rd2 in zip(pos, rd_dp, rd_ad):
-            cgb = p // 10000 * 100
+            cgb = (p - 1) // 10000 * 100
             rd_p[cgb] += rd1
             rd_u[cgb] += rd2
             count[cgb] += 1
         for i in range(n // 100 + 1):
             if (100 * i) < n:
-                if count[i] != 0:
+                if count[100 * i] != 0:
                     rd_p[i * 100:(i + 1) * 100] = rd_p[i * 100] / count[i * 100]
                     rd_u[i * 100:(i + 1) * 100] = rd_u[i * 100] / count[i * 100]
                 else:
@@ -503,25 +503,26 @@ class Vcf:
                     rd_u = np.zeros(n)
                     count = np.zeros(n)
                     for p, rd1, rd2 in zip(pos, rd_dp, rd_ad):
-                        cgb = p // 10000 * 100
+                        cgb = (p - 1) // 10000 * 100
                         rd_p[cgb] += rd1
                         rd_u[cgb] += rd2
                         count[cgb] += 1
                     for i in range(n // 10000 + 1):
                         if (100 * i) < n:
-                            if count[i] != 0:
+                            if count[100 * i] != 0:
                                 rd_p[i * 100:(i + 1) * 100] = rd_p[i * 100] / count[i * 100]
                                 rd_u[i * 100:(i + 1) * 100] = rd_u[i * 100] / count[i * 100]
                             else:
                                 rd_p[i * 100:(i + 1) * 100] = np.nan
                                 rd_u[i * 100:(i + 1) * 100] = np.nan
                     callback(last_chrom, rd_p, rd_u)
+                    pos = []
                     rd_ad = []
                     rd_dp = []
                     chr_count += 1
 
                 if (ad_tag in rec.samples[sample].keys()) and len(rec.samples[sample][ad_tag]) > 1 and (
-                        dp_tag in rec.samples[sample].keys()):
+                        dp_tag in rec.samples[sample].keys()) and (rec.samples[sample][dp_tag] is not None):
                     try:
                         rd1 = sum(map(int, rec.samples[sample][ad_tag]))
                         rd2 = int(rec.samples[sample][dp_tag])
@@ -541,13 +542,13 @@ class Vcf:
                 count = np.zeros(n)
 
                 for p, rd1, rd2 in zip(pos, rd_dp, rd_ad):
-                    cgb = p // 10000 * 100
+                    cgb = (p - 1) // 10000 * 100
                     rd_p[cgb] += rd1
                     rd_u[cgb] += rd2
                     count[cgb] += 1
                 for i in range(n // 100 + 1):
                     if (100 * i) < n:
-                        if count[100*i] != 0:
+                        if count[100 * i] != 0:
                             rd_p[i * 100:(i + 1) * 100] = rd_p[i * 100] / count[i * 100]
                             rd_u[i * 100:(i + 1) * 100] = rd_u[i * 100] / count[i * 100]
                         else:
