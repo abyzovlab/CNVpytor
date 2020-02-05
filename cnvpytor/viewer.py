@@ -218,7 +218,7 @@ class Viewer(Show, ViewParams, HelpDescription):
                 elif f[0] == "compare" and n == 4:
                     self.compare(f[1], f[2], n_bins=int(f[3]), plot=True)
                 elif f[0] == "info" and n > 1:
-                    self.info(list(map(binsize_type,f[1:])))
+                    self.info(list(map(binsize_type, f[1:])))
                 else:
                     try:
                         if f[0] not in ["rdstat", "snp"]:
@@ -536,9 +536,12 @@ class Viewer(Show, ViewParams, HelpDescription):
                         chroms.append(snp_chr)
                 else:
                     if self.io[self.plot_file].signal_exists(snp_chr, None, "somatic SNP pos", 0, name=callset) and \
-                            self.io[self.plot_file].signal_exists(snp_chr, None, "somatic SNP desc", 0, name=callset) and \
-                            self.io[self.plot_file].signal_exists(snp_chr, None, "somatic SNP counts", 0, name=callset) and \
-                            self.io[self.plot_file].signal_exists(snp_chr, None, "somatic SNP qual", 0, name=callset) and \
+                            self.io[self.plot_file].signal_exists(snp_chr, None, "somatic SNP desc", 0,
+                                                                  name=callset) and \
+                            self.io[self.plot_file].signal_exists(snp_chr, None, "somatic SNP counts", 0,
+                                                                  name=callset) and \
+                            self.io[self.plot_file].signal_exists(snp_chr, None, "somatic SNP qual", 0,
+                                                                  name=callset) and \
                             (Genome.is_autosome(c) or Genome.is_sex_chrom(c)):
                         chroms.append(snp_chr)
         sx, sy = self.panels_shape(len(chroms))
@@ -583,7 +586,6 @@ class Viewer(Show, ViewParams, HelpDescription):
             plt.draw()
         else:
             plt.show()
-
 
     @staticmethod
     def panels_shape(n):
@@ -891,14 +893,14 @@ class Viewer(Show, ViewParams, HelpDescription):
             elif panels[i] == "snv" or panels[i][:4] == "snv:":
                 callset = "default"
                 if panels[i][:4] == "snv:":
-                    callset=panels[i].split(":")[1]
+                    callset = panels[i].split(":")[1]
                 borders = []
                 hpos = []
                 baf = []
                 color = []
                 start_pos = 0
                 for c, (pos1, pos2) in r:
-                    pos, ref, alt, nref, nalt, gt, flag, qual = io.read_snp(c,callset=callset)
+                    pos, ref, alt, nref, nalt, gt, flag, qual = io.read_snp(c, callset=callset)
                     ix = 0
                     mdp = 0
                     while ix < len(pos) and pos[ix] <= pos2:
@@ -1069,7 +1071,6 @@ class Viewer(Show, ViewParams, HelpDescription):
             ax = self.fig.add_subplot(grid[i])
             io = self.io[ix[i]]
 
-
             chroms = []
             snp_flag = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0)
             rd_flag = FLAG_GC_CORR | (FLAG_USEMASK if self.rd_use_mask else 0)
@@ -1082,8 +1083,8 @@ class Viewer(Show, ViewParams, HelpDescription):
                             io.signal_exists(snp_chr, bin_size, "RD mosaic segments", rd_flag) and \
                             Genome.is_autosome(c):
                         chroms.append((snp_chr, l))
-            x=[]
-            y=[]
+            x = []
+            y = []
             for c, l in chroms:
                 flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
 
@@ -1092,15 +1093,15 @@ class Viewer(Show, ViewParams, HelpDescription):
                 rd = io.get_signal(c, bin_size, "RD mosaic call", rd_flag)
                 segments_rd = segments_decode(io.get_signal(c, bin_size, "RD mosaic segments", rd_flag))
 
-                mbaf={}
-                mrd={}
+                mbaf = {}
+                mrd = {}
                 for s, lh in zip(segments_baf, likelihood):
                     b, p = likelihood_baf_pval(lh)
                     for pos in s:
-                        mbaf[pos]=0.5-b
+                        mbaf[pos] = 0.5 - b
                 for s, r in zip(segments_rd, rd[0]):
                     for pos in s:
-                        mrd[pos]=r
+                        mrd[pos] = r
                 for p in mbaf:
                     if p in mrd:
                         x.append(mbaf[p])
@@ -1108,9 +1109,9 @@ class Viewer(Show, ViewParams, HelpDescription):
 
             if hist:
                 from matplotlib.colors import LogNorm
-                ax.hist2d(x,y,bins=[np.arange(0,0.51,0.01),np.arange(0,max(y),max(y)/100.)],norm=LogNorm())
+                ax.hist2d(x, y, bins=[np.arange(0, 0.51, 0.01), np.arange(0, max(y), max(y) / 100.)], norm=LogNorm())
             else:
-                ax.scatter(x,y,marker=".",alpha=0.5)
+                ax.scatter(x, y, marker=".", alpha=0.5)
 
         if self.output_filename != "":
             plt.savefig(self.image_filename("regions"), dpi=150)
@@ -1267,7 +1268,7 @@ class Viewer(Show, ViewParams, HelpDescription):
             else:
                 plt.show()
 
-    def snp_dist(self, regions, callset=None, n_bins=100):
+    def snp_dist(self, regions, callset=None, n_bins=100, titles=None):
         regions = regions.split(" ")
         n = len(regions)
         plt.clf()
@@ -1283,8 +1284,12 @@ class Viewer(Show, ViewParams, HelpDescription):
         grid = gridspec.GridSpec(sy, sx, wspace=0.2, hspace=0.2)
         for i in range(n):
             ax = self.fig.add_subplot(grid[i])
-            ax.set_title(regions[i], position=(0.01, 1.07),
-                     fontdict={'verticalalignment': 'top', 'horizontalalignment': 'left'})
+            if titles is None:
+                ax.set_title(regions[i], position=(0.01, 1.07),
+                             fontdict={'verticalalignment': 'top', 'horizontalalignment': 'left'})
+            else:
+                ax.set_title(titles[i], position=(0.01, 1.07),
+                             fontdict={'verticalalignment': 'top', 'horizontalalignment': 'left'})
             regs = decode_region(regions[i])
             baf = []
             for c, (pos1, pos2) in regs:
@@ -1297,7 +1302,7 @@ class Viewer(Show, ViewParams, HelpDescription):
                         else:
                             baf.append(1.0 * nref[ix] / (nref[ix] + nalt[ix]))
                     ix += 1
-            ax.hist(baf,bins=np.arange(0,1.0+1./(n_bins+1),1./(n_bins+1)))
+            ax.hist(baf, bins=np.arange(0, 1.0 + 1. / (n_bins + 1), 1. / (n_bins + 1)))
             ax.set_xlabel("VAF")
             ax.set_ylabel("distribution")
         if self.output_filename != "":
@@ -1308,12 +1313,6 @@ class Viewer(Show, ViewParams, HelpDescription):
             plt.draw()
         else:
             plt.show()
-
-
-
-
-
-
 
     def genotype(self, bin_sizes, region):
         regs = decode_region(region)

@@ -296,10 +296,26 @@ class Root:
         return hm
 
     def vcf(self, vcf_files, chroms=[], sample='', no_counts=False, ad_tag="AD", gt_tag="GT", callset=None):
-        """ Read SNP data from variant file(s) and store in .cnvnator file
-                Arguments:
-                    * list of variant file names
-                    * list of chromosome names
+        """ Read SNP data from variant file(s) and store in .cnvpytor file
+
+        Parameters
+        ----------
+        vcf_files : list of str
+            List of variant filenames
+        chroms : list of str
+            List of chromosome names
+        sample : str
+            Name of the sample. It will read first sample if empty string is provided.
+        no_counts : bool
+            Do not read AD counts if true
+        ad_tag : str
+            AD tag (default 'AD')
+        gt_tag : str
+            GT tag (default 'GT')
+        callset : str or None
+            It will assume SNP data if None. Otherwise it will assume SNV data and
+            store under the name provided by callset variable.
+
         """
         hm = 0
         for vcf_file in vcf_files:
@@ -307,6 +323,49 @@ class Root:
                                 callset=callset)
             self.io.add_meta_attribute("VCF", vcf_file)
         return hm
+
+    def rd_from_vcf(self, vcf_file, chroms=[], sample='', ad_tag="AD", dp_tag="DP", use_index=False):
+        """
+        Read RD from variant file(s) and store in .cnvpytor file
+
+        Parameters
+        ----------
+        vcf_file : str
+            Variant filename
+        chroms : list of str
+            List of chromosome names
+        sample : str
+            Name of the sample. It will read first sample if empty string is provided.
+        ad_tag : str
+            AD tag (default 'AD')
+        dp_tag : str
+            DP tag (default 'DP')
+
+        """
+        vcff = Vcf(vcf_file)
+        chrs = [c for c in vcff.get_chromosomes() if len(chroms) == 0 or c in chroms]
+
+        def save_data(chr, rd_p, rd_u):
+            if (len(chroms) == 0 or chr in chroms) and (not rd_p is None) and (len(rd_p) > 0):
+                self.io.save_rd(chr, rd_p, rd_u, chromosome_length=vcff.lengths[chr])
+            # TODO: Stop reading if all from chrom list are read.
+
+        if use_index:
+            count = 0
+            for c in chrs:
+                _logger.info("Reading variant data for chromosome %s" % c)
+
+                rd_p, rd_u = vcff.read_chromosome_rd(c, sample, ad_tag=ad_tag, dp_tag=dp_tag)
+                if not rd_p is None and len(rd_p) > 0:
+                    self.io.save_rd(chr, rd_p, rd_u, chromosome_length=vcff.lengths[chr])
+                    count += 1
+            self.io.add_meta_attribute("RD from VCF", vcf_file)
+            return count
+        else:
+            count = vcff.read_all_rd(save_data, sample, ad_tag=ad_tag, dp_tag=dp_tag)
+            self.io.add_meta_attribute("RD from VCF", vcf_file)
+            return count
+
 
     def pileup_bam(self, bamfile, chroms, pos, ref, alt, nref, nalt, reference_filename):
         """
