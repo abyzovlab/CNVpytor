@@ -292,6 +292,10 @@ def main():
                 app.call_mosaic(list(map(binsize_type, args.call[1:])), chroms=args.chrom,
                                 use_gc_corr=not args.no_gc_corr,
                                 use_mask=args.use_mask_with_rd, anim=args.animation)
+            elif args.call[0] == "combined":
+                app.call_2d(list(map(binsize_type, args.call[1:])), chroms=args.chrom, use_gc_corr=not args.no_gc_corr,
+                            rd_use_mask=args.use_mask_with_rd, snp_use_mask=not args.no_mask, snp_use_id=args.use_id,
+                            anim=args.animation)
             else:
                 app.call(list(map(binsize_type, args.call)), chroms=args.chrom, use_gc_corr=not args.no_gc_corr,
                          use_mask=args.use_mask_with_rd)

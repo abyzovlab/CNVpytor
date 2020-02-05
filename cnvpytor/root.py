@@ -366,7 +366,6 @@ class Root:
             self.io.add_meta_attribute("RD from VCF", vcf_file)
             return count
 
-
     def pileup_bam(self, bamfile, chroms, pos, ref, alt, nref, nalt, reference_filename):
         """
         TODO:
@@ -1683,6 +1682,8 @@ class Root:
             Use ID filter for SNP if True. Default: False.
 
         """
+
+        snp_flag = (FLAG_USEMASK if snp_use_mask else 0) | (FLAG_USEID if snp_use_id else 0)
         rd_gc_chromosomes = {}
         for c in self.io_gc.gc_chromosomes():
             rd_name = self.io.rd_chromosome_name(c)
@@ -1706,7 +1707,7 @@ class Root:
                 min_count = mcount
 
             for c in self.io.rd_chromosomes():
-                if (c in rd_gc_chromosomes or not use_gc_corr) and (c in rd_mask_chromosomes or not use_mask) and (
+                if (c in rd_gc_chromosomes or not use_gc_corr) and (c in rd_mask_chromosomes or not rd_use_mask) and (
                         self.io.signal_exists(c, bin_size, "SNP likelihood", snp_flag)) and (
                         len(chroms) == 0 or (c in chroms)):
                     flag_stat = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
@@ -1715,7 +1716,6 @@ class Root:
                         flag_stat |= FLAG_GC_CORR
                         flag_auto |= FLAG_GC_CORR
                     flag_rd = (FLAG_GC_CORR if use_gc_corr else 0) | (FLAG_USEMASK if rd_use_mask else 0)
-                    snp_flag = (FLAG_USEMASK if snp_use_mask else 0) | (FLAG_USEID if snp_use_id else 0)
                     if self.io.signal_exists(c, bin_size, "RD stat", flag_stat) and \
                             self.io.signal_exists(c, bin_size, "RD", flag_rd):
                         _logger.info("Calculating 2d calls using bin size %d for chromosome '%s'." % (bin_size, c))
@@ -1730,16 +1730,17 @@ class Root:
                         snp_hets = self.io.get_signal(c, bin_size, "SNP bin count 0|1", snp_flag)
                         snp_hets += self.io.get_signal(c, bin_size, "SNP bin count 1|0", snp_flag)
 
-                        snp_bins = len(likelihood)
-                        res = likelihood[0].size
+                        snp_bins = len(snp_likelihood)
+                        res = snp_likelihood[0].size
                         bins = min(rd_bins, snp_bins)
 
                         segments = [[i] for i in range(bins) if
-                                    snp_hets[i] >= min_count and np.sum(likelihood[i]) > 0.0 and np.isfinite(rd[i])]
+                                    snp_hets[i] >= min_count and np.sum(snp_likelihood[i]) > 0.0 and np.isfinite(rd[i])]
 
                         level = [rd[i] for i in range(bins) if
-                                 snp_hets[i] >= min_count and np.sum(likelihood[i]) > 0.0 and np.isfinite(rd[i])]
+                                 snp_hets[i] >= min_count and np.sum(snp_likelihood[i]) > 0.0 and np.isfinite(rd[i])]
                         level = np.array(level)
+                        ilevel = level.copy()
                         error = np.sqrt(level) ** 2 + std ** 2
                         loc_fl = np.min(list(zip(np.abs(np.diff(level))[:-1], np.abs(np.diff(level))[1:])), axis=1)
                         loc_fl = np.concatenate(([0], loc_fl, [0]))
@@ -1748,8 +1749,9 @@ class Root:
                         level = list(level)
                         error = list(error)
 
-                        likelihood = [likelihood[i] for i in range(bins) if
-                                      snp_hets[i] >= min_count and np.sum(likelihood[i]) > 0.0 and np.isfinite(rd[i])]
+                        likelihood = [snp_likelihood[i] for i in range(bins) if
+                                      snp_hets[i] >= min_count and np.sum(snp_likelihood[i]) > 0.0 and np.isfinite(
+                                          rd[i])]
 
                         overlaps = [normal_overlap(level[i], error[i], level[i + 1], error[i + 1]) * likelihood_overlap(
                             likelihood[i], likelihood[i + 1]) for i in range(len(segments) - 1)]
@@ -1765,17 +1767,24 @@ class Root:
                                 break
                             i = overlaps.index(maxo)
                             nl, ne = normal_merge(level[i], error[i], level[i + 1], error[i + 1])
+                            nlh = likelihood[i] * likelihood[i + 1]
                             level[i] = nl
                             error[i] = ne
+                            likelihood[i] = nlh / np.sum(nlh)
                             segments[i] += segments[i + 1]
                             del level[i + 1]
                             del error[i + 1]
                             del segments[i + 1]
+                            del likelihood[i + 1]
                             del overlaps[i]
                             if i < len(overlaps):
-                                overlaps[i] = normal_overlap(level[i], error[i], level[i + 1], error[i + 1])
+                                overlaps[i] = normal_overlap(level[i], error[i], level[i + 1],
+                                                             error[i + 1]) * likelihood_overlap(likelihood[i],
+                                                                                                likelihood[i + 1])
                             if i > 0:
-                                overlaps[i - 1] = normal_overlap(level[i - 1], error[i - 1], level[i], error[i])
+                                overlaps[i - 1] = normal_overlap(level[i - 1], error[i - 1], level[i],
+                                                                 error[i]) * likelihood_overlap(likelihood[i - 1],
+                                                                                                likelihood[i])
                             iter = iter + 1
                             if anim != "" and (iter % 100) == 0:
                                 anim_plot_rd(level, error, segments, bins, iter, anim + c + "_0_" + str(bin_size), maxo,
@@ -1787,8 +1796,9 @@ class Root:
                         _logger.info("Second stage. Number of segments: %d." % len(level))
 
                         while True:
-                            overlaps = [normal_overlap(level[i], error[i], level[j], error[j]) for i in
-                                        range(len(level)) for j in range(i + 1, len(level)) if
+                            overlaps = [normal_overlap(level[i], error[i], level[j], error[j]) * likelihood_overlap(
+                                likelihood[i], likelihood[j]) for i in range(len(level)) for j in
+                                        range(i + 1, len(level)) if
                                         (segments[j][0] - segments[i][-1]) < max_distance * (
                                                 len(segments[i]) + len(segments[j]))]
                             if len(overlaps) == 0:
@@ -1801,12 +1811,14 @@ class Root:
                             while i < len(segments) - 1:
 
                                 if (segments[j][0] - segments[i][-1]) < max_distance * (
-                                        len(segments[i]) + len(segments[j])) and normal_overlap(level[i], error[i],
-                                                                                                level[j],
-                                                                                                error[j]) == maxo:
+                                        len(segments[i]) + len(segments[j])) and \
+                                        normal_overlap(level[i], error[i], level[j], error[j]) * likelihood_overlap(
+                                        likelihood[i], likelihood[j]) == maxo:
                                     nl, ne = normal_merge(level[i], error[i], level[j], error[j])
+                                    nlh = likelihood[i] * likelihood[j]
                                     level[i] = nl
                                     error[i] = ne
+                                    likelihood[i] = nlh / np.sum(nlh)
                                     segments[i] += segments[j]
                                     segments[i] = sorted(segments[i])
                                     del level[j]
@@ -1830,19 +1842,31 @@ class Root:
                                 break
                             ons = len(segments)
 
+                        # rd = [np.nan] * bins
+                        # for i in range(len(segments)):
+                        #     for b in segments[i]:
+                        #         rd[b] = level[i]
+                        # plt.plot(rd)
+                        # plt.show()
+                        # return
+
                         for i in range(len(segments)):
-                            i1 = level[i] / mean
-                            i2 = t_test_1_sample(mean, level[i], error[i], len(segments[i]))
-                            if i2 is not None and i2 < (0.05 * bin_size / 3e9) and abs(i1 - 1.) > 0.01:
-                                print(c + ":" + str(segments[i][0] * bin_size + 1) + "-" + str(
+                            rd_mean = level[i] / mean
+                            rd_p = t_test_1_sample(mean, level[i], error[i], len(segments[i]))
+                            baf_mean, baf_p = likelihood_baf_pval(likelihood[i])
+                            print(c + ":" + str(segments[i][0] * bin_size + 1) + "-" + str(
                                     segments[i][-1] * bin_size + bin_size),
                                       (segments[i][-1] - segments[i][0] + 1) * bin_size, bin_size, len(segments[i]),
-                                      i1, i2)
+                                      rd_mean, rd_p, baf_mean, baf_p)
 
                         self.io.create_signal(c, bin_size, "RD mosaic segments",
                                               data=segments_code(segments), flags=flag_rd)
                         self.io.create_signal(c, bin_size, "RD mosaic call",
                                               data=np.array([level, error], dtype="float32"), flags=flag_rd)
+                        self.io.create_signal(c, bin_size, "SNP likelihood segments",
+                                              data=segments_code(segments), flags=snp_flag)
+                        self.io.create_signal(c, bin_size, "SNP likelihood call",
+                                              data=np.array(likelihood, dtype="float32"), flags=snp_flag)
 
         return
 

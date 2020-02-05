@@ -507,11 +507,11 @@ class Vcf:
                         rd_p[cgb] += rd1
                         rd_u[cgb] += rd2
                         count[cgb] += 1
-                    for i in range(n // 10000 + 1):
+                    for i in range(n // 100 + 1):
                         if (100 * i) < n:
                             if count[100 * i] != 0:
-                                rd_p[i * 100:(i + 1) * 100] = rd_p[i * 100] / count[i * 100]
-                                rd_u[i * 100:(i + 1) * 100] = rd_u[i * 100] / count[i * 100]
+                                rd_p[i * 100 :(i + 1) * 100] = rd_p[i * 100] / count[i * 100]
+                                rd_u[i * 100 :(i + 1) * 100] = rd_u[i * 100] / count[i * 100]
                             else:
                                 rd_p[i * 100:(i + 1) * 100] = np.nan
                                 rd_u[i * 100:(i + 1) * 100] = np.nan
