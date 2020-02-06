@@ -160,7 +160,7 @@ def main():
                 if len(dir_name_list) > 0:
                     dir_name = dir_name_list[0]
                 if args.export[0] == 'jbrowse':
-                    export_j = ExportJbrowse(args.root[0], dir_name)
+                    export_j = ExportJbrowse(args.root, dir_name)
                     export_j.create_reference_json()
                     export_j.rd_signal()
                     export_j.snp_signal()

@@ -1,4 +1,3 @@
-
 import json
 from pathlib import Path
 from .io import *
@@ -95,7 +94,7 @@ class ExportJbrowse:
             "color": ["red", "red"],
             "nonCont": [True, True],
             "offset": [0.5, -0.5]
-        }
+        },
     }
 
     signal_dct = {
@@ -109,47 +108,71 @@ class ExportJbrowse:
 
     }
 
-    def __init__(self, file, dir_name):
-        self.filename = file
-        self.dir = dir_name
-        self.io = IO(file, ro=True)
+    def __init__(self, files, dir_name):
+        self.files = files
+        self.dir = Path(dir_name)
+        self.io = [IO(f, ro=True) for f in files]
+        self.export_dir = self.export_create_dir()
 
     @property
-    def pytor_name(self):
-        root_filename = Path(self.filename).resolve().stem
-        return root_filename
+    def pytor_names(self):
+        name_list = []
+        for filename in self.files:
+            name_list.append(Path(filename).resolve().stem)
+        return name_list
 
     @property
     def export_directory(self):
-        main_dir_name = "jbrowse_{}".format(self.pytor_name)
-        return main_dir_name
+        if self.dir.is_dir():
+            if len(self.files) > 1:
+                # for multiple input file
+                default_name = self.dir.joinpath("cnvpytor_jbrowse_export")
 
-    @property
-    def export_main_dir(self):
-        main_dir = Path(self.dir).joinpath(self.export_directory)
+            else:
+                # for single_input_file
+                default_name = self.dir.joinpath("jbrowse_{}".format(self.pytor_names[0]))
+
+            if default_name.exists():
+                tmp_name = default_name
+                i = 1
+                while default_name.exists():
+                    update_name = "{}({})".format(tmp_name.name, i)
+                    default_name = default_name.with_name(update_name)
+                    i = i+1
+            return default_name
+        else:
+            if self.dir.parent.exists():
+                return self.dir
+            else:
+                _logger.error("Error: incorrect export path: {}".format(self.dir))
+                exit(0)
+
+    def export_create_dir(self):
+        main_dir = self.export_directory
         main_dir.mkdir(parents=True, exist_ok=True)
+        _logger.info("CNVpytor data exporting for jbrowse view in {}".format(main_dir))
         return main_dir
 
     @property
-    def export_data_dir(self):
-        data_dir = self.export_main_dir.joinpath("bw")
+    def export_data_dir_list(self):
+        data_dir = self.export_dir.joinpath("bw")
         data_dir.mkdir(parents=True, exist_ok=True)
-        return data_dir
+        data_dir_list = []
+        for root_name in self.pytor_names:
+            root_data = data_dir.joinpath(root_name)
+            root_data.mkdir(parents=True, exist_ok=True)
+            data_dir_list.append(root_data)
+        return data_dir_list
 
     @property
     def export_seq_dir(self):
-        seq_dir = self.export_main_dir.joinpath("seq")
+        seq_dir = self.export_dir.joinpath("seq")
         seq_dir.mkdir(parents=True, exist_ok=True)
         return seq_dir
 
     @property
     def export_tracklist_file(self):
-        track_list = self.export_main_dir.joinpath("trackList.json")
-        return track_list
-
-    @property
-    def export_tracks_file(self):
-        track_list = self.export_main_dir.joinpath("tracks.conf")
+        track_list = self.export_dir.joinpath("trackList.json")
         return track_list
 
     @property
@@ -168,8 +191,8 @@ class ExportJbrowse:
         else:
             return None
 
-    def rd_chr_bin(self):
-        chr_bs = self.io.chromosomes_bin_sizes_with_signal("RD")
+    def rd_chr_bin(self, root_io):
+        chr_bs = root_io.chromosomes_bin_sizes_with_signal("RD")
         chrs = {}
         bss = []
         for c, b in chr_bs:
@@ -180,8 +203,8 @@ class ExportJbrowse:
                 bss.append(int(b))
         return chrs, bss
 
-    def snp_chr_bin(self):
-        chr_bs = self.io.chromosomes_bin_sizes_with_signal("SNP likelihood", FLAG_USEMASK)
+    def snp_chr_bin(self, root_io):
+        chr_bs = root_io.chromosomes_bin_sizes_with_signal("SNP likelihood", FLAG_USEMASK)
         chrs = {}
         bss = []
         for c, b in chr_bs:
@@ -194,53 +217,59 @@ class ExportJbrowse:
 
     def rd_signal(self):
         _logger.debug("Create Read depth related signals")
-        rd_chr, rd_bin = self.rd_chr_bin()
+        for root_index, root_io in enumerate(self.io):
+            _logger.info("Jbrowse: RD related data for {}".format(self.pytor_names[root_index]))
+            rd_chr, rd_bin = self.rd_chr_bin(root_io)
 
-        # get chr list
-        chr_len = self.io.get_signal(None, None, "chromosome lengths")
-        chr_list = list(zip(chr_len[::2].astype(str), chr_len[1::2].astype(int)))
+            # get chr list
+            chr_len = root_io.get_signal(None, None, "chromosome lengths")
+            chr_list = list(zip(chr_len[::2].astype(str), chr_len[1::2].astype(int)))
 
-        for signal_name, signal_dct in self.rd_signal_dct.items():
-            for index, flag in enumerate(signal_dct['FLAG']):
-                for bin_size in rd_bin:
-                    signal = self.signal_name(bin_size, signal_name, flag)
-                    bigwig_filename = "{}.bw".format(signal)
-                    bigwig_file = self.export_data_dir.joinpath(bigwig_filename)
-                    bigwig_file = str(bigwig_file)
+            for signal_name, signal_dct in self.rd_signal_dct.items():
+                for index, flag in enumerate(signal_dct['FLAG']):
+                    for bin_size in rd_bin:
+                        signal = self.signal_name(bin_size, signal_name, flag)
+                        bigwig_filename = "{}.bw".format(signal)
+                        bigwig_file = self.export_data_dir_list[root_index].joinpath(bigwig_filename)
+                        bigwig_file = str(bigwig_file)
 
-                    wig = Wiggle(bigwig_file)
-                    wig.create_wig(self.io, chr_list, bin_size, signal_name, flag)
+                        wig = Wiggle(bigwig_file)
+                        wig.create_wig(root_io, chr_list, bin_size, signal_name, flag)
 
     def snp_signal(self):
         _logger.debug("Create SNP related signals")
-        snp_chr, snp_bin = self.snp_chr_bin()
+        for root_index, root_io in enumerate(self.io):
+            _logger.info("Jbrowse: SNP related data for {}".format(self.pytor_names[root_index]))
+            snp_chr, snp_bin = self.snp_chr_bin(root_io)
 
-        # get chr list
-        chr_len = self.io.get_signal(None, None, "chromosome lengths")
-        chr_list = list(zip(chr_len[::2].astype(str), chr_len[1::2].astype(int)))
+            # get chr list
+            chr_len = root_io.get_signal(None, None, "chromosome lengths")
+            chr_list = list(zip(chr_len[::2].astype(str), chr_len[1::2].astype(int)))
 
-        for signal_name, signal_dct in self.snp_signal_dct.items():
-            for index, flag in enumerate(signal_dct['FLAG']):
-                if "offset" in signal_dct:
-                    offset = signal_dct['offset'][index]
-                    for bin_size in snp_bin:
-                        signal = self.signal_name(bin_size, signal_name, flag)
+            for signal_name, signal_dct in self.snp_signal_dct.items():
+                for index, flag in enumerate(signal_dct['FLAG']):
+                    if "offset" in signal_dct:
+                        offset = signal_dct['offset'][index]
+                        for bin_size in snp_bin:
+                            signal = self.signal_name(bin_size, signal_name, flag)
 
-                        bigwig_filename = "{}_offset{}.bw".format(signal, offset)
-                        bigwig_file = self.export_data_dir.joinpath(bigwig_filename)
-                        bigwig_file = str(bigwig_file)
-                        wig = Wiggle(bigwig_file)
-                        wig.create_wig_offset_transform(self.io, chr_list, bin_size, signal_name, flag, offset)
+                            bigwig_filename = "{}_offset{}.bw".format(signal, offset)
 
-                else:
-                    for bin_size in snp_bin:
-                        signal = self.signal_name(bin_size, signal_name, flag)
-                        bigwig_filename = "{}.bw".format(signal)
-                        bigwig_file = self.export_data_dir.joinpath(bigwig_filename)
-                        bigwig_file = str(bigwig_file)
+                            bigwig_file = self.export_data_dir_list[root_index].joinpath(bigwig_filename)
+                            bigwig_file = str(bigwig_file)
 
-                        wig = Wiggle(bigwig_file)
-                        wig.create_wig(self.io, chr_list, bin_size, signal_name, flag)
+                            wig = Wiggle(bigwig_file)
+                            wig.create_wig_offset_transform(root_io, chr_list, bin_size, signal_name, flag, offset)
+
+                    else:
+                        for bin_size in snp_bin:
+                            signal = self.signal_name(bin_size, signal_name, flag)
+                            bigwig_filename = "{}.bw".format(signal)
+                            bigwig_file = self.export_data_dir_list[root_index].joinpath(bigwig_filename)
+                            bigwig_file = str(bigwig_file)
+
+                            wig = Wiggle(bigwig_file)
+                            wig.create_wig(root_io, chr_list, bin_size, signal_name, flag)
 
     @staticmethod
     def add_config_reference():
@@ -259,99 +288,111 @@ class ExportJbrowse:
 
     def add_rd_config_track(self):
         _logger.debug("Get RD config track")
-        rd_chr, rd_bin = self.rd_chr_bin()
-        url_template_dct = []
-        for signal_name, signal_dct in self.rd_signal_dct.items():
-            if 'FLAG' in signal_dct:
-                for index, flag in enumerate(signal_dct['FLAG']):
-                    suffix_rd_flag = Signals.suffix_rd_flag(flag)
-                    signal_id = "{}{}".format(signal_name, suffix_rd_flag)
-                    scales = {}
-                    for bin_size in rd_bin:
-                        signal = self.signal_name(bin_size, signal_name, flag)
-                        bigwig_filename = "{}.bw".format(signal)
-                        bigwig_file = self.export_data_dir.joinpath(bigwig_filename)
-                        bigwig_current_path = Path(bigwig_file.parent.name).joinpath(bigwig_file.name).as_posix()
-                        scales[bin_size] = bigwig_current_path
+        track_dct_list = []
+        for root_index, root_io in enumerate(self.io):
+            rd_chr, rd_bin = self.rd_chr_bin(root_io)
+            url_template_dct = []
+            for signal_name, signal_dct in self.rd_signal_dct.items():
+                if 'FLAG' in signal_dct:
+                    for index, flag in enumerate(signal_dct['FLAG']):
+                        suffix_rd_flag = Signals.suffix_rd_flag(flag)
+                        signal_id = "{}_{}{}".format(self.pytor_names[root_index], signal_name, suffix_rd_flag)
+                        scales = {}
+                        for bin_size in rd_bin:
+                            signal = self.signal_name(bin_size, signal_name, flag)
+                            bigwig_filename = "{}.bw".format(signal)
+                            bigwig_file = self.export_data_dir_list[root_index].joinpath(bigwig_filename)
+                            bigwig_current_path = Path(bigwig_file.parent.parent.name).joinpath(bigwig_file.parent.name, bigwig_file.name).as_posix()
+                            scales[bin_size] = bigwig_current_path
 
-                    url_template_dct.append({
-                        "storeClass": "MultiScaleBigWig/Store/SeqFeature/MultiScaleBigWig",
-                        "scales": scales,
-                        "name": signal_id,
-                        "color": signal_dct['color'][index]
-                    })
+                        url_template_dct.append({
+                            "storeClass": "MultiScaleBigWig/Store/SeqFeature/MultiScaleBigWig",
+                            "scales": scales,
+                            "name": signal_id,
+                            "color": signal_dct['color'][index]
+                        })
 
-        track_dct = self.add_config_reference()
+            track_dct = {
+                "category": self.pytor_names[root_index],
+                'autoscale': 'local',
+                "storeClass": "MultiBigWig/Store/SeqFeature/MultiBigWig",
+                "showTooltips": True,
+                "showLabels": True,
+                "clickTooltips": True,
+                "label": "RD {}".format(self.pytor_names[root_index]),
+                "type": "MultiBigWig/View/Track/MultiWiggle/MultiXYPlot",
+                'urlTemplates': url_template_dct
 
-        track_dct['tracks'].append({
-            "category": self.pytor_name,
-            'autoscale': 'local',
-            "storeClass": "MultiBigWig/Store/SeqFeature/MultiBigWig",
-            "showTooltips": True,
-            "showLabels": True,
-            "clickTooltips": True,
-            "label": "RD",
-            "type": "MultiBigWig/View/Track/MultiWiggle/MultiXYPlot",
-            'urlTemplates': url_template_dct
-        })
-        return track_dct
+            }
+            track_dct_list.append(track_dct)
+        return track_dct_list
 
     def add_snp_config_track(self):
         _logger.debug("Get SNP config track info")
-        snp_url_dct_list = []
-        snp_chr, snp_bin = self.snp_chr_bin()
-        for signal_name, signal_dct in self.snp_signal_dct.items():
-            for index, flag in enumerate(signal_dct['FLAG']):
-                suffix_flag = Signals.suffix_snp_flag(flag)
-                scales = {}
-                if "offset" in signal_dct:
-                    offset = signal_dct['offset'][index]
-                    signal_id = "{}{}{}".format(signal_name, suffix_flag, offset)
-                    for bin_size in snp_bin:
-                        signal = self.signal_name(bin_size, signal_name, flag)
-                        bigwig_filename = "{}_offset{}.bw".format(signal, offset)
-                        bigwig_file = self.export_data_dir.joinpath(bigwig_filename)
-                        bigwig_current_path = Path(bigwig_file.parent.name).joinpath(bigwig_file.name).as_posix()
-                        scales[bin_size] = bigwig_current_path
-                else:
-                    signal_id = "{}{}".format(signal_name, suffix_flag)
-                    for bin_size in snp_bin:
-                        signal = self.signal_name(bin_size, signal_name, flag)
-                        bigwig_filename = "{}.bw".format(signal)
-                        bigwig_file = self.export_data_dir.joinpath(bigwig_filename)
-                        bigwig_current_path = Path(bigwig_file.parent.name).joinpath(bigwig_file.name).as_posix()
-                        scales[bin_size] = bigwig_current_path
+        track_dct_list = []
+        for root_index, root_io in enumerate(self.io):
+            snp_url_dct_list = []
+            snp_chr, snp_bin = self.snp_chr_bin(root_io)
+            for signal_name, signal_dct in self.snp_signal_dct.items():
+                for index, flag in enumerate(signal_dct['FLAG']):
+                    suffix_flag = Signals.suffix_snp_flag(flag)
+                    scales = {}
+                    if "offset" in signal_dct:
+                        offset = signal_dct['offset'][index]
+                        signal_id = "{}{}{}".format(signal_name, suffix_flag, offset)
+                        for bin_size in snp_bin:
+                            signal = self.signal_name(bin_size, signal_name, flag)
+                            bigwig_filename = "{}_offset{}.bw".format(signal, offset)
+                            bigwig_file = self.export_data_dir_list[root_index].joinpath(bigwig_filename)
+                            bigwig_current_path = Path(bigwig_file.parent.parent.name).joinpath(bigwig_file.parent.name, bigwig_file.name).as_posix()
+                            scales[bin_size] = bigwig_current_path
+                    else:
+                        signal_id = "{}{}".format(signal_name, suffix_flag)
+                        for bin_size in snp_bin:
+                            signal = self.signal_name(bin_size, signal_name, flag)
+                            bigwig_filename = "{}.bw".format(signal)
+                            bigwig_file = self.export_data_dir_list[root_index].joinpath(bigwig_filename)
+                            bigwig_current_path = Path(bigwig_file.parent.parent.name).joinpath(bigwig_file.parent.name, bigwig_file.name).as_posix()
+                            scales[bin_size] = bigwig_current_path
 
-                snp_url_dct_list.append({
-                    "storeClass": "MultiScaleBigWig/Store/SeqFeature/MultiScaleBigWig",
-                    "scales": scales,
-                    "name": signal_id,
-                    "color": signal_dct['color'][index],
-                    "nonCont": signal_dct['nonCont'][index]
-                })
-        track_dct = {
-            "category": self.pytor_name,
-            'autoscale': 'local',
-            "storeClass": "MultiBigWig/Store/SeqFeature/MultiBigWig",
-            "showTooltips": True,
-            "showLabels": True,
-            "clickTooltips": True,
-            "max_score": 1,
-            "label": "SNP",
-            "type": "MultiBigWig/View/Track/MultiWiggle/MultiXYPlot",
-            'urlTemplates': snp_url_dct_list,
-        }
-        return track_dct
+                    snp_url_dct_list.append({
+                        "storeClass": "MultiScaleBigWig/Store/SeqFeature/MultiScaleBigWig",
+                        "scales": scales,
+                        "name": signal_id,
+                        "color": signal_dct['color'][index],
+                        "nonCont": signal_dct['nonCont'][index]
+                    })
+
+            track_dct = {
+                "category": self.pytor_names[root_index],
+                'autoscale': 'local',
+                "storeClass": "MultiBigWig/Store/SeqFeature/MultiBigWig",
+                "showTooltips": True,
+                "showLabels": True,
+                "clickTooltips": True,
+                "max_score": 1,
+                "label": "SNP {}".format(self.pytor_names[root_index]),
+                "type": "MultiBigWig/View/Track/MultiWiggle/MultiXYPlot",
+                'urlTemplates': snp_url_dct_list,
+            }
+            track_dct_list.append(track_dct)
+        return track_dct_list
 
     def create_tracklist_json(self):
         _logger.debug("Creates config file: {}".format(self.export_tracklist_file))
 
+        # reference config
+        track_dct = self.add_config_reference()
+
         # create rd config
-        track_dct = self.add_rd_config_track()
+        rd_track_list = self.add_rd_config_track()
+        for rd_track in rd_track_list:
+            track_dct['tracks'].append(rd_track)
 
         # create SNP config
-        snp_track = self.add_snp_config_track()
-        track_dct['tracks'].append(snp_track)
+        snp_track_list = self.add_snp_config_track()
+        for snp_track in snp_track_list:
+            track_dct['tracks'].append(snp_track)
 
         with open(self.export_tracklist_file, 'w') as f:
             json.dump(track_dct, f, indent=2)
@@ -360,7 +401,7 @@ class ExportJbrowse:
     def create_reference_json(self):
         _logger.debug("Exporting reference details")
         # get signal details
-        chr_len = list(np.array(self.io.get_signal(None, None, "chromosome lengths")).astype("str"))
+        chr_len = list(np.array(self.io[0].get_signal(None, None, "chromosome lengths")).astype("str"))
         chr_dct = dict(zip(chr_len[::2], chr_len[1::2]))
 
         # create signal list in proper format
@@ -374,6 +415,7 @@ class ExportJbrowse:
             json.dump(chr_dct_list, f, indent=2)
 
     def __del__(self):
-        _logger.info("Export to: {}".format(self.export_main_dir))
-        _logger.info("Copy this directory to jbrowse directory if export path is not set to jbrowse path")
-        _logger.info("To access this via localhost: http://localhost/jbrowse/?data={}".format(self.export_directory))
+
+        _logger.info("Jbrowse: complete")
+        _logger.info("Copy this directory to jbrowse directory if export path is not set to jbrowse path, "
+                     "To access this via localhost: http://localhost/jbrowse/?data={}".format(self.export_directory))
