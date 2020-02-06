@@ -25,7 +25,9 @@ Enter interactive plotting mode with all sample you want to plot listed:
 
 cnvpytor> set style classic
 cnvpytor> set rd_use_mask
-cnvpytor> set file_titles normal tubular villous cancer 
+cnvpytor> set file_titles normal tubular villous cancer
+cnvpytor> set panels rd likelihood snp
+cnvpytor> set markersize 0.2
 cnvpytor> 15:20M-100M
 cnvpytor> save image.png
 cnvpytor> quit
