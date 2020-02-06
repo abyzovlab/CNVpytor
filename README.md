@@ -6,14 +6,15 @@ CNVpytor is a Python package and command line tool for CNV analysis from depth-o
 
 **CNVpytor project is in early development stage.**
 
-For more details check [API Documentation](https://abyzovlab.github.io/CNVpytor/)
 
+## Gallery
 
-Source::
-    https://github.com/abyzovlab/CNVpytor
-
-Bug reports::
-    https://github.com/abyzovlab/CNVpytor/issues
+| | |
+|---|---|
+| Manhattan plot | Circular plot|
+|<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/manhattan.png" width="512px">|<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/circular.png" width="512px">|
+| Region plot | Compare regions|
+|<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/region.png" width="512px">|<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/compare.png" width="512px">|
 
 ## Dependencies
 
@@ -108,6 +109,14 @@ cnvpytor> chr1:1M-50M chr2:60M-65M > filename.png
 
 Diagram made using [Draw.io](https://github.com/jgraph/drawio).
 
+
+## Use as Python package
+
+CNVpytor is not just command line tool but also Python package. 
+
+For more details check [API Documentation](https://abyzovlab.github.io/CNVpytor/)
+
+
 ## Bugs
 
 Please report any bugs that you find on GitHub:
@@ -118,3 +127,6 @@ Or, even better, fork the repository on GitHub and create a pull request.
 ## License
 
 Released under MIT licence.
+
+
+
