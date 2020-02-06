@@ -1,6 +1,6 @@
 # Manhattan plot example
 
-<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/manhattan.png>
+<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/manhattan.png">
 
 Import RD signal for each sample from bam/sam/cram file and calculate histograms with specified bin size. 
 It can be any positive intiger divisible by 100. We use 100000 in this example
