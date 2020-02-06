@@ -11,9 +11,9 @@ CNVpytor is a Python package and command line tool for CNV analysis from depth-o
 
 | | |
 |---|---|
-| Manhattan plot ([see how to plot it](examples/manhattan.md))| Circular plot ([see how to plot it](examples/circular.md))|
+| Manhattan plot ([see example](examples/manhattan.md))| Circular plot ([see example](examples/circular.md))|
 |<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/manhattan.png" width="512px">|<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/circular.png" width="512px">|
-| Region plot ([see how to plot it](examples/region.md))| Compare regions ([see how to plot it](examples/compare.md))|
+| Region plot ([see example](examples/region.md))| Compare regions ([see example](examples/compare.md))|
 |<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/region.png" width="512px">|<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/compare.png" width="512px">|
 
 ## Dependencies
