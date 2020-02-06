@@ -1,4 +1,4 @@
-# Manhattan plot example
+# Compare plot example
 
 <img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/compare.png">
 

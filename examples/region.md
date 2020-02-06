@@ -1,4 +1,4 @@
-# Circular plot example
+# Region plot example
 
 <img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/region.png">
 
