@@ -32,6 +32,7 @@ class ViewParams(object):
         "lh_colors": "",
         "plot_files": [],
         "plot_file": 0,
+        "file_titles": [],
         "chrom": [],
         "style": None,
         "grid": "auto",
@@ -85,6 +86,8 @@ class ViewParams(object):
     def unset(self, param):
         if param in self.params and self.params[param] is True:
             self.__setattr__(param, False)
+        if param in self.params and isinstance(self.params[param], list):
+            self.__setattr__(param, [])
 
     @property
     def params(self):
@@ -321,6 +324,15 @@ class HelpDescription(object):
         "lh_colors": "",
         "plot_files": "",
         "plot_file": "",
+        "file_titles": help_format(
+            topic="file_titles",
+            p_desc="List of titles used with multiple file plots. If empty filename will be used instead.",
+            p_type="list of str",
+            p_default=str(default["file_titles"]),
+            p_affects="manhattan, circular",
+            p_example="set file_titles Title1 Title2\nunset file_titles",
+            p_see="plot_files"
+        ),
         "chrom": "",
         "style": "",
         "grid": "",

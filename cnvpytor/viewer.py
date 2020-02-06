@@ -256,6 +256,12 @@ class Viewer(Show, ViewParams, HelpDescription):
         parts[-1] = sufix + "." + parts[-1]
         return ".".join(parts)
 
+    def file_title(self,ix):
+        if ix<len(self.file_titles):
+            return self.file_titles[ix]
+        else:
+            return self.io[ix].filename.split("/")[-1].replace(".pytor","")
+
     def show(self):
         print("\nParameters")
         for key in sorted(self.params.keys()):
@@ -630,7 +636,7 @@ class Viewer(Show, ViewParams, HelpDescription):
         for i in range(n):
             ax = self.fig.add_subplot(grid[i])
             io = self.io[ix[i]]
-            ax.set_title(io.filename, position=(0.01, 1.07),
+            ax.set_title(self.file_title(ix[i]), position=(0.01, 1.07),
                          fontdict={'verticalalignment': 'top', 'horizontalalignment': 'left'})
 
             if plot_type == "rd":
@@ -754,15 +760,22 @@ class Viewer(Show, ViewParams, HelpDescription):
             plt.show()
 
     def multiple_regions(self, bin_size, regions, panels=["rd"], sep_color="g"):
+        n = len(self.plot_files)
+        ix = self.plot_files
         plt.clf()
         plt.rcParams["font.size"] = 8
-        self.fig = plt.figure(1, figsize=(12, 8), facecolor='w', edgecolor='k')
-        grid = gridspec.GridSpec(len(self.io), len(regions), wspace=0.2, hspace=0.2)
-        ix = 0
-        for i in self.io:
+        if self.grid == "auto":
+            sx, sy = self.panels_shape(n)
+        else:
+            sx, sy = tuple(self.grid)
+        self.fig = plt.figure(1, dpi=200, facecolor='w', edgecolor='k')
+        if self.output_filename != "":
+            self.fig.set_figheight(3 * sy)
+            self.fig.set_figwidth(4 * sx)
+        grid = gridspec.GridSpec(sy, sx, wspace=0.2, hspace=0.2)
+        for i in range(n):
             for r in regions:
-                self.regions(i, grid[ix], bin_size, r, panels=panels, sep_color=sep_color)
-                ix += 1
+                self.regions(ix[i], grid[i], bin_size, r, panels=panels, sep_color=sep_color)
         plt.subplots_adjust(bottom=0.05, top=0.95, wspace=0, hspace=0, left=0.05, right=0.95)
 
         if self.output_filename != "":
@@ -774,14 +787,15 @@ class Viewer(Show, ViewParams, HelpDescription):
         else:
             plt.show()
 
-    def regions(self, io, element, bin_size, region, panels=["rd"], sep_color="g"):
+    def regions(self, ix, element, bin_size, region, panels=["rd"], sep_color="g"):
         snp_flag = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0)
         grid = gridspec.GridSpecFromSubplotSpec(len(panels), 1, subplot_spec=element, wspace=0, hspace=0.1)
         r = decode_region(region)
+        io = self.io[ix]
         for i in range(len(panels)):
             ax = self.fig.add_subplot(grid[i])
             if i == 0:
-                ax.set_title(io.filename + ": " + region, position=(0.01, 0.9),
+                ax.set_title(self.file_title(ix) + ": " + region, position=(0.01, 0.9),
                              fontdict={'verticalalignment': 'top', 'horizontalalignment': 'left'},
                              color='C0')
 
@@ -1043,7 +1057,7 @@ class Viewer(Show, ViewParams, HelpDescription):
             ax.set_rmax(0.9)
             ax.set_rticks([])
             ax.set_thetagrids(angles, labels=labels, fontsize=10, weight="bold", color="black")
-            ax.set_title(io.filename.split("/")[-1], loc="left", fontsize=10, weight="bold", color="black")
+            ax.set_title(self.file_title(ix[i]), loc="left", fontsize=10, weight="bold", color="black")
             ax.grid(False)
         plt.subplots_adjust(bottom=0.05, top=0.95, wspace=0.2, hspace=0.2, left=0.05, right=0.95)
         if self.output_filename != "":
@@ -1197,7 +1211,7 @@ class Viewer(Show, ViewParams, HelpDescription):
             io = self.io[ix[i]]
             if plot:
                 ax = self.fig.add_subplot(grid[i])
-                ax.set_title(io.filename, position=(0.01, 1.07),
+                ax.set_title(self.file_title(ix[i]), position=(0.01, 1.07),
                              fontdict={'verticalalignment': 'top', 'horizontalalignment': 'left'})
             stat = io.get_signal(None, self.bin_size, "RD stat", FLAG_AUTO)
             regs1 = decode_region(region1)
