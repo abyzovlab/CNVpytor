@@ -119,11 +119,12 @@ For more details check [API Documentation](https://abyzovlab.github.io/CNVpytor/
 ### 1. CNVpytor data visualization using jbrowse
 #### Jbrowse version and plugins
 Jbrowse version: https://github.com/GMOD/jbrowse/archive/1.16.6-release.tar.gz
-plugins:
+
+ Plugins: 
  - multibigwig (https://github.com/elsiklab/multibigwig )
  - multiscalebigwig (https://github.com/cmdcolin/multiscalebigwig)
 
-**Note:** The jbrowse development version is required as integration of different jbrowse plugins is required.
+**Note:** The jbrowse development version is required as integration of different jbrowse plugins are needed.
 
 #### Usage
 To generate cnvpytor file for jbrowse visualization:
