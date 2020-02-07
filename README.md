@@ -117,25 +117,6 @@ CNVpytor is not just command line tool but also Python package.
 For more details check [API Documentation](https://abyzovlab.github.io/CNVpytor/)
 ## Export
 ### 1. CNVpytor data visualization using jbrowse
-#### Usage
-To generate cnvpytor file for jbrowse visualization:
-```
-cnvpytor -root [pytor files] -export jbrowse [optional argument: output path]
- ```
-The above command creates all the necessary files that are required to visualize the cnvpytor data. Default export directory name, for multiple pytor file is `cnvpytor_jbrowse_expor` and for single pytor files is `jbrowse_[pytor file name]`.
-
-The user needs to copy the directory to the jbrowse directory If the output path is not set to jbrowse localhost path.
-
-To view cnvpytor file using jbrowse, users need to install jbrowse and required plugins (See Jbrowse version and plugins section).
-`
-http://localhost/jbrowse/?data=[export directory] 
-`
-
-```
-# Example usage
-cnvpytor -root test.pytor -export jbrowse
-http://localhost/jbrowse/?data=jbrowse_test
-```
 #### Jbrowse version and plugins
 Jbrowse version: https://github.com/GMOD/jbrowse/archive/1.16.6-release.tar.gz
 plugins:
@@ -144,6 +125,26 @@ plugins:
 
 **Note:** The jbrowse development version is required as integration of different jbrowse plugins is required.
 
+#### Usage
+To generate cnvpytor file for jbrowse visualization:
+```
+cnvpytor -root [pytor files] -export jbrowse [optional argument: output path]
+ ```
+The above command creates all the necessary files that are required to visualize the cnvpytor data. Default export directory name, for multiple pytor file is `cnvpytor_jbrowse_export` and for single pytor files is `jbrowse_[pytor file name]`.
+
+The user needs to copy the directory to the jbrowse directory If the output path is not set to jbrowse localhost path.
+
+To view cnvpytor file using jbrowse, users need to install jbrowse and required plugins (See Jbrowse version and plugins section).
+`
+http://localhost/jbrowse/?data=[export directory] 
+`
+
+``` 
+# Example usage
+cnvpytor -root test.pytor -export jbrowse
+http://localhost/jbrowse/?data=jbrowse_test
+```
+
 #### Data Description
 There are mainly two types of data cnvpytor processes. i.e.; Read depth data from alignment file and SNP data from variant file. Depending on the availability of these two input data, the export function works.
 
@@ -151,8 +152,8 @@ For Read depth data, it exports ‘Raw segmented RD’, ‘GC corrected Raw Segm
 For SNP data, it exports ‘Binned BAF‘, ‘Likelihood of the binned BAF’’ signals. These two signals are plotted on top of each other with gray and Red color.
 
 |Data           |Signal name with color on Jbrowse |
-|---------------|----------------------------------|
-|Read Depth     |Raw Segmented RD (Gray) <br>GC Corrected Raw Segmented RD (Black) <br> GC corrected RD partition (Green) <br> CNV call using RD signals (Red) |
+|:---:|----------------------------------|
+|Read depth (RD)     |Raw Segmented RD (Gray) <br>GC Corrected Raw Segmented RD (Black) <br> GC corrected RD partition (Green) <br> CNV call using RD signals (Red) |
 |SNP            |Binned BAF (Gray) <br> Likelihood of the Binned BAF(Red)|
 
 cnvpytor does the segmentation for all of the above data based on the user provided bin size. The multiscalebigwig provides the option to show the data based on the visualized area on the reference genome, which means if a user visualizes a small region of the genome it shows small bin data and vice versa.           
