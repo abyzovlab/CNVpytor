@@ -150,11 +150,13 @@ There are mainly two types of data cnvpytor processes. i.e.; Read depth data fro
 
 For Read depth data, it exports ‘Raw segmented RD’, ‘GC corrected Raw Segmented RD’, ‘GC corrected RD partition’, ‘CNV calling using RD’ . All of these Read depth signals are plotted on top of each other on a single horizontal level using color gray, black, green and red respectively.
 For SNP data, it exports ‘Binned BAF‘, ‘Likelihood of the binned BAF’’ signals. These two signals are plotted on top of each other with gray and Red color.
+<center>
 
 |Data           |Signal name with color on Jbrowse |
 |:---:|----------------------------------|
 |Read depth (RD)     |Raw Segmented RD (Gray) <br>GC Corrected Raw Segmented RD (Black) <br> GC corrected RD partition (Green) <br> CNV call using RD signals (Red) |
 |SNP            |Binned BAF (Gray) <br> Likelihood of the Binned BAF(Red)|
+</center>
 
 cnvpytor does the segmentation for all of the above data based on the user provided bin size. The multiscalebigwig provides the option to show the data based on the visualized area on the reference genome, which means if a user visualizes a small region of the genome it shows small bin data and vice versa.           
 ## Bugs
