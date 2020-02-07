@@ -130,10 +130,12 @@ Jbrowse version: https://github.com/GMOD/jbrowse/archive/1.16.6-release.tar.gz
 To generate cnvpytor file for jbrowse visualization:
 ```
 cnvpytor -root [pytor files] -export jbrowse [optional argument: output path]
- ```
-The above command creates all the necessary files that are required to visualize the cnvpytor data. Default export directory name, for multiple pytor file is `cnvpytor_jbrowse_export` and for single pytor files is `jbrowse_[pytor file name]`.
 
-The user needs to copy the directory to the jbrowse directory If the output path is not set to jbrowse localhost path.
+Default export directory name: 
+ - For single pytor file input:  jbrowse_[pytor file name]
+ - For multiple pytor file input: cnvpytor_jbrowse_export
+```
+The above command creates all the necessary files that are required to visualize the cnvpytor data. 
 
 To view cnvpytor file using jbrowse, users need to install jbrowse and required plugins (See Jbrowse version and plugins section).
 `
