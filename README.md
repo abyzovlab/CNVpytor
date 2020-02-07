@@ -122,16 +122,17 @@ To generate cnvpytor file for jbrowse visualization:
 ```
 cnvpytor -root [pytor files] -export jbrowse [optional argument: output path]
  ```
-The above command creates all the necessary files that are required to visualize the cnvpytor data. Default export directory name, for multiple pytor file is `cnvpytor_jbrowse_expor` and for single pytor files is `jbrwose_[pytor file name]`.
+The above command creates all the necessary files that are required to visualize the cnvpytor data. Default export directory name, for multiple pytor file is `cnvpytor_jbrowse_expor` and for single pytor files is `jbrowse_[pytor file name]`.
 
 The user needs to copy the directory to the jbrowse directory If the output path is not set to jbrowse localhost path.
 
 To view cnvpytor file using jbrowse, users need to install jbrowse and required plugins (See Jbrowse version and plugins section).
-```
+`
 http://localhost/jbrowse/?data=[export directory] 
+`
+
 ```
-Example
-```
+# Example usage
 cnvpytor -root test.pytor -export jbrowse
 http://localhost/jbrowse/?data=jbrowse_test
 ```
@@ -140,7 +141,7 @@ Jbrowse version: https://github.com/GMOD/jbrowse/archive/1.16.6-release.tar.gz
 plugins:
  - multibigwig (https://github.com/elsiklab/multibigwig )
  - multiscalebigwig (https://github.com/cmdcolin/multiscalebigwig)
- 
+
 **Note:** The jbrowse development version is required as integration of different jbrowse plugins is required.
 
 #### Data Description
