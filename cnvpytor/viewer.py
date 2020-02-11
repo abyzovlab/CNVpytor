@@ -127,8 +127,11 @@ class Figure(ViewParams):
     def fig_show(self, suffix=""):
         if self.output_filename != "":
             image_filename = self.image_filename(suffix)
-            plt.savefig(image_filename, dpi=200)
-            plt.close(self.fig)
+            if image_filename is not None:
+                plt.savefig(image_filename, dpi=200)
+                plt.close(self.fig)
+            else:
+                _logger.warning("Figure is not saved!")
         elif self.interactive:
             plt.show(block=False)
             plt.draw()
@@ -137,14 +140,13 @@ class Figure(ViewParams):
 
     def image_filename(self, suffix):
         parts = self.output_filename.split(".")
-        if parts[-1] != "png" and parts[-1] != "pdf" and parts[-1] != "jpg" and parts[-1] != "eps" and parts[
-            -1] != "svg":
+        if parts[-1] not in ["png", "pdf", "jpg", "eps", "svg"]:
             _logger.warning("File extension should be: .jpg, .png, .svg, .eps or .pdf")
-            exit(0)
+            return None
         if suffix == "":
             suffix = str(self.count)
         else:
-            suffix += "."+str(self.count)
+            suffix += "." + str(self.count)
         self.count += 1
         parts[-1] = suffix + "." + parts[-1]
         return ".".join(parts)
@@ -329,20 +331,11 @@ class Viewer(Show, Figure, HelpDescription):
             plt.style.use("default")
             plt.style.use(style)
 
-    def image_filename(self, sufix):
-        parts = self.output_filename.split(".")
-        if parts[-1] != "png" and parts[-1] != "pdf" and parts[-1] != "jpg" and parts[-1] != "eps" and parts[
-            -1] != "svg":
-            _logger.warning("File extension should be: .jpg, .png, .svg, .eps or .pdf")
-            exit(0)
-        parts[-1] = sufix + "." + parts[-1]
-        return ".".join(parts)
-
-    def file_title(self,ix):
-        if ix<len(self.file_titles):
+    def file_title(self, ix):
+        if ix < len(self.file_titles):
             return self.file_titles[ix]
         else:
-            return self.io[ix].filename.split("/")[-1].replace(".pytor","")
+            return self.io[ix].filename.split("/")[-1].replace(".pytor", "")
 
     def show(self):
         print("\nParameters")
@@ -674,31 +667,6 @@ class Viewer(Show, Figure, HelpDescription):
             plt.draw()
         else:
             plt.show()
-
-    @staticmethod
-    def panels_shape(n):
-        sx, sy = 1, 1
-        if n == 2:
-            sx = 2
-        elif n in [3, 4]:
-            sx, sy = 2, 2
-        elif n in [5, 6]:
-            sx, sy = 3, 2
-        elif n in [7, 8, 9]:
-            sx, sy = 3, 3
-        elif n in [10, 11, 12]:
-            sx, sy = 4, 3
-        elif n in [13, 14, 15, 16]:
-            sx, sy = 4, 4
-        elif n in [17, 18, 19, 20]:
-            sx, sy = 5, 4
-        elif n in [21, 22, 23, 24]:
-            sx, sy = 6, 4
-        else:
-            while sx * sy < n:
-                sx += 1
-                sy = int(2. * sx / 3 + 1.)
-        return sx, sy
 
     def manhattan(self, bin_size, use_mask=False, plot_type="rd"):
         if self.reference_genome is None:
@@ -1378,7 +1346,7 @@ class Viewer(Show, Figure, HelpDescription):
             ax.set_xlabel("VAF")
             ax.set_ylabel("distribution")
 
-        self.show()
+        self.fig_show(suffix="snp_dist")
 
     def genotype(self, bin_sizes, region):
         regs = decode_region(region)
