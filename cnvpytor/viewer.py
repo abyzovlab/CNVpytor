@@ -91,18 +91,100 @@ class Show(Reader):
             print()
 
 
-class Viewer(Show, ViewParams, HelpDescription):
+class Figure(ViewParams):
+    def __init__(self, params):
+        ViewParams.__init__(self, params)
+        self.fig = None
+        self.fig_grid = None
+        self.interactive = False
+        self.count = 0
+
+    def new_figure(self, panel_count, grid="auto", panel_size=(4, 3)):
+
+        if grid == "auto":
+            grid = self.grid
+        plt.clf()
+        plt.rcParams["font.size"] = 8
+        self.fig = plt.figure(1, dpi=200, facecolor='w', edgecolor='k')
+
+        sx, sy = self.get_grid(grid, panel_count)
+        if self.output_filename != "":
+            self.fig.set_figheight(panel_size[1] * sy)
+            self.fig.set_figwidth(panel_size[0] * sx)
+        self.fig_grid = gridspec.GridSpec(sy, sx, wspace=0.2, hspace=0.2)
+
+    def get_panel(self, i):
+        return self.fig.add_subplot(self.fig_grid[i])
+
+    def get_grid(self, grid, panel_count):
+        if grid == "auto":
+            sx, sy = self.panels_shape(panel_count)
+        else:
+            sx, sy = tuple(grid)
+
+        return sx, sy
+
+    def fig_show(self, suffix=""):
+        if self.output_filename != "":
+            image_filename = self.image_filename(suffix)
+            plt.savefig(image_filename, dpi=200)
+            plt.close(self.fig)
+        elif self.interactive:
+            plt.show(block=False)
+            plt.draw()
+        else:
+            plt.show()
+
+    def image_filename(self, suffix):
+        parts = self.output_filename.split(".")
+        if parts[-1] != "png" and parts[-1] != "pdf" and parts[-1] != "jpg" and parts[-1] != "eps" and parts[
+            -1] != "svg":
+            _logger.warning("File extension should be: .jpg, .png, .svg, .eps or .pdf")
+            exit(0)
+        if suffix == "":
+            suffix = str(self.count)
+        else:
+            suffix += "."+str(self.count)
+        self.count += 1
+        parts[-1] = suffix + "." + parts[-1]
+        return ".".join(parts)
+
+    @staticmethod
+    def panels_shape(n):
+        sx, sy = 1, 1
+        if n == 2:
+            sx = 2
+        elif n in [3, 4]:
+            sx, sy = 2, 2
+        elif n in [5, 6]:
+            sx, sy = 3, 2
+        elif n in [7, 8, 9]:
+            sx, sy = 3, 3
+        elif n in [10, 11, 12]:
+            sx, sy = 4, 3
+        elif n in [13, 14, 15, 16]:
+            sx, sy = 4, 4
+        elif n in [17, 18, 19, 20]:
+            sx, sy = 5, 4
+        elif n in [21, 22, 23, 24]:
+            sx, sy = 6, 4
+        else:
+            while sx * sy < n:
+                sx += 1
+                sy = int(2. * sx / 3 + 1.)
+        return sx, sy
+
+
+class Viewer(Show, Figure, HelpDescription):
 
     def __init__(self, files, params):
         _logger.debug("Viewer class init: files [%s], params %s." % (", ".join(files), str(params)))
-        ViewParams.__init__(self, params)
+        Figure.__init__(self, params)
         Show.__init__(self, files)
         self.io_gc = self.io[0]
         self.io_mask = self.io[0]
         self.reference_genome = None
-        self.interactive = False
         self.plot_files = list(range(len(files)))
-        self.fig = None
         if self.io[0].signal_exists(None, None, "reference genome"):
             rg_name = np.array(self.io[0].get_signal(None, None, "reference genome")).astype("str")[0]
             self.reference_genome = Genome.reference_genomes[rg_name]
@@ -619,22 +701,15 @@ class Viewer(Show, ViewParams, HelpDescription):
         return sx, sy
 
     def manhattan(self, bin_size, use_mask=False, plot_type="rd"):
-        plt.clf()
         if self.reference_genome is None:
             _logger.warning("Missing reference genome required for gview.")
             return
         n = len(self.plot_files)
         ix = self.plot_files
 
-        plt.clf()
-        plt.rcParams["font.size"] = 8
-        self.fig = plt.figure(1, facecolor='w', edgecolor='k')
-        if self.output_filename != "":
-            self.fig.set_figheight(1.5 * n)
-            self.fig.set_figwidth(12)
-        grid = gridspec.GridSpec(n, 1, wspace=0.2, hspace=0.2)
+        self.new_figure(panel_count=n, grid=(1, n), panel_size=(12, 1.5))
         for i in range(n):
-            ax = self.fig.add_subplot(grid[i])
+            ax = self.get_panel(i)
             io = self.io[ix[i]]
             ax.set_title(self.file_title(ix[i]), position=(0.01, 1.07),
                          fontdict={'verticalalignment': 'top', 'horizontalalignment': 'left'})
@@ -748,16 +823,9 @@ class Viewer(Show, ViewParams, HelpDescription):
             n_bins = apos
             ax.set_xlim([0, n_bins])
             ax.grid()
-        plt.subplots_adjust(bottom=0.05, top=0.95, wspace=0, hspace=0, left=0.05, right=0.95)
+        plt.subplots_adjust(bottom=0.05, top=0.90, wspace=0, hspace=0, left=0.05, right=0.95)
 
-        if self.output_filename != "":
-            plt.savefig(self.image_filename("manhattan" if plot_type == "rd" else "snp_calls"), dpi=200)
-            plt.close(self.fig)
-        elif self.interactive:
-            plt.show(block=False)
-            plt.draw()
-        else:
-            plt.show()
+        self.fig_show(suffix="manhattan" if plot_type == "rd" else "snp_calls")
 
     def multiple_regions(self, bin_size, regions, panels=["rd"], sep_color="g"):
         n = len(self.plot_files)
@@ -1285,19 +1353,9 @@ class Viewer(Show, ViewParams, HelpDescription):
     def snp_dist(self, regions, callset=None, n_bins=100, titles=None):
         regions = regions.split(" ")
         n = len(regions)
-        plt.clf()
-        plt.rcParams["font.size"] = 8
-        if self.grid == "auto":
-            sx, sy = self.panels_shape(n)
-        else:
-            sx, sy = tuple(self.grid)
-        self.fig = plt.figure(1, dpi=200, facecolor='w', edgecolor='k')
-        if self.output_filename != "":
-            self.fig.set_figheight(3 * sy)
-            self.fig.set_figwidth(4 * sx)
-        grid = gridspec.GridSpec(sy, sx, wspace=0.2, hspace=0.2)
+        self.new_figure(panel_count=n)
         for i in range(n):
-            ax = self.fig.add_subplot(grid[i])
+            ax = self.get_panel(i)
             if titles is None:
                 ax.set_title(regions[i], position=(0.01, 1.07),
                              fontdict={'verticalalignment': 'top', 'horizontalalignment': 'left'})
@@ -1319,14 +1377,8 @@ class Viewer(Show, ViewParams, HelpDescription):
             ax.hist(baf, bins=np.arange(0, 1.0 + 1. / (n_bins + 1), 1. / (n_bins + 1)))
             ax.set_xlabel("VAF")
             ax.set_ylabel("distribution")
-        if self.output_filename != "":
-            plt.savefig(self.image_filename("snp_dist"), dpi=200)
-            plt.close(self.fig)
-        elif self.interactive:
-            plt.show(block=False)
-            plt.draw()
-        else:
-            plt.show()
+
+        self.show()
 
     def genotype(self, bin_sizes, region):
         regs = decode_region(region)
