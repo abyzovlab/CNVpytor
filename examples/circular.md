@@ -36,3 +36,13 @@ By pressing *tab* two times after typing 'set style ' you will got list of all a
 If you skip third line (set file_titles) file names will be used for subplot title.
 
 Instead 'quit' CTRL+D can be used.
+
+
+## Reference
+
+Data used in this example is published in following paper:
+
+[1] Oncotarget 2017 Dec 26;9(6):6780-6792. doi: [10.18632/oncotarget.23687](https://www.doi.org/10.18632/oncotarget.23687). eCollection 2018 Jan 23
+**Inferring modes of evolution from colorectal cancer with residual polyp of origin.**
+Kim M, Druliner BR, Vasmatzis N, Bae T, Chia N, Abyzov A, Boardman LA.
+
