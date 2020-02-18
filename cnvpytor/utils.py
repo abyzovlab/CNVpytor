@@ -328,7 +328,7 @@ def getEValue(mean, sigma, rd, start, end):
     aver = np.mean(rd[start:end])
     s = np.std(rd[start:end])
     if s == 0:
-        s = sigma if sigma > 0 else 1
+        s = sigma * aver / mean if sigma > 0 else 1
     return t_test_1_sample(mean, aver, s, end - start) / (end - start)
 
 

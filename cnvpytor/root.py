@@ -1169,18 +1169,19 @@ class Root:
                         if b < len(levels):
                             cf = flags[b]
                         bs = 0
+                        merge = rd.copy()
                         while b < len(levels):
                             while flags[b] == cf:
                                 b += 1
                                 if b >= len(flags):
                                     break
                             if b > bs:
-                                rd[bs:b] = np.mean(rd[bs:b])
+                                merge[bs:b] = np.mean(merge[bs:b])
                             if b < len(levels):
                                 cf = flags[b]
                             bs = b
 
-                        self.io.create_signal(c, bin_size, "RD call", rd, flags=flag_rd)
+                        self.io.create_signal(c, bin_size, "RD call", merge, flags=flag_rd)
 
                         _logger.debug("Print calls")
                         b = 0
