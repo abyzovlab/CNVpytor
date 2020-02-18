@@ -309,7 +309,7 @@ def t_test_1_sample(mean, m, s, n):
         s = 1
     t = (mean - m) / s * np.sqrt(n)
     p = 1.0 - stats.t.cdf(np.abs(t), df=n - 1)
-    return 2 * p
+    return p
 
 
 def t_test_2_samples(m1, s1, n1, m2, s2, n2):
@@ -321,7 +321,7 @@ def t_test_2_samples(m1, s1, n1, m2, s2, n2):
     df = (s1 ** 2 / n1 + s2 ** 2 / n2) ** 2 * (n1 - 1) * (n2 - 1) / (
             s1 ** 4 * (n2 - 1) / n1 ** 2 + s2 ** 4 * (n1 - 1) / n2 ** 2)
     p = 1.0 - stats.t.cdf(np.abs(t), df=int(df + 0.5))
-    return 2 * p
+    return p
 
 
 def getEValue(mean, sigma, rd, start, end):

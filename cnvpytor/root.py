@@ -842,7 +842,6 @@ class Root:
                 if (c in rd_gc_chromosomes) and (c in rd_mask_chromosomes):
                     _logger.info("Calculating P-mask histograms using bin size %d for chromosome '%s'." % (bin_size, c))
                     flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
-                    stat = self.io.get_signal(None, 100, "RD stat", flag)
                     rd_p, rd_u = self.io.read_rd(c)
                     mask = mask_decompress(self.io_mask.get_signal(rd_mask_chromosomes[c], None, "mask"))
                     bin_ratio = bin_size // 100
