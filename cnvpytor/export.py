@@ -47,6 +47,7 @@ class Wiggle:
             if isinstance(signal_details, np.ndarray):
                 signal_value_list = signal_details[()]
                 signal_value_list[signal_value_list != 0] += offset
+
                 signal_value_list = np.absolute(signal_value_list)
                 self.add_fixedstep(chrom, 0, signal_value_list, span=bin_size, step=bin_size)
 
@@ -150,7 +151,7 @@ class ExportJbrowse:
     def export_create_dir(self):
         main_dir = self.export_directory
         main_dir.mkdir(parents=True, exist_ok=True)
-        _logger.info("CNVpytor data exporting for jbrowse view in {}".format(main_dir))
+        _logger.info("CNVpytor data exporting for JBrowse view in {}".format(main_dir))
         return main_dir
 
     @property
@@ -215,10 +216,27 @@ class ExportJbrowse:
                 bss.append(int(b))
         return chrs, bss
 
+    @staticmethod
+    def create_bigwig(root_io, bigwig_file, chr_list, bin_size, signal_name, flag, offset=None):
+        wig = None
+        for (chrom, length) in chr_list:
+            signal_details = root_io.get_signal(chrom, bin_size, signal_name, flag)
+            if isinstance(signal_details, np.ndarray):
+                signal_value_list = signal_details[()]
+                if offset is not None:
+                    signal_value_list[signal_value_list != 0] += offset
+                    signal_value_list = np.absolute(signal_value_list)
+
+                if not isinstance(wig, Wiggle):
+                    wig = Wiggle(bigwig_file)
+                    wig.add_header_list(chr_list)
+
+                wig.add_fixedstep(chrom, 0, signal_value_list, span=bin_size, step=bin_size)
+
     def rd_signal(self):
         _logger.debug("Create Read depth related signals")
         for root_index, root_io in enumerate(self.io):
-            _logger.info("Jbrowse: RD related data for {}".format(self.pytor_names[root_index]))
+            _logger.info("JBrowse export: RD related data for {}".format(self.pytor_names[root_index]))
             rd_chr, rd_bin = self.rd_chr_bin(root_io)
 
             # get chr list
@@ -226,6 +244,7 @@ class ExportJbrowse:
             chr_list = list(zip(chr_len[::2].astype(str), chr_len[1::2].astype(int)))
 
             for signal_name, signal_dct in self.rd_signal_dct.items():
+                _logger.info("JBrowse export: RD signal {}".format(signal_name))
                 for index, flag in enumerate(signal_dct['FLAG']):
                     for bin_size in rd_bin:
                         signal = self.signal_name(bin_size, signal_name, flag)
@@ -233,13 +252,12 @@ class ExportJbrowse:
                         bigwig_file = self.export_data_dir_list[root_index].joinpath(bigwig_filename)
                         bigwig_file = str(bigwig_file)
 
-                        wig = Wiggle(bigwig_file)
-                        wig.create_wig(root_io, chr_list, bin_size, signal_name, flag)
+                        self.create_bigwig(root_io, bigwig_file, chr_list, bin_size, signal_name, flag)
 
     def snp_signal(self):
         _logger.debug("Create SNP related signals")
         for root_index, root_io in enumerate(self.io):
-            _logger.info("Jbrowse: SNP related data for {}".format(self.pytor_names[root_index]))
+            _logger.info("JBrowse export: SNP related data for {}".format(self.pytor_names[root_index]))
             snp_chr, snp_bin = self.snp_chr_bin(root_io)
 
             # get chr list
@@ -247,19 +265,18 @@ class ExportJbrowse:
             chr_list = list(zip(chr_len[::2].astype(str), chr_len[1::2].astype(int)))
 
             for signal_name, signal_dct in self.snp_signal_dct.items():
+                _logger.info("JBrowse export: SNP signal {}".format(signal_name))
                 for index, flag in enumerate(signal_dct['FLAG']):
                     if "offset" in signal_dct:
                         offset = signal_dct['offset'][index]
                         for bin_size in snp_bin:
                             signal = self.signal_name(bin_size, signal_name, flag)
-
                             bigwig_filename = "{}_offset{}.bw".format(signal, offset)
-
                             bigwig_file = self.export_data_dir_list[root_index].joinpath(bigwig_filename)
                             bigwig_file = str(bigwig_file)
 
-                            wig = Wiggle(bigwig_file)
-                            wig.create_wig_offset_transform(root_io, chr_list, bin_size, signal_name, flag, offset)
+                            self.create_bigwig(root_io, bigwig_file, chr_list, bin_size, signal_name, flag,
+                                               offset=offset)
 
                     else:
                         for bin_size in snp_bin:
@@ -268,8 +285,7 @@ class ExportJbrowse:
                             bigwig_file = self.export_data_dir_list[root_index].joinpath(bigwig_filename)
                             bigwig_file = str(bigwig_file)
 
-                            wig = Wiggle(bigwig_file)
-                            wig.create_wig(root_io, chr_list, bin_size, signal_name, flag)
+                            self.create_bigwig(root_io, bigwig_file, chr_list, bin_size, signal_name, flag)
 
     @staticmethod
     def add_config_reference():
@@ -303,28 +319,34 @@ class ExportJbrowse:
                             bigwig_filename = "{}.bw".format(signal)
                             bigwig_file = self.export_data_dir_list[root_index].joinpath(bigwig_filename)
                             bigwig_current_path = Path(bigwig_file.parent.parent.name).joinpath(bigwig_file.parent.name, bigwig_file.name).as_posix()
-                            scales[bin_size] = bigwig_current_path
+                            if bigwig_file.exists():
+                                scales[bin_size] = bigwig_current_path
 
-                        url_template_dct.append({
-                            "storeClass": "MultiScaleBigWig/Store/SeqFeature/MultiScaleBigWig",
-                            "scales": scales,
-                            "name": signal_id,
-                            "color": signal_dct['color'][index]
-                        })
+                        if len(scales) > 0:
+                            url_template_dct.append({
+                                "storeClass": "MultiScaleBigWig/Store/SeqFeature/MultiScaleBigWig",
+                                "scales": scales,
+                                "name": signal_id,
+                                "color": signal_dct['color'][index],
 
-            track_dct = {
-                "category": self.pytor_names[root_index],
-                'autoscale': 'local',
-                "storeClass": "MultiBigWig/Store/SeqFeature/MultiBigWig",
-                "showTooltips": True,
-                "showLabels": True,
-                "clickTooltips": True,
-                "label": "RD {}".format(self.pytor_names[root_index]),
-                "type": "MultiBigWig/View/Track/MultiWiggle/MultiXYPlot",
-                'urlTemplates': url_template_dct
+                            })
+            if len(url_template_dct) > 0:
 
-            }
-            track_dct_list.append(track_dct)
+                track_dct = {
+                    "category": self.pytor_names[root_index],
+                    'autoscale': 'local',
+                    "storeClass": "MultiBigWig/Store/SeqFeature/MultiBigWig",
+                    "showTooltips": True,
+                    "showLabels": True,
+                    "clickTooltips": True,
+                    "key": "RD",
+                    "label": "RD {}".format(self.pytor_names[root_index]),
+                    "type": "MultiBigWig/View/Track/MultiWiggle/MultiXYPlot",
+                    'useStdDev': True,
+                    'urlTemplates': url_template_dct
+
+                }
+                track_dct_list.append(track_dct)
         return track_dct_list
 
     def add_snp_config_track(self):
@@ -345,7 +367,8 @@ class ExportJbrowse:
                             bigwig_filename = "{}_offset{}.bw".format(signal, offset)
                             bigwig_file = self.export_data_dir_list[root_index].joinpath(bigwig_filename)
                             bigwig_current_path = Path(bigwig_file.parent.parent.name).joinpath(bigwig_file.parent.name, bigwig_file.name).as_posix()
-                            scales[bin_size] = bigwig_current_path
+                            if bigwig_file.exists():
+                                scales[bin_size] = bigwig_current_path
                     else:
                         signal_id = "{}{}".format(signal_name, suffix_flag)
                         for bin_size in snp_bin:
@@ -353,29 +376,31 @@ class ExportJbrowse:
                             bigwig_filename = "{}.bw".format(signal)
                             bigwig_file = self.export_data_dir_list[root_index].joinpath(bigwig_filename)
                             bigwig_current_path = Path(bigwig_file.parent.parent.name).joinpath(bigwig_file.parent.name, bigwig_file.name).as_posix()
-                            scales[bin_size] = bigwig_current_path
-
-                    snp_url_dct_list.append({
-                        "storeClass": "MultiScaleBigWig/Store/SeqFeature/MultiScaleBigWig",
-                        "scales": scales,
-                        "name": signal_id,
-                        "color": signal_dct['color'][index],
-                        "nonCont": signal_dct['nonCont'][index]
-                    })
-
-            track_dct = {
-                "category": self.pytor_names[root_index],
-                'autoscale': 'local',
-                "storeClass": "MultiBigWig/Store/SeqFeature/MultiBigWig",
-                "showTooltips": True,
-                "showLabels": True,
-                "clickTooltips": True,
-                "max_score": 1,
-                "label": "SNP {}".format(self.pytor_names[root_index]),
-                "type": "MultiBigWig/View/Track/MultiWiggle/MultiXYPlot",
-                'urlTemplates': snp_url_dct_list,
-            }
-            track_dct_list.append(track_dct)
+                            if bigwig_file.exists():
+                                scales[bin_size] = bigwig_current_path
+                    if len(scales) > 0:
+                        snp_url_dct_list.append({
+                            "storeClass": "MultiScaleBigWig/Store/SeqFeature/MultiScaleBigWig",
+                            "scales": scales,
+                            "name": signal_id,
+                            "color": signal_dct['color'][index],
+                            "nonCont": signal_dct['nonCont'][index]
+                        })
+            if len(snp_url_dct_list) > 0:
+                track_dct = {
+                    "category": self.pytor_names[root_index],
+                    'autoscale': 'local',
+                    "storeClass": "MultiBigWig/Store/SeqFeature/MultiBigWig",
+                    "showTooltips": True,
+                    "showLabels": True,
+                    "clickTooltips": True,
+                    "max_score": 1,
+                    "key": "SNP",
+                    "label": "SNP {}".format(self.pytor_names[root_index]),
+                    "type": "MultiBigWig/View/Track/MultiWiggle/MultiXYPlot",
+                    'urlTemplates': snp_url_dct_list,
+                }
+                track_dct_list.append(track_dct)
         return track_dct_list
 
     def create_tracklist_json(self):
@@ -416,6 +441,7 @@ class ExportJbrowse:
 
     def __del__(self):
 
-        _logger.info("Jbrowse: complete")
-        _logger.info("Copy this directory to jbrowse directory if export path is not set to jbrowse path, "
-                     "To access this via localhost: http://localhost/jbrowse/?data={}".format(self.export_directory))
+        _logger.info("JBrowse export: complete")
+        _logger.info("Copy this directory to jbrowse directory if export path is not set to JBrowse path, "
+                     "To access this via localhost: http://localhost/jbrowse/?data={}"
+                     .format(self.export_directory.parent.name))
