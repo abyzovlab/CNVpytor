@@ -868,7 +868,7 @@ class Root:
                     self.io.create_signal(c, bin_size, "RD unique", his_u, flags=FLAG_USEMASK)
                     self.io.create_signal(c, bin_size, "RD", his_p_corr, flags=FLAG_GC_CORR | FLAG_USEMASK)
 
-    def partition(self, bin_sizes, chroms=[], use_gc_corr=True, use_mask=False, repeats=3):
+    def partition(self, bin_sizes, chroms=[], use_gc_corr=True, use_mask=False, repeats=3, genome_size=2.9e9):
         """
         Calculates segmentation of RD signal.
 
@@ -909,7 +909,7 @@ class Root:
                     if self.io.signal_exists(c, bin_size, "RD stat", flag_stat) and self.io.signal_exists(c, bin_size,
                                                                                                           "RD",
                                                                                                           flag_rd):
-                        _logger.info("Calculating histograms using bin size %d for chromosome '%s'." % (bin_size, c))
+                        _logger.info("Calculating partition using bin size %d for chromosome '%s'." % (bin_size, c))
                         stat = self.io.get_signal(c, bin_size, "RD stat", flag_stat)
                         mean = stat[4]
                         std = stat[5]
@@ -1024,11 +1024,11 @@ class Root:
                                     seg_right_mean = np.mean(levels[seg_right[0]:seg_right[1]])
                                     seg_right_std = np.std(levels[seg_right[0]:seg_right[1]])
                                     if t_test_2_samples(seg_mean, seg_std, n, seg_left_mean, seg_left_std, n_left) > (
-                                            0.01 / 3.e9 * bin_size * (n + n_left)):
+                                            0.01 / genome_size * bin_size * (n + n_left)):
                                         continue
                                     if t_test_2_samples(seg_mean, seg_std, n, seg_right_mean, seg_right_std,
                                                         n_right) > (
-                                            0.01 / 3.e9 * bin_size * (n + n_right)):
+                                            0.01 / genome_size * bin_size * (n + n_right)):
                                         continue
                                 if t_test_1_sample(mean, seg_mean, seg_std, n) > 0.05:
                                     continue
@@ -1037,7 +1037,7 @@ class Root:
 
                         self.io.create_signal(c, bin_size, "RD partition", levels, flags=flag_rd)
 
-    def call(self, bin_sizes, chroms=[], use_gc_corr=True, use_mask=False):
+    def call(self, bin_sizes, chroms=[], use_gc_corr=True, use_mask=False, genome_size=2.9e9, genome_cnv_fraction=0.01):
         """
         CNV caller based on the segmented RD signal.
 
@@ -1053,6 +1053,7 @@ class Root:
             Use P-mask filter if True. Default: False.
 
         """
+        normal_genome_size = genome_size * (1 - genome_cnv_fraction)
         rd_gc_chromosomes = {}
         for c in self.io_gc.gc_chromosomes():
             rd_name = self.io.rd_chromosome_name(c)
@@ -1119,6 +1120,9 @@ class Root:
                         min = mean - delta
                         max = mean + delta
 
+                        plt.plot(levels)
+                        plt.show()
+
                         flags = [""] * len(levels)
                         segments = []
 
@@ -1130,7 +1134,7 @@ class Root:
                                 b += 1
                             be = b
                             if be > bs + 1:
-                                adj = adjustToEvalue(mean, std, rd, bs, be, 0.05 * bin_size / 3e9)
+                                adj = adjustToEvalue(mean, std, rd, bs, be, 0.05 * bin_size / normal_genome_size)
                                 if adj is not None:
                                     bs, be = adj
                                     segments.append([bs, be, -1])
@@ -1141,7 +1145,7 @@ class Root:
                                 b += 1
                             be = b
                             if be > bs + 1:
-                                adj = adjustToEvalue(mean, std, rd, bs, be, 0.05 * bin_size / 3e9)
+                                adj = adjustToEvalue(mean, std, rd, bs, be, 0.05 * bin_size / normal_genome_size)
                                 if adj is not None:
                                     bs, be = adj
                                     segments.append([bs, be, +1])
@@ -1159,7 +1163,7 @@ class Root:
                                 b += 1
                             be = b
                             if be > bs + 1:
-                                if gaussianEValue(mean, std, rd, bs, be) < 0.05 / 3e9:
+                                if gaussianEValue(mean, std, rd, bs, be) < 0.05 / normal_genome_size:
                                     segments.append([bs, be, -1])
                                     flags[bs:be] = ["d"] * (be - bs)
                                 b -= 1
@@ -1201,13 +1205,13 @@ class Root:
                             start = bin_size * bs + 1
                             end = bin_size * b
                             size = end - start + 1
-                            e1 = getEValue(mean, std, rd, bs, b) * 3e9 / bin_size / (b - bs)
-                            e2 = gaussianEValue(mean, std, rd, bs, b) * 3e9
+                            e1 = getEValue(mean, std, rd, bs, b) * normal_genome_size / bin_size
+                            e2 = gaussianEValue(mean, std, rd, bs, b) * normal_genome_size
                             e3, e4 = 1, 1
                             tmp = int(1000. / bin_size + 0.5)
                             if bs + tmp < b - tmp:
-                                e3 = getEValue(mean, std, rd, bs + tmp, b - tmp) * 3e9 / bin_size / (b - bs)
-                                e4 = gaussianEValue(mean, std, rd, bs + tmp, b - tmp) * 3e9
+                                e3 = getEValue(mean, std, rd, bs + tmp, b - tmp) * normal_genome_size / bin_size
+                                e4 = gaussianEValue(mean, std, rd, bs + tmp, b - tmp) * normal_genome_size
                             rd_p = self.io.get_signal(c, bin_size, "RD")
                             rd_u = self.io.get_signal(c, bin_size, "RD unique")
                             q0 = -1

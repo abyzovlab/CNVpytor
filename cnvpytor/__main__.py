@@ -90,7 +90,7 @@ def main():
                         help="used with -gc will create genome gc file")
     parser.add_argument('-make_mask_file', '--make_mask_genome_file', action='store_true',
                         help="used with -mask will create genome mask file")
-    parser.add_argument('-use_mask_rd', '--use_mask_with_rd', action='store_true', help="used P mask in RD histograms")
+    parser.add_argument('-rd_use_mask', '--use_mask_with_rd', action='store_true', help="used P mask in RD histograms")
     parser.add_argument('-nogc', '--no_gc_corr', action='store_true', help="do not use GC correction in RD histograms")
     parser.add_argument('-rg', '--reference_genome', type=str, help="Manually set reference genome", default=None)
     parser.add_argument('-sample', '--vcf_sample', type=str, help="Sample name in vcf file", default="")

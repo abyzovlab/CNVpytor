@@ -1228,6 +1228,74 @@ class Viewer(Show, Figure, HelpDescription):
         else:
             plt.show()
 
+    def region_rd_stat(self, region, n_bins=21, plot=False, legend=True):
+        n = len(self.plot_files)
+        ix = self.plot_files
+        if plot:
+            plt.clf()
+            plt.rcParams["font.size"] = 8
+            if self.grid == "auto":
+                sx, sy = self.panels_shape(n)
+            else:
+                sx, sy = tuple(self.grid)
+            self.fig = plt.figure(1, dpi=200, facecolor='w', edgecolor='k')
+            if self.output_filename != "":
+                self.fig.set_figheight(3 * sy)
+                self.fig.set_figwidth(4 * sx)
+            grid = gridspec.GridSpec(sy, sx, wspace=0.2, hspace=0.2)
+        for i in range(n):
+            io = self.io[ix[i]]
+            if plot:
+                ax = self.fig.add_subplot(grid[i])
+                ax.set_title(self.file_title(ix[i]), position=(0.01, 1.07),
+                             fontdict={'verticalalignment': 'top', 'horizontalalignment': 'left'})
+            regs = decode_region(region)
+            data = []
+            for c, (pos1, pos2) in regs:
+                flag_rd = (FLAG_GC_CORR if self.rd_use_gc_corr else 0) | (FLAG_USEMASK if self.rd_use_mask else 0)
+                his_p = io.get_signal(c, self.bin_size, "RD", flag_rd)
+                bin1 = (pos1 - 1) // self.bin_size
+                bin2 = (pos2 - 1) // self.bin_size
+                data += list(his_p[bin1:bin2 + 1][np.isfinite(his_p[bin1:bin2 + 1])])
+
+            data = np.array(data)
+            dmin = np.min(data)
+            dmax = np.max(data)
+            p1 = np.percentile(data, 1)
+            p99 = np.percentile(data, 99)
+            data = data[data > p1]
+            data = data[data < p99]
+            mean = np.mean(data)
+            std = np.std(data)
+
+            rd_min = mean - 5 * std
+            rd_max = mean + 5 * std
+            bins = np.linspace(rd_min, rd_max, n_bins)
+
+            hist, binsr = np.histogram(data, bins=bins)
+
+            fitn, fitm, fits = fit_normal(bins[:-1], hist)[0]
+
+            print("%s\t%s\t%.4f\t%.4f\t%e\t%e\t%.4f\t%.4f\t%.4f\t%.4f" % (
+                io.filename, region, fitm, fits, dmin, dmax, p1, p99, mean, std))
+
+            if plot:
+                x = np.linspace(bins[0], bins[-1], 1001)
+                plt.plot(x, normal(x, fitn, fitm, fits), "g-", label=region)
+                plt.plot(bins[:-1], hist, "b*")
+                if legend:
+                    plt.legend()
+
+        if plot:
+            if self.output_filename != "":
+                plt.savefig(self.image_filename("comp"), dpi=200)
+                plt.close(self.fig)
+            elif self.interactive:
+                plt.show(block=False)
+                plt.draw()
+            else:
+                plt.show()
+
     def compare(self, region1, region2, n_bins=21, plot=False, legend=True):
         n = len(self.plot_files)
         ix = self.plot_files
@@ -1249,7 +1317,6 @@ class Viewer(Show, Figure, HelpDescription):
                 ax = self.fig.add_subplot(grid[i])
                 ax.set_title(self.file_title(ix[i]), position=(0.01, 1.07),
                              fontdict={'verticalalignment': 'top', 'horizontalalignment': 'left'})
-            stat = io.get_signal(None, self.bin_size, "RD stat", FLAG_AUTO)
             regs1 = decode_region(region1)
             regs2 = decode_region(region2)
             data1 = []
