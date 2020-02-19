@@ -1120,9 +1120,6 @@ class Root:
                         min = mean - delta
                         max = mean + delta
 
-                        plt.plot(levels)
-                        plt.show()
-
                         flags = [""] * len(levels)
                         segments = []
 
