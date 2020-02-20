@@ -77,11 +77,11 @@ class ExportJbrowse:
         },
         "RD partition": {
             "FLAG": [0x0010],
-            "color": ["green"]
+            "color": ["red"]
         },
         "RD call": {
             "FLAG": [0x0010],
-            "color": ["red"]
+            "color": ["green"]
         }
     }
     snp_signal_dct = {
