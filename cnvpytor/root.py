@@ -293,7 +293,7 @@ class Root:
                 self.io_gc = IO(Genome.reference_genomes[rg_name]["gc_file"])
                 self.rd_stat()
 
-    def vcf(self, vcf_files, chroms=[], sample='', no_counts=False, ad_tag="AD", gt_tag="GT", callset=None):
+    def vcf(self, vcf_files, chroms=[], sample='', no_counts=False, ad_tag="AD", gt_tag="GT", callset=None, use_index=False):
         """ Read SNP data from variant file(s) and store in .cnvpytor file
 
         Parameters
@@ -317,7 +317,7 @@ class Root:
         """
         for vcf_file in vcf_files:
             self._read_vcf(vcf_file, chroms, sample, no_counts=no_counts, ad_tag=ad_tag, gt_tag=gt_tag,
-                                 callset=callset)
+                                 callset=callset, use_index=use_index)
             self.io.add_meta_attribute("VCF", vcf_file)
 
     def rd_from_vcf(self, vcf_file, chroms=[], sample='', ad_tag="AD", dp_tag="DP", use_index=False):
