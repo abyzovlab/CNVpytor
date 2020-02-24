@@ -1468,26 +1468,46 @@ class Viewer(Show, Figure, HelpDescription):
 
         self.fig_show(suffix="snp_dist")
 
-    def genotype(self, bin_sizes, region):
+    def genotype(self, bin_sizes, region, interactive=False):
+        ret = []
         regs = decode_region(region)
         for c, (pos1, pos2) in regs:
-            print(c + ":" + str(pos1) + ":" + str(pos2), end="")
+            if interactive:
+                print(c + ":" + str(pos1) + "-" + str(pos2), end="")
+            ret.append([c,pos1,pos2])
             for bs in bin_sizes:
-                flag_rd = FLAG_GC_CORR if self.rd_use_gc_corr else o
-                stat = self.io[self.plot_file].get_signal(c, bs, "RD stat", flag_rd)
+                flag_rd = (FLAG_GC_CORR if self.rd_use_gc_corr else 0) | (FLAG_USEMASK if self.rd_use_mask else 0)
+                stat = self.io[self.plot_file].get_signal(c, bs, "RD stat", flag_rd | FLAG_AUTO)
+                if stat is None or len(stat) == 0:
+                    stat = self.io[self.plot_file].get_signal(c, bs, "RD stat", flag_rd | FLAG_SEX)
                 his_p = self.io[self.plot_file].get_signal(c, bs, "RD", flag_rd)
                 bin1 = (pos1 - 1) // bs
                 bin2 = (pos2 - 1) // bs
                 rc = 0
                 if bin1 == bin2:
-                    rc = (pos2 - pos1 + 1) * his_p[bin1] / bs
+                    try:
+                        rc = (pos2 - pos1 + 1) * his_p[bin1] / bs
+                    except IndexError:
+                        pass
                 else:
-                    rc += (bin1 * bs - pos1 + 1 + bs) * his_p[bin1] / bs
-                    rc += (pos2 - bin2 * bs) * his_p[bin1] / bs
+                    try:
+                        rc += (bin1 * bs - pos1 + 1 + bs) * his_p[bin1] / bs
+                        rc += (pos2 - bin2 * bs) * his_p[bin2] / bs
+                    except IndexError:
+                        pass
                     for ix in range(bin1 + 1, bin2):
-                        rc += his_p[ix]
-                print("\t%f" % rc * stat[4] * (pos2 - pos1 + 1) / bs, end="")
-        print()
+                        try:
+                            rc += his_p[ix]
+                        except IndexError:
+                            pass
+                if interactive:
+                    print("\t%f" % (2. * rc / (stat[4] * (pos2 - pos1 + 1) / bs)), end="")
+
+                ret[-1].append(2. * rc / (stat[4] * (pos2 - pos1 + 1) / bs))
+            if interactive:
+                print()
+
+        return ret
 
     def genotype_prompt(self, bin_sizes=[]):
         done = False
@@ -1502,7 +1522,7 @@ class Viewer(Show, Figure, HelpDescription):
             if line is None or line == "":
                 done = True
             else:
-                self.genotype(bin_sizes, line)
+                self.genotype(bin_sizes, line, interactive=True)
 
 
 def anim_plot_likelihood(likelihood, segments, n, res, iter, prefix, maxp, minp):
