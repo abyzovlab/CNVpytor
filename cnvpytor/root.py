@@ -12,7 +12,6 @@ from .genome import Genome
 from .viewer import anim_plot_likelihood, anim_plot_rd
 import numpy as np
 import logging
-import matplotlib.pyplot as plt
 
 _logger = logging.getLogger("cnvpytor.root")
 
