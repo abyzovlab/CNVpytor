@@ -159,14 +159,19 @@ def main():
                 dir_name = ''
                 if len(dir_name_list) > 0:
                     dir_name = dir_name_list[0]
-                if args.export[0] == 'jbrowse':
-                    export_j = ExportJbrowse(args.root, dir_name)
-                    export_j.create_reference_json()
-                    export_j.rd_signal()
-                    export_j.snp_signal()
-                    export_j.create_tracklist_json()
-                elif args.export[0] == 'cnvnator':
-                    export.cnvnator(args.export[1:])
+                export_program = args.export[0].lower()
+                if export_program in ['jbrowse', 'cnvnator']:
+                    if export_program == 'jbrowse':
+                        export_j = ExportJbrowse(args.root, dir_name)
+                        export_j.create_reference_json()
+                        export_j.rd_signal()
+                        export_j.snp_signal()
+                        export_j.create_tracklist_json()
+                    elif export_program == 'cnvnator':
+                        logger.info("Under Development")
+                        # export.cnvnator(args.export[1:])
+                else:
+                    logger.error("Incorrect export program name")
         if args.metadata:
             show = Show(args.root)
             show.meta()
