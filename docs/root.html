@@ -38,7 +38,6 @@ from .genome import Genome
 from .viewer import anim_plot_likelihood, anim_plot_rd
 import numpy as np
 import logging
-import matplotlib.pyplot as plt
 
 _logger = logging.getLogger(&#34;cnvpytor.root&#34;)
 
@@ -75,7 +74,7 @@ class Root:
                     _logger.debug(&#34;Using strict mask from database for reference genome &#39;%s&#39;.&#34; % rg_name)
                     self.io_mask = IO(Genome.reference_genomes[rg_name][&#34;mask_file&#34;], ro=True, buffer=True)
 
-    def read_bam(self, bf, chroms, reference_filename=False):
+    def _read_bam(self, bf, chroms, reference_filename=False):
         bamf = Bam(bf, reference_filename=reference_filename)
         if bamf.reference_genome:
             self.io.create_signal(None, None, &#34;reference genome&#34;, np.array([np.string_(bamf.reference_genome)]))
@@ -121,7 +120,15 @@ class Root:
                 self.io.create_signal(None, None, &#34;read frg dist&#34;, cum_his_read_frg)
             return count
 
-    def rd_stat(self, chroms=[], plot=True):
+    def rd_stat(self, chroms=[]):
+        &#34;&#34;&#34; Calculate RD statistics for 100 bp bins.
+
+        Parameters
+        ----------
+        chroms : list of str
+            List of chromosomes. Calculates for all available if empty.
+
+        &#34;&#34;&#34;
         rd_stat = []
         auto, sex, mt = False, False, False
 
@@ -247,21 +254,8 @@ class Root:
             gc_corr_mt = calculate_gc_correction(dist_p_gc_mt, m_mt, s_mt, bin_size_mt)
             self.io.create_signal(None, 100, &#34;GC corr&#34;, gc_corr_mt, flags=FLAG_MT)
 
-    def read_vcf(self, vcf_file, chroms, sample=&#39;&#39;, use_index=False, no_counts=False, ad_tag=&#34;AD&#34;, gt_tag=&#34;GT&#34;,
-                 callset=None):
-        &#34;&#34;&#34;
-
-        Parameters
-        ----------
-        vcf_file
-        chroms
-        sample
-        use_index
-
-        Returns
-        -------
-
-        &#34;&#34;&#34;
+    def _read_vcf(self, vcf_file, chroms, sample=&#39;&#39;, use_index=False, no_counts=False, ad_tag=&#34;AD&#34;, gt_tag=&#34;GT&#34;,
+                  callset=None):
         vcff = Vcf(vcf_file)
         chrs = [c for c in vcff.get_chromosomes() if len(chroms) == 0 or c in chroms]
 
@@ -299,14 +293,20 @@ class Root:
                 return vcff.read_all_snp(save_data, sample, ad_tag=ad_tag, gt_tag=gt_tag)
 
     def rd(self, bamfiles, chroms=[], reference_filename=False):
-        &#34;&#34;&#34; Read chromosomes from bam/sam/cram file(s) and store in .cnvnator file
-                Arguments:
-                    * list of bam file names
-                    * list of chromosome names
+        &#34;&#34;&#34; Read chromosomes from bam/sam/cram file(s) and store in cnvpytor file.
+
+        Parameters
+        ----------
+        bamfiles : list of str
+            List of bam/sam/cram files
+        chroms : list of str
+            List of chromosomes. Import all available if empty.
+        reference_filename : str
+            Only for CRAM files - reference genome filename
+
         &#34;&#34;&#34;
-        hm = 0
         for bf in bamfiles:
-            hm += self.read_bam(bf, chroms, reference_filename=reference_filename)
+            self._read_bam(bf, chroms, reference_filename=reference_filename)
             self.io.add_meta_attribute(&#34;BAM&#34;, bf)
 
         if self.io.signal_exists(None, None, &#34;reference genome&#34;):
@@ -319,31 +319,78 @@ class Root:
                 self.io_gc = IO(Genome.reference_genomes[rg_name][&#34;gc_file&#34;])
                 self.rd_stat()
 
-        return hm
-
     def vcf(self, vcf_files, chroms=[], sample=&#39;&#39;, no_counts=False, ad_tag=&#34;AD&#34;, gt_tag=&#34;GT&#34;, callset=None):
-        &#34;&#34;&#34; Read SNP data from variant file(s) and store in .cnvnator file
-                Arguments:
-                    * list of variant file names
-                    * list of chromosome names
-        &#34;&#34;&#34;
-        hm = 0
-        for vcf_file in vcf_files:
-            hm += self.read_vcf(vcf_file, chroms, sample, no_counts=no_counts, ad_tag=ad_tag, gt_tag=gt_tag,
-                                callset=callset)
-            self.io.add_meta_attribute(&#34;VCF&#34;, vcf_file)
-        return hm
-
-    def pileup_bam(self, bamfile, chroms, pos, ref, alt, nref, nalt, reference_filename):
-        &#34;&#34;&#34;
-        TODO:
+        &#34;&#34;&#34; Read SNP data from variant file(s) and store in .cnvpytor file
 
         Parameters
         ----------
-        bamfile
-        chroms
+        vcf_files : list of str
+            List of variant filenames.
+        chroms : list of str
+            List of chromosomes. Import all available if empty.
+        sample : str
+            Name of the sample. It will read first sample if empty string is provided.
+        no_counts : bool
+            Do not read AD counts if true.
+        ad_tag : str
+            AD tag (default &#39;AD&#39;).
+        gt_tag : str
+            GT tag (default &#39;GT&#39;).
+        callset : str or None
+            It will assume SNP data if None. Otherwise it will assume SNV data and
+            store under the name provided by callset variable.
 
         &#34;&#34;&#34;
+        for vcf_file in vcf_files:
+            self._read_vcf(vcf_file, chroms, sample, no_counts=no_counts, ad_tag=ad_tag, gt_tag=gt_tag,
+                                 callset=callset)
+            self.io.add_meta_attribute(&#34;VCF&#34;, vcf_file)
+
+    def rd_from_vcf(self, vcf_file, chroms=[], sample=&#39;&#39;, ad_tag=&#34;AD&#34;, dp_tag=&#34;DP&#34;, use_index=False):
+        &#34;&#34;&#34;
+        Read RD from variant file(s) and store in .cnvpytor file
+
+        Parameters
+        ----------
+        vcf_file : str
+            Variant filename
+        chroms : list of str
+            List of chromosomes. Imports all available if empty.
+        sample : str
+            Name of the sample. It will read first sample if empty string is provided.
+        ad_tag : str
+            AD tag (default &#39;AD&#39;)
+        dp_tag : str
+            DP tag (default &#39;DP&#39;)
+        use_index : bool
+            Use index file for vcf parsing. Default is False.
+
+        &#34;&#34;&#34;
+        vcff = Vcf(vcf_file)
+        chrs = [c for c in vcff.get_chromosomes() if len(chroms) == 0 or c in chroms]
+
+        def save_data(chr, rd_p, rd_u):
+            if (len(chroms) == 0 or chr in chroms) and (not rd_p is None) and (len(rd_p) &gt; 0):
+                self.io.save_rd(chr, rd_p, rd_u, chromosome_length=vcff.lengths[chr])
+            # TODO: Stop reading if all from chroms list are already read.
+
+        if use_index:
+            count = 0
+            for c in chrs:
+                _logger.info(&#34;Reading variant data for chromosome %s&#34; % c)
+
+                rd_p, rd_u = vcff.read_chromosome_rd(c, sample, ad_tag=ad_tag, dp_tag=dp_tag)
+                if not rd_p is None and len(rd_p) &gt; 0:
+                    self.io.save_rd(chr, rd_p, rd_u, chromosome_length=vcff.lengths[chr])
+                    count += 1
+            self.io.add_meta_attribute(&#34;RD from VCF&#34;, vcf_file)
+            return count
+        else:
+            count = vcff.read_all_rd(save_data, sample, ad_tag=ad_tag, dp_tag=dp_tag)
+            self.io.add_meta_attribute(&#34;RD from VCF&#34;, vcf_file)
+            return count
+
+    def _pileup_bam(self, bamfile, chroms, pos, ref, alt, nref, nalt, reference_filename):
         _logger.info(&#34;Calculating pileup from bam file &#39;%s&#39;.&#34; % bamfile)
         bamf = Bam(bamfile, reference_filename=reference_filename)
 
@@ -377,6 +424,10 @@ class Root:
         ----------
         bamfiles : list of str
             Bam files.
+        chroms : list of str
+            List of chromosomes. Calculates for all available if empty.
+        reference_filename : str
+            Only for CRAM files - reference genome filename
         &#34;&#34;&#34;
         chrs = [c for c in self.io.snp_chromosomes() if (len(chroms) == 0 or c in chroms)]
 
@@ -387,13 +438,27 @@ class Root:
             nref[c] = [0] * len(nref[c])
             nalt[c] = [0] * len(nalt[c])
         for bf in bamfiles:
-            self.pileup_bam(bf, chrs, pos, ref, alt, nref, nalt, reference_filename=reference_filename)
+            self._pileup_bam(bf, chrs, pos, ref, alt, nref, nalt, reference_filename=reference_filename)
 
         for c in chrs:
             _logger.info(&#34;Saving SNP data for chromosome &#39;%s&#39; in file &#39;%s&#39;.&#34; % (c, self.io.filename))
             self.io.save_snp(c, pos[c], ref[c], alt[c], nref[c], nalt[c], gt[c], flag[c], qual[c])
 
     def rd_from_snp(self, chroms=[], callset=None):
+        &#34;&#34;&#34; Create RD signal from already imported SNP signal
+
+        Parameters
+        ----------
+        chroms : list of str
+            List of chromosomes. Calculates for all available if empty.
+        callset : str or None
+            It will assume SNP data if None. Otherwise it will assume SNV data
+            stored under the name provided by callset variable.
+
+        Returns
+        -------
+
+        &#34;&#34;&#34;
 
         chromosomes = [c for c in self.io.snp_chromosomes() if (len(chroms) == 0 or c in chroms)]
 
@@ -412,11 +477,11 @@ class Root:
             rdcg = np.zeros(ncg)
             rdc = np.zeros(ncg)
             for p, c1, c2 in zip(pos, nref, nalt):
-                rdcg[(p-1)//10000] += c1+c2
-                rdc[(p-1)//10000] += 1
+                rdcg[(p - 1) // 10000] += c1 + c2
+                rdc[(p - 1) // 10000] += 1
             rdcg = rdcg / rdc
             for i in range(n):
-                rd[i]= rdcg[i//100]
+                rd[i] = rdcg[i // 100]
             self.io.save_rd(c, rd, rd)
 
     def gc(self, filename, chroms=[], make_gc_genome_file=False):
@@ -810,7 +875,6 @@ class Root:
                 if (c in rd_gc_chromosomes) and (c in rd_mask_chromosomes):
                     _logger.info(&#34;Calculating P-mask histograms using bin size %d for chromosome &#39;%s&#39;.&#34; % (bin_size, c))
                     flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
-                    stat = self.io.get_signal(None, 100, &#34;RD stat&#34;, flag)
                     rd_p, rd_u = self.io.read_rd(c)
                     mask = mask_decompress(self.io_mask.get_signal(rd_mask_chromosomes[c], None, &#34;mask&#34;))
                     bin_ratio = bin_size // 100
@@ -837,7 +901,7 @@ class Root:
                     self.io.create_signal(c, bin_size, &#34;RD unique&#34;, his_u, flags=FLAG_USEMASK)
                     self.io.create_signal(c, bin_size, &#34;RD&#34;, his_p_corr, flags=FLAG_GC_CORR | FLAG_USEMASK)
 
-    def partition(self, bin_sizes, chroms=[], use_gc_corr=True, use_mask=False, repeats=3):
+    def partition(self, bin_sizes, chroms=[], use_gc_corr=True, use_mask=False, repeats=3, genome_size=2.9e9):
         &#34;&#34;&#34;
         Calculates segmentation of RD signal.
 
@@ -878,7 +942,7 @@ class Root:
                     if self.io.signal_exists(c, bin_size, &#34;RD stat&#34;, flag_stat) and self.io.signal_exists(c, bin_size,
                                                                                                           &#34;RD&#34;,
                                                                                                           flag_rd):
-                        _logger.info(&#34;Calculating histograms using bin size %d for chromosome &#39;%s&#39;.&#34; % (bin_size, c))
+                        _logger.info(&#34;Calculating partition using bin size %d for chromosome &#39;%s&#39;.&#34; % (bin_size, c))
                         stat = self.io.get_signal(c, bin_size, &#34;RD stat&#34;, flag_stat)
                         mean = stat[4]
                         std = stat[5]
@@ -917,7 +981,7 @@ class Root:
                                     else:
                                         return np.zeros_like(nm_levels)
 
-                                if self.max_cores == 1:
+                                if True:
                                     grad = np.sum([calc_grad(k) for k in range(1, 3 * bin_band + 1)], axis=0)
                                 else:
                                     import multiprocessing
@@ -993,11 +1057,11 @@ class Root:
                                     seg_right_mean = np.mean(levels[seg_right[0]:seg_right[1]])
                                     seg_right_std = np.std(levels[seg_right[0]:seg_right[1]])
                                     if t_test_2_samples(seg_mean, seg_std, n, seg_left_mean, seg_left_std, n_left) &gt; (
-                                            0.01 / 3.e9 * bin_size * (n + n_left)):
+                                            0.01 / genome_size * bin_size * (n + n_left)):
                                         continue
                                     if t_test_2_samples(seg_mean, seg_std, n, seg_right_mean, seg_right_std,
                                                         n_right) &gt; (
-                                            0.01 / 3.e9 * bin_size * (n + n_right)):
+                                            0.01 / genome_size * bin_size * (n + n_right)):
                                         continue
                                 if t_test_1_sample(mean, seg_mean, seg_std, n) &gt; 0.05:
                                     continue
@@ -1006,7 +1070,7 @@ class Root:
 
                         self.io.create_signal(c, bin_size, &#34;RD partition&#34;, levels, flags=flag_rd)
 
-    def call(self, bin_sizes, chroms=[], use_gc_corr=True, use_mask=False):
+    def call(self, bin_sizes, chroms=[], print_calls=False, use_gc_corr=True, use_mask=False, genome_size=2.9e9, genome_cnv_fraction=0.01):
         &#34;&#34;&#34;
         CNV caller based on the segmented RD signal.
 
@@ -1016,12 +1080,27 @@ class Root:
             List of histogram bin sizes
         chroms : list of str
             List of chromosomes. Calculates for all available if empty.
+        print_calls : bool
+            Print to stdout list of calls if true.
         use_gc_corr : bool
             Use GC corrected signal if True. Default: True.
         use_mask : bool
             Use P-mask filter if True. Default: False.
 
+        Returns
+        -------
+        calls: dist
+            Dictionary bin_size -&gt; list of calls
+            Each call is list with values:
+                type (&#34;deletion&#34; or &#34;duplication&#34;),
+                chromosome name, start, end,
+                size, cnv level
+                e1, e2, e3, e4 - estimations of p-Value
+                q0 - percentage of uniquely mapped reads in cnv region
+
         &#34;&#34;&#34;
+        ret = {}
+        normal_genome_size = genome_size * (1 - genome_cnv_fraction)
         rd_gc_chromosomes = {}
         for c in self.io_gc.gc_chromosomes():
             rd_name = self.io.rd_chromosome_name(c)
@@ -1035,6 +1114,7 @@ class Root:
                 rd_mask_chromosomes[rd_name] = c
 
         for bin_size in bin_sizes:
+            ret[bin_size]=[]
             for c in self.io.rd_chromosomes():
                 if (c in rd_gc_chromosomes or not use_gc_corr) and (c in rd_mask_chromosomes or not use_mask) and (
                         len(chroms) == 0 or (c in chroms)):
@@ -1099,7 +1179,7 @@ class Root:
                                 b += 1
                             be = b
                             if be &gt; bs + 1:
-                                adj = adjustToEvalue(mean, std, rd, bs, be, 0.05 * bin_size / 3e9)
+                                adj = adjustToEvalue(mean, std, rd, bs, be, 0.05 * bin_size / normal_genome_size)
                                 if adj is not None:
                                     bs, be = adj
                                     segments.append([bs, be, -1])
@@ -1110,7 +1190,7 @@ class Root:
                                 b += 1
                             be = b
                             if be &gt; bs + 1:
-                                adj = adjustToEvalue(mean, std, rd, bs, be, 0.05 * bin_size / 3e9)
+                                adj = adjustToEvalue(mean, std, rd, bs, be, 0.05 * bin_size / normal_genome_size)
                                 if adj is not None:
                                     bs, be = adj
                                     segments.append([bs, be, +1])
@@ -1128,7 +1208,7 @@ class Root:
                                 b += 1
                             be = b
                             if be &gt; bs + 1:
-                                if gaussianEValue(mean, std, rd, bs, be) &lt; 0.05 / 3e9:
+                                if gaussianEValue(mean, std, rd, bs, be) &lt; 0.05 / normal_genome_size:
                                     segments.append([bs, be, -1])
                                     flags[bs:be] = [&#34;d&#34;] * (be - bs)
                                 b -= 1
@@ -1138,20 +1218,21 @@ class Root:
                         if b &lt; len(levels):
                             cf = flags[b]
                         bs = 0
+                        merge = rd.copy()
                         while b &lt; len(levels):
                             while flags[b] == cf:
                                 b += 1
                                 if b &gt;= len(flags):
                                     break
                             if b &gt; bs:
-                                rd[bs:b] = np.mean(rd[bs:b])
+                                merge[bs:b] = np.mean(merge[bs:b])
                             if b &lt; len(levels):
                                 cf = flags[b]
                             bs = b
 
-                        self.io.create_signal(c, bin_size, &#34;RD call&#34;, rd, flags=flag_rd)
+                        self.io.create_signal(c, bin_size, &#34;RD call&#34;, merge, flags=flag_rd)
 
-                        _logger.debug(&#34;Print calls&#34;)
+                        _logger.debug(&#34;Calculate/print calls&#34;)
                         b = 0
                         while b &lt; len(levels):
                             cf = flags[b]
@@ -1169,22 +1250,25 @@ class Root:
                             start = bin_size * bs + 1
                             end = bin_size * b
                             size = end - start + 1
-                            e1 = getEValue(mean, std, rd, bs, b) * 3e9 / bin_size / (b - bs)
-                            e2 = gaussianEValue(mean, std, rd, bs, b) * 3e9
+                            e1 = getEValue(mean, std, rd, bs, b) * normal_genome_size / bin_size
+                            e2 = gaussianEValue(mean, std, rd, bs, b) * normal_genome_size
                             e3, e4 = 1, 1
                             tmp = int(1000. / bin_size + 0.5)
                             if bs + tmp &lt; b - tmp:
-                                e3 = getEValue(mean, std, rd, bs + tmp, b - tmp) * 3e9 / bin_size / (b - bs)
-                                e4 = gaussianEValue(mean, std, rd, bs + tmp, b - tmp) * 3e9
+                                e3 = getEValue(mean, std, rd, bs + tmp, b - tmp) * normal_genome_size / bin_size
+                                e4 = gaussianEValue(mean, std, rd, bs + tmp, b - tmp) * normal_genome_size
                             rd_p = self.io.get_signal(c, bin_size, &#34;RD&#34;)
                             rd_u = self.io.get_signal(c, bin_size, &#34;RD unique&#34;)
                             q0 = -1
                             if sum(rd_p[bs:b]) &gt; 0:
                                 q0 = (sum(rd_p[bs:b]) - sum(rd_u[bs:b])) / sum(rd_p[bs:b])
-                            print(&#34;%s\t%s:%d-%d\t%d\t%.4f\t%e\t%e\t%e\t%e\t%.4f\t&#34; % (
-                                etype, c, start, end, size, cnv, e1, e2, e3, e4, q0))
+                            if print_calls:
+                                print(&#34;%s\t%s:%d-%d\t%d\t%.4f\t%e\t%e\t%e\t%e\t%.4f\t&#34; % (
+                                    etype, c, start, end, size, cnv, e1, e2, e3, e4, q0))
+                            ret[bin_size].append([etype, c, start, end, size, cnv, e1, e2, e3, e4, q0])
+        return ret
 
-    def call_mosaic(self, bin_sizes, chroms=[], use_gc_corr=True, use_mask=False, odec=0.9, omin=None,
+    def call_mosaic(self, bin_sizes, chroms=[], use_gc_corr=True, use_mask=False, omin=None,
                     max_distance=0.3, anim=&#34;&#34;):
         &#34;&#34;&#34;
         CNV caller based on likelihood merger.
@@ -1239,16 +1323,10 @@ class Root:
                         valid = np.isfinite(rd)
                         level = rd[valid]
                         error = np.sqrt(level) ** 2 + std ** 2
-                        # error = np.sqrt(level)**2
                         loc_fl = np.min(list(zip(np.abs(np.diff(level))[:-1], np.abs(np.diff(level))[1:])), axis=1)
                         loc_fl = np.concatenate(([0], loc_fl, [0]))
                         error += (loc_fl / 2) ** 2
                         error = np.sqrt(error)
-                        # plt.errorbar(np.arange(0,len(level)),level,yerr=error,c=&#34;k&#34;)
-                        # plt.errorbar(np.arange(0,len(level))+0.1,level,yerr=np.sqrt(level),c=&#34;r&#34;)
-                        # plt.errorbar(np.arange(0,len(level))+0.2,level,yerr=std,c=&#34;g&#34;)
-                        # plt.errorbar(np.arange(0,len(level))+0.3,level,yerr=loc_fl,c=&#34;b&#34;)
-                        # plt.show()
                         level = list(level)
                         error = list(error)
                         segments = [[i] for i in range(bins) if np.isfinite(rd[i])]
@@ -1331,103 +1409,29 @@ class Root:
                                 break
                             ons = len(segments)
 
-                        # while len(overlaps) &gt; 0:
-                        #     maxo = max(overlaps)
-                        #     mino = max(maxo * odec, overlap_min)
-                        #     if maxo &lt; overlap_min:
-                        #         break
-                        #     i = 0
-                        #     while i &lt; len(overlaps):
-                        #         if overlaps[i] &gt; mino:
-                        #             nl, ne = normal_merge(level[i], error[i], level[i + 1], error[i + 1])
-                        #             level[i] = nl
-                        #             error[i] = ne
-                        #             segments[i] += segments[i + 1]
-                        #             del level[i + 1]
-                        #             del error[i + 1]
-                        #             del segments[i + 1]
-                        #             del overlaps[i]
-                        #             if i &lt; len(overlaps):
-                        #                 overlaps[i] = normal_overlap(level[i], error[i], level[i + 1], error[i + 1])
-                        #             if i &gt; 0:
-                        #                 overlaps[i - 1] = normal_overlap(level[i - 1], error[i - 1], level[i], error[i])
-                        #         else:
-                        #             i = i + 1
-                        #
-                        #     iter = iter + 1
-                        #     if anim != &#34;&#34;:
-                        #         anim_plot_rd(level, error, segments, bins, iter, anim + c + &#34;_0_&#34; + str(bin_size), maxo,
-                        #                      mino, mean)
-                        #
-                        # iter = 0
-                        # ons = -1
-                        #
-                        # _logger.info(&#34;Second stage. Number of segments: %d.&#34; % len(level))
-                        #
-                        # while True:
-                        #     overlaps = [normal_overlap(level[i], error[i], level[j], error[j]) for i in
-                        #                 range(len(level)) for j in range(i + 1, len(level)) if
-                        #                 (segments[j][0] - segments[i][-1]) &lt; max_distance * (
-                        #                         len(segments[i]) + len(segments[j]))]
-                        #     if len(overlaps) == 0:
-                        #         break
-                        #     maxo = max(overlaps)
-                        #     mino = max(maxo * odec, overlap_min)
-                        #     if maxo &lt; overlap_min:
-                        #         break
-                        #     i, j = 0, 1
-                        #     while i &lt; len(segments) - 1:
-                        #
-                        #         if (segments[j][0] - segments[i][-1]) &lt; max_distance * (
-                        #                 len(segments[i]) + len(segments[j])) and normal_overlap(level[i], error[i],
-                        #                                                                         level[j],
-                        #                                                                         error[j]) &gt; mino:
-                        #             nl, ne = normal_merge(level[i], error[i], level[j], error[j])
-                        #             level[i] = nl
-                        #             error[i] = ne
-                        #             segments[i] += segments[j]
-                        #             segments[i] = sorted(segments[i])
-                        #             del level[j]
-                        #             del error[j]
-                        #             del segments[j]
-                        #
-                        #             if j &gt;= len(segments):
-                        #                 i += 1
-                        #                 j = i + 1
-                        #         else:
-                        #             j += 1
-                        #             if j &gt;= len(segments):
-                        #                 i += 1
-                        #                 j = i + 1
-                        #     iter = iter + 1
-                        #     if anim != &#34;&#34;:
-                        #         anim_plot_rd(level, error, segments, bins, iter, anim + c + &#34;_1_&#34; + str(bin_size), maxo,
-                        #                      mino, mean)
-                        #     _logger.info(&#34;Iteration: %d. Number of segments: %d.&#34; % (iter, len(level)))
-                        #     if ons == len(segments):
-                        #         break
-                        #     ons = len(segments)
-
                         for i in range(len(segments)):
-                            i1=level[i]/mean
-                            i2=t_test_1_sample(mean,level[i],error[i],len(segments[i]))
-                            if i2 is not None and i2&lt;(0.05*bin_size/3e9) and abs(i1-1.)&gt;0.01:
+                            i1 = level[i] / mean
+                            i2 = t_test_1_sample(mean, level[i], error[i], len(segments[i]))
+                            if i2 is not None and i2 &lt; (0.05 * bin_size / 3e9) and abs(i1 - 1.) &gt; 0.01:
                                 print(c + &#34;:&#34; + str(segments[i][0] * bin_size + 1) + &#34;-&#34; + str(
                                     segments[i][-1] * bin_size + bin_size),
-                                    (segments[i][-1] - segments[i][0] + 1) * bin_size, bin_size, len(segments[i]),
-                            i1, i2)
+                                      (segments[i][-1] - segments[i][0] + 1) * bin_size, bin_size, len(segments[i]),
+                                      i1, i2)
 
                         self.io.create_signal(c, bin_size, &#34;RD mosaic segments&#34;,
                                               data=segments_code(segments), flags=flag_rd)
                         self.io.create_signal(c, bin_size, &#34;RD mosaic call&#34;,
                                               data=np.array([level, error], dtype=&#34;float32&#34;), flags=flag_rd)
 
-                        # levels = self.io.get_signal(c, bin_size, &#34;RD partition&#34;, flag_rd)
-
     def mask_snps(self, callset=None):
-        &#34;&#34;&#34;
-        Flags SNPs in P-region (sets second bit of the flag to 1 for SNP inside P region, or to 0 otherwise).
+        &#34;&#34;&#34; Flags SNPs in P-region (sets second bit of the flag to 1 for SNP inside P region, or to 0 otherwise).
         Requires imported mask data or recognized reference genome with mask data.
+
+        Parameters
+        ----------
+        callset : str or None
+            It will assume SNP data if None. Otherwise it will assume SNV data
+            stored under the name provided by callset variable.
 
         &#34;&#34;&#34;
         snp_mask_chromosomes = {}
@@ -1468,6 +1472,8 @@ class Root:
             Use P-mask filter if True. Default: True.
         use_id : bool
             Use id flag filter if True. Default: False.
+        use_phase : bool
+            Use phasing information if True and available. Default: False.
         res: int
             Likelihood function resolution. Default: 200.
 
@@ -1590,12 +1596,20 @@ class Root:
 
     def call_baf(self, bin_sizes, chroms=[], use_mask=True, use_id=False, odec=0.9, omin=None, mcount=None,
                  max_distance=0.1, anim=&#34;&#34;):
+        &#34;&#34;&#34; CNV caller based on BAF likelihood mearger
+
+        Parameters
+        ----------
+        bin_sizes : list of int
+            List of histogram bin sizes
+        chroms : list of str
+            List of chromosomes. Calculates for all available if empty.
+        use_mask : bool
+            Use P-mask filter if True. Default: False.
+        use_id : bool
+            Use ID filter if True. Default: False.
         &#34;&#34;&#34;
 
-        Returns
-        -------
-
-        &#34;&#34;&#34;
         for bin_size in bin_sizes:
             if omin is None:
                 overlap_min = 1e-7 * bin_size
@@ -1714,7 +1728,219 @@ class Root:
                     self.io.create_signal(c, bin_size, &#34;SNP likelihood call&#34;,
                                           data=np.array(likelihood, dtype=&#34;float32&#34;), flags=snp_flag)
 
+    def call_2d(self, bin_sizes, chroms=[], use_gc_corr=True, rd_use_mask=False, snp_use_mask=True, snp_use_id=False,
+                odec=0.9, omin=None, mcount=None, max_distance=0.1, anim=&#34;&#34;):
+        &#34;&#34;&#34;
+        CNV caller using combined RD and BAF sigal based on likelihood merger.
+
+        Parameters
+        ----------
+        bin_sizes : list of int
+            List of histogram bin sizes
+        chroms : list of str
+            List of chromosomes. Calculates for all available if empty.
+        use_gc_corr : bool
+            Use GC corrected signal if True. Default: True.
+        rd_use_mask : bool
+            Use P-mask filter for RD if True. Default: False.
+        snp_use_mask : bool
+            Use P-mask filter for SNP if True. Default: True.
+        snp_use_id : bool
+            Use ID filter for SNP if True. Default: False.
+
+        &#34;&#34;&#34;
+
+        snp_flag = (FLAG_USEMASK if snp_use_mask else 0) | (FLAG_USEID if snp_use_id else 0)
+        rd_gc_chromosomes = {}
+        for c in self.io_gc.gc_chromosomes():
+            rd_name = self.io.rd_chromosome_name(c)
+            if not rd_name is None:
+                rd_gc_chromosomes[rd_name] = c
+
+        rd_mask_chromosomes = {}
+        for c in self.io_mask.mask_chromosomes():
+            rd_name = self.io.rd_chromosome_name(c)
+            if not rd_name is None:
+                rd_mask_chromosomes[rd_name] = c
+
+        for bin_size in bin_sizes:
+            if omin is None:
+                overlap_min = 0.05 * bin_size / 3e9
+            else:
+                overlap_min = omin
+            if mcount is None:
+                min_count = bin_size // 10000
+            else:
+                min_count = mcount
+
+            for c in self.io.rd_chromosomes():
+                if (c in rd_gc_chromosomes or not use_gc_corr) and (c in rd_mask_chromosomes or not rd_use_mask) and (
+                        self.io.signal_exists(c, bin_size, &#34;SNP likelihood&#34;, snp_flag)) and (
+                        len(chroms) == 0 or (c in chroms)):
+                    flag_stat = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
+                    flag_auto = FLAG_AUTO
+                    if use_gc_corr:
+                        flag_stat |= FLAG_GC_CORR
+                        flag_auto |= FLAG_GC_CORR
+                    flag_rd = (FLAG_GC_CORR if use_gc_corr else 0) | (FLAG_USEMASK if rd_use_mask else 0)
+                    if self.io.signal_exists(c, bin_size, &#34;RD stat&#34;, flag_stat) and \
+                            self.io.signal_exists(c, bin_size, &#34;RD&#34;, flag_rd):
+                        _logger.info(&#34;Calculating 2d calls using bin size %d for chromosome &#39;%s&#39;.&#34; % (bin_size, c))
+                        stat = self.io.get_signal(c, bin_size, &#34;RD stat&#34;, flag_stat)
+                        mean = stat[4]
+                        std = stat[5]
+                        rd = self.io.get_signal(c, bin_size, &#34;RD&#34;, flag_rd)
+                        rd_bins = len(rd)
+
+                        snp_likelihood = list(
+                            self.io.get_signal(c, bin_size, &#34;SNP likelihood&#34;, snp_flag).astype(&#34;float64&#34;))
+                        snp_hets = self.io.get_signal(c, bin_size, &#34;SNP bin count 0|1&#34;, snp_flag)
+                        snp_hets += self.io.get_signal(c, bin_size, &#34;SNP bin count 1|0&#34;, snp_flag)
+
+                        snp_bins = len(snp_likelihood)
+                        res = snp_likelihood[0].size
+                        bins = min(rd_bins, snp_bins)
+
+                        segments = [[i] for i in range(bins) if
+                                    snp_hets[i] &gt;= min_count and np.sum(snp_likelihood[i]) &gt; 0.0 and np.isfinite(rd[i])]
+
+                        level = [rd[i] for i in range(bins) if
+                                 snp_hets[i] &gt;= min_count and np.sum(snp_likelihood[i]) &gt; 0.0 and np.isfinite(rd[i])]
+                        level = np.array(level)
+                        ilevel = level.copy()
+                        error = np.sqrt(level) ** 2 + std ** 2
+                        loc_fl = np.min(list(zip(np.abs(np.diff(level))[:-1], np.abs(np.diff(level))[1:])), axis=1)
+                        loc_fl = np.concatenate(([0], loc_fl, [0]))
+                        error += (loc_fl / 2) ** 2
+                        error = np.sqrt(error)
+                        level = list(level)
+                        error = list(error)
+
+                        likelihood = [snp_likelihood[i] for i in range(bins) if
+                                      snp_hets[i] &gt;= min_count and np.sum(snp_likelihood[i]) &gt; 0.0 and np.isfinite(
+                                          rd[i])]
+
+                        overlaps = [normal_overlap(level[i], error[i], level[i + 1], error[i + 1]) * likelihood_overlap(
+                            likelihood[i], likelihood[i + 1]) for i in range(len(segments) - 1)]
+
+                        iter = 0
+                        if anim != &#34;&#34;:
+                            anim_plot_rd(level, error, segments, bins, iter, anim + c + &#34;_0_&#34; + str(bin_size), 0,
+                                         0, mean)
+
+                        while len(overlaps) &gt; 0:
+                            maxo = max(overlaps)
+                            if maxo &lt; overlap_min:
+                                break
+                            i = overlaps.index(maxo)
+                            nl, ne = normal_merge(level[i], error[i], level[i + 1], error[i + 1])
+                            nlh = likelihood[i] * likelihood[i + 1]
+                            level[i] = nl
+                            error[i] = ne
+                            likelihood[i] = nlh / np.sum(nlh)
+                            segments[i] += segments[i + 1]
+                            del level[i + 1]
+                            del error[i + 1]
+                            del segments[i + 1]
+                            del likelihood[i + 1]
+                            del overlaps[i]
+                            if i &lt; len(overlaps):
+                                overlaps[i] = normal_overlap(level[i], error[i], level[i + 1],
+                                                             error[i + 1]) * likelihood_overlap(likelihood[i],
+                                                                                                likelihood[i + 1])
+                            if i &gt; 0:
+                                overlaps[i - 1] = normal_overlap(level[i - 1], error[i - 1], level[i],
+                                                                 error[i]) * likelihood_overlap(likelihood[i - 1],
+                                                                                                likelihood[i])
+                            iter = iter + 1
+                            if anim != &#34;&#34; and (iter % 100) == 0:
+                                anim_plot_rd(level, error, segments, bins, iter, anim + c + &#34;_0_&#34; + str(bin_size), maxo,
+                                             mino, mean)
+
+                        iter = 0
+                        ons = -1
+
+                        _logger.info(&#34;Second stage. Number of segments: %d.&#34; % len(level))
+
+                        while True:
+                            overlaps = [normal_overlap(level[i], error[i], level[j], error[j]) * likelihood_overlap(
+                                likelihood[i], likelihood[j]) for i in range(len(level)) for j in
+                                        range(i + 1, len(level)) if
+                                        (segments[j][0] - segments[i][-1]) &lt; max_distance * (
+                                                len(segments[i]) + len(segments[j]))]
+                            if len(overlaps) == 0:
+                                break
+
+                            maxo = max(overlaps)
+                            if maxo &lt; overlap_min:
+                                break
+                            i, j = 0, 1
+                            while i &lt; len(segments) - 1:
+
+                                if (segments[j][0] - segments[i][-1]) &lt; max_distance * (
+                                        len(segments[i]) + len(segments[j])) and \
+                                        normal_overlap(level[i], error[i], level[j], error[j]) * likelihood_overlap(
+                                        likelihood[i], likelihood[j]) == maxo:
+                                    nl, ne = normal_merge(level[i], error[i], level[j], error[j])
+                                    nlh = likelihood[i] * likelihood[j]
+                                    level[i] = nl
+                                    error[i] = ne
+                                    likelihood[i] = nlh / np.sum(nlh)
+                                    segments[i] += segments[j]
+                                    segments[i] = sorted(segments[i])
+                                    del level[j]
+                                    del error[j]
+                                    del segments[j]
+
+                                    if j &gt;= len(segments):
+                                        i += 1
+                                        j = i + 1
+                                else:
+                                    j += 1
+                                    if j &gt;= len(segments):
+                                        i += 1
+                                        j = i + 1
+                            iter = iter + 1
+                            if anim != &#34;&#34; and (iter % 100) == 0:
+                                anim_plot_rd(level, error, segments, bins, iter, anim + c + &#34;_1_&#34; + str(bin_size), maxo,
+                                             mino, mean)
+                            _logger.info(&#34;Iteration: %d. Number of segments: %d.&#34; % (iter, len(level)))
+                            if ons == len(segments):
+                                break
+                            ons = len(segments)
+
+                        # rd = [np.nan] * bins
+                        # for i in range(len(segments)):
+                        #     for b in segments[i]:
+                        #         rd[b] = level[i]
+                        # plt.plot(rd)
+                        # plt.show()
+                        # return
+
+                        for i in range(len(segments)):
+                            rd_mean = level[i] / mean
+                            rd_p = t_test_1_sample(mean, level[i], error[i], len(segments[i]))
+                            baf_mean, baf_p = likelihood_baf_pval(likelihood[i])
+                            print(c + &#34;:&#34; + str(segments[i][0] * bin_size + 1) + &#34;-&#34; + str(
+                                    segments[i][-1] * bin_size + bin_size),
+                                      (segments[i][-1] - segments[i][0] + 1) * bin_size, bin_size, len(segments[i]),
+                                      rd_mean, rd_p, baf_mean, baf_p)
+
+                        self.io.create_signal(c, bin_size, &#34;RD mosaic segments&#34;,
+                                              data=segments_code(segments), flags=flag_rd)
+                        self.io.create_signal(c, bin_size, &#34;RD mosaic call&#34;,
+                                              data=np.array([level, error], dtype=&#34;float32&#34;), flags=flag_rd)
+                        self.io.create_signal(c, bin_size, &#34;SNP likelihood segments&#34;,
+                                              data=segments_code(segments), flags=snp_flag)
+                        self.io.create_signal(c, bin_size, &#34;SNP likelihood call&#34;,
+                                              data=np.array(likelihood, dtype=&#34;float32&#34;), flags=snp_flag)
+
+        return
+
     def ls(self):
+        &#34;&#34;&#34; Print to stdout content of cnvpytor file.
+
+        &#34;&#34;&#34;
         self.io.ls()</code></pre>
 </details>
 </section>
@@ -1763,6 +1989,8 @@ class Root:
 <dd>Use P-mask filter if True. Default: True.</dd>
 <dt><strong><code>use_id</code></strong> :&ensp;<code>bool</code></dt>
 <dd>Use id flag filter if True. Default: False.</dd>
+<dt><strong><code>use_phase</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Use phasing information if True and available. Default: False.</dd>
 <dt><strong><code>res</code></strong> :&ensp;<code>int</code></dt>
 <dd>Likelihood function resolution. Default: 200.</dd>
 </dl></section>
@@ -1783,6 +2011,8 @@ class Root:
         Use P-mask filter if True. Default: True.
     use_id : bool
         Use id flag filter if True. Default: False.
+    use_phase : bool
+        Use phasing information if True and available. Default: False.
     res: int
         Likelihood function resolution. Default: 200.
 
@@ -2163,7 +2393,6 @@ class Root:
             if (c in rd_gc_chromosomes) and (c in rd_mask_chromosomes):
                 _logger.info(&#34;Calculating P-mask histograms using bin size %d for chromosome &#39;%s&#39;.&#34; % (bin_size, c))
                 flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
-                stat = self.io.get_signal(None, 100, &#34;RD stat&#34;, flag)
                 rd_p, rd_u = self.io.read_rd(c)
                 mask = mask_decompress(self.io_mask.get_signal(rd_mask_chromosomes[c], None, &#34;mask&#34;))
                 bin_ratio = bin_size // 100
@@ -2192,7 +2421,7 @@ class Root:
 </details>
 </dd>
 <dt id="cnvpytor.root.Root.call"><code class="name flex">
-<span>def <span class="ident">call</span></span>(<span>self, bin_sizes, chroms=[], use_gc_corr=True, use_mask=False)</span>
+<span>def <span class="ident">call</span></span>(<span>self, bin_sizes, chroms=[], print_calls=False, use_gc_corr=True, use_mask=False, genome_size=2900000000.0, genome_cnv_fraction=0.01)</span>
 </code></dt>
 <dd>
 <section class="desc"><p>CNV caller based on the segmented RD signal.</p>
@@ -2202,14 +2431,27 @@ class Root:
 <dd>List of histogram bin sizes</dd>
 <dt><strong><code>chroms</code></strong> :&ensp;<code>list</code> of <code>str</code></dt>
 <dd>List of chromosomes. Calculates for all available if empty.</dd>
+<dt><strong><code>print_calls</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Print to stdout list of calls if true.</dd>
 <dt><strong><code>use_gc_corr</code></strong> :&ensp;<code>bool</code></dt>
 <dd>Use GC corrected signal if True. Default: True.</dd>
 <dt><strong><code>use_mask</code></strong> :&ensp;<code>bool</code></dt>
 <dd>Use P-mask filter if True. Default: False.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>calls</code></strong> :&ensp;<code>dist</code></dt>
+<dd>Dictionary bin_size -&gt; list of calls
+Each call is list with values:
+type ("deletion" or "duplication"),
+chromosome name, start, end,
+size, cnv level
+e1, e2, e3, e4 - estimations of p-Value
+q0 - percentage of uniquely mapped reads in cnv region</dd>
 </dl></section>
 <details class="source">
 <summary>Source code</summary>
-<pre><code class="python">def call(self, bin_sizes, chroms=[], use_gc_corr=True, use_mask=False):
+<pre><code class="python">def call(self, bin_sizes, chroms=[], print_calls=False, use_gc_corr=True, use_mask=False, genome_size=2.9e9, genome_cnv_fraction=0.01):
     &#34;&#34;&#34;
     CNV caller based on the segmented RD signal.
 
@@ -2219,12 +2461,27 @@ class Root:
         List of histogram bin sizes
     chroms : list of str
         List of chromosomes. Calculates for all available if empty.
+    print_calls : bool
+        Print to stdout list of calls if true.
     use_gc_corr : bool
         Use GC corrected signal if True. Default: True.
     use_mask : bool
         Use P-mask filter if True. Default: False.
 
+    Returns
+    -------
+    calls: dist
+        Dictionary bin_size -&gt; list of calls
+        Each call is list with values:
+            type (&#34;deletion&#34; or &#34;duplication&#34;),
+            chromosome name, start, end,
+            size, cnv level
+            e1, e2, e3, e4 - estimations of p-Value
+            q0 - percentage of uniquely mapped reads in cnv region
+
     &#34;&#34;&#34;
+    ret = {}
+    normal_genome_size = genome_size * (1 - genome_cnv_fraction)
     rd_gc_chromosomes = {}
     for c in self.io_gc.gc_chromosomes():
         rd_name = self.io.rd_chromosome_name(c)
@@ -2238,6 +2495,7 @@ class Root:
             rd_mask_chromosomes[rd_name] = c
 
     for bin_size in bin_sizes:
+        ret[bin_size]=[]
         for c in self.io.rd_chromosomes():
             if (c in rd_gc_chromosomes or not use_gc_corr) and (c in rd_mask_chromosomes or not use_mask) and (
                     len(chroms) == 0 or (c in chroms)):
@@ -2302,7 +2560,7 @@ class Root:
                             b += 1
                         be = b
                         if be &gt; bs + 1:
-                            adj = adjustToEvalue(mean, std, rd, bs, be, 0.05 * bin_size / 3e9)
+                            adj = adjustToEvalue(mean, std, rd, bs, be, 0.05 * bin_size / normal_genome_size)
                             if adj is not None:
                                 bs, be = adj
                                 segments.append([bs, be, -1])
@@ -2313,7 +2571,7 @@ class Root:
                             b += 1
                         be = b
                         if be &gt; bs + 1:
-                            adj = adjustToEvalue(mean, std, rd, bs, be, 0.05 * bin_size / 3e9)
+                            adj = adjustToEvalue(mean, std, rd, bs, be, 0.05 * bin_size / normal_genome_size)
                             if adj is not None:
                                 bs, be = adj
                                 segments.append([bs, be, +1])
@@ -2331,7 +2589,7 @@ class Root:
                             b += 1
                         be = b
                         if be &gt; bs + 1:
-                            if gaussianEValue(mean, std, rd, bs, be) &lt; 0.05 / 3e9:
+                            if gaussianEValue(mean, std, rd, bs, be) &lt; 0.05 / normal_genome_size:
                                 segments.append([bs, be, -1])
                                 flags[bs:be] = [&#34;d&#34;] * (be - bs)
                             b -= 1
@@ -2341,20 +2599,21 @@ class Root:
                     if b &lt; len(levels):
                         cf = flags[b]
                     bs = 0
+                    merge = rd.copy()
                     while b &lt; len(levels):
                         while flags[b] == cf:
                             b += 1
                             if b &gt;= len(flags):
                                 break
                         if b &gt; bs:
-                            rd[bs:b] = np.mean(rd[bs:b])
+                            merge[bs:b] = np.mean(merge[bs:b])
                         if b &lt; len(levels):
                             cf = flags[b]
                         bs = b
 
-                    self.io.create_signal(c, bin_size, &#34;RD call&#34;, rd, flags=flag_rd)
+                    self.io.create_signal(c, bin_size, &#34;RD call&#34;, merge, flags=flag_rd)
 
-                    _logger.debug(&#34;Print calls&#34;)
+                    _logger.debug(&#34;Calculate/print calls&#34;)
                     b = 0
                     while b &lt; len(levels):
                         cf = flags[b]
@@ -2372,37 +2631,291 @@ class Root:
                         start = bin_size * bs + 1
                         end = bin_size * b
                         size = end - start + 1
-                        e1 = getEValue(mean, std, rd, bs, b) * 3e9 / bin_size / (b - bs)
-                        e2 = gaussianEValue(mean, std, rd, bs, b) * 3e9
+                        e1 = getEValue(mean, std, rd, bs, b) * normal_genome_size / bin_size
+                        e2 = gaussianEValue(mean, std, rd, bs, b) * normal_genome_size
                         e3, e4 = 1, 1
                         tmp = int(1000. / bin_size + 0.5)
                         if bs + tmp &lt; b - tmp:
-                            e3 = getEValue(mean, std, rd, bs + tmp, b - tmp) * 3e9 / bin_size / (b - bs)
-                            e4 = gaussianEValue(mean, std, rd, bs + tmp, b - tmp) * 3e9
+                            e3 = getEValue(mean, std, rd, bs + tmp, b - tmp) * normal_genome_size / bin_size
+                            e4 = gaussianEValue(mean, std, rd, bs + tmp, b - tmp) * normal_genome_size
                         rd_p = self.io.get_signal(c, bin_size, &#34;RD&#34;)
                         rd_u = self.io.get_signal(c, bin_size, &#34;RD unique&#34;)
                         q0 = -1
                         if sum(rd_p[bs:b]) &gt; 0:
                             q0 = (sum(rd_p[bs:b]) - sum(rd_u[bs:b])) / sum(rd_p[bs:b])
-                        print(&#34;%s\t%s:%d-%d\t%d\t%.4f\t%e\t%e\t%e\t%e\t%.4f\t&#34; % (
-                            etype, c, start, end, size, cnv, e1, e2, e3, e4, q0))</code></pre>
+                        if print_calls:
+                            print(&#34;%s\t%s:%d-%d\t%d\t%.4f\t%e\t%e\t%e\t%e\t%.4f\t&#34; % (
+                                etype, c, start, end, size, cnv, e1, e2, e3, e4, q0))
+                        ret[bin_size].append([etype, c, start, end, size, cnv, e1, e2, e3, e4, q0])
+    return ret</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.root.Root.call_2d"><code class="name flex">
+<span>def <span class="ident">call_2d</span></span>(<span>self, bin_sizes, chroms=[], use_gc_corr=True, rd_use_mask=False, snp_use_mask=True, snp_use_id=False, odec=0.9, omin=None, mcount=None, max_distance=0.1, anim='')</span>
+</code></dt>
+<dd>
+<section class="desc"><p>CNV caller using combined RD and BAF sigal based on likelihood merger.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>bin_sizes</code></strong> :&ensp;<code>list</code> of <code>int</code></dt>
+<dd>List of histogram bin sizes</dd>
+<dt><strong><code>chroms</code></strong> :&ensp;<code>list</code> of <code>str</code></dt>
+<dd>List of chromosomes. Calculates for all available if empty.</dd>
+<dt><strong><code>use_gc_corr</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Use GC corrected signal if True. Default: True.</dd>
+<dt><strong><code>rd_use_mask</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Use P-mask filter for RD if True. Default: False.</dd>
+<dt><strong><code>snp_use_mask</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Use P-mask filter for SNP if True. Default: True.</dd>
+<dt><strong><code>snp_use_id</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Use ID filter for SNP if True. Default: False.</dd>
+</dl></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def call_2d(self, bin_sizes, chroms=[], use_gc_corr=True, rd_use_mask=False, snp_use_mask=True, snp_use_id=False,
+            odec=0.9, omin=None, mcount=None, max_distance=0.1, anim=&#34;&#34;):
+    &#34;&#34;&#34;
+    CNV caller using combined RD and BAF sigal based on likelihood merger.
+
+    Parameters
+    ----------
+    bin_sizes : list of int
+        List of histogram bin sizes
+    chroms : list of str
+        List of chromosomes. Calculates for all available if empty.
+    use_gc_corr : bool
+        Use GC corrected signal if True. Default: True.
+    rd_use_mask : bool
+        Use P-mask filter for RD if True. Default: False.
+    snp_use_mask : bool
+        Use P-mask filter for SNP if True. Default: True.
+    snp_use_id : bool
+        Use ID filter for SNP if True. Default: False.
+
+    &#34;&#34;&#34;
+
+    snp_flag = (FLAG_USEMASK if snp_use_mask else 0) | (FLAG_USEID if snp_use_id else 0)
+    rd_gc_chromosomes = {}
+    for c in self.io_gc.gc_chromosomes():
+        rd_name = self.io.rd_chromosome_name(c)
+        if not rd_name is None:
+            rd_gc_chromosomes[rd_name] = c
+
+    rd_mask_chromosomes = {}
+    for c in self.io_mask.mask_chromosomes():
+        rd_name = self.io.rd_chromosome_name(c)
+        if not rd_name is None:
+            rd_mask_chromosomes[rd_name] = c
+
+    for bin_size in bin_sizes:
+        if omin is None:
+            overlap_min = 0.05 * bin_size / 3e9
+        else:
+            overlap_min = omin
+        if mcount is None:
+            min_count = bin_size // 10000
+        else:
+            min_count = mcount
+
+        for c in self.io.rd_chromosomes():
+            if (c in rd_gc_chromosomes or not use_gc_corr) and (c in rd_mask_chromosomes or not rd_use_mask) and (
+                    self.io.signal_exists(c, bin_size, &#34;SNP likelihood&#34;, snp_flag)) and (
+                    len(chroms) == 0 or (c in chroms)):
+                flag_stat = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
+                flag_auto = FLAG_AUTO
+                if use_gc_corr:
+                    flag_stat |= FLAG_GC_CORR
+                    flag_auto |= FLAG_GC_CORR
+                flag_rd = (FLAG_GC_CORR if use_gc_corr else 0) | (FLAG_USEMASK if rd_use_mask else 0)
+                if self.io.signal_exists(c, bin_size, &#34;RD stat&#34;, flag_stat) and \
+                        self.io.signal_exists(c, bin_size, &#34;RD&#34;, flag_rd):
+                    _logger.info(&#34;Calculating 2d calls using bin size %d for chromosome &#39;%s&#39;.&#34; % (bin_size, c))
+                    stat = self.io.get_signal(c, bin_size, &#34;RD stat&#34;, flag_stat)
+                    mean = stat[4]
+                    std = stat[5]
+                    rd = self.io.get_signal(c, bin_size, &#34;RD&#34;, flag_rd)
+                    rd_bins = len(rd)
+
+                    snp_likelihood = list(
+                        self.io.get_signal(c, bin_size, &#34;SNP likelihood&#34;, snp_flag).astype(&#34;float64&#34;))
+                    snp_hets = self.io.get_signal(c, bin_size, &#34;SNP bin count 0|1&#34;, snp_flag)
+                    snp_hets += self.io.get_signal(c, bin_size, &#34;SNP bin count 1|0&#34;, snp_flag)
+
+                    snp_bins = len(snp_likelihood)
+                    res = snp_likelihood[0].size
+                    bins = min(rd_bins, snp_bins)
+
+                    segments = [[i] for i in range(bins) if
+                                snp_hets[i] &gt;= min_count and np.sum(snp_likelihood[i]) &gt; 0.0 and np.isfinite(rd[i])]
+
+                    level = [rd[i] for i in range(bins) if
+                             snp_hets[i] &gt;= min_count and np.sum(snp_likelihood[i]) &gt; 0.0 and np.isfinite(rd[i])]
+                    level = np.array(level)
+                    ilevel = level.copy()
+                    error = np.sqrt(level) ** 2 + std ** 2
+                    loc_fl = np.min(list(zip(np.abs(np.diff(level))[:-1], np.abs(np.diff(level))[1:])), axis=1)
+                    loc_fl = np.concatenate(([0], loc_fl, [0]))
+                    error += (loc_fl / 2) ** 2
+                    error = np.sqrt(error)
+                    level = list(level)
+                    error = list(error)
+
+                    likelihood = [snp_likelihood[i] for i in range(bins) if
+                                  snp_hets[i] &gt;= min_count and np.sum(snp_likelihood[i]) &gt; 0.0 and np.isfinite(
+                                      rd[i])]
+
+                    overlaps = [normal_overlap(level[i], error[i], level[i + 1], error[i + 1]) * likelihood_overlap(
+                        likelihood[i], likelihood[i + 1]) for i in range(len(segments) - 1)]
+
+                    iter = 0
+                    if anim != &#34;&#34;:
+                        anim_plot_rd(level, error, segments, bins, iter, anim + c + &#34;_0_&#34; + str(bin_size), 0,
+                                     0, mean)
+
+                    while len(overlaps) &gt; 0:
+                        maxo = max(overlaps)
+                        if maxo &lt; overlap_min:
+                            break
+                        i = overlaps.index(maxo)
+                        nl, ne = normal_merge(level[i], error[i], level[i + 1], error[i + 1])
+                        nlh = likelihood[i] * likelihood[i + 1]
+                        level[i] = nl
+                        error[i] = ne
+                        likelihood[i] = nlh / np.sum(nlh)
+                        segments[i] += segments[i + 1]
+                        del level[i + 1]
+                        del error[i + 1]
+                        del segments[i + 1]
+                        del likelihood[i + 1]
+                        del overlaps[i]
+                        if i &lt; len(overlaps):
+                            overlaps[i] = normal_overlap(level[i], error[i], level[i + 1],
+                                                         error[i + 1]) * likelihood_overlap(likelihood[i],
+                                                                                            likelihood[i + 1])
+                        if i &gt; 0:
+                            overlaps[i - 1] = normal_overlap(level[i - 1], error[i - 1], level[i],
+                                                             error[i]) * likelihood_overlap(likelihood[i - 1],
+                                                                                            likelihood[i])
+                        iter = iter + 1
+                        if anim != &#34;&#34; and (iter % 100) == 0:
+                            anim_plot_rd(level, error, segments, bins, iter, anim + c + &#34;_0_&#34; + str(bin_size), maxo,
+                                         mino, mean)
+
+                    iter = 0
+                    ons = -1
+
+                    _logger.info(&#34;Second stage. Number of segments: %d.&#34; % len(level))
+
+                    while True:
+                        overlaps = [normal_overlap(level[i], error[i], level[j], error[j]) * likelihood_overlap(
+                            likelihood[i], likelihood[j]) for i in range(len(level)) for j in
+                                    range(i + 1, len(level)) if
+                                    (segments[j][0] - segments[i][-1]) &lt; max_distance * (
+                                            len(segments[i]) + len(segments[j]))]
+                        if len(overlaps) == 0:
+                            break
+
+                        maxo = max(overlaps)
+                        if maxo &lt; overlap_min:
+                            break
+                        i, j = 0, 1
+                        while i &lt; len(segments) - 1:
+
+                            if (segments[j][0] - segments[i][-1]) &lt; max_distance * (
+                                    len(segments[i]) + len(segments[j])) and \
+                                    normal_overlap(level[i], error[i], level[j], error[j]) * likelihood_overlap(
+                                    likelihood[i], likelihood[j]) == maxo:
+                                nl, ne = normal_merge(level[i], error[i], level[j], error[j])
+                                nlh = likelihood[i] * likelihood[j]
+                                level[i] = nl
+                                error[i] = ne
+                                likelihood[i] = nlh / np.sum(nlh)
+                                segments[i] += segments[j]
+                                segments[i] = sorted(segments[i])
+                                del level[j]
+                                del error[j]
+                                del segments[j]
+
+                                if j &gt;= len(segments):
+                                    i += 1
+                                    j = i + 1
+                            else:
+                                j += 1
+                                if j &gt;= len(segments):
+                                    i += 1
+                                    j = i + 1
+                        iter = iter + 1
+                        if anim != &#34;&#34; and (iter % 100) == 0:
+                            anim_plot_rd(level, error, segments, bins, iter, anim + c + &#34;_1_&#34; + str(bin_size), maxo,
+                                         mino, mean)
+                        _logger.info(&#34;Iteration: %d. Number of segments: %d.&#34; % (iter, len(level)))
+                        if ons == len(segments):
+                            break
+                        ons = len(segments)
+
+                    # rd = [np.nan] * bins
+                    # for i in range(len(segments)):
+                    #     for b in segments[i]:
+                    #         rd[b] = level[i]
+                    # plt.plot(rd)
+                    # plt.show()
+                    # return
+
+                    for i in range(len(segments)):
+                        rd_mean = level[i] / mean
+                        rd_p = t_test_1_sample(mean, level[i], error[i], len(segments[i]))
+                        baf_mean, baf_p = likelihood_baf_pval(likelihood[i])
+                        print(c + &#34;:&#34; + str(segments[i][0] * bin_size + 1) + &#34;-&#34; + str(
+                                segments[i][-1] * bin_size + bin_size),
+                                  (segments[i][-1] - segments[i][0] + 1) * bin_size, bin_size, len(segments[i]),
+                                  rd_mean, rd_p, baf_mean, baf_p)
+
+                    self.io.create_signal(c, bin_size, &#34;RD mosaic segments&#34;,
+                                          data=segments_code(segments), flags=flag_rd)
+                    self.io.create_signal(c, bin_size, &#34;RD mosaic call&#34;,
+                                          data=np.array([level, error], dtype=&#34;float32&#34;), flags=flag_rd)
+                    self.io.create_signal(c, bin_size, &#34;SNP likelihood segments&#34;,
+                                          data=segments_code(segments), flags=snp_flag)
+                    self.io.create_signal(c, bin_size, &#34;SNP likelihood call&#34;,
+                                          data=np.array(likelihood, dtype=&#34;float32&#34;), flags=snp_flag)
+
+    return</code></pre>
 </details>
 </dd>
 <dt id="cnvpytor.root.Root.call_baf"><code class="name flex">
 <span>def <span class="ident">call_baf</span></span>(<span>self, bin_sizes, chroms=[], use_mask=True, use_id=False, odec=0.9, omin=None, mcount=None, max_distance=0.1, anim='')</span>
 </code></dt>
 <dd>
-<section class="desc"><h2 id="returns">Returns</h2></section>
+<section class="desc"><p>CNV caller based on BAF likelihood mearger</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>bin_sizes</code></strong> :&ensp;<code>list</code> of <code>int</code></dt>
+<dd>List of histogram bin sizes</dd>
+<dt><strong><code>chroms</code></strong> :&ensp;<code>list</code> of <code>str</code></dt>
+<dd>List of chromosomes. Calculates for all available if empty.</dd>
+<dt><strong><code>use_mask</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Use P-mask filter if True. Default: False.</dd>
+<dt><strong><code>use_id</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Use ID filter if True. Default: False.</dd>
+</dl></section>
 <details class="source">
 <summary>Source code</summary>
 <pre><code class="python">def call_baf(self, bin_sizes, chroms=[], use_mask=True, use_id=False, odec=0.9, omin=None, mcount=None,
              max_distance=0.1, anim=&#34;&#34;):
+    &#34;&#34;&#34; CNV caller based on BAF likelihood mearger
+
+    Parameters
+    ----------
+    bin_sizes : list of int
+        List of histogram bin sizes
+    chroms : list of str
+        List of chromosomes. Calculates for all available if empty.
+    use_mask : bool
+        Use P-mask filter if True. Default: False.
+    use_id : bool
+        Use ID filter if True. Default: False.
     &#34;&#34;&#34;
 
-    Returns
-    -------
-
-    &#34;&#34;&#34;
     for bin_size in bin_sizes:
         if omin is None:
             overlap_min = 1e-7 * bin_size
@@ -2523,7 +3036,7 @@ class Root:
 </details>
 </dd>
 <dt id="cnvpytor.root.Root.call_mosaic"><code class="name flex">
-<span>def <span class="ident">call_mosaic</span></span>(<span>self, bin_sizes, chroms=[], use_gc_corr=True, use_mask=False, odec=0.9, omin=None, max_distance=0.3, anim='')</span>
+<span>def <span class="ident">call_mosaic</span></span>(<span>self, bin_sizes, chroms=[], use_gc_corr=True, use_mask=False, omin=None, max_distance=0.3, anim='')</span>
 </code></dt>
 <dd>
 <section class="desc"><p>CNV caller based on likelihood merger.</p>
@@ -2540,7 +3053,7 @@ class Root:
 </dl></section>
 <details class="source">
 <summary>Source code</summary>
-<pre><code class="python">def call_mosaic(self, bin_sizes, chroms=[], use_gc_corr=True, use_mask=False, odec=0.9, omin=None,
+<pre><code class="python">def call_mosaic(self, bin_sizes, chroms=[], use_gc_corr=True, use_mask=False, omin=None,
                 max_distance=0.3, anim=&#34;&#34;):
     &#34;&#34;&#34;
     CNV caller based on likelihood merger.
@@ -2595,16 +3108,10 @@ class Root:
                     valid = np.isfinite(rd)
                     level = rd[valid]
                     error = np.sqrt(level) ** 2 + std ** 2
-                    # error = np.sqrt(level)**2
                     loc_fl = np.min(list(zip(np.abs(np.diff(level))[:-1], np.abs(np.diff(level))[1:])), axis=1)
                     loc_fl = np.concatenate(([0], loc_fl, [0]))
                     error += (loc_fl / 2) ** 2
                     error = np.sqrt(error)
-                    # plt.errorbar(np.arange(0,len(level)),level,yerr=error,c=&#34;k&#34;)
-                    # plt.errorbar(np.arange(0,len(level))+0.1,level,yerr=np.sqrt(level),c=&#34;r&#34;)
-                    # plt.errorbar(np.arange(0,len(level))+0.2,level,yerr=std,c=&#34;g&#34;)
-                    # plt.errorbar(np.arange(0,len(level))+0.3,level,yerr=loc_fl,c=&#34;b&#34;)
-                    # plt.show()
                     level = list(level)
                     error = list(error)
                     segments = [[i] for i in range(bins) if np.isfinite(rd[i])]
@@ -2687,91 +3194,14 @@ class Root:
                             break
                         ons = len(segments)
 
-                    # while len(overlaps) &gt; 0:
-                    #     maxo = max(overlaps)
-                    #     mino = max(maxo * odec, overlap_min)
-                    #     if maxo &lt; overlap_min:
-                    #         break
-                    #     i = 0
-                    #     while i &lt; len(overlaps):
-                    #         if overlaps[i] &gt; mino:
-                    #             nl, ne = normal_merge(level[i], error[i], level[i + 1], error[i + 1])
-                    #             level[i] = nl
-                    #             error[i] = ne
-                    #             segments[i] += segments[i + 1]
-                    #             del level[i + 1]
-                    #             del error[i + 1]
-                    #             del segments[i + 1]
-                    #             del overlaps[i]
-                    #             if i &lt; len(overlaps):
-                    #                 overlaps[i] = normal_overlap(level[i], error[i], level[i + 1], error[i + 1])
-                    #             if i &gt; 0:
-                    #                 overlaps[i - 1] = normal_overlap(level[i - 1], error[i - 1], level[i], error[i])
-                    #         else:
-                    #             i = i + 1
-                    #
-                    #     iter = iter + 1
-                    #     if anim != &#34;&#34;:
-                    #         anim_plot_rd(level, error, segments, bins, iter, anim + c + &#34;_0_&#34; + str(bin_size), maxo,
-                    #                      mino, mean)
-                    #
-                    # iter = 0
-                    # ons = -1
-                    #
-                    # _logger.info(&#34;Second stage. Number of segments: %d.&#34; % len(level))
-                    #
-                    # while True:
-                    #     overlaps = [normal_overlap(level[i], error[i], level[j], error[j]) for i in
-                    #                 range(len(level)) for j in range(i + 1, len(level)) if
-                    #                 (segments[j][0] - segments[i][-1]) &lt; max_distance * (
-                    #                         len(segments[i]) + len(segments[j]))]
-                    #     if len(overlaps) == 0:
-                    #         break
-                    #     maxo = max(overlaps)
-                    #     mino = max(maxo * odec, overlap_min)
-                    #     if maxo &lt; overlap_min:
-                    #         break
-                    #     i, j = 0, 1
-                    #     while i &lt; len(segments) - 1:
-                    #
-                    #         if (segments[j][0] - segments[i][-1]) &lt; max_distance * (
-                    #                 len(segments[i]) + len(segments[j])) and normal_overlap(level[i], error[i],
-                    #                                                                         level[j],
-                    #                                                                         error[j]) &gt; mino:
-                    #             nl, ne = normal_merge(level[i], error[i], level[j], error[j])
-                    #             level[i] = nl
-                    #             error[i] = ne
-                    #             segments[i] += segments[j]
-                    #             segments[i] = sorted(segments[i])
-                    #             del level[j]
-                    #             del error[j]
-                    #             del segments[j]
-                    #
-                    #             if j &gt;= len(segments):
-                    #                 i += 1
-                    #                 j = i + 1
-                    #         else:
-                    #             j += 1
-                    #             if j &gt;= len(segments):
-                    #                 i += 1
-                    #                 j = i + 1
-                    #     iter = iter + 1
-                    #     if anim != &#34;&#34;:
-                    #         anim_plot_rd(level, error, segments, bins, iter, anim + c + &#34;_1_&#34; + str(bin_size), maxo,
-                    #                      mino, mean)
-                    #     _logger.info(&#34;Iteration: %d. Number of segments: %d.&#34; % (iter, len(level)))
-                    #     if ons == len(segments):
-                    #         break
-                    #     ons = len(segments)
-
                     for i in range(len(segments)):
-                        i1=level[i]/mean
-                        i2=t_test_1_sample(mean,level[i],error[i],len(segments[i]))
-                        if i2 is not None and i2&lt;(0.05*bin_size/3e9) and abs(i1-1.)&gt;0.01:
+                        i1 = level[i] / mean
+                        i2 = t_test_1_sample(mean, level[i], error[i], len(segments[i]))
+                        if i2 is not None and i2 &lt; (0.05 * bin_size / 3e9) and abs(i1 - 1.) &gt; 0.01:
                             print(c + &#34;:&#34; + str(segments[i][0] * bin_size + 1) + &#34;-&#34; + str(
                                 segments[i][-1] * bin_size + bin_size),
-                                (segments[i][-1] - segments[i][0] + 1) * bin_size, bin_size, len(segments[i]),
-                        i1, i2)
+                                  (segments[i][-1] - segments[i][0] + 1) * bin_size, bin_size, len(segments[i]),
+                                  i1, i2)
 
                     self.io.create_signal(c, bin_size, &#34;RD mosaic segments&#34;,
                                           data=segments_code(segments), flags=flag_rd)
@@ -2908,10 +3338,13 @@ class Root:
 <span>def <span class="ident">ls</span></span>(<span>self)</span>
 </code></dt>
 <dd>
-<section class="desc"></section>
+<section class="desc"><p>Print to stdout content of cnvpytor file.</p></section>
 <details class="source">
 <summary>Source code</summary>
 <pre><code class="python">def ls(self):
+    &#34;&#34;&#34; Print to stdout content of cnvpytor file.
+
+    &#34;&#34;&#34;
     self.io.ls()</code></pre>
 </details>
 </dd>
@@ -2969,13 +3402,24 @@ class Root:
 </code></dt>
 <dd>
 <section class="desc"><p>Flags SNPs in P-region (sets second bit of the flag to 1 for SNP inside P region, or to 0 otherwise).
-Requires imported mask data or recognized reference genome with mask data.</p></section>
+Requires imported mask data or recognized reference genome with mask data.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>callset</code></strong> :&ensp;<code>str</code> or <code>None</code></dt>
+<dd>It will assume SNP data if None. Otherwise it will assume SNV data
+stored under the name provided by callset variable.</dd>
+</dl></section>
 <details class="source">
 <summary>Source code</summary>
 <pre><code class="python">def mask_snps(self, callset=None):
-    &#34;&#34;&#34;
-    Flags SNPs in P-region (sets second bit of the flag to 1 for SNP inside P region, or to 0 otherwise).
+    &#34;&#34;&#34; Flags SNPs in P-region (sets second bit of the flag to 1 for SNP inside P region, or to 0 otherwise).
     Requires imported mask data or recognized reference genome with mask data.
+
+    Parameters
+    ----------
+    callset : str or None
+        It will assume SNP data if None. Otherwise it will assume SNV data
+        stored under the name provided by callset variable.
 
     &#34;&#34;&#34;
     snp_mask_chromosomes = {}
@@ -3003,7 +3447,7 @@ Requires imported mask data or recognized reference genome with mask data.</p></
 </details>
 </dd>
 <dt id="cnvpytor.root.Root.partition"><code class="name flex">
-<span>def <span class="ident">partition</span></span>(<span>self, bin_sizes, chroms=[], use_gc_corr=True, use_mask=False, repeats=3)</span>
+<span>def <span class="ident">partition</span></span>(<span>self, bin_sizes, chroms=[], use_gc_corr=True, use_mask=False, repeats=3, genome_size=2900000000.0)</span>
 </code></dt>
 <dd>
 <section class="desc"><p>Calculates segmentation of RD signal.</p>
@@ -3020,7 +3464,7 @@ Requires imported mask data or recognized reference genome with mask data.</p></
 </dl></section>
 <details class="source">
 <summary>Source code</summary>
-<pre><code class="python">def partition(self, bin_sizes, chroms=[], use_gc_corr=True, use_mask=False, repeats=3):
+<pre><code class="python">def partition(self, bin_sizes, chroms=[], use_gc_corr=True, use_mask=False, repeats=3, genome_size=2.9e9):
     &#34;&#34;&#34;
     Calculates segmentation of RD signal.
 
@@ -3061,7 +3505,7 @@ Requires imported mask data or recognized reference genome with mask data.</p></
                 if self.io.signal_exists(c, bin_size, &#34;RD stat&#34;, flag_stat) and self.io.signal_exists(c, bin_size,
                                                                                                       &#34;RD&#34;,
                                                                                                       flag_rd):
-                    _logger.info(&#34;Calculating histograms using bin size %d for chromosome &#39;%s&#39;.&#34; % (bin_size, c))
+                    _logger.info(&#34;Calculating partition using bin size %d for chromosome &#39;%s&#39;.&#34; % (bin_size, c))
                     stat = self.io.get_signal(c, bin_size, &#34;RD stat&#34;, flag_stat)
                     mean = stat[4]
                     std = stat[5]
@@ -3100,7 +3544,7 @@ Requires imported mask data or recognized reference genome with mask data.</p></
                                 else:
                                     return np.zeros_like(nm_levels)
 
-                            if self.max_cores == 1:
+                            if True:
                                 grad = np.sum([calc_grad(k) for k in range(1, 3 * bin_band + 1)], axis=0)
                             else:
                                 import multiprocessing
@@ -3176,11 +3620,11 @@ Requires imported mask data or recognized reference genome with mask data.</p></
                                 seg_right_mean = np.mean(levels[seg_right[0]:seg_right[1]])
                                 seg_right_std = np.std(levels[seg_right[0]:seg_right[1]])
                                 if t_test_2_samples(seg_mean, seg_std, n, seg_left_mean, seg_left_std, n_left) &gt; (
-                                        0.01 / 3.e9 * bin_size * (n + n_left)):
+                                        0.01 / genome_size * bin_size * (n + n_left)):
                                     continue
                                 if t_test_2_samples(seg_mean, seg_std, n, seg_right_mean, seg_right_std,
                                                     n_right) &gt; (
-                                        0.01 / 3.e9 * bin_size * (n + n_right)):
+                                        0.01 / genome_size * bin_size * (n + n_right)):
                                     continue
                             if t_test_1_sample(mean, seg_mean, seg_std, n) &gt; 0.05:
                                 continue
@@ -3199,6 +3643,10 @@ Requires imported mask data or recognized reference genome with mask data.</p></
 <dl>
 <dt><strong><code>bamfiles</code></strong> :&ensp;<code>list</code> of <code>str</code></dt>
 <dd>Bam files.</dd>
+<dt><strong><code>chroms</code></strong> :&ensp;<code>list</code> of <code>str</code></dt>
+<dd>List of chromosomes. Calculates for all available if empty.</dd>
+<dt><strong><code>reference_filename</code></strong> :&ensp;<code>str</code></dt>
+<dd>Only for CRAM files - reference genome filename</dd>
 </dl></section>
 <details class="source">
 <summary>Source code</summary>
@@ -3210,6 +3658,10 @@ Requires imported mask data or recognized reference genome with mask data.</p></
     ----------
     bamfiles : list of str
         Bam files.
+    chroms : list of str
+        List of chromosomes. Calculates for all available if empty.
+    reference_filename : str
+        Only for CRAM files - reference genome filename
     &#34;&#34;&#34;
     chrs = [c for c in self.io.snp_chromosomes() if (len(chroms) == 0 or c in chroms)]
 
@@ -3220,84 +3672,44 @@ Requires imported mask data or recognized reference genome with mask data.</p></
         nref[c] = [0] * len(nref[c])
         nalt[c] = [0] * len(nalt[c])
     for bf in bamfiles:
-        self.pileup_bam(bf, chrs, pos, ref, alt, nref, nalt, reference_filename=reference_filename)
+        self._pileup_bam(bf, chrs, pos, ref, alt, nref, nalt, reference_filename=reference_filename)
 
     for c in chrs:
         _logger.info(&#34;Saving SNP data for chromosome &#39;%s&#39; in file &#39;%s&#39;.&#34; % (c, self.io.filename))
         self.io.save_snp(c, pos[c], ref[c], alt[c], nref[c], nalt[c], gt[c], flag[c], qual[c])</code></pre>
 </details>
 </dd>
-<dt id="cnvpytor.root.Root.pileup_bam"><code class="name flex">
-<span>def <span class="ident">pileup_bam</span></span>(<span>self, bamfile, chroms, pos, ref, alt, nref, nalt, reference_filename)</span>
-</code></dt>
-<dd>
-<section class="desc"><p>TODO:</p>
-<h2 id="parameters">Parameters</h2>
-<dl>
-<dt><strong><code>bamfile</code></strong></dt>
-<dd>&nbsp;</dd>
-<dt><strong><code>chroms</code></strong></dt>
-<dd>&nbsp;</dd>
-</dl></section>
-<details class="source">
-<summary>Source code</summary>
-<pre><code class="python">def pileup_bam(self, bamfile, chroms, pos, ref, alt, nref, nalt, reference_filename):
-    &#34;&#34;&#34;
-    TODO:
-
-    Parameters
-    ----------
-    bamfile
-    chroms
-
-    &#34;&#34;&#34;
-    _logger.info(&#34;Calculating pileup from bam file &#39;%s&#39;.&#34; % bamfile)
-    bamf = Bam(bamfile, reference_filename=reference_filename)
-
-    def pileup_chromosome(x):
-        c, l, snpc = x
-        _logger.info(&#34;Pileup chromosome %s with length %d&#34; % (c, l))
-        return bamf.pileup(c, pos[snpc], ref[snpc], alt[snpc])
-
-    chrname, chrlen = bamf.get_chr_len()
-    chr_len = [(c, l, self.io.snp_chromosome_name(c)) for (c, l) in zip(chrname, chrlen) if
-               self.io.snp_chromosome_name(c) in chroms]
-
-    if self.max_cores == 1:
-        for cl in chr_len:
-            r = pileup_chromosome(cl)
-            nref[cl[2]] = [x + y for x, y in zip(nref[cl[2]], r[0])]
-            nalt[cl[2]] = [x + y for x, y in zip(nalt[cl[2]], r[1])]
-
-    else:
-        from .pool import parmap
-        res = parmap(pileup_chromosome, chr_len, cores=self.max_cores)
-        for cl, r in zip(chr_len, res):
-            nref[cl[2]] = [x + y for x, y in zip(nref[cl[2]], r[0])]
-            nalt[cl[2]] = [x + y for x, y in zip(nalt[cl[2]], r[1])]</code></pre>
-</details>
-</dd>
 <dt id="cnvpytor.root.Root.rd"><code class="name flex">
 <span>def <span class="ident">rd</span></span>(<span>self, bamfiles, chroms=[], reference_filename=False)</span>
 </code></dt>
 <dd>
-<section class="desc"><p>Read chromosomes from bam/sam/cram file(s) and store in .cnvnator file</p>
-<h2 id="arguments">Arguments</h2>
-<ul>
-<li>list of bam file names</li>
-<li>list of chromosome names</li>
-</ul></section>
+<section class="desc"><p>Read chromosomes from bam/sam/cram file(s) and store in cnvpytor file.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>bamfiles</code></strong> :&ensp;<code>list</code> of <code>str</code></dt>
+<dd>List of bam/sam/cram files</dd>
+<dt><strong><code>chroms</code></strong> :&ensp;<code>list</code> of <code>str</code></dt>
+<dd>List of chromosomes. Import all available if empty.</dd>
+<dt><strong><code>reference_filename</code></strong> :&ensp;<code>str</code></dt>
+<dd>Only for CRAM files - reference genome filename</dd>
+</dl></section>
 <details class="source">
 <summary>Source code</summary>
 <pre><code class="python">def rd(self, bamfiles, chroms=[], reference_filename=False):
-    &#34;&#34;&#34; Read chromosomes from bam/sam/cram file(s) and store in .cnvnator file
-            Arguments:
-                * list of bam file names
-                * list of chromosome names
+    &#34;&#34;&#34; Read chromosomes from bam/sam/cram file(s) and store in cnvpytor file.
+
+    Parameters
+    ----------
+    bamfiles : list of str
+        List of bam/sam/cram files
+    chroms : list of str
+        List of chromosomes. Import all available if empty.
+    reference_filename : str
+        Only for CRAM files - reference genome filename
+
     &#34;&#34;&#34;
-    hm = 0
     for bf in bamfiles:
-        hm += self.read_bam(bf, chroms, reference_filename=reference_filename)
+        self._read_bam(bf, chroms, reference_filename=reference_filename)
         self.io.add_meta_attribute(&#34;BAM&#34;, bf)
 
     if self.io.signal_exists(None, None, &#34;reference genome&#34;):
@@ -3308,19 +3720,40 @@ Requires imported mask data or recognized reference genome with mask data.</p></
         if &#34;gc_file&#34; in Genome.reference_genomes[rg_name]:
             _logger.info(&#34;GC content for reference genome &#39;%s&#39; found in database.&#34; % rg_name)
             self.io_gc = IO(Genome.reference_genomes[rg_name][&#34;gc_file&#34;])
-            self.rd_stat()
-
-    return hm</code></pre>
+            self.rd_stat()</code></pre>
 </details>
 </dd>
 <dt id="cnvpytor.root.Root.rd_from_snp"><code class="name flex">
 <span>def <span class="ident">rd_from_snp</span></span>(<span>self, chroms=[], callset=None)</span>
 </code></dt>
 <dd>
-<section class="desc"></section>
+<section class="desc"><p>Create RD signal from already imported SNP signal</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>chroms</code></strong> :&ensp;<code>list</code> of <code>str</code></dt>
+<dd>List of chromosomes. Calculates for all available if empty.</dd>
+<dt><strong><code>callset</code></strong> :&ensp;<code>str</code> or <code>None</code></dt>
+<dd>It will assume SNP data if None. Otherwise it will assume SNV data
+stored under the name provided by callset variable.</dd>
+</dl>
+<h2 id="returns">Returns</h2></section>
 <details class="source">
 <summary>Source code</summary>
 <pre><code class="python">def rd_from_snp(self, chroms=[], callset=None):
+    &#34;&#34;&#34; Create RD signal from already imported SNP signal
+
+    Parameters
+    ----------
+    chroms : list of str
+        List of chromosomes. Calculates for all available if empty.
+    callset : str or None
+        It will assume SNP data if None. Otherwise it will assume SNV data
+        stored under the name provided by callset variable.
+
+    Returns
+    -------
+
+    &#34;&#34;&#34;
 
     chromosomes = [c for c in self.io.snp_chromosomes() if (len(chroms) == 0 or c in chroms)]
 
@@ -3339,22 +3772,102 @@ Requires imported mask data or recognized reference genome with mask data.</p></
         rdcg = np.zeros(ncg)
         rdc = np.zeros(ncg)
         for p, c1, c2 in zip(pos, nref, nalt):
-            rdcg[(p-1)//10000] += c1+c2
-            rdc[(p-1)//10000] += 1
+            rdcg[(p - 1) // 10000] += c1 + c2
+            rdc[(p - 1) // 10000] += 1
         rdcg = rdcg / rdc
         for i in range(n):
-            rd[i]= rdcg[i//100]
+            rd[i] = rdcg[i // 100]
         self.io.save_rd(c, rd, rd)</code></pre>
 </details>
 </dd>
-<dt id="cnvpytor.root.Root.rd_stat"><code class="name flex">
-<span>def <span class="ident">rd_stat</span></span>(<span>self, chroms=[], plot=True)</span>
+<dt id="cnvpytor.root.Root.rd_from_vcf"><code class="name flex">
+<span>def <span class="ident">rd_from_vcf</span></span>(<span>self, vcf_file, chroms=[], sample='', ad_tag='AD', dp_tag='DP', use_index=False)</span>
 </code></dt>
 <dd>
-<section class="desc"></section>
+<section class="desc"><p>Read RD from variant file(s) and store in .cnvpytor file</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>vcf_file</code></strong> :&ensp;<code>str</code></dt>
+<dd>Variant filename</dd>
+<dt><strong><code>chroms</code></strong> :&ensp;<code>list</code> of <code>str</code></dt>
+<dd>List of chromosomes. Imports all available if empty.</dd>
+<dt><strong><code>sample</code></strong> :&ensp;<code>str</code></dt>
+<dd>Name of the sample. It will read first sample if empty string is provided.</dd>
+<dt><strong><code>ad_tag</code></strong> :&ensp;<code>str</code></dt>
+<dd>AD tag (default 'AD')</dd>
+<dt><strong><code>dp_tag</code></strong> :&ensp;<code>str</code></dt>
+<dd>DP tag (default 'DP')</dd>
+<dt><strong><code>use_index</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Use index file for vcf parsing. Default is False.</dd>
+</dl></section>
 <details class="source">
 <summary>Source code</summary>
-<pre><code class="python">def rd_stat(self, chroms=[], plot=True):
+<pre><code class="python">def rd_from_vcf(self, vcf_file, chroms=[], sample=&#39;&#39;, ad_tag=&#34;AD&#34;, dp_tag=&#34;DP&#34;, use_index=False):
+    &#34;&#34;&#34;
+    Read RD from variant file(s) and store in .cnvpytor file
+
+    Parameters
+    ----------
+    vcf_file : str
+        Variant filename
+    chroms : list of str
+        List of chromosomes. Imports all available if empty.
+    sample : str
+        Name of the sample. It will read first sample if empty string is provided.
+    ad_tag : str
+        AD tag (default &#39;AD&#39;)
+    dp_tag : str
+        DP tag (default &#39;DP&#39;)
+    use_index : bool
+        Use index file for vcf parsing. Default is False.
+
+    &#34;&#34;&#34;
+    vcff = Vcf(vcf_file)
+    chrs = [c for c in vcff.get_chromosomes() if len(chroms) == 0 or c in chroms]
+
+    def save_data(chr, rd_p, rd_u):
+        if (len(chroms) == 0 or chr in chroms) and (not rd_p is None) and (len(rd_p) &gt; 0):
+            self.io.save_rd(chr, rd_p, rd_u, chromosome_length=vcff.lengths[chr])
+        # TODO: Stop reading if all from chroms list are already read.
+
+    if use_index:
+        count = 0
+        for c in chrs:
+            _logger.info(&#34;Reading variant data for chromosome %s&#34; % c)
+
+            rd_p, rd_u = vcff.read_chromosome_rd(c, sample, ad_tag=ad_tag, dp_tag=dp_tag)
+            if not rd_p is None and len(rd_p) &gt; 0:
+                self.io.save_rd(chr, rd_p, rd_u, chromosome_length=vcff.lengths[chr])
+                count += 1
+        self.io.add_meta_attribute(&#34;RD from VCF&#34;, vcf_file)
+        return count
+    else:
+        count = vcff.read_all_rd(save_data, sample, ad_tag=ad_tag, dp_tag=dp_tag)
+        self.io.add_meta_attribute(&#34;RD from VCF&#34;, vcf_file)
+        return count</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.root.Root.rd_stat"><code class="name flex">
+<span>def <span class="ident">rd_stat</span></span>(<span>self, chroms=[])</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Calculate RD statistics for 100 bp bins.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>chroms</code></strong> :&ensp;<code>list</code> of <code>str</code></dt>
+<dd>List of chromosomes. Calculates for all available if empty.</dd>
+</dl></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def rd_stat(self, chroms=[]):
+    &#34;&#34;&#34; Calculate RD statistics for 100 bp bins.
+
+    Parameters
+    ----------
+    chroms : list of str
+        List of chromosomes. Calculates for all available if empty.
+
+    &#34;&#34;&#34;
     rd_stat = []
     auto, sex, mt = False, False, False
 
@@ -3481,130 +3994,6 @@ Requires imported mask data or recognized reference genome with mask data.</p></
         self.io.create_signal(None, 100, &#34;GC corr&#34;, gc_corr_mt, flags=FLAG_MT)</code></pre>
 </details>
 </dd>
-<dt id="cnvpytor.root.Root.read_bam"><code class="name flex">
-<span>def <span class="ident">read_bam</span></span>(<span>self, bf, chroms, reference_filename=False)</span>
-</code></dt>
-<dd>
-<section class="desc"></section>
-<details class="source">
-<summary>Source code</summary>
-<pre><code class="python">def read_bam(self, bf, chroms, reference_filename=False):
-    bamf = Bam(bf, reference_filename=reference_filename)
-    if bamf.reference_genome:
-        self.io.create_signal(None, None, &#34;reference genome&#34;, np.array([np.string_(bamf.reference_genome)]))
-        self.io.create_signal(None, None, &#34;use reference&#34;, np.array([1, 1]).astype(&#34;uint8&#34;))
-
-    def read_chromosome(x):
-        chrs, lens = x
-        _logger.info(&#34;Reading data for chromosome %s with length %d&#34; % (chrs, lens))
-        l_rd_p, l_rd_u, l_his_read_frg = bamf.read_chromosome(chrs)
-        return l_rd_p, l_rd_u, l_his_read_frg
-
-    chrname, chrlen = bamf.get_chr_len()
-    chr_len = [(c, l) for (c, l) in zip(chrname, chrlen) if len(chroms) == 0 or c in chroms]
-    if self.max_cores == 1:
-        count = 0
-        cum_his_read_frg = None
-        for cl in chr_len:
-            rd_p, rd_u, his_read_frg = read_chromosome(cl)
-            if not rd_p is None:
-                if cum_his_read_frg is None:
-                    cum_his_read_frg = his_read_frg
-                else:
-                    cum_his_read_frg += his_read_frg
-                self.io.save_rd(cl[0], rd_p, rd_u, chromosome_length=cl[1])
-                count += 1
-        if not cum_his_read_frg is None:
-            self.io.create_signal(None, None, &#34;read frg dist&#34;, cum_his_read_frg)
-        return count
-    else:
-        from .pool import parmap
-        res = parmap(read_chromosome, chr_len, cores=self.max_cores)
-        count = 0
-        cum_his_read_frg = None
-        for c, r in zip(chr_len, res):
-            if not r[0] is None:
-                if cum_his_read_frg is None:
-                    cum_his_read_frg = r[2]
-                else:
-                    cum_his_read_frg += r[2]
-                self.io.save_rd(c[0], r[0], r[1], chromosome_length=c[1])
-                count += 1
-        if not cum_his_read_frg is None:
-            self.io.create_signal(None, None, &#34;read frg dist&#34;, cum_his_read_frg)
-        return count</code></pre>
-</details>
-</dd>
-<dt id="cnvpytor.root.Root.read_vcf"><code class="name flex">
-<span>def <span class="ident">read_vcf</span></span>(<span>self, vcf_file, chroms, sample='', use_index=False, no_counts=False, ad_tag='AD', gt_tag='GT', callset=None)</span>
-</code></dt>
-<dd>
-<section class="desc"><h2 id="parameters">Parameters</h2>
-<dl>
-<dt><strong><code>vcf_file</code></strong></dt>
-<dd>&nbsp;</dd>
-<dt><strong><code>chroms</code></strong></dt>
-<dd>&nbsp;</dd>
-<dt><strong><code>sample</code></strong></dt>
-<dd>&nbsp;</dd>
-<dt><strong><code>use_index</code></strong></dt>
-<dd>&nbsp;</dd>
-</dl>
-<h2 id="returns">Returns</h2></section>
-<details class="source">
-<summary>Source code</summary>
-<pre><code class="python">def read_vcf(self, vcf_file, chroms, sample=&#39;&#39;, use_index=False, no_counts=False, ad_tag=&#34;AD&#34;, gt_tag=&#34;GT&#34;,
-             callset=None):
-    &#34;&#34;&#34;
-
-    Parameters
-    ----------
-    vcf_file
-    chroms
-    sample
-    use_index
-
-    Returns
-    -------
-
-    &#34;&#34;&#34;
-    vcff = Vcf(vcf_file)
-    chrs = [c for c in vcff.get_chromosomes() if len(chroms) == 0 or c in chroms]
-
-    def save_data(chr, pos, ref, alt, nref, nalt, gt, flag, qual):
-        if (len(chroms) == 0 or chr in chroms) and (not pos is None) and (len(pos) &gt; 0):
-            self.io.save_snp(chr, pos, ref, alt, nref, nalt, gt, flag, qual, callset=callset,
-                             chromosome_length=vcff.lengths[chr])
-        # TODO: Stop reading if all from chrom list are read.
-
-    def save_data_no_counts(chr, pos, ref, alt, gt, flag, qual):
-        if (len(chroms) == 0 or chr in chroms) and (not pos is None) and (len(pos) &gt; 0):
-            self.io.save_snp(chr, pos, ref, alt, np.zeros_like(pos), np.zeros_like(pos), gt, flag, qual,
-                             callset=callset, chromosome_length=vcff.lengths[chr])
-
-    if use_index:
-        count = 0
-        for c in chrs:
-            _logger.info(&#34;Reading variant data for chromosome %s&#34; % c)
-            if no_counts:
-                pos, ref, alt, gt, flag, qual = vcff.read_chromosome_snp_no_counts(c, sample, gt_tag=gt_tag)
-                nref, nalt = np.zeros_like(pos), np.zeros_like(pos)
-            else:
-                pos, ref, alt, nref, nalt, gt, flag, qual = vcff.read_chromosome_snp(c, sample, ad_tag=ad_tag,
-                                                                                     gt_tag=gt_tag)
-
-            if not pos is None and len(pos) &gt; 0:
-                self.io.save_snp(c, pos, ref, alt, nref, nalt, gt, flag, qual, callset=callset,
-                                 chromosome_length=vcff.lengths[c])
-                count += 1
-        return count
-    else:
-        if no_counts:
-            return vcff.read_all_snp_no_counts(save_data_no_counts, sample, gt_tag=gt_tag)
-        else:
-            return vcff.read_all_snp(save_data, sample, ad_tag=ad_tag, gt_tag=gt_tag)</code></pre>
-</details>
-</dd>
 <dt id="cnvpytor.root.Root.set_reference_genome"><code class="name flex">
 <span>def <span class="ident">set_reference_genome</span></span>(<span>self, rg)</span>
 </code></dt>
@@ -3649,26 +4038,53 @@ Requires imported mask data or recognized reference genome with mask data.</p></
 <span>def <span class="ident">vcf</span></span>(<span>self, vcf_files, chroms=[], sample='', no_counts=False, ad_tag='AD', gt_tag='GT', callset=None)</span>
 </code></dt>
 <dd>
-<section class="desc"><p>Read SNP data from variant file(s) and store in .cnvnator file</p>
-<h2 id="arguments">Arguments</h2>
-<ul>
-<li>list of variant file names</li>
-<li>list of chromosome names</li>
-</ul></section>
+<section class="desc"><p>Read SNP data from variant file(s) and store in .cnvpytor file</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>vcf_files</code></strong> :&ensp;<code>list</code> of <code>str</code></dt>
+<dd>List of variant filenames.</dd>
+<dt><strong><code>chroms</code></strong> :&ensp;<code>list</code> of <code>str</code></dt>
+<dd>List of chromosomes. Import all available if empty.</dd>
+<dt><strong><code>sample</code></strong> :&ensp;<code>str</code></dt>
+<dd>Name of the sample. It will read first sample if empty string is provided.</dd>
+<dt><strong><code>no_counts</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Do not read AD counts if true.</dd>
+<dt><strong><code>ad_tag</code></strong> :&ensp;<code>str</code></dt>
+<dd>AD tag (default 'AD').</dd>
+<dt><strong><code>gt_tag</code></strong> :&ensp;<code>str</code></dt>
+<dd>GT tag (default 'GT').</dd>
+<dt><strong><code>callset</code></strong> :&ensp;<code>str</code> or <code>None</code></dt>
+<dd>It will assume SNP data if None. Otherwise it will assume SNV data and
+store under the name provided by callset variable.</dd>
+</dl></section>
 <details class="source">
 <summary>Source code</summary>
 <pre><code class="python">def vcf(self, vcf_files, chroms=[], sample=&#39;&#39;, no_counts=False, ad_tag=&#34;AD&#34;, gt_tag=&#34;GT&#34;, callset=None):
-    &#34;&#34;&#34; Read SNP data from variant file(s) and store in .cnvnator file
-            Arguments:
-                * list of variant file names
-                * list of chromosome names
+    &#34;&#34;&#34; Read SNP data from variant file(s) and store in .cnvpytor file
+
+    Parameters
+    ----------
+    vcf_files : list of str
+        List of variant filenames.
+    chroms : list of str
+        List of chromosomes. Import all available if empty.
+    sample : str
+        Name of the sample. It will read first sample if empty string is provided.
+    no_counts : bool
+        Do not read AD counts if true.
+    ad_tag : str
+        AD tag (default &#39;AD&#39;).
+    gt_tag : str
+        GT tag (default &#39;GT&#39;).
+    callset : str or None
+        It will assume SNP data if None. Otherwise it will assume SNV data and
+        store under the name provided by callset variable.
+
     &#34;&#34;&#34;
-    hm = 0
     for vcf_file in vcf_files:
-        hm += self.read_vcf(vcf_file, chroms, sample, no_counts=no_counts, ad_tag=ad_tag, gt_tag=gt_tag,
-                            callset=callset)
-        self.io.add_meta_attribute(&#34;VCF&#34;, vcf_file)
-    return hm</code></pre>
+        self._read_vcf(vcf_file, chroms, sample, no_counts=no_counts, ad_tag=ad_tag, gt_tag=gt_tag,
+                             callset=callset)
+        self.io.add_meta_attribute(&#34;VCF&#34;, vcf_file)</code></pre>
 </details>
 </dd>
 </dl>
@@ -3695,6 +4111,7 @@ Requires imported mask data or recognized reference genome with mask data.</p></
 <li><code><a title="cnvpytor.root.Root.calculate_baf" href="#cnvpytor.root.Root.calculate_baf">calculate_baf</a></code></li>
 <li><code><a title="cnvpytor.root.Root.calculate_histograms" href="#cnvpytor.root.Root.calculate_histograms">calculate_histograms</a></code></li>
 <li><code><a title="cnvpytor.root.Root.call" href="#cnvpytor.root.Root.call">call</a></code></li>
+<li><code><a title="cnvpytor.root.Root.call_2d" href="#cnvpytor.root.Root.call_2d">call_2d</a></code></li>
 <li><code><a title="cnvpytor.root.Root.call_baf" href="#cnvpytor.root.Root.call_baf">call_baf</a></code></li>
 <li><code><a title="cnvpytor.root.Root.call_mosaic" href="#cnvpytor.root.Root.call_mosaic">call_mosaic</a></code></li>
 <li><code><a title="cnvpytor.root.Root.copy_gc" href="#cnvpytor.root.Root.copy_gc">copy_gc</a></code></li>
@@ -3705,12 +4122,10 @@ Requires imported mask data or recognized reference genome with mask data.</p></
 <li><code><a title="cnvpytor.root.Root.mask_snps" href="#cnvpytor.root.Root.mask_snps">mask_snps</a></code></li>
 <li><code><a title="cnvpytor.root.Root.partition" href="#cnvpytor.root.Root.partition">partition</a></code></li>
 <li><code><a title="cnvpytor.root.Root.pileup" href="#cnvpytor.root.Root.pileup">pileup</a></code></li>
-<li><code><a title="cnvpytor.root.Root.pileup_bam" href="#cnvpytor.root.Root.pileup_bam">pileup_bam</a></code></li>
 <li><code><a title="cnvpytor.root.Root.rd" href="#cnvpytor.root.Root.rd">rd</a></code></li>
 <li><code><a title="cnvpytor.root.Root.rd_from_snp" href="#cnvpytor.root.Root.rd_from_snp">rd_from_snp</a></code></li>
+<li><code><a title="cnvpytor.root.Root.rd_from_vcf" href="#cnvpytor.root.Root.rd_from_vcf">rd_from_vcf</a></code></li>
 <li><code><a title="cnvpytor.root.Root.rd_stat" href="#cnvpytor.root.Root.rd_stat">rd_stat</a></code></li>
-<li><code><a title="cnvpytor.root.Root.read_bam" href="#cnvpytor.root.Root.read_bam">read_bam</a></code></li>
-<li><code><a title="cnvpytor.root.Root.read_vcf" href="#cnvpytor.root.Root.read_vcf">read_vcf</a></code></li>
 <li><code><a title="cnvpytor.root.Root.set_reference_genome" href="#cnvpytor.root.Root.set_reference_genome">set_reference_genome</a></code></li>
 <li><code><a title="cnvpytor.root.Root.vcf" href="#cnvpytor.root.Root.vcf">vcf</a></code></li>
 </ul>

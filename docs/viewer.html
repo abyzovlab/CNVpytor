@@ -61,15 +61,31 @@ class Export(Reader):
 
 class Show(Reader):
     def ls(self):
+        &#34;&#34;&#34; Prints to stdout content of all cnvpytor files.
+
+        &#34;&#34;&#34;
         for i in self.io:
             i.ls()
 
     def meta(self):
+        &#34;&#34;&#34; Prints to stdout meta tags of all cnvpytor files.
+
+        &#34;&#34;&#34;
         for i in self.io:
             i.read_meta_attribute()
 
     def info(self, bin_sizes):
-        bin_sizes = [100] + bin_sizes
+        &#34;&#34;&#34; Prints to stdout RD info for all cnvpytor files.
+        Columns are following:
+            filename
+            mean read length, stdev of read length in %
+            mean template length, stdev of template length in %
+            for each bin_size (including 100 always):
+                rd level and corresponding stdev for each chromosome type (autosomes, sex chromosomes and mitochondria)
+
+        &#34;&#34;&#34;
+        if 100 not in bin_sizes:
+            bin_sizes = [100] + bin_sizes
         labels = [&#34;FILE&#34;, &#34;RL&#34;, &#34;dRL[%]&#34;, &#34;FL&#34;, &#34;dFL[%]&#34;]
         for bs in bin_sizes:
             labels.append(&#34;RD_AUTO_&#34; + binsize_format(bs))
@@ -85,7 +101,7 @@ class Show(Reader):
                 labels.append(&#34;dRD_MT_&#34; + binsize_format(bs) + &#34;[%]&#34;)
                 labels.append(&#34;RD_GC_MT_&#34; + binsize_format(bs))
                 labels.append(&#34;dRD_CG_MT_&#34; + binsize_format(bs) + &#34;[%]&#34;)
-        print((&#34;{:25}{:&gt;20}{:&gt;20}{:&gt;20}{:&gt;20}&#34; + &#34;{:&gt;20}&#34; * (len(labels) - 5)).format(*tuple(labels)))
+        print((&#34;{:}\t{:}\t{:}\t{:}\t{:}\t&#34; + &#34;{:}\t&#34; * (len(labels) - 5)).format(*tuple(labels)))
         for i in self.io:
             rfd = i.get_signal(None, None, &#34;read frg dist&#34;)
             rd = np.sum(rfd, axis=1)
@@ -96,7 +112,7 @@ class Show(Reader):
             mfl2 = np.sum(fd * np.arange(fd.size) * np.arange(fd.size)) / np.sum(fd)
             sdr = 100. * np.sqrt(mrl2 - mrl * mrl) / mrl
             sdf = 100. * np.sqrt(mfl2 - mfl * mfl) / mfl
-            print(&#34;{:25}{:20.2f}{:20.2f}{:20.2f}{:20.2f}&#34;.format(i.filename, mrl, sdr, mfl, sdf), end=&#34;&#34;)
+            print(&#34;{:}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t&#34;.format(i.filename, mrl, sdr, mfl, sdf), end=&#34;&#34;)
             for bs in bin_sizes:
                 for flag in [FLAG_AUTO, FLAG_SEX, FLAG_MT]:
                     if bs &lt;= 500 or not flag == FLAG_MT:
@@ -104,31 +120,115 @@ class Show(Reader):
                             stat = i.get_signal(None, bs, &#34;RD stat&#34;, flags=flag)
                             if stat[4] &gt; 0:
                                 stat[5] /= stat[4] / 100.
-                            print(&#34;{:20.2f}{:20.2f}&#34;.format(stat[4], stat[5]), end=&#34;&#34;)
+                            print(&#34;{:.2f}\t{:.2f}\t&#34;.format(stat[4], stat[5]), end=&#34;&#34;)
                         else:
-                            print(&#34;{:&gt;20}{:&gt;20}&#34;.format(&#34;-&#34;, &#34;-&#34;), end=&#34;&#34;)
+                            print(&#34;{:}\t{:}\t&#34;.format(&#34;-&#34;, &#34;-&#34;), end=&#34;&#34;)
                         if i.signal_exists(None, bs, &#34;RD stat&#34;, flags=(flag | FLAG_GC_CORR)):
                             stat = i.get_signal(None, bs, &#34;RD stat&#34;, flags=(flag | FLAG_GC_CORR))
                             if stat[4] &gt; 0:
                                 stat[5] /= stat[4] / 100.
-                            print(&#34;{:20.2f}{:20.2f}&#34;.format(stat[4], stat[5]), end=&#34;&#34;)
+                            print(&#34;{:.2f}\t{:.2f}\t&#34;.format(stat[4], stat[5]), end=&#34;&#34;)
                         else:
-                            print(&#34;{:&gt;20}{:&gt;20}&#34;.format(&#34;-&#34;, &#34;-&#34;), end=&#34;&#34;)
+                            print(&#34;{:}\t{:}\t&#34;.format(&#34;-&#34;, &#34;-&#34;), end=&#34;&#34;)
             print()
 
 
-class Viewer(Show, ViewParams, HelpDescription):
-
-    def __init__(self, files, params):
-        _logger.debug(&#34;Viewer class init: files [%s], params %s.&#34; % (&#34;, &#34;.join(files), str(params)))
+class Figure(ViewParams):
+    def __init__(self, params):
         ViewParams.__init__(self, params)
+        self.fig = None
+        self.fig_grid = None
+        self.interactive = False
+        self.count = 0
+
+    def new_figure(self, panel_count, grid=&#34;auto&#34;, panel_size=(4, 3)):
+
+        if grid == &#34;auto&#34;:
+            grid = self.grid
+        plt.clf()
+        plt.rcParams[&#34;font.size&#34;] = 8
+        self.fig = plt.figure(1, dpi=200, facecolor=&#39;w&#39;, edgecolor=&#39;k&#39;)
+
+        sx, sy = self.get_grid(grid, panel_count)
+        if self.output_filename != &#34;&#34;:
+            self.fig.set_figheight(panel_size[1] * sy)
+            self.fig.set_figwidth(panel_size[0] * sx)
+        self.fig_grid = gridspec.GridSpec(sy, sx, wspace=0.2, hspace=0.2)
+
+    def get_panel(self, i):
+        return self.fig.add_subplot(self.fig_grid[i])
+
+    def get_grid(self, grid, panel_count):
+        if grid == &#34;auto&#34;:
+            sx, sy = self.panels_shape(panel_count)
+        else:
+            sx, sy = tuple(grid)
+
+        return sx, sy
+
+    def fig_show(self, suffix=&#34;&#34;):
+        if self.output_filename != &#34;&#34;:
+            image_filename = self.image_filename(suffix)
+            if image_filename is not None:
+                plt.savefig(image_filename, dpi=200)
+                plt.close(self.fig)
+            else:
+                _logger.warning(&#34;Figure is not saved!&#34;)
+        elif self.interactive:
+            plt.show(block=False)
+            plt.draw()
+        else:
+            plt.show()
+
+    def image_filename(self, suffix):
+        parts = self.output_filename.split(&#34;.&#34;)
+        if parts[-1] not in [&#34;png&#34;, &#34;pdf&#34;, &#34;jpg&#34;, &#34;eps&#34;, &#34;svg&#34;]:
+            _logger.warning(&#34;File extension should be: .jpg, .png, .svg, .eps or .pdf&#34;)
+            return None
+        if suffix == &#34;&#34;:
+            suffix = str(self.count)
+        else:
+            suffix += &#34;.&#34; + str(self.count)
+        self.count += 1
+        parts[-1] = suffix + &#34;.&#34; + parts[-1]
+        return &#34;.&#34;.join(parts)
+
+    @staticmethod
+    def panels_shape(n):
+        sx, sy = 1, 1
+        if n == 2:
+            sx = 2
+        elif n in [3, 4]:
+            sx, sy = 2, 2
+        elif n in [5, 6]:
+            sx, sy = 3, 2
+        elif n in [7, 8, 9]:
+            sx, sy = 3, 3
+        elif n in [10, 11, 12]:
+            sx, sy = 4, 3
+        elif n in [13, 14, 15, 16]:
+            sx, sy = 4, 4
+        elif n in [17, 18, 19, 20]:
+            sx, sy = 5, 4
+        elif n in [21, 22, 23, 24]:
+            sx, sy = 6, 4
+        else:
+            while sx * sy &lt; n:
+                sx += 1
+                sy = int(2. * sx / 3 + 1.)
+        return sx, sy
+
+
+class Viewer(Show, Figure, HelpDescription):
+
+    def __init__(self, files, params={}):
+        _logger.debug(&#34;Viewer class init: files [%s], params %s.&#34; % (&#34;, &#34;.join(files), str(params)))
+        Figure.__init__(self, params)
         Show.__init__(self, files)
         self.io_gc = self.io[0]
         self.io_mask = self.io[0]
         self.reference_genome = None
-        self.interactive = False
         self.plot_files = list(range(len(files)))
-        self.fig = None
         if self.io[0].signal_exists(None, None, &#34;reference genome&#34;):
             rg_name = np.array(self.io[0].get_signal(None, None, &#34;reference genome&#34;)).astype(&#34;str&#34;)[0]
             self.reference_genome = Genome.reference_genomes[rg_name]
@@ -244,7 +344,7 @@ class Viewer(Show, ViewParams, HelpDescription):
                 elif f[0] == &#34;compare&#34; and n == 4:
                     self.compare(f[1], f[2], n_bins=int(f[3]), plot=True)
                 elif f[0] == &#34;info&#34; and n &gt; 1:
-                    self.info(list(map(binsize_type,f[1:])))
+                    self.info(list(map(binsize_type, f[1:])))
                 else:
                     try:
                         if f[0] not in [&#34;rdstat&#34;, &#34;snp&#34;]:
@@ -273,14 +373,11 @@ class Viewer(Show, ViewParams, HelpDescription):
             plt.style.use(&#34;default&#34;)
             plt.style.use(style)
 
-    def image_filename(self, sufix):
-        parts = self.output_filename.split(&#34;.&#34;)
-        if parts[-1] != &#34;png&#34; and parts[-1] != &#34;pdf&#34; and parts[-1] != &#34;jpg&#34; and parts[-1] != &#34;eps&#34; and parts[
-            -1] != &#34;svg&#34;:
-            _logger.warning(&#34;File extension should be: .jpg, .png, .svg, .eps or .pdf&#34;)
-            exit(0)
-        parts[-1] = sufix + &#34;.&#34; + parts[-1]
-        return &#34;.&#34;.join(parts)
+    def file_title(self, ix):
+        if ix &lt; len(self.file_titles):
+            return self.file_titles[ix]
+        else:
+            return self.io[ix].filename.split(&#34;/&#34;)[-1].replace(&#34;.pytor&#34;, &#34;&#34;)
 
     def show(self):
         print(&#34;\nParameters&#34;)
@@ -525,6 +622,29 @@ class Viewer(Show, ViewParams, HelpDescription):
             ax.xaxis.set_ticklabels([])
             ax.yaxis.set_ticklabels([])
             ax.xaxis.set_ticks(np.arange(0, likelihood.shape[0], 50), [])
+            ax.set_xlim([0, likelihood.shape[0]])
+            if self.snp_call:
+                likelihood = self.io[self.plot_file].get_signal(c, bin_size, &#34;SNP likelihood call&#34;, snp_flag)
+                segments = segments_decode(
+                    self.io[self.plot_file].get_signal(c, bin_size, &#34;SNP likelihood segments&#34;, snp_flag))
+                call_pos = []
+                call_i1 = []
+                call_i2 = []
+                call_c = []
+                for s, lh in zip(segments, likelihood):
+                    i1, i2, p = likelihood_pixels_pval(lh)
+                    if i1 != i2 and len(s) &gt; self.min_segment_size:
+                        alpha = -np.log(p + 1e-40) / self.contrast
+                        if alpha &gt; 1:
+                            alpha = 1
+                        for pos in s:
+                            call_pos.append(pos)
+                            call_i1.append(min(i1, i2))
+                            call_i2.append(max(i1, i2))
+                            color = (1, 1, 0, alpha)
+                            call_c.append(color)
+                plt.scatter(call_pos, call_i1, s=20, color=np.array(call_c), edgecolors=&#39;face&#39;, marker=&#39;_&#39;)
+                plt.scatter(call_pos, call_i2, s=20, color=np.array(call_c), edgecolors=&#39;face&#39;, marker=&#39;_&#39;)
             ix += 1
         plt.subplots_adjust(bottom=0., top=1., wspace=0, hspace=0, left=0., right=1.)
         if self.output_filename != &#34;&#34;:
@@ -562,9 +682,12 @@ class Viewer(Show, ViewParams, HelpDescription):
                         chroms.append(snp_chr)
                 else:
                     if self.io[self.plot_file].signal_exists(snp_chr, None, &#34;somatic SNP pos&#34;, 0, name=callset) and \
-                            self.io[self.plot_file].signal_exists(snp_chr, None, &#34;somatic SNP desc&#34;, 0, name=callset) and \
-                            self.io[self.plot_file].signal_exists(snp_chr, None, &#34;somatic SNP counts&#34;, 0, name=callset) and \
-                            self.io[self.plot_file].signal_exists(snp_chr, None, &#34;somatic SNP qual&#34;, 0, name=callset) and \
+                            self.io[self.plot_file].signal_exists(snp_chr, None, &#34;somatic SNP desc&#34;, 0,
+                                                                  name=callset) and \
+                            self.io[self.plot_file].signal_exists(snp_chr, None, &#34;somatic SNP counts&#34;, 0,
+                                                                  name=callset) and \
+                            self.io[self.plot_file].signal_exists(snp_chr, None, &#34;somatic SNP qual&#34;, 0,
+                                                                  name=callset) and \
                             (Genome.is_autosome(c) or Genome.is_sex_chrom(c)):
                         chroms.append(snp_chr)
         sx, sy = self.panels_shape(len(chroms))
@@ -610,51 +733,18 @@ class Viewer(Show, ViewParams, HelpDescription):
         else:
             plt.show()
 
-
-    @staticmethod
-    def panels_shape(n):
-        sx, sy = 1, 1
-        if n == 2:
-            sx = 2
-        elif n in [3, 4]:
-            sx, sy = 2, 2
-        elif n in [5, 6]:
-            sx, sy = 3, 2
-        elif n in [7, 8, 9]:
-            sx, sy = 3, 3
-        elif n in [10, 11, 12]:
-            sx, sy = 4, 3
-        elif n in [13, 14, 15, 16]:
-            sx, sy = 4, 4
-        elif n in [17, 18, 19, 20]:
-            sx, sy = 5, 4
-        elif n in [21, 22, 23, 24]:
-            sx, sy = 6, 4
-        else:
-            while sx * sy &lt; n:
-                sx += 1
-                sy = int(2. * sx / 3 + 1.)
-        return sx, sy
-
     def manhattan(self, bin_size, use_mask=False, plot_type=&#34;rd&#34;):
-        plt.clf()
         if self.reference_genome is None:
             _logger.warning(&#34;Missing reference genome required for gview.&#34;)
             return
         n = len(self.plot_files)
         ix = self.plot_files
 
-        plt.clf()
-        plt.rcParams[&#34;font.size&#34;] = 8
-        self.fig = plt.figure(1, facecolor=&#39;w&#39;, edgecolor=&#39;k&#39;)
-        if self.output_filename != &#34;&#34;:
-            self.fig.set_figheight(1.5 * n)
-            self.fig.set_figwidth(12)
-        grid = gridspec.GridSpec(n, 1, wspace=0.2, hspace=0.2)
+        self.new_figure(panel_count=n, grid=(1, n), panel_size=(12, 1.5))
         for i in range(n):
-            ax = self.fig.add_subplot(grid[i])
+            ax = self.get_panel(i)
             io = self.io[ix[i]]
-            ax.set_title(io.filename, position=(0.01, 1.07),
+            ax.set_title(self.file_title(ix[i]), position=(0.01, 1.07),
                          fontdict={&#39;verticalalignment&#39;: &#39;top&#39;, &#39;horizontalalignment&#39;: &#39;left&#39;})
 
             if plot_type == &#34;rd&#34;:
@@ -729,8 +819,6 @@ class Viewer(Show, ViewParams, HelpDescription):
                 cix = 0
                 cmap = list(map(colors.to_rgba, plt.rcParams[&#39;axes.prop_cycle&#39;].by_key()[&#39;color&#39;]))
                 for c, l in chroms:
-                    flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
-
                     likelihood = io.get_signal(c, bin_size, &#34;SNP likelihood call&#34;, snp_flag)
                     segments = segments_decode(io.get_signal(c, bin_size, &#34;SNP likelihood segments&#34;, snp_flag))
                     call_pos = []
@@ -766,27 +854,27 @@ class Viewer(Show, ViewParams, HelpDescription):
             n_bins = apos
             ax.set_xlim([0, n_bins])
             ax.grid()
-        plt.subplots_adjust(bottom=0.05, top=0.95, wspace=0, hspace=0, left=0.05, right=0.95)
+        plt.subplots_adjust(bottom=0.05, top=0.90, wspace=0, hspace=0, left=0.05, right=0.95)
 
-        if self.output_filename != &#34;&#34;:
-            plt.savefig(self.image_filename(&#34;manhattan&#34; if plot_type == &#34;rd&#34; else &#34;snp_calls&#34;), dpi=200)
-            plt.close(self.fig)
-        elif self.interactive:
-            plt.show(block=False)
-            plt.draw()
-        else:
-            plt.show()
+        self.fig_show(suffix=&#34;manhattan&#34; if plot_type == &#34;rd&#34; else &#34;snp_calls&#34;)
 
     def multiple_regions(self, bin_size, regions, panels=[&#34;rd&#34;], sep_color=&#34;g&#34;):
+        n = len(self.plot_files)
+        ix = self.plot_files
         plt.clf()
         plt.rcParams[&#34;font.size&#34;] = 8
-        self.fig = plt.figure(1, figsize=(12, 8), facecolor=&#39;w&#39;, edgecolor=&#39;k&#39;)
-        grid = gridspec.GridSpec(len(self.io), len(regions), wspace=0.2, hspace=0.2)
-        ix = 0
-        for i in self.io:
+        if self.grid == &#34;auto&#34;:
+            sx, sy = self.panels_shape(n)
+        else:
+            sx, sy = tuple(self.grid)
+        self.fig = plt.figure(1, dpi=200, facecolor=&#39;w&#39;, edgecolor=&#39;k&#39;)
+        if self.output_filename != &#34;&#34;:
+            self.fig.set_figheight(3 * sy)
+            self.fig.set_figwidth(4 * sx)
+        grid = gridspec.GridSpec(sy, sx, wspace=0.2, hspace=0.2)
+        for i in range(n):
             for r in regions:
-                self.regions(i, grid[ix], bin_size, r, panels=panels, sep_color=sep_color)
-                ix += 1
+                self.regions(ix[i], grid[i], bin_size, r, panels=panels, sep_color=sep_color)
         plt.subplots_adjust(bottom=0.05, top=0.95, wspace=0, hspace=0, left=0.05, right=0.95)
 
         if self.output_filename != &#34;&#34;:
@@ -798,23 +886,24 @@ class Viewer(Show, ViewParams, HelpDescription):
         else:
             plt.show()
 
-    def regions(self, io, element, bin_size, region, panels=[&#34;rd&#34;], sep_color=&#34;g&#34;):
+    def regions(self, ix, element, bin_size, region, panels=[&#34;rd&#34;], sep_color=&#34;g&#34;):
         snp_flag = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0)
         grid = gridspec.GridSpecFromSubplotSpec(len(panels), 1, subplot_spec=element, wspace=0, hspace=0.1)
         r = decode_region(region)
+        io = self.io[ix]
         for i in range(len(panels)):
             ax = self.fig.add_subplot(grid[i])
             if i == 0:
-                ax.set_title(io.filename + &#34;: &#34; + region, position=(0.01, 0.9),
+                ax.set_title(self.file_title(ix) + &#34;: &#34; + region, position=(0.01, 0.9),
                              fontdict={&#39;verticalalignment&#39;: &#39;top&#39;, &#39;horizontalalignment&#39;: &#39;left&#39;},
                              color=&#39;C0&#39;)
 
             if panels[i] == &#34;rd&#34;:
-                g_p = []
-                g_p_corr = []
-                g_p_seg = []
-                g_p_call = []
-                g_p_call_mosaic = []
+                g_p = [0]
+                g_p_corr = [0]
+                g_p_seg = [0]
+                g_p_call = [0]
+                g_p_call_mosaic = [0]
                 mean, stdev = 0, 0
                 borders = []
                 for c, (pos1, pos2) in r:
@@ -852,13 +941,11 @@ class Viewer(Show, ViewParams, HelpDescription):
                         g_p_call_mosaic.extend(list(his_p_mosaic[start_bin:end_bin]))
                     borders.append(len(g_p) - 1)
 
-                # ax.xaxis.set_ticklabels([])
                 ax.yaxis.set_ticklabels([])
                 l = len(g_p)
-                # ax.xaxis.set_ticks(np.arange(0, l, 10), [])
                 ax.yaxis.set_ticks(np.arange(0, 3, 0.5) * mean, [])
                 ax.set_ylim([0, max(3. * mean, mean + 5. * stdev)])
-                ax.set_xlim([-l * 0.0, l * 1.0])
+                ax.set_xlim([-l * 0.0, (l - 1) * 1.0])
 
                 ax.yaxis.grid()
                 ax.step(g_p, &#34;grey&#34;)
@@ -917,14 +1004,14 @@ class Viewer(Show, ViewParams, HelpDescription):
             elif panels[i] == &#34;snv&#34; or panels[i][:4] == &#34;snv:&#34;:
                 callset = &#34;default&#34;
                 if panels[i][:4] == &#34;snv:&#34;:
-                    callset=panels[i].split(&#34;:&#34;)[1]
+                    callset = panels[i].split(&#34;:&#34;)[1]
                 borders = []
                 hpos = []
                 baf = []
                 color = []
                 start_pos = 0
                 for c, (pos1, pos2) in r:
-                    pos, ref, alt, nref, nalt, gt, flag, qual = io.read_snp(c,callset=callset)
+                    pos, ref, alt, nref, nalt, gt, flag, qual = io.read_snp(c, callset=callset)
                     ix = 0
                     mdp = 0
                     while ix &lt; len(pos) and pos[ix] &lt;= pos2:
@@ -996,20 +1083,54 @@ class Viewer(Show, ViewParams, HelpDescription):
             elif panels[i] == &#34;likelihood&#34;:
                 borders = []
                 gl = []
+                call_pos = []
+                call_i1 = []
+                call_i2 = []
+                call_c = []
+                tlen = 0
                 for c, (pos1, pos2) in r:
                     likelihood = io.get_signal(c, bin_size, &#34;SNP likelihood&#34;, snp_flag)
                     start_bin = (pos1 - 1) // bin_size
                     end_bin = pos2 // bin_size
                     gl.extend(list(likelihood[start_bin:end_bin]))
                     borders.append(len(gl) - 1)
+                    if self.snp_call:
+                        likelihood_call = io.get_signal(c, bin_size, &#34;SNP likelihood call&#34;, snp_flag)
+                        segments = segments_decode(io.get_signal(c, bin_size, &#34;SNP likelihood segments&#34;, snp_flag))
+
+                        for s, lh in zip(segments, likelihood_call):
+                            i1, i2, p = likelihood_pixels_pval(lh)
+                            if i1 != i2 and len(s) &gt; self.min_segment_size:
+                                alpha = -np.log(p + 1e-40) / self.contrast
+                                if alpha &gt; 1:
+                                    alpha = 1
+                                for pos in s:
+                                    if pos &gt;= start_bin and pos &lt; end_bin:
+                                        call_pos.append(pos - start_bin + tlen)
+                                        call_i1.append(min(i1, i2))
+                                        call_i2.append(max(i1, i2))
+                                        color = (1, 1, 0, alpha)
+                                        call_c.append(color)
+                        tlen += end_bin - start_bin
+
                 img = np.array(gl).transpose()
                 ax.imshow(img, aspect=&#39;auto&#39;)
                 ax.xaxis.set_ticklabels([])
                 ax.yaxis.set_ticklabels([])
                 ax.xaxis.set_ticks(np.arange(0, len(gl), 50), [])
+                ax.set_xlim([-0.5, img.shape[1] - 0.5])
+                if self.snp_call:
+                    if self.markersize == &#34;auto&#34;:
+                        plt.scatter(call_pos, call_i1, s=2, color=np.array(call_c), edgecolors=&#39;face&#39;, marker=&#39;_&#39;)
+                        plt.scatter(call_pos, call_i2, s=2, color=np.array(call_c), edgecolors=&#39;face&#39;, marker=&#39;_&#39;)
+                    else:
+                        plt.scatter(call_pos, call_i1, s=self.markersize, color=np.array(call_c), edgecolors=&#39;face&#39;,
+                                    marker=&#39;_&#39;)
+                        plt.scatter(call_pos, call_i2, s=self.markersize, color=np.array(call_c), edgecolors=&#39;face&#39;,
+                                    marker=&#39;_&#39;)
 
                 for i in borders[:-1]:
-                    ax.axvline(i, color=sep_color, lw=1)
+                    ax.axvline(i + 0.5, color=sep_color, lw=1)
                 self.fig.add_subplot(ax)
 
     def circular(self, bin_size, chroms=[], use_mask_rd=True):
@@ -1067,7 +1188,7 @@ class Viewer(Show, ViewParams, HelpDescription):
             ax.set_rmax(0.9)
             ax.set_rticks([])
             ax.set_thetagrids(angles, labels=labels, fontsize=10, weight=&#34;bold&#34;, color=&#34;black&#34;)
-            ax.set_title(io.filename.split(&#34;/&#34;)[-1], loc=&#34;left&#34;, fontsize=10, weight=&#34;bold&#34;, color=&#34;black&#34;)
+            ax.set_title(self.file_title(ix[i]), loc=&#34;left&#34;, fontsize=10, weight=&#34;bold&#34;, color=&#34;black&#34;)
             ax.grid(False)
         plt.subplots_adjust(bottom=0.05, top=0.95, wspace=0.2, hspace=0.2, left=0.05, right=0.95)
         if self.output_filename != &#34;&#34;:
@@ -1095,7 +1216,6 @@ class Viewer(Show, ViewParams, HelpDescription):
             ax = self.fig.add_subplot(grid[i])
             io = self.io[ix[i]]
 
-
             chroms = []
             snp_flag = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0)
             rd_flag = FLAG_GC_CORR | (FLAG_USEMASK if self.rd_use_mask else 0)
@@ -1108,8 +1228,8 @@ class Viewer(Show, ViewParams, HelpDescription):
                             io.signal_exists(snp_chr, bin_size, &#34;RD mosaic segments&#34;, rd_flag) and \
                             Genome.is_autosome(c):
                         chroms.append((snp_chr, l))
-            x=[]
-            y=[]
+            x = []
+            y = []
             for c, l in chroms:
                 flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
 
@@ -1118,15 +1238,15 @@ class Viewer(Show, ViewParams, HelpDescription):
                 rd = io.get_signal(c, bin_size, &#34;RD mosaic call&#34;, rd_flag)
                 segments_rd = segments_decode(io.get_signal(c, bin_size, &#34;RD mosaic segments&#34;, rd_flag))
 
-                mbaf={}
-                mrd={}
+                mbaf = {}
+                mrd = {}
                 for s, lh in zip(segments_baf, likelihood):
                     b, p = likelihood_baf_pval(lh)
                     for pos in s:
-                        mbaf[pos]=0.5-b
+                        mbaf[pos] = 0.5 - b
                 for s, r in zip(segments_rd, rd[0]):
                     for pos in s:
-                        mrd[pos]=r
+                        mrd[pos] = r
                 for p in mbaf:
                     if p in mrd:
                         x.append(mbaf[p])
@@ -1134,9 +1254,9 @@ class Viewer(Show, ViewParams, HelpDescription):
 
             if hist:
                 from matplotlib.colors import LogNorm
-                ax.hist2d(x,y,bins=[np.arange(0,0.51,0.01),np.arange(0,max(y),max(y)/100.)],norm=LogNorm())
+                ax.hist2d(x, y, bins=[np.arange(0, 0.51, 0.01), np.arange(0, max(y), max(y) / 100.)], norm=LogNorm())
             else:
-                ax.scatter(x,y,marker=&#34;.&#34;,alpha=0.5)
+                ax.scatter(x, y, marker=&#34;.&#34;, alpha=0.5)
 
         if self.output_filename != &#34;&#34;:
             plt.savefig(self.image_filename(&#34;regions&#34;), dpi=150)
@@ -1203,6 +1323,74 @@ class Viewer(Show, ViewParams, HelpDescription):
         else:
             plt.show()
 
+    def region_rd_stat(self, region, n_bins=21, plot=False, legend=True):
+        n = len(self.plot_files)
+        ix = self.plot_files
+        if plot:
+            plt.clf()
+            plt.rcParams[&#34;font.size&#34;] = 8
+            if self.grid == &#34;auto&#34;:
+                sx, sy = self.panels_shape(n)
+            else:
+                sx, sy = tuple(self.grid)
+            self.fig = plt.figure(1, dpi=200, facecolor=&#39;w&#39;, edgecolor=&#39;k&#39;)
+            if self.output_filename != &#34;&#34;:
+                self.fig.set_figheight(3 * sy)
+                self.fig.set_figwidth(4 * sx)
+            grid = gridspec.GridSpec(sy, sx, wspace=0.2, hspace=0.2)
+        for i in range(n):
+            io = self.io[ix[i]]
+            if plot:
+                ax = self.fig.add_subplot(grid[i])
+                ax.set_title(self.file_title(ix[i]), position=(0.01, 1.07),
+                             fontdict={&#39;verticalalignment&#39;: &#39;top&#39;, &#39;horizontalalignment&#39;: &#39;left&#39;})
+            regs = decode_region(region)
+            data = []
+            for c, (pos1, pos2) in regs:
+                flag_rd = (FLAG_GC_CORR if self.rd_use_gc_corr else 0) | (FLAG_USEMASK if self.rd_use_mask else 0)
+                his_p = io.get_signal(c, self.bin_size, &#34;RD&#34;, flag_rd)
+                bin1 = (pos1 - 1) // self.bin_size
+                bin2 = (pos2 - 1) // self.bin_size
+                data += list(his_p[bin1:bin2 + 1][np.isfinite(his_p[bin1:bin2 + 1])])
+
+            data = np.array(data)
+            dmin = np.min(data)
+            dmax = np.max(data)
+            p1 = np.percentile(data, 1)
+            p99 = np.percentile(data, 99)
+            data = data[data &gt; p1]
+            data = data[data &lt; p99]
+            mean = np.mean(data)
+            std = np.std(data)
+
+            rd_min = mean - 5 * std
+            rd_max = mean + 5 * std
+            bins = np.linspace(rd_min, rd_max, n_bins)
+
+            hist, binsr = np.histogram(data, bins=bins)
+
+            fitn, fitm, fits = fit_normal(bins[:-1], hist)[0]
+
+            print(&#34;%s\t%s\t%.4f\t%.4f\t%e\t%e\t%.4f\t%.4f\t%.4f\t%.4f&#34; % (
+                io.filename, region, fitm, fits, dmin, dmax, p1, p99, mean, std))
+
+            if plot:
+                x = np.linspace(bins[0], bins[-1], 1001)
+                plt.plot(x, normal(x, fitn, fitm, fits), &#34;g-&#34;, label=region)
+                plt.plot(bins[:-1], hist, &#34;b*&#34;)
+                if legend:
+                    plt.legend()
+
+        if plot:
+            if self.output_filename != &#34;&#34;:
+                plt.savefig(self.image_filename(&#34;comp&#34;), dpi=200)
+                plt.close(self.fig)
+            elif self.interactive:
+                plt.show(block=False)
+                plt.draw()
+            else:
+                plt.show()
+
     def compare(self, region1, region2, n_bins=21, plot=False, legend=True):
         n = len(self.plot_files)
         ix = self.plot_files
@@ -1222,9 +1410,8 @@ class Viewer(Show, ViewParams, HelpDescription):
             io = self.io[ix[i]]
             if plot:
                 ax = self.fig.add_subplot(grid[i])
-                ax.set_title(io.filename, position=(0.01, 1.07),
+                ax.set_title(self.file_title(ix[i]), position=(0.01, 1.07),
                              fontdict={&#39;verticalalignment&#39;: &#39;top&#39;, &#39;horizontalalignment&#39;: &#39;left&#39;})
-            stat = io.get_signal(None, self.bin_size, &#34;RD stat&#34;, FLAG_AUTO)
             regs1 = decode_region(region1)
             regs2 = decode_region(region2)
             data1 = []
@@ -1293,26 +1480,76 @@ class Viewer(Show, ViewParams, HelpDescription):
             else:
                 plt.show()
 
-    def genotype(self, bin_sizes, region):
+    def snp_dist(self, regions, callset=None, n_bins=100, titles=None):
+        regions = regions.split(&#34; &#34;)
+        n = len(regions)
+        self.new_figure(panel_count=n)
+        for i in range(n):
+            ax = self.get_panel(i)
+            if titles is None:
+                ax.set_title(regions[i], position=(0.01, 1.07),
+                             fontdict={&#39;verticalalignment&#39;: &#39;top&#39;, &#39;horizontalalignment&#39;: &#39;left&#39;})
+            else:
+                ax.set_title(titles[i], position=(0.01, 1.07),
+                             fontdict={&#39;verticalalignment&#39;: &#39;top&#39;, &#39;horizontalalignment&#39;: &#39;left&#39;})
+            regs = decode_region(regions[i])
+            baf = []
+            for c, (pos1, pos2) in regs:
+                pos, ref, alt, nref, nalt, gt, flag, qual = self.io[self.plot_file].read_snp(c, callset=callset)
+                ix = 0
+                while ix &lt; len(pos) and pos[ix] &lt;= pos2:
+                    if pos[ix] &gt;= pos1 and (nref[ix] + nalt[ix]) != 0:
+                        if gt[ix] % 4 != 2:
+                            baf.append(1.0 * nalt[ix] / (nref[ix] + nalt[ix]))
+                        else:
+                            baf.append(1.0 * nref[ix] / (nref[ix] + nalt[ix]))
+                    ix += 1
+            ax.hist(baf, bins=np.arange(0, 1.0 + 1. / (n_bins + 1), 1. / (n_bins + 1)))
+            ax.set_xlabel(&#34;VAF&#34;)
+            ax.set_ylabel(&#34;distribution&#34;)
+
+        self.fig_show(suffix=&#34;snp_dist&#34;)
+
+    def genotype(self, bin_sizes, region, interactive=False):
+        ret = []
         regs = decode_region(region)
         for c, (pos1, pos2) in regs:
-            print(c + &#34;:&#34; + str(pos1) + &#34;:&#34; + str(pos2), end=&#34;&#34;)
+            if interactive:
+                print(c + &#34;:&#34; + str(pos1) + &#34;-&#34; + str(pos2), end=&#34;&#34;)
+            ret.append([c,pos1,pos2])
             for bs in bin_sizes:
-                flag_rd = FLAG_GC_CORR if self.rd_use_gc_corr else o
-                stat = self.io[self.plot_file].get_signal(c, bs, &#34;RD stat&#34;, flag_rd)
+                flag_rd = (FLAG_GC_CORR if self.rd_use_gc_corr else 0) | (FLAG_USEMASK if self.rd_use_mask else 0)
+                stat = self.io[self.plot_file].get_signal(c, bs, &#34;RD stat&#34;, flag_rd | FLAG_AUTO)
+                if stat is None or len(stat) == 0:
+                    stat = self.io[self.plot_file].get_signal(c, bs, &#34;RD stat&#34;, flag_rd | FLAG_SEX)
                 his_p = self.io[self.plot_file].get_signal(c, bs, &#34;RD&#34;, flag_rd)
                 bin1 = (pos1 - 1) // bs
                 bin2 = (pos2 - 1) // bs
                 rc = 0
                 if bin1 == bin2:
-                    rc = (pos2 - pos1 + 1) * his_p[bin1] / bs
+                    try:
+                        rc = (pos2 - pos1 + 1) * his_p[bin1] / bs
+                    except IndexError:
+                        pass
                 else:
-                    rc += (bin1 * bs - pos1 + 1 + bs) * his_p[bin1] / bs
-                    rc += (pos2 - bin2 * bs) * his_p[bin1] / bs
+                    try:
+                        rc += (bin1 * bs - pos1 + 1 + bs) * his_p[bin1] / bs
+                        rc += (pos2 - bin2 * bs) * his_p[bin2] / bs
+                    except IndexError:
+                        pass
                     for ix in range(bin1 + 1, bin2):
-                        rc += his_p[ix]
-                print(&#34;\t%f&#34; % rc * stat[4] * (pos2 - pos1 + 1) / bs, end=&#34;&#34;)
-        print()
+                        try:
+                            rc += his_p[ix]
+                        except IndexError:
+                            pass
+                if interactive:
+                    print(&#34;\t%f&#34; % (2. * rc / (stat[4] * (pos2 - pos1 + 1) / bs)), end=&#34;&#34;)
+
+                ret[-1].append(2. * rc / (stat[4] * (pos2 - pos1 + 1) / bs))
+            if interactive:
+                print()
+
+        return ret
 
     def genotype_prompt(self, bin_sizes=[]):
         done = False
@@ -1327,7 +1564,7 @@ class Viewer(Show, ViewParams, HelpDescription):
             if line is None or line == &#34;&#34;:
                 done = True
             else:
-                self.genotype(bin_sizes, line)
+                self.genotype(bin_sizes, line, interactive=True)
 
 
 def anim_plot_likelihood(likelihood, segments, n, res, iter, prefix, maxp, minp):
@@ -1521,6 +1758,247 @@ def anim_plot_rd(level, error, segments, n, iter, prefix, maxp, minp, mean):
 </dd>
 </dl>
 </dd>
+<dt id="cnvpytor.viewer.Figure"><code class="flex name class">
+<span>class <span class="ident">Figure</span></span>
+<span>(</span><span>params)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">class Figure(ViewParams):
+    def __init__(self, params):
+        ViewParams.__init__(self, params)
+        self.fig = None
+        self.fig_grid = None
+        self.interactive = False
+        self.count = 0
+
+    def new_figure(self, panel_count, grid=&#34;auto&#34;, panel_size=(4, 3)):
+
+        if grid == &#34;auto&#34;:
+            grid = self.grid
+        plt.clf()
+        plt.rcParams[&#34;font.size&#34;] = 8
+        self.fig = plt.figure(1, dpi=200, facecolor=&#39;w&#39;, edgecolor=&#39;k&#39;)
+
+        sx, sy = self.get_grid(grid, panel_count)
+        if self.output_filename != &#34;&#34;:
+            self.fig.set_figheight(panel_size[1] * sy)
+            self.fig.set_figwidth(panel_size[0] * sx)
+        self.fig_grid = gridspec.GridSpec(sy, sx, wspace=0.2, hspace=0.2)
+
+    def get_panel(self, i):
+        return self.fig.add_subplot(self.fig_grid[i])
+
+    def get_grid(self, grid, panel_count):
+        if grid == &#34;auto&#34;:
+            sx, sy = self.panels_shape(panel_count)
+        else:
+            sx, sy = tuple(grid)
+
+        return sx, sy
+
+    def fig_show(self, suffix=&#34;&#34;):
+        if self.output_filename != &#34;&#34;:
+            image_filename = self.image_filename(suffix)
+            if image_filename is not None:
+                plt.savefig(image_filename, dpi=200)
+                plt.close(self.fig)
+            else:
+                _logger.warning(&#34;Figure is not saved!&#34;)
+        elif self.interactive:
+            plt.show(block=False)
+            plt.draw()
+        else:
+            plt.show()
+
+    def image_filename(self, suffix):
+        parts = self.output_filename.split(&#34;.&#34;)
+        if parts[-1] not in [&#34;png&#34;, &#34;pdf&#34;, &#34;jpg&#34;, &#34;eps&#34;, &#34;svg&#34;]:
+            _logger.warning(&#34;File extension should be: .jpg, .png, .svg, .eps or .pdf&#34;)
+            return None
+        if suffix == &#34;&#34;:
+            suffix = str(self.count)
+        else:
+            suffix += &#34;.&#34; + str(self.count)
+        self.count += 1
+        parts[-1] = suffix + &#34;.&#34; + parts[-1]
+        return &#34;.&#34;.join(parts)
+
+    @staticmethod
+    def panels_shape(n):
+        sx, sy = 1, 1
+        if n == 2:
+            sx = 2
+        elif n in [3, 4]:
+            sx, sy = 2, 2
+        elif n in [5, 6]:
+            sx, sy = 3, 2
+        elif n in [7, 8, 9]:
+            sx, sy = 3, 3
+        elif n in [10, 11, 12]:
+            sx, sy = 4, 3
+        elif n in [13, 14, 15, 16]:
+            sx, sy = 4, 4
+        elif n in [17, 18, 19, 20]:
+            sx, sy = 5, 4
+        elif n in [21, 22, 23, 24]:
+            sx, sy = 6, 4
+        else:
+            while sx * sy &lt; n:
+                sx += 1
+                sy = int(2. * sx / 3 + 1.)
+        return sx, sy</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="cnvpytor.viewparams.ViewParams" href="viewparams.html#cnvpytor.viewparams.ViewParams">ViewParams</a></li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="cnvpytor.viewer.Viewer" href="#cnvpytor.viewer.Viewer">Viewer</a></li>
+</ul>
+<h3>Static methods</h3>
+<dl>
+<dt id="cnvpytor.viewer.Figure.panels_shape"><code class="name flex">
+<span>def <span class="ident">panels_shape</span></span>(<span>n)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">@staticmethod
+def panels_shape(n):
+    sx, sy = 1, 1
+    if n == 2:
+        sx = 2
+    elif n in [3, 4]:
+        sx, sy = 2, 2
+    elif n in [5, 6]:
+        sx, sy = 3, 2
+    elif n in [7, 8, 9]:
+        sx, sy = 3, 3
+    elif n in [10, 11, 12]:
+        sx, sy = 4, 3
+    elif n in [13, 14, 15, 16]:
+        sx, sy = 4, 4
+    elif n in [17, 18, 19, 20]:
+        sx, sy = 5, 4
+    elif n in [21, 22, 23, 24]:
+        sx, sy = 6, 4
+    else:
+        while sx * sy &lt; n:
+            sx += 1
+            sy = int(2. * sx / 3 + 1.)
+    return sx, sy</code></pre>
+</details>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="cnvpytor.viewer.Figure.fig_show"><code class="name flex">
+<span>def <span class="ident">fig_show</span></span>(<span>self, suffix='')</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def fig_show(self, suffix=&#34;&#34;):
+    if self.output_filename != &#34;&#34;:
+        image_filename = self.image_filename(suffix)
+        if image_filename is not None:
+            plt.savefig(image_filename, dpi=200)
+            plt.close(self.fig)
+        else:
+            _logger.warning(&#34;Figure is not saved!&#34;)
+    elif self.interactive:
+        plt.show(block=False)
+        plt.draw()
+    else:
+        plt.show()</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.viewer.Figure.get_grid"><code class="name flex">
+<span>def <span class="ident">get_grid</span></span>(<span>self, grid, panel_count)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def get_grid(self, grid, panel_count):
+    if grid == &#34;auto&#34;:
+        sx, sy = self.panels_shape(panel_count)
+    else:
+        sx, sy = tuple(grid)
+
+    return sx, sy</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.viewer.Figure.get_panel"><code class="name flex">
+<span>def <span class="ident">get_panel</span></span>(<span>self, i)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def get_panel(self, i):
+    return self.fig.add_subplot(self.fig_grid[i])</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.viewer.Figure.image_filename"><code class="name flex">
+<span>def <span class="ident">image_filename</span></span>(<span>self, suffix)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def image_filename(self, suffix):
+    parts = self.output_filename.split(&#34;.&#34;)
+    if parts[-1] not in [&#34;png&#34;, &#34;pdf&#34;, &#34;jpg&#34;, &#34;eps&#34;, &#34;svg&#34;]:
+        _logger.warning(&#34;File extension should be: .jpg, .png, .svg, .eps or .pdf&#34;)
+        return None
+    if suffix == &#34;&#34;:
+        suffix = str(self.count)
+    else:
+        suffix += &#34;.&#34; + str(self.count)
+    self.count += 1
+    parts[-1] = suffix + &#34;.&#34; + parts[-1]
+    return &#34;.&#34;.join(parts)</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.viewer.Figure.new_figure"><code class="name flex">
+<span>def <span class="ident">new_figure</span></span>(<span>self, panel_count, grid='auto', panel_size=(4, 3))</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def new_figure(self, panel_count, grid=&#34;auto&#34;, panel_size=(4, 3)):
+
+    if grid == &#34;auto&#34;:
+        grid = self.grid
+    plt.clf()
+    plt.rcParams[&#34;font.size&#34;] = 8
+    self.fig = plt.figure(1, dpi=200, facecolor=&#39;w&#39;, edgecolor=&#39;k&#39;)
+
+    sx, sy = self.get_grid(grid, panel_count)
+    if self.output_filename != &#34;&#34;:
+        self.fig.set_figheight(panel_size[1] * sy)
+        self.fig.set_figwidth(panel_size[0] * sx)
+    self.fig_grid = gridspec.GridSpec(sy, sx, wspace=0.2, hspace=0.2)</code></pre>
+</details>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="cnvpytor.viewparams.ViewParams" href="viewparams.html#cnvpytor.viewparams.ViewParams">ViewParams</a></b></code>:
+<ul class="hlist">
+<li><code><a title="cnvpytor.viewparams.ViewParams.bin_size_f" href="viewparams.html#cnvpytor.viewparams.ViewParams.bin_size_f">bin_size_f</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 <dt id="cnvpytor.viewer.Reader"><code class="flex name class">
 <span>class <span class="ident">Reader</span></span>
 <span>(</span><span>files)</span>
@@ -1549,15 +2027,31 @@ def anim_plot_rd(level, error, segments, n, iter, prefix, maxp, minp, mean):
 <summary>Source code</summary>
 <pre><code class="python">class Show(Reader):
     def ls(self):
+        &#34;&#34;&#34; Prints to stdout content of all cnvpytor files.
+
+        &#34;&#34;&#34;
         for i in self.io:
             i.ls()
 
     def meta(self):
+        &#34;&#34;&#34; Prints to stdout meta tags of all cnvpytor files.
+
+        &#34;&#34;&#34;
         for i in self.io:
             i.read_meta_attribute()
 
     def info(self, bin_sizes):
-        bin_sizes = [100] + bin_sizes
+        &#34;&#34;&#34; Prints to stdout RD info for all cnvpytor files.
+        Columns are following:
+            filename
+            mean read length, stdev of read length in %
+            mean template length, stdev of template length in %
+            for each bin_size (including 100 always):
+                rd level and corresponding stdev for each chromosome type (autosomes, sex chromosomes and mitochondria)
+
+        &#34;&#34;&#34;
+        if 100 not in bin_sizes:
+            bin_sizes = [100] + bin_sizes
         labels = [&#34;FILE&#34;, &#34;RL&#34;, &#34;dRL[%]&#34;, &#34;FL&#34;, &#34;dFL[%]&#34;]
         for bs in bin_sizes:
             labels.append(&#34;RD_AUTO_&#34; + binsize_format(bs))
@@ -1573,7 +2067,7 @@ def anim_plot_rd(level, error, segments, n, iter, prefix, maxp, minp, mean):
                 labels.append(&#34;dRD_MT_&#34; + binsize_format(bs) + &#34;[%]&#34;)
                 labels.append(&#34;RD_GC_MT_&#34; + binsize_format(bs))
                 labels.append(&#34;dRD_CG_MT_&#34; + binsize_format(bs) + &#34;[%]&#34;)
-        print((&#34;{:25}{:&gt;20}{:&gt;20}{:&gt;20}{:&gt;20}&#34; + &#34;{:&gt;20}&#34; * (len(labels) - 5)).format(*tuple(labels)))
+        print((&#34;{:}\t{:}\t{:}\t{:}\t{:}\t&#34; + &#34;{:}\t&#34; * (len(labels) - 5)).format(*tuple(labels)))
         for i in self.io:
             rfd = i.get_signal(None, None, &#34;read frg dist&#34;)
             rd = np.sum(rfd, axis=1)
@@ -1584,7 +2078,7 @@ def anim_plot_rd(level, error, segments, n, iter, prefix, maxp, minp, mean):
             mfl2 = np.sum(fd * np.arange(fd.size) * np.arange(fd.size)) / np.sum(fd)
             sdr = 100. * np.sqrt(mrl2 - mrl * mrl) / mrl
             sdf = 100. * np.sqrt(mfl2 - mfl * mfl) / mfl
-            print(&#34;{:25}{:20.2f}{:20.2f}{:20.2f}{:20.2f}&#34;.format(i.filename, mrl, sdr, mfl, sdf), end=&#34;&#34;)
+            print(&#34;{:}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t&#34;.format(i.filename, mrl, sdr, mfl, sdf), end=&#34;&#34;)
             for bs in bin_sizes:
                 for flag in [FLAG_AUTO, FLAG_SEX, FLAG_MT]:
                     if bs &lt;= 500 or not flag == FLAG_MT:
@@ -1592,16 +2086,16 @@ def anim_plot_rd(level, error, segments, n, iter, prefix, maxp, minp, mean):
                             stat = i.get_signal(None, bs, &#34;RD stat&#34;, flags=flag)
                             if stat[4] &gt; 0:
                                 stat[5] /= stat[4] / 100.
-                            print(&#34;{:20.2f}{:20.2f}&#34;.format(stat[4], stat[5]), end=&#34;&#34;)
+                            print(&#34;{:.2f}\t{:.2f}\t&#34;.format(stat[4], stat[5]), end=&#34;&#34;)
                         else:
-                            print(&#34;{:&gt;20}{:&gt;20}&#34;.format(&#34;-&#34;, &#34;-&#34;), end=&#34;&#34;)
+                            print(&#34;{:}\t{:}\t&#34;.format(&#34;-&#34;, &#34;-&#34;), end=&#34;&#34;)
                         if i.signal_exists(None, bs, &#34;RD stat&#34;, flags=(flag | FLAG_GC_CORR)):
                             stat = i.get_signal(None, bs, &#34;RD stat&#34;, flags=(flag | FLAG_GC_CORR))
                             if stat[4] &gt; 0:
                                 stat[5] /= stat[4] / 100.
-                            print(&#34;{:20.2f}{:20.2f}&#34;.format(stat[4], stat[5]), end=&#34;&#34;)
+                            print(&#34;{:.2f}\t{:.2f}\t&#34;.format(stat[4], stat[5]), end=&#34;&#34;)
                         else:
-                            print(&#34;{:&gt;20}{:&gt;20}&#34;.format(&#34;-&#34;, &#34;-&#34;), end=&#34;&#34;)
+                            print(&#34;{:}\t{:}\t&#34;.format(&#34;-&#34;, &#34;-&#34;), end=&#34;&#34;)
             print()</code></pre>
 </details>
 <h3>Ancestors</h3>
@@ -1618,11 +2112,27 @@ def anim_plot_rd(level, error, segments, n, iter, prefix, maxp, minp, mean):
 <span>def <span class="ident">info</span></span>(<span>self, bin_sizes)</span>
 </code></dt>
 <dd>
-<section class="desc"></section>
+<section class="desc"><p>Prints to stdout RD info for all cnvpytor files.
+Columns are following:
+filename
+mean read length, stdev of read length in %
+mean template length, stdev of template length in %
+for each bin_size (including 100 always):
+rd level and corresponding stdev for each chromosome type (autosomes, sex chromosomes and mitochondria)</p></section>
 <details class="source">
 <summary>Source code</summary>
 <pre><code class="python">def info(self, bin_sizes):
-    bin_sizes = [100] + bin_sizes
+    &#34;&#34;&#34; Prints to stdout RD info for all cnvpytor files.
+    Columns are following:
+        filename
+        mean read length, stdev of read length in %
+        mean template length, stdev of template length in %
+        for each bin_size (including 100 always):
+            rd level and corresponding stdev for each chromosome type (autosomes, sex chromosomes and mitochondria)
+
+    &#34;&#34;&#34;
+    if 100 not in bin_sizes:
+        bin_sizes = [100] + bin_sizes
     labels = [&#34;FILE&#34;, &#34;RL&#34;, &#34;dRL[%]&#34;, &#34;FL&#34;, &#34;dFL[%]&#34;]
     for bs in bin_sizes:
         labels.append(&#34;RD_AUTO_&#34; + binsize_format(bs))
@@ -1638,7 +2148,7 @@ def anim_plot_rd(level, error, segments, n, iter, prefix, maxp, minp, mean):
             labels.append(&#34;dRD_MT_&#34; + binsize_format(bs) + &#34;[%]&#34;)
             labels.append(&#34;RD_GC_MT_&#34; + binsize_format(bs))
             labels.append(&#34;dRD_CG_MT_&#34; + binsize_format(bs) + &#34;[%]&#34;)
-    print((&#34;{:25}{:&gt;20}{:&gt;20}{:&gt;20}{:&gt;20}&#34; + &#34;{:&gt;20}&#34; * (len(labels) - 5)).format(*tuple(labels)))
+    print((&#34;{:}\t{:}\t{:}\t{:}\t{:}\t&#34; + &#34;{:}\t&#34; * (len(labels) - 5)).format(*tuple(labels)))
     for i in self.io:
         rfd = i.get_signal(None, None, &#34;read frg dist&#34;)
         rd = np.sum(rfd, axis=1)
@@ -1649,7 +2159,7 @@ def anim_plot_rd(level, error, segments, n, iter, prefix, maxp, minp, mean):
         mfl2 = np.sum(fd * np.arange(fd.size) * np.arange(fd.size)) / np.sum(fd)
         sdr = 100. * np.sqrt(mrl2 - mrl * mrl) / mrl
         sdf = 100. * np.sqrt(mfl2 - mfl * mfl) / mfl
-        print(&#34;{:25}{:20.2f}{:20.2f}{:20.2f}{:20.2f}&#34;.format(i.filename, mrl, sdr, mfl, sdf), end=&#34;&#34;)
+        print(&#34;{:}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t&#34;.format(i.filename, mrl, sdr, mfl, sdf), end=&#34;&#34;)
         for bs in bin_sizes:
             for flag in [FLAG_AUTO, FLAG_SEX, FLAG_MT]:
                 if bs &lt;= 500 or not flag == FLAG_MT:
@@ -1657,16 +2167,16 @@ def anim_plot_rd(level, error, segments, n, iter, prefix, maxp, minp, mean):
                         stat = i.get_signal(None, bs, &#34;RD stat&#34;, flags=flag)
                         if stat[4] &gt; 0:
                             stat[5] /= stat[4] / 100.
-                        print(&#34;{:20.2f}{:20.2f}&#34;.format(stat[4], stat[5]), end=&#34;&#34;)
+                        print(&#34;{:.2f}\t{:.2f}\t&#34;.format(stat[4], stat[5]), end=&#34;&#34;)
                     else:
-                        print(&#34;{:&gt;20}{:&gt;20}&#34;.format(&#34;-&#34;, &#34;-&#34;), end=&#34;&#34;)
+                        print(&#34;{:}\t{:}\t&#34;.format(&#34;-&#34;, &#34;-&#34;), end=&#34;&#34;)
                     if i.signal_exists(None, bs, &#34;RD stat&#34;, flags=(flag | FLAG_GC_CORR)):
                         stat = i.get_signal(None, bs, &#34;RD stat&#34;, flags=(flag | FLAG_GC_CORR))
                         if stat[4] &gt; 0:
                             stat[5] /= stat[4] / 100.
-                        print(&#34;{:20.2f}{:20.2f}&#34;.format(stat[4], stat[5]), end=&#34;&#34;)
+                        print(&#34;{:.2f}\t{:.2f}\t&#34;.format(stat[4], stat[5]), end=&#34;&#34;)
                     else:
-                        print(&#34;{:&gt;20}{:&gt;20}&#34;.format(&#34;-&#34;, &#34;-&#34;), end=&#34;&#34;)
+                        print(&#34;{:}\t{:}\t&#34;.format(&#34;-&#34;, &#34;-&#34;), end=&#34;&#34;)
         print()</code></pre>
 </details>
 </dd>
@@ -1674,10 +2184,13 @@ def anim_plot_rd(level, error, segments, n, iter, prefix, maxp, minp, mean):
 <span>def <span class="ident">ls</span></span>(<span>self)</span>
 </code></dt>
 <dd>
-<section class="desc"></section>
+<section class="desc"><p>Prints to stdout content of all cnvpytor files.</p></section>
 <details class="source">
 <summary>Source code</summary>
 <pre><code class="python">def ls(self):
+    &#34;&#34;&#34; Prints to stdout content of all cnvpytor files.
+
+    &#34;&#34;&#34;
     for i in self.io:
         i.ls()</code></pre>
 </details>
@@ -1686,10 +2199,13 @@ def anim_plot_rd(level, error, segments, n, iter, prefix, maxp, minp, mean):
 <span>def <span class="ident">meta</span></span>(<span>self)</span>
 </code></dt>
 <dd>
-<section class="desc"></section>
+<section class="desc"><p>Prints to stdout meta tags of all cnvpytor files.</p></section>
 <details class="source">
 <summary>Source code</summary>
 <pre><code class="python">def meta(self):
+    &#34;&#34;&#34; Prints to stdout meta tags of all cnvpytor files.
+
+    &#34;&#34;&#34;
     for i in self.io:
         i.read_meta_attribute()</code></pre>
 </details>
@@ -1698,24 +2214,22 @@ def anim_plot_rd(level, error, segments, n, iter, prefix, maxp, minp, mean):
 </dd>
 <dt id="cnvpytor.viewer.Viewer"><code class="flex name class">
 <span>class <span class="ident">Viewer</span></span>
-<span>(</span><span>files, params)</span>
+<span>(</span><span>files, params={})</span>
 </code></dt>
 <dd>
 <section class="desc"></section>
 <details class="source">
 <summary>Source code</summary>
-<pre><code class="python">class Viewer(Show, ViewParams, HelpDescription):
+<pre><code class="python">class Viewer(Show, Figure, HelpDescription):
 
-    def __init__(self, files, params):
+    def __init__(self, files, params={}):
         _logger.debug(&#34;Viewer class init: files [%s], params %s.&#34; % (&#34;, &#34;.join(files), str(params)))
-        ViewParams.__init__(self, params)
+        Figure.__init__(self, params)
         Show.__init__(self, files)
         self.io_gc = self.io[0]
         self.io_mask = self.io[0]
         self.reference_genome = None
-        self.interactive = False
         self.plot_files = list(range(len(files)))
-        self.fig = None
         if self.io[0].signal_exists(None, None, &#34;reference genome&#34;):
             rg_name = np.array(self.io[0].get_signal(None, None, &#34;reference genome&#34;)).astype(&#34;str&#34;)[0]
             self.reference_genome = Genome.reference_genomes[rg_name]
@@ -1831,7 +2345,7 @@ def anim_plot_rd(level, error, segments, n, iter, prefix, maxp, minp, mean):
                 elif f[0] == &#34;compare&#34; and n == 4:
                     self.compare(f[1], f[2], n_bins=int(f[3]), plot=True)
                 elif f[0] == &#34;info&#34; and n &gt; 1:
-                    self.info(list(map(binsize_type,f[1:])))
+                    self.info(list(map(binsize_type, f[1:])))
                 else:
                     try:
                         if f[0] not in [&#34;rdstat&#34;, &#34;snp&#34;]:
@@ -1860,14 +2374,11 @@ def anim_plot_rd(level, error, segments, n, iter, prefix, maxp, minp, mean):
             plt.style.use(&#34;default&#34;)
             plt.style.use(style)
 
-    def image_filename(self, sufix):
-        parts = self.output_filename.split(&#34;.&#34;)
-        if parts[-1] != &#34;png&#34; and parts[-1] != &#34;pdf&#34; and parts[-1] != &#34;jpg&#34; and parts[-1] != &#34;eps&#34; and parts[
-            -1] != &#34;svg&#34;:
-            _logger.warning(&#34;File extension should be: .jpg, .png, .svg, .eps or .pdf&#34;)
-            exit(0)
-        parts[-1] = sufix + &#34;.&#34; + parts[-1]
-        return &#34;.&#34;.join(parts)
+    def file_title(self, ix):
+        if ix &lt; len(self.file_titles):
+            return self.file_titles[ix]
+        else:
+            return self.io[ix].filename.split(&#34;/&#34;)[-1].replace(&#34;.pytor&#34;, &#34;&#34;)
 
     def show(self):
         print(&#34;\nParameters&#34;)
@@ -2112,6 +2623,29 @@ def anim_plot_rd(level, error, segments, n, iter, prefix, maxp, minp, mean):
             ax.xaxis.set_ticklabels([])
             ax.yaxis.set_ticklabels([])
             ax.xaxis.set_ticks(np.arange(0, likelihood.shape[0], 50), [])
+            ax.set_xlim([0, likelihood.shape[0]])
+            if self.snp_call:
+                likelihood = self.io[self.plot_file].get_signal(c, bin_size, &#34;SNP likelihood call&#34;, snp_flag)
+                segments = segments_decode(
+                    self.io[self.plot_file].get_signal(c, bin_size, &#34;SNP likelihood segments&#34;, snp_flag))
+                call_pos = []
+                call_i1 = []
+                call_i2 = []
+                call_c = []
+                for s, lh in zip(segments, likelihood):
+                    i1, i2, p = likelihood_pixels_pval(lh)
+                    if i1 != i2 and len(s) &gt; self.min_segment_size:
+                        alpha = -np.log(p + 1e-40) / self.contrast
+                        if alpha &gt; 1:
+                            alpha = 1
+                        for pos in s:
+                            call_pos.append(pos)
+                            call_i1.append(min(i1, i2))
+                            call_i2.append(max(i1, i2))
+                            color = (1, 1, 0, alpha)
+                            call_c.append(color)
+                plt.scatter(call_pos, call_i1, s=20, color=np.array(call_c), edgecolors=&#39;face&#39;, marker=&#39;_&#39;)
+                plt.scatter(call_pos, call_i2, s=20, color=np.array(call_c), edgecolors=&#39;face&#39;, marker=&#39;_&#39;)
             ix += 1
         plt.subplots_adjust(bottom=0., top=1., wspace=0, hspace=0, left=0., right=1.)
         if self.output_filename != &#34;&#34;:
@@ -2149,9 +2683,12 @@ def anim_plot_rd(level, error, segments, n, iter, prefix, maxp, minp, mean):
                         chroms.append(snp_chr)
                 else:
                     if self.io[self.plot_file].signal_exists(snp_chr, None, &#34;somatic SNP pos&#34;, 0, name=callset) and \
-                            self.io[self.plot_file].signal_exists(snp_chr, None, &#34;somatic SNP desc&#34;, 0, name=callset) and \
-                            self.io[self.plot_file].signal_exists(snp_chr, None, &#34;somatic SNP counts&#34;, 0, name=callset) and \
-                            self.io[self.plot_file].signal_exists(snp_chr, None, &#34;somatic SNP qual&#34;, 0, name=callset) and \
+                            self.io[self.plot_file].signal_exists(snp_chr, None, &#34;somatic SNP desc&#34;, 0,
+                                                                  name=callset) and \
+                            self.io[self.plot_file].signal_exists(snp_chr, None, &#34;somatic SNP counts&#34;, 0,
+                                                                  name=callset) and \
+                            self.io[self.plot_file].signal_exists(snp_chr, None, &#34;somatic SNP qual&#34;, 0,
+                                                                  name=callset) and \
                             (Genome.is_autosome(c) or Genome.is_sex_chrom(c)):
                         chroms.append(snp_chr)
         sx, sy = self.panels_shape(len(chroms))
@@ -2197,51 +2734,18 @@ def anim_plot_rd(level, error, segments, n, iter, prefix, maxp, minp, mean):
         else:
             plt.show()
 
-
-    @staticmethod
-    def panels_shape(n):
-        sx, sy = 1, 1
-        if n == 2:
-            sx = 2
-        elif n in [3, 4]:
-            sx, sy = 2, 2
-        elif n in [5, 6]:
-            sx, sy = 3, 2
-        elif n in [7, 8, 9]:
-            sx, sy = 3, 3
-        elif n in [10, 11, 12]:
-            sx, sy = 4, 3
-        elif n in [13, 14, 15, 16]:
-            sx, sy = 4, 4
-        elif n in [17, 18, 19, 20]:
-            sx, sy = 5, 4
-        elif n in [21, 22, 23, 24]:
-            sx, sy = 6, 4
-        else:
-            while sx * sy &lt; n:
-                sx += 1
-                sy = int(2. * sx / 3 + 1.)
-        return sx, sy
-
     def manhattan(self, bin_size, use_mask=False, plot_type=&#34;rd&#34;):
-        plt.clf()
         if self.reference_genome is None:
             _logger.warning(&#34;Missing reference genome required for gview.&#34;)
             return
         n = len(self.plot_files)
         ix = self.plot_files
 
-        plt.clf()
-        plt.rcParams[&#34;font.size&#34;] = 8
-        self.fig = plt.figure(1, facecolor=&#39;w&#39;, edgecolor=&#39;k&#39;)
-        if self.output_filename != &#34;&#34;:
-            self.fig.set_figheight(1.5 * n)
-            self.fig.set_figwidth(12)
-        grid = gridspec.GridSpec(n, 1, wspace=0.2, hspace=0.2)
+        self.new_figure(panel_count=n, grid=(1, n), panel_size=(12, 1.5))
         for i in range(n):
-            ax = self.fig.add_subplot(grid[i])
+            ax = self.get_panel(i)
             io = self.io[ix[i]]
-            ax.set_title(io.filename, position=(0.01, 1.07),
+            ax.set_title(self.file_title(ix[i]), position=(0.01, 1.07),
                          fontdict={&#39;verticalalignment&#39;: &#39;top&#39;, &#39;horizontalalignment&#39;: &#39;left&#39;})
 
             if plot_type == &#34;rd&#34;:
@@ -2316,8 +2820,6 @@ def anim_plot_rd(level, error, segments, n, iter, prefix, maxp, minp, mean):
                 cix = 0
                 cmap = list(map(colors.to_rgba, plt.rcParams[&#39;axes.prop_cycle&#39;].by_key()[&#39;color&#39;]))
                 for c, l in chroms:
-                    flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
-
                     likelihood = io.get_signal(c, bin_size, &#34;SNP likelihood call&#34;, snp_flag)
                     segments = segments_decode(io.get_signal(c, bin_size, &#34;SNP likelihood segments&#34;, snp_flag))
                     call_pos = []
@@ -2353,27 +2855,27 @@ def anim_plot_rd(level, error, segments, n, iter, prefix, maxp, minp, mean):
             n_bins = apos
             ax.set_xlim([0, n_bins])
             ax.grid()
-        plt.subplots_adjust(bottom=0.05, top=0.95, wspace=0, hspace=0, left=0.05, right=0.95)
+        plt.subplots_adjust(bottom=0.05, top=0.90, wspace=0, hspace=0, left=0.05, right=0.95)
 
-        if self.output_filename != &#34;&#34;:
-            plt.savefig(self.image_filename(&#34;manhattan&#34; if plot_type == &#34;rd&#34; else &#34;snp_calls&#34;), dpi=200)
-            plt.close(self.fig)
-        elif self.interactive:
-            plt.show(block=False)
-            plt.draw()
-        else:
-            plt.show()
+        self.fig_show(suffix=&#34;manhattan&#34; if plot_type == &#34;rd&#34; else &#34;snp_calls&#34;)
 
     def multiple_regions(self, bin_size, regions, panels=[&#34;rd&#34;], sep_color=&#34;g&#34;):
+        n = len(self.plot_files)
+        ix = self.plot_files
         plt.clf()
         plt.rcParams[&#34;font.size&#34;] = 8
-        self.fig = plt.figure(1, figsize=(12, 8), facecolor=&#39;w&#39;, edgecolor=&#39;k&#39;)
-        grid = gridspec.GridSpec(len(self.io), len(regions), wspace=0.2, hspace=0.2)
-        ix = 0
-        for i in self.io:
+        if self.grid == &#34;auto&#34;:
+            sx, sy = self.panels_shape(n)
+        else:
+            sx, sy = tuple(self.grid)
+        self.fig = plt.figure(1, dpi=200, facecolor=&#39;w&#39;, edgecolor=&#39;k&#39;)
+        if self.output_filename != &#34;&#34;:
+            self.fig.set_figheight(3 * sy)
+            self.fig.set_figwidth(4 * sx)
+        grid = gridspec.GridSpec(sy, sx, wspace=0.2, hspace=0.2)
+        for i in range(n):
             for r in regions:
-                self.regions(i, grid[ix], bin_size, r, panels=panels, sep_color=sep_color)
-                ix += 1
+                self.regions(ix[i], grid[i], bin_size, r, panels=panels, sep_color=sep_color)
         plt.subplots_adjust(bottom=0.05, top=0.95, wspace=0, hspace=0, left=0.05, right=0.95)
 
         if self.output_filename != &#34;&#34;:
@@ -2385,23 +2887,24 @@ def anim_plot_rd(level, error, segments, n, iter, prefix, maxp, minp, mean):
         else:
             plt.show()
 
-    def regions(self, io, element, bin_size, region, panels=[&#34;rd&#34;], sep_color=&#34;g&#34;):
+    def regions(self, ix, element, bin_size, region, panels=[&#34;rd&#34;], sep_color=&#34;g&#34;):
         snp_flag = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0)
         grid = gridspec.GridSpecFromSubplotSpec(len(panels), 1, subplot_spec=element, wspace=0, hspace=0.1)
         r = decode_region(region)
+        io = self.io[ix]
         for i in range(len(panels)):
             ax = self.fig.add_subplot(grid[i])
             if i == 0:
-                ax.set_title(io.filename + &#34;: &#34; + region, position=(0.01, 0.9),
+                ax.set_title(self.file_title(ix) + &#34;: &#34; + region, position=(0.01, 0.9),
                              fontdict={&#39;verticalalignment&#39;: &#39;top&#39;, &#39;horizontalalignment&#39;: &#39;left&#39;},
                              color=&#39;C0&#39;)
 
             if panels[i] == &#34;rd&#34;:
-                g_p = []
-                g_p_corr = []
-                g_p_seg = []
-                g_p_call = []
-                g_p_call_mosaic = []
+                g_p = [0]
+                g_p_corr = [0]
+                g_p_seg = [0]
+                g_p_call = [0]
+                g_p_call_mosaic = [0]
                 mean, stdev = 0, 0
                 borders = []
                 for c, (pos1, pos2) in r:
@@ -2439,13 +2942,11 @@ def anim_plot_rd(level, error, segments, n, iter, prefix, maxp, minp, mean):
                         g_p_call_mosaic.extend(list(his_p_mosaic[start_bin:end_bin]))
                     borders.append(len(g_p) - 1)
 
-                # ax.xaxis.set_ticklabels([])
                 ax.yaxis.set_ticklabels([])
                 l = len(g_p)
-                # ax.xaxis.set_ticks(np.arange(0, l, 10), [])
                 ax.yaxis.set_ticks(np.arange(0, 3, 0.5) * mean, [])
                 ax.set_ylim([0, max(3. * mean, mean + 5. * stdev)])
-                ax.set_xlim([-l * 0.0, l * 1.0])
+                ax.set_xlim([-l * 0.0, (l - 1) * 1.0])
 
                 ax.yaxis.grid()
                 ax.step(g_p, &#34;grey&#34;)
@@ -2504,14 +3005,14 @@ def anim_plot_rd(level, error, segments, n, iter, prefix, maxp, minp, mean):
             elif panels[i] == &#34;snv&#34; or panels[i][:4] == &#34;snv:&#34;:
                 callset = &#34;default&#34;
                 if panels[i][:4] == &#34;snv:&#34;:
-                    callset=panels[i].split(&#34;:&#34;)[1]
+                    callset = panels[i].split(&#34;:&#34;)[1]
                 borders = []
                 hpos = []
                 baf = []
                 color = []
                 start_pos = 0
                 for c, (pos1, pos2) in r:
-                    pos, ref, alt, nref, nalt, gt, flag, qual = io.read_snp(c,callset=callset)
+                    pos, ref, alt, nref, nalt, gt, flag, qual = io.read_snp(c, callset=callset)
                     ix = 0
                     mdp = 0
                     while ix &lt; len(pos) and pos[ix] &lt;= pos2:
@@ -2583,20 +3084,54 @@ def anim_plot_rd(level, error, segments, n, iter, prefix, maxp, minp, mean):
             elif panels[i] == &#34;likelihood&#34;:
                 borders = []
                 gl = []
+                call_pos = []
+                call_i1 = []
+                call_i2 = []
+                call_c = []
+                tlen = 0
                 for c, (pos1, pos2) in r:
                     likelihood = io.get_signal(c, bin_size, &#34;SNP likelihood&#34;, snp_flag)
                     start_bin = (pos1 - 1) // bin_size
                     end_bin = pos2 // bin_size
                     gl.extend(list(likelihood[start_bin:end_bin]))
                     borders.append(len(gl) - 1)
+                    if self.snp_call:
+                        likelihood_call = io.get_signal(c, bin_size, &#34;SNP likelihood call&#34;, snp_flag)
+                        segments = segments_decode(io.get_signal(c, bin_size, &#34;SNP likelihood segments&#34;, snp_flag))
+
+                        for s, lh in zip(segments, likelihood_call):
+                            i1, i2, p = likelihood_pixels_pval(lh)
+                            if i1 != i2 and len(s) &gt; self.min_segment_size:
+                                alpha = -np.log(p + 1e-40) / self.contrast
+                                if alpha &gt; 1:
+                                    alpha = 1
+                                for pos in s:
+                                    if pos &gt;= start_bin and pos &lt; end_bin:
+                                        call_pos.append(pos - start_bin + tlen)
+                                        call_i1.append(min(i1, i2))
+                                        call_i2.append(max(i1, i2))
+                                        color = (1, 1, 0, alpha)
+                                        call_c.append(color)
+                        tlen += end_bin - start_bin
+
                 img = np.array(gl).transpose()
                 ax.imshow(img, aspect=&#39;auto&#39;)
                 ax.xaxis.set_ticklabels([])
                 ax.yaxis.set_ticklabels([])
                 ax.xaxis.set_ticks(np.arange(0, len(gl), 50), [])
+                ax.set_xlim([-0.5, img.shape[1] - 0.5])
+                if self.snp_call:
+                    if self.markersize == &#34;auto&#34;:
+                        plt.scatter(call_pos, call_i1, s=2, color=np.array(call_c), edgecolors=&#39;face&#39;, marker=&#39;_&#39;)
+                        plt.scatter(call_pos, call_i2, s=2, color=np.array(call_c), edgecolors=&#39;face&#39;, marker=&#39;_&#39;)
+                    else:
+                        plt.scatter(call_pos, call_i1, s=self.markersize, color=np.array(call_c), edgecolors=&#39;face&#39;,
+                                    marker=&#39;_&#39;)
+                        plt.scatter(call_pos, call_i2, s=self.markersize, color=np.array(call_c), edgecolors=&#39;face&#39;,
+                                    marker=&#39;_&#39;)
 
                 for i in borders[:-1]:
-                    ax.axvline(i, color=sep_color, lw=1)
+                    ax.axvline(i + 0.5, color=sep_color, lw=1)
                 self.fig.add_subplot(ax)
 
     def circular(self, bin_size, chroms=[], use_mask_rd=True):
@@ -2654,7 +3189,7 @@ def anim_plot_rd(level, error, segments, n, iter, prefix, maxp, minp, mean):
             ax.set_rmax(0.9)
             ax.set_rticks([])
             ax.set_thetagrids(angles, labels=labels, fontsize=10, weight=&#34;bold&#34;, color=&#34;black&#34;)
-            ax.set_title(io.filename.split(&#34;/&#34;)[-1], loc=&#34;left&#34;, fontsize=10, weight=&#34;bold&#34;, color=&#34;black&#34;)
+            ax.set_title(self.file_title(ix[i]), loc=&#34;left&#34;, fontsize=10, weight=&#34;bold&#34;, color=&#34;black&#34;)
             ax.grid(False)
         plt.subplots_adjust(bottom=0.05, top=0.95, wspace=0.2, hspace=0.2, left=0.05, right=0.95)
         if self.output_filename != &#34;&#34;:
@@ -2682,7 +3217,6 @@ def anim_plot_rd(level, error, segments, n, iter, prefix, maxp, minp, mean):
             ax = self.fig.add_subplot(grid[i])
             io = self.io[ix[i]]
 
-
             chroms = []
             snp_flag = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0)
             rd_flag = FLAG_GC_CORR | (FLAG_USEMASK if self.rd_use_mask else 0)
@@ -2695,8 +3229,8 @@ def anim_plot_rd(level, error, segments, n, iter, prefix, maxp, minp, mean):
                             io.signal_exists(snp_chr, bin_size, &#34;RD mosaic segments&#34;, rd_flag) and \
                             Genome.is_autosome(c):
                         chroms.append((snp_chr, l))
-            x=[]
-            y=[]
+            x = []
+            y = []
             for c, l in chroms:
                 flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
 
@@ -2705,15 +3239,15 @@ def anim_plot_rd(level, error, segments, n, iter, prefix, maxp, minp, mean):
                 rd = io.get_signal(c, bin_size, &#34;RD mosaic call&#34;, rd_flag)
                 segments_rd = segments_decode(io.get_signal(c, bin_size, &#34;RD mosaic segments&#34;, rd_flag))
 
-                mbaf={}
-                mrd={}
+                mbaf = {}
+                mrd = {}
                 for s, lh in zip(segments_baf, likelihood):
                     b, p = likelihood_baf_pval(lh)
                     for pos in s:
-                        mbaf[pos]=0.5-b
+                        mbaf[pos] = 0.5 - b
                 for s, r in zip(segments_rd, rd[0]):
                     for pos in s:
-                        mrd[pos]=r
+                        mrd[pos] = r
                 for p in mbaf:
                     if p in mrd:
                         x.append(mbaf[p])
@@ -2721,9 +3255,9 @@ def anim_plot_rd(level, error, segments, n, iter, prefix, maxp, minp, mean):
 
             if hist:
                 from matplotlib.colors import LogNorm
-                ax.hist2d(x,y,bins=[np.arange(0,0.51,0.01),np.arange(0,max(y),max(y)/100.)],norm=LogNorm())
+                ax.hist2d(x, y, bins=[np.arange(0, 0.51, 0.01), np.arange(0, max(y), max(y) / 100.)], norm=LogNorm())
             else:
-                ax.scatter(x,y,marker=&#34;.&#34;,alpha=0.5)
+                ax.scatter(x, y, marker=&#34;.&#34;, alpha=0.5)
 
         if self.output_filename != &#34;&#34;:
             plt.savefig(self.image_filename(&#34;regions&#34;), dpi=150)
@@ -2790,6 +3324,74 @@ def anim_plot_rd(level, error, segments, n, iter, prefix, maxp, minp, mean):
         else:
             plt.show()
 
+    def region_rd_stat(self, region, n_bins=21, plot=False, legend=True):
+        n = len(self.plot_files)
+        ix = self.plot_files
+        if plot:
+            plt.clf()
+            plt.rcParams[&#34;font.size&#34;] = 8
+            if self.grid == &#34;auto&#34;:
+                sx, sy = self.panels_shape(n)
+            else:
+                sx, sy = tuple(self.grid)
+            self.fig = plt.figure(1, dpi=200, facecolor=&#39;w&#39;, edgecolor=&#39;k&#39;)
+            if self.output_filename != &#34;&#34;:
+                self.fig.set_figheight(3 * sy)
+                self.fig.set_figwidth(4 * sx)
+            grid = gridspec.GridSpec(sy, sx, wspace=0.2, hspace=0.2)
+        for i in range(n):
+            io = self.io[ix[i]]
+            if plot:
+                ax = self.fig.add_subplot(grid[i])
+                ax.set_title(self.file_title(ix[i]), position=(0.01, 1.07),
+                             fontdict={&#39;verticalalignment&#39;: &#39;top&#39;, &#39;horizontalalignment&#39;: &#39;left&#39;})
+            regs = decode_region(region)
+            data = []
+            for c, (pos1, pos2) in regs:
+                flag_rd = (FLAG_GC_CORR if self.rd_use_gc_corr else 0) | (FLAG_USEMASK if self.rd_use_mask else 0)
+                his_p = io.get_signal(c, self.bin_size, &#34;RD&#34;, flag_rd)
+                bin1 = (pos1 - 1) // self.bin_size
+                bin2 = (pos2 - 1) // self.bin_size
+                data += list(his_p[bin1:bin2 + 1][np.isfinite(his_p[bin1:bin2 + 1])])
+
+            data = np.array(data)
+            dmin = np.min(data)
+            dmax = np.max(data)
+            p1 = np.percentile(data, 1)
+            p99 = np.percentile(data, 99)
+            data = data[data &gt; p1]
+            data = data[data &lt; p99]
+            mean = np.mean(data)
+            std = np.std(data)
+
+            rd_min = mean - 5 * std
+            rd_max = mean + 5 * std
+            bins = np.linspace(rd_min, rd_max, n_bins)
+
+            hist, binsr = np.histogram(data, bins=bins)
+
+            fitn, fitm, fits = fit_normal(bins[:-1], hist)[0]
+
+            print(&#34;%s\t%s\t%.4f\t%.4f\t%e\t%e\t%.4f\t%.4f\t%.4f\t%.4f&#34; % (
+                io.filename, region, fitm, fits, dmin, dmax, p1, p99, mean, std))
+
+            if plot:
+                x = np.linspace(bins[0], bins[-1], 1001)
+                plt.plot(x, normal(x, fitn, fitm, fits), &#34;g-&#34;, label=region)
+                plt.plot(bins[:-1], hist, &#34;b*&#34;)
+                if legend:
+                    plt.legend()
+
+        if plot:
+            if self.output_filename != &#34;&#34;:
+                plt.savefig(self.image_filename(&#34;comp&#34;), dpi=200)
+                plt.close(self.fig)
+            elif self.interactive:
+                plt.show(block=False)
+                plt.draw()
+            else:
+                plt.show()
+
     def compare(self, region1, region2, n_bins=21, plot=False, legend=True):
         n = len(self.plot_files)
         ix = self.plot_files
@@ -2809,9 +3411,8 @@ def anim_plot_rd(level, error, segments, n, iter, prefix, maxp, minp, mean):
             io = self.io[ix[i]]
             if plot:
                 ax = self.fig.add_subplot(grid[i])
-                ax.set_title(io.filename, position=(0.01, 1.07),
+                ax.set_title(self.file_title(ix[i]), position=(0.01, 1.07),
                              fontdict={&#39;verticalalignment&#39;: &#39;top&#39;, &#39;horizontalalignment&#39;: &#39;left&#39;})
-            stat = io.get_signal(None, self.bin_size, &#34;RD stat&#34;, FLAG_AUTO)
             regs1 = decode_region(region1)
             regs2 = decode_region(region2)
             data1 = []
@@ -2880,26 +3481,76 @@ def anim_plot_rd(level, error, segments, n, iter, prefix, maxp, minp, mean):
             else:
                 plt.show()
 
-    def genotype(self, bin_sizes, region):
+    def snp_dist(self, regions, callset=None, n_bins=100, titles=None):
+        regions = regions.split(&#34; &#34;)
+        n = len(regions)
+        self.new_figure(panel_count=n)
+        for i in range(n):
+            ax = self.get_panel(i)
+            if titles is None:
+                ax.set_title(regions[i], position=(0.01, 1.07),
+                             fontdict={&#39;verticalalignment&#39;: &#39;top&#39;, &#39;horizontalalignment&#39;: &#39;left&#39;})
+            else:
+                ax.set_title(titles[i], position=(0.01, 1.07),
+                             fontdict={&#39;verticalalignment&#39;: &#39;top&#39;, &#39;horizontalalignment&#39;: &#39;left&#39;})
+            regs = decode_region(regions[i])
+            baf = []
+            for c, (pos1, pos2) in regs:
+                pos, ref, alt, nref, nalt, gt, flag, qual = self.io[self.plot_file].read_snp(c, callset=callset)
+                ix = 0
+                while ix &lt; len(pos) and pos[ix] &lt;= pos2:
+                    if pos[ix] &gt;= pos1 and (nref[ix] + nalt[ix]) != 0:
+                        if gt[ix] % 4 != 2:
+                            baf.append(1.0 * nalt[ix] / (nref[ix] + nalt[ix]))
+                        else:
+                            baf.append(1.0 * nref[ix] / (nref[ix] + nalt[ix]))
+                    ix += 1
+            ax.hist(baf, bins=np.arange(0, 1.0 + 1. / (n_bins + 1), 1. / (n_bins + 1)))
+            ax.set_xlabel(&#34;VAF&#34;)
+            ax.set_ylabel(&#34;distribution&#34;)
+
+        self.fig_show(suffix=&#34;snp_dist&#34;)
+
+    def genotype(self, bin_sizes, region, interactive=False):
+        ret = []
         regs = decode_region(region)
         for c, (pos1, pos2) in regs:
-            print(c + &#34;:&#34; + str(pos1) + &#34;:&#34; + str(pos2), end=&#34;&#34;)
+            if interactive:
+                print(c + &#34;:&#34; + str(pos1) + &#34;-&#34; + str(pos2), end=&#34;&#34;)
+            ret.append([c,pos1,pos2])
             for bs in bin_sizes:
-                flag_rd = FLAG_GC_CORR if self.rd_use_gc_corr else o
-                stat = self.io[self.plot_file].get_signal(c, bs, &#34;RD stat&#34;, flag_rd)
+                flag_rd = (FLAG_GC_CORR if self.rd_use_gc_corr else 0) | (FLAG_USEMASK if self.rd_use_mask else 0)
+                stat = self.io[self.plot_file].get_signal(c, bs, &#34;RD stat&#34;, flag_rd | FLAG_AUTO)
+                if stat is None or len(stat) == 0:
+                    stat = self.io[self.plot_file].get_signal(c, bs, &#34;RD stat&#34;, flag_rd | FLAG_SEX)
                 his_p = self.io[self.plot_file].get_signal(c, bs, &#34;RD&#34;, flag_rd)
                 bin1 = (pos1 - 1) // bs
                 bin2 = (pos2 - 1) // bs
                 rc = 0
                 if bin1 == bin2:
-                    rc = (pos2 - pos1 + 1) * his_p[bin1] / bs
+                    try:
+                        rc = (pos2 - pos1 + 1) * his_p[bin1] / bs
+                    except IndexError:
+                        pass
                 else:
-                    rc += (bin1 * bs - pos1 + 1 + bs) * his_p[bin1] / bs
-                    rc += (pos2 - bin2 * bs) * his_p[bin1] / bs
+                    try:
+                        rc += (bin1 * bs - pos1 + 1 + bs) * his_p[bin1] / bs
+                        rc += (pos2 - bin2 * bs) * his_p[bin2] / bs
+                    except IndexError:
+                        pass
                     for ix in range(bin1 + 1, bin2):
-                        rc += his_p[ix]
-                print(&#34;\t%f&#34; % rc * stat[4] * (pos2 - pos1 + 1) / bs, end=&#34;&#34;)
-        print()
+                        try:
+                            rc += his_p[ix]
+                        except IndexError:
+                            pass
+                if interactive:
+                    print(&#34;\t%f&#34; % (2. * rc / (stat[4] * (pos2 - pos1 + 1) / bs)), end=&#34;&#34;)
+
+                ret[-1].append(2. * rc / (stat[4] * (pos2 - pos1 + 1) / bs))
+            if interactive:
+                print()
+
+        return ret
 
     def genotype_prompt(self, bin_sizes=[]):
         done = False
@@ -2914,50 +3565,18 @@ def anim_plot_rd(level, error, segments, n, iter, prefix, maxp, minp, mean):
             if line is None or line == &#34;&#34;:
                 done = True
             else:
-                self.genotype(bin_sizes, line)</code></pre>
+                self.genotype(bin_sizes, line, interactive=True)</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
 <li><a title="cnvpytor.viewer.Show" href="#cnvpytor.viewer.Show">Show</a></li>
 <li><a title="cnvpytor.viewer.Reader" href="#cnvpytor.viewer.Reader">Reader</a></li>
+<li><a title="cnvpytor.viewer.Figure" href="#cnvpytor.viewer.Figure">Figure</a></li>
 <li><a title="cnvpytor.viewparams.ViewParams" href="viewparams.html#cnvpytor.viewparams.ViewParams">ViewParams</a></li>
 <li><a title="cnvpytor.viewparams.HelpDescription" href="viewparams.html#cnvpytor.viewparams.HelpDescription">HelpDescription</a></li>
 </ul>
 <h3>Static methods</h3>
 <dl>
-<dt id="cnvpytor.viewer.Viewer.panels_shape"><code class="name flex">
-<span>def <span class="ident">panels_shape</span></span>(<span>n)</span>
-</code></dt>
-<dd>
-<section class="desc"></section>
-<details class="source">
-<summary>Source code</summary>
-<pre><code class="python">@staticmethod
-def panels_shape(n):
-    sx, sy = 1, 1
-    if n == 2:
-        sx = 2
-    elif n in [3, 4]:
-        sx, sy = 2, 2
-    elif n in [5, 6]:
-        sx, sy = 3, 2
-    elif n in [7, 8, 9]:
-        sx, sy = 3, 3
-    elif n in [10, 11, 12]:
-        sx, sy = 4, 3
-    elif n in [13, 14, 15, 16]:
-        sx, sy = 4, 4
-    elif n in [17, 18, 19, 20]:
-        sx, sy = 5, 4
-    elif n in [21, 22, 23, 24]:
-        sx, sy = 6, 4
-    else:
-        while sx * sy &lt; n:
-            sx += 1
-            sy = int(2. * sx / 3 + 1.)
-    return sx, sy</code></pre>
-</details>
-</dd>
 <dt id="cnvpytor.viewer.Viewer.set_style"><code class="name flex">
 <span>def <span class="ident">set_style</span></span>(<span>style)</span>
 </code></dt>
@@ -3037,7 +3656,7 @@ def set_style(style):
         ax.set_rmax(0.9)
         ax.set_rticks([])
         ax.set_thetagrids(angles, labels=labels, fontsize=10, weight=&#34;bold&#34;, color=&#34;black&#34;)
-        ax.set_title(io.filename.split(&#34;/&#34;)[-1], loc=&#34;left&#34;, fontsize=10, weight=&#34;bold&#34;, color=&#34;black&#34;)
+        ax.set_title(self.file_title(ix[i]), loc=&#34;left&#34;, fontsize=10, weight=&#34;bold&#34;, color=&#34;black&#34;)
         ax.grid(False)
     plt.subplots_adjust(bottom=0.05, top=0.95, wspace=0.2, hspace=0.2, left=0.05, right=0.95)
     if self.output_filename != &#34;&#34;:
@@ -3076,9 +3695,8 @@ def set_style(style):
         io = self.io[ix[i]]
         if plot:
             ax = self.fig.add_subplot(grid[i])
-            ax.set_title(io.filename, position=(0.01, 1.07),
+            ax.set_title(self.file_title(ix[i]), position=(0.01, 1.07),
                          fontdict={&#39;verticalalignment&#39;: &#39;top&#39;, &#39;horizontalalignment&#39;: &#39;left&#39;})
-        stat = io.get_signal(None, self.bin_size, &#34;RD stat&#34;, FLAG_AUTO)
         regs1 = decode_region(region1)
         regs2 = decode_region(region2)
         data1 = []
@@ -3212,33 +3830,67 @@ def set_style(style):
         plt.show()</code></pre>
 </details>
 </dd>
-<dt id="cnvpytor.viewer.Viewer.genotype"><code class="name flex">
-<span>def <span class="ident">genotype</span></span>(<span>self, bin_sizes, region)</span>
+<dt id="cnvpytor.viewer.Viewer.file_title"><code class="name flex">
+<span>def <span class="ident">file_title</span></span>(<span>self, ix)</span>
 </code></dt>
 <dd>
 <section class="desc"></section>
 <details class="source">
 <summary>Source code</summary>
-<pre><code class="python">def genotype(self, bin_sizes, region):
+<pre><code class="python">def file_title(self, ix):
+    if ix &lt; len(self.file_titles):
+        return self.file_titles[ix]
+    else:
+        return self.io[ix].filename.split(&#34;/&#34;)[-1].replace(&#34;.pytor&#34;, &#34;&#34;)</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.viewer.Viewer.genotype"><code class="name flex">
+<span>def <span class="ident">genotype</span></span>(<span>self, bin_sizes, region, interactive=False)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def genotype(self, bin_sizes, region, interactive=False):
+    ret = []
     regs = decode_region(region)
     for c, (pos1, pos2) in regs:
-        print(c + &#34;:&#34; + str(pos1) + &#34;:&#34; + str(pos2), end=&#34;&#34;)
+        if interactive:
+            print(c + &#34;:&#34; + str(pos1) + &#34;-&#34; + str(pos2), end=&#34;&#34;)
+        ret.append([c,pos1,pos2])
         for bs in bin_sizes:
-            flag_rd = FLAG_GC_CORR if self.rd_use_gc_corr else o
-            stat = self.io[self.plot_file].get_signal(c, bs, &#34;RD stat&#34;, flag_rd)
+            flag_rd = (FLAG_GC_CORR if self.rd_use_gc_corr else 0) | (FLAG_USEMASK if self.rd_use_mask else 0)
+            stat = self.io[self.plot_file].get_signal(c, bs, &#34;RD stat&#34;, flag_rd | FLAG_AUTO)
+            if stat is None or len(stat) == 0:
+                stat = self.io[self.plot_file].get_signal(c, bs, &#34;RD stat&#34;, flag_rd | FLAG_SEX)
             his_p = self.io[self.plot_file].get_signal(c, bs, &#34;RD&#34;, flag_rd)
             bin1 = (pos1 - 1) // bs
             bin2 = (pos2 - 1) // bs
             rc = 0
             if bin1 == bin2:
-                rc = (pos2 - pos1 + 1) * his_p[bin1] / bs
+                try:
+                    rc = (pos2 - pos1 + 1) * his_p[bin1] / bs
+                except IndexError:
+                    pass
             else:
-                rc += (bin1 * bs - pos1 + 1 + bs) * his_p[bin1] / bs
-                rc += (pos2 - bin2 * bs) * his_p[bin1] / bs
+                try:
+                    rc += (bin1 * bs - pos1 + 1 + bs) * his_p[bin1] / bs
+                    rc += (pos2 - bin2 * bs) * his_p[bin2] / bs
+                except IndexError:
+                    pass
                 for ix in range(bin1 + 1, bin2):
-                    rc += his_p[ix]
-            print(&#34;\t%f&#34; % rc * stat[4] * (pos2 - pos1 + 1) / bs, end=&#34;&#34;)
-    print()</code></pre>
+                    try:
+                        rc += his_p[ix]
+                    except IndexError:
+                        pass
+            if interactive:
+                print(&#34;\t%f&#34; % (2. * rc / (stat[4] * (pos2 - pos1 + 1) / bs)), end=&#34;&#34;)
+
+            ret[-1].append(2. * rc / (stat[4] * (pos2 - pos1 + 1) / bs))
+        if interactive:
+            print()
+
+    return ret</code></pre>
 </details>
 </dd>
 <dt id="cnvpytor.viewer.Viewer.genotype_prompt"><code class="name flex">
@@ -3261,7 +3913,7 @@ def set_style(style):
         if line is None or line == &#34;&#34;:
             done = True
         else:
-            self.genotype(bin_sizes, line)</code></pre>
+            self.genotype(bin_sizes, line, interactive=True)</code></pre>
 </details>
 </dd>
 <dt id="cnvpytor.viewer.Viewer.help"><code class="name flex">
@@ -3276,23 +3928,6 @@ def set_style(style):
         print(self.param_help[param])
     else:
         print(&#34;\nUnknown parameter !\n&#34;)</code></pre>
-</details>
-</dd>
-<dt id="cnvpytor.viewer.Viewer.image_filename"><code class="name flex">
-<span>def <span class="ident">image_filename</span></span>(<span>self, sufix)</span>
-</code></dt>
-<dd>
-<section class="desc"></section>
-<details class="source">
-<summary>Source code</summary>
-<pre><code class="python">def image_filename(self, sufix):
-    parts = self.output_filename.split(&#34;.&#34;)
-    if parts[-1] != &#34;png&#34; and parts[-1] != &#34;pdf&#34; and parts[-1] != &#34;jpg&#34; and parts[-1] != &#34;eps&#34; and parts[
-        -1] != &#34;svg&#34;:
-        _logger.warning(&#34;File extension should be: .jpg, .png, .svg, .eps or .pdf&#34;)
-        exit(0)
-    parts[-1] = sufix + &#34;.&#34; + parts[-1]
-    return &#34;.&#34;.join(parts)</code></pre>
 </details>
 </dd>
 <dt id="cnvpytor.viewer.Viewer.likelihood"><code class="name flex">
@@ -3334,6 +3969,29 @@ def set_style(style):
         ax.xaxis.set_ticklabels([])
         ax.yaxis.set_ticklabels([])
         ax.xaxis.set_ticks(np.arange(0, likelihood.shape[0], 50), [])
+        ax.set_xlim([0, likelihood.shape[0]])
+        if self.snp_call:
+            likelihood = self.io[self.plot_file].get_signal(c, bin_size, &#34;SNP likelihood call&#34;, snp_flag)
+            segments = segments_decode(
+                self.io[self.plot_file].get_signal(c, bin_size, &#34;SNP likelihood segments&#34;, snp_flag))
+            call_pos = []
+            call_i1 = []
+            call_i2 = []
+            call_c = []
+            for s, lh in zip(segments, likelihood):
+                i1, i2, p = likelihood_pixels_pval(lh)
+                if i1 != i2 and len(s) &gt; self.min_segment_size:
+                    alpha = -np.log(p + 1e-40) / self.contrast
+                    if alpha &gt; 1:
+                        alpha = 1
+                    for pos in s:
+                        call_pos.append(pos)
+                        call_i1.append(min(i1, i2))
+                        call_i2.append(max(i1, i2))
+                        color = (1, 1, 0, alpha)
+                        call_c.append(color)
+            plt.scatter(call_pos, call_i1, s=20, color=np.array(call_c), edgecolors=&#39;face&#39;, marker=&#39;_&#39;)
+            plt.scatter(call_pos, call_i2, s=20, color=np.array(call_c), edgecolors=&#39;face&#39;, marker=&#39;_&#39;)
         ix += 1
     plt.subplots_adjust(bottom=0., top=1., wspace=0, hspace=0, left=0., right=1.)
     if self.output_filename != &#34;&#34;:
@@ -3354,24 +4012,17 @@ def set_style(style):
 <details class="source">
 <summary>Source code</summary>
 <pre><code class="python">def manhattan(self, bin_size, use_mask=False, plot_type=&#34;rd&#34;):
-    plt.clf()
     if self.reference_genome is None:
         _logger.warning(&#34;Missing reference genome required for gview.&#34;)
         return
     n = len(self.plot_files)
     ix = self.plot_files
 
-    plt.clf()
-    plt.rcParams[&#34;font.size&#34;] = 8
-    self.fig = plt.figure(1, facecolor=&#39;w&#39;, edgecolor=&#39;k&#39;)
-    if self.output_filename != &#34;&#34;:
-        self.fig.set_figheight(1.5 * n)
-        self.fig.set_figwidth(12)
-    grid = gridspec.GridSpec(n, 1, wspace=0.2, hspace=0.2)
+    self.new_figure(panel_count=n, grid=(1, n), panel_size=(12, 1.5))
     for i in range(n):
-        ax = self.fig.add_subplot(grid[i])
+        ax = self.get_panel(i)
         io = self.io[ix[i]]
-        ax.set_title(io.filename, position=(0.01, 1.07),
+        ax.set_title(self.file_title(ix[i]), position=(0.01, 1.07),
                      fontdict={&#39;verticalalignment&#39;: &#39;top&#39;, &#39;horizontalalignment&#39;: &#39;left&#39;})
 
         if plot_type == &#34;rd&#34;:
@@ -3446,8 +4097,6 @@ def set_style(style):
             cix = 0
             cmap = list(map(colors.to_rgba, plt.rcParams[&#39;axes.prop_cycle&#39;].by_key()[&#39;color&#39;]))
             for c, l in chroms:
-                flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
-
                 likelihood = io.get_signal(c, bin_size, &#34;SNP likelihood call&#34;, snp_flag)
                 segments = segments_decode(io.get_signal(c, bin_size, &#34;SNP likelihood segments&#34;, snp_flag))
                 call_pos = []
@@ -3483,16 +4132,9 @@ def set_style(style):
         n_bins = apos
         ax.set_xlim([0, n_bins])
         ax.grid()
-    plt.subplots_adjust(bottom=0.05, top=0.95, wspace=0, hspace=0, left=0.05, right=0.95)
+    plt.subplots_adjust(bottom=0.05, top=0.90, wspace=0, hspace=0, left=0.05, right=0.95)
 
-    if self.output_filename != &#34;&#34;:
-        plt.savefig(self.image_filename(&#34;manhattan&#34; if plot_type == &#34;rd&#34; else &#34;snp_calls&#34;), dpi=200)
-        plt.close(self.fig)
-    elif self.interactive:
-        plt.show(block=False)
-        plt.draw()
-    else:
-        plt.show()</code></pre>
+    self.fig_show(suffix=&#34;manhattan&#34; if plot_type == &#34;rd&#34; else &#34;snp_calls&#34;)</code></pre>
 </details>
 </dd>
 <dt id="cnvpytor.viewer.Viewer.multiple_regions"><code class="name flex">
@@ -3503,15 +4145,22 @@ def set_style(style):
 <details class="source">
 <summary>Source code</summary>
 <pre><code class="python">def multiple_regions(self, bin_size, regions, panels=[&#34;rd&#34;], sep_color=&#34;g&#34;):
+    n = len(self.plot_files)
+    ix = self.plot_files
     plt.clf()
     plt.rcParams[&#34;font.size&#34;] = 8
-    self.fig = plt.figure(1, figsize=(12, 8), facecolor=&#39;w&#39;, edgecolor=&#39;k&#39;)
-    grid = gridspec.GridSpec(len(self.io), len(regions), wspace=0.2, hspace=0.2)
-    ix = 0
-    for i in self.io:
+    if self.grid == &#34;auto&#34;:
+        sx, sy = self.panels_shape(n)
+    else:
+        sx, sy = tuple(self.grid)
+    self.fig = plt.figure(1, dpi=200, facecolor=&#39;w&#39;, edgecolor=&#39;k&#39;)
+    if self.output_filename != &#34;&#34;:
+        self.fig.set_figheight(3 * sy)
+        self.fig.set_figwidth(4 * sx)
+    grid = gridspec.GridSpec(sy, sx, wspace=0.2, hspace=0.2)
+    for i in range(n):
         for r in regions:
-            self.regions(i, grid[ix], bin_size, r, panels=panels, sep_color=sep_color)
-            ix += 1
+            self.regions(ix[i], grid[i], bin_size, r, panels=panels, sep_color=sep_color)
     plt.subplots_adjust(bottom=0.05, top=0.95, wspace=0, hspace=0, left=0.05, right=0.95)
 
     if self.output_filename != &#34;&#34;:
@@ -3654,7 +4303,7 @@ def set_style(style):
             elif f[0] == &#34;compare&#34; and n == 4:
                 self.compare(f[1], f[2], n_bins=int(f[3]), plot=True)
             elif f[0] == &#34;info&#34; and n &gt; 1:
-                self.info(list(map(binsize_type,f[1:])))
+                self.info(list(map(binsize_type, f[1:])))
             else:
                 try:
                     if f[0] not in [&#34;rdstat&#34;, &#34;snp&#34;]:
@@ -3777,7 +4426,6 @@ def set_style(style):
         ax = self.fig.add_subplot(grid[i])
         io = self.io[ix[i]]
 
-
         chroms = []
         snp_flag = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0)
         rd_flag = FLAG_GC_CORR | (FLAG_USEMASK if self.rd_use_mask else 0)
@@ -3790,8 +4438,8 @@ def set_style(style):
                         io.signal_exists(snp_chr, bin_size, &#34;RD mosaic segments&#34;, rd_flag) and \
                         Genome.is_autosome(c):
                     chroms.append((snp_chr, l))
-        x=[]
-        y=[]
+        x = []
+        y = []
         for c, l in chroms:
             flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
 
@@ -3800,15 +4448,15 @@ def set_style(style):
             rd = io.get_signal(c, bin_size, &#34;RD mosaic call&#34;, rd_flag)
             segments_rd = segments_decode(io.get_signal(c, bin_size, &#34;RD mosaic segments&#34;, rd_flag))
 
-            mbaf={}
-            mrd={}
+            mbaf = {}
+            mrd = {}
             for s, lh in zip(segments_baf, likelihood):
                 b, p = likelihood_baf_pval(lh)
                 for pos in s:
-                    mbaf[pos]=0.5-b
+                    mbaf[pos] = 0.5 - b
             for s, r in zip(segments_rd, rd[0]):
                 for pos in s:
-                    mrd[pos]=r
+                    mrd[pos] = r
             for p in mbaf:
                 if p in mrd:
                     x.append(mbaf[p])
@@ -3816,9 +4464,9 @@ def set_style(style):
 
         if hist:
             from matplotlib.colors import LogNorm
-            ax.hist2d(x,y,bins=[np.arange(0,0.51,0.01),np.arange(0,max(y),max(y)/100.)],norm=LogNorm())
+            ax.hist2d(x, y, bins=[np.arange(0, 0.51, 0.01), np.arange(0, max(y), max(y) / 100.)], norm=LogNorm())
         else:
-            ax.scatter(x,y,marker=&#34;.&#34;,alpha=0.5)
+            ax.scatter(x, y, marker=&#34;.&#34;, alpha=0.5)
 
     if self.output_filename != &#34;&#34;:
         plt.savefig(self.image_filename(&#34;regions&#34;), dpi=150)
@@ -3898,30 +4546,107 @@ def set_style(style):
         plt.show()</code></pre>
 </details>
 </dd>
-<dt id="cnvpytor.viewer.Viewer.regions"><code class="name flex">
-<span>def <span class="ident">regions</span></span>(<span>self, io, element, bin_size, region, panels=['rd'], sep_color='g')</span>
+<dt id="cnvpytor.viewer.Viewer.region_rd_stat"><code class="name flex">
+<span>def <span class="ident">region_rd_stat</span></span>(<span>self, region, n_bins=21, plot=False, legend=True)</span>
 </code></dt>
 <dd>
 <section class="desc"></section>
 <details class="source">
 <summary>Source code</summary>
-<pre><code class="python">def regions(self, io, element, bin_size, region, panels=[&#34;rd&#34;], sep_color=&#34;g&#34;):
+<pre><code class="python">def region_rd_stat(self, region, n_bins=21, plot=False, legend=True):
+    n = len(self.plot_files)
+    ix = self.plot_files
+    if plot:
+        plt.clf()
+        plt.rcParams[&#34;font.size&#34;] = 8
+        if self.grid == &#34;auto&#34;:
+            sx, sy = self.panels_shape(n)
+        else:
+            sx, sy = tuple(self.grid)
+        self.fig = plt.figure(1, dpi=200, facecolor=&#39;w&#39;, edgecolor=&#39;k&#39;)
+        if self.output_filename != &#34;&#34;:
+            self.fig.set_figheight(3 * sy)
+            self.fig.set_figwidth(4 * sx)
+        grid = gridspec.GridSpec(sy, sx, wspace=0.2, hspace=0.2)
+    for i in range(n):
+        io = self.io[ix[i]]
+        if plot:
+            ax = self.fig.add_subplot(grid[i])
+            ax.set_title(self.file_title(ix[i]), position=(0.01, 1.07),
+                         fontdict={&#39;verticalalignment&#39;: &#39;top&#39;, &#39;horizontalalignment&#39;: &#39;left&#39;})
+        regs = decode_region(region)
+        data = []
+        for c, (pos1, pos2) in regs:
+            flag_rd = (FLAG_GC_CORR if self.rd_use_gc_corr else 0) | (FLAG_USEMASK if self.rd_use_mask else 0)
+            his_p = io.get_signal(c, self.bin_size, &#34;RD&#34;, flag_rd)
+            bin1 = (pos1 - 1) // self.bin_size
+            bin2 = (pos2 - 1) // self.bin_size
+            data += list(his_p[bin1:bin2 + 1][np.isfinite(his_p[bin1:bin2 + 1])])
+
+        data = np.array(data)
+        dmin = np.min(data)
+        dmax = np.max(data)
+        p1 = np.percentile(data, 1)
+        p99 = np.percentile(data, 99)
+        data = data[data &gt; p1]
+        data = data[data &lt; p99]
+        mean = np.mean(data)
+        std = np.std(data)
+
+        rd_min = mean - 5 * std
+        rd_max = mean + 5 * std
+        bins = np.linspace(rd_min, rd_max, n_bins)
+
+        hist, binsr = np.histogram(data, bins=bins)
+
+        fitn, fitm, fits = fit_normal(bins[:-1], hist)[0]
+
+        print(&#34;%s\t%s\t%.4f\t%.4f\t%e\t%e\t%.4f\t%.4f\t%.4f\t%.4f&#34; % (
+            io.filename, region, fitm, fits, dmin, dmax, p1, p99, mean, std))
+
+        if plot:
+            x = np.linspace(bins[0], bins[-1], 1001)
+            plt.plot(x, normal(x, fitn, fitm, fits), &#34;g-&#34;, label=region)
+            plt.plot(bins[:-1], hist, &#34;b*&#34;)
+            if legend:
+                plt.legend()
+
+    if plot:
+        if self.output_filename != &#34;&#34;:
+            plt.savefig(self.image_filename(&#34;comp&#34;), dpi=200)
+            plt.close(self.fig)
+        elif self.interactive:
+            plt.show(block=False)
+            plt.draw()
+        else:
+            plt.show()</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.viewer.Viewer.regions"><code class="name flex">
+<span>def <span class="ident">regions</span></span>(<span>self, ix, element, bin_size, region, panels=['rd'], sep_color='g')</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def regions(self, ix, element, bin_size, region, panels=[&#34;rd&#34;], sep_color=&#34;g&#34;):
     snp_flag = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0)
     grid = gridspec.GridSpecFromSubplotSpec(len(panels), 1, subplot_spec=element, wspace=0, hspace=0.1)
     r = decode_region(region)
+    io = self.io[ix]
     for i in range(len(panels)):
         ax = self.fig.add_subplot(grid[i])
         if i == 0:
-            ax.set_title(io.filename + &#34;: &#34; + region, position=(0.01, 0.9),
+            ax.set_title(self.file_title(ix) + &#34;: &#34; + region, position=(0.01, 0.9),
                          fontdict={&#39;verticalalignment&#39;: &#39;top&#39;, &#39;horizontalalignment&#39;: &#39;left&#39;},
                          color=&#39;C0&#39;)
 
         if panels[i] == &#34;rd&#34;:
-            g_p = []
-            g_p_corr = []
-            g_p_seg = []
-            g_p_call = []
-            g_p_call_mosaic = []
+            g_p = [0]
+            g_p_corr = [0]
+            g_p_seg = [0]
+            g_p_call = [0]
+            g_p_call_mosaic = [0]
             mean, stdev = 0, 0
             borders = []
             for c, (pos1, pos2) in r:
@@ -3959,13 +4684,11 @@ def set_style(style):
                     g_p_call_mosaic.extend(list(his_p_mosaic[start_bin:end_bin]))
                 borders.append(len(g_p) - 1)
 
-            # ax.xaxis.set_ticklabels([])
             ax.yaxis.set_ticklabels([])
             l = len(g_p)
-            # ax.xaxis.set_ticks(np.arange(0, l, 10), [])
             ax.yaxis.set_ticks(np.arange(0, 3, 0.5) * mean, [])
             ax.set_ylim([0, max(3. * mean, mean + 5. * stdev)])
-            ax.set_xlim([-l * 0.0, l * 1.0])
+            ax.set_xlim([-l * 0.0, (l - 1) * 1.0])
 
             ax.yaxis.grid()
             ax.step(g_p, &#34;grey&#34;)
@@ -4024,14 +4747,14 @@ def set_style(style):
         elif panels[i] == &#34;snv&#34; or panels[i][:4] == &#34;snv:&#34;:
             callset = &#34;default&#34;
             if panels[i][:4] == &#34;snv:&#34;:
-                callset=panels[i].split(&#34;:&#34;)[1]
+                callset = panels[i].split(&#34;:&#34;)[1]
             borders = []
             hpos = []
             baf = []
             color = []
             start_pos = 0
             for c, (pos1, pos2) in r:
-                pos, ref, alt, nref, nalt, gt, flag, qual = io.read_snp(c,callset=callset)
+                pos, ref, alt, nref, nalt, gt, flag, qual = io.read_snp(c, callset=callset)
                 ix = 0
                 mdp = 0
                 while ix &lt; len(pos) and pos[ix] &lt;= pos2:
@@ -4103,20 +4826,54 @@ def set_style(style):
         elif panels[i] == &#34;likelihood&#34;:
             borders = []
             gl = []
+            call_pos = []
+            call_i1 = []
+            call_i2 = []
+            call_c = []
+            tlen = 0
             for c, (pos1, pos2) in r:
                 likelihood = io.get_signal(c, bin_size, &#34;SNP likelihood&#34;, snp_flag)
                 start_bin = (pos1 - 1) // bin_size
                 end_bin = pos2 // bin_size
                 gl.extend(list(likelihood[start_bin:end_bin]))
                 borders.append(len(gl) - 1)
+                if self.snp_call:
+                    likelihood_call = io.get_signal(c, bin_size, &#34;SNP likelihood call&#34;, snp_flag)
+                    segments = segments_decode(io.get_signal(c, bin_size, &#34;SNP likelihood segments&#34;, snp_flag))
+
+                    for s, lh in zip(segments, likelihood_call):
+                        i1, i2, p = likelihood_pixels_pval(lh)
+                        if i1 != i2 and len(s) &gt; self.min_segment_size:
+                            alpha = -np.log(p + 1e-40) / self.contrast
+                            if alpha &gt; 1:
+                                alpha = 1
+                            for pos in s:
+                                if pos &gt;= start_bin and pos &lt; end_bin:
+                                    call_pos.append(pos - start_bin + tlen)
+                                    call_i1.append(min(i1, i2))
+                                    call_i2.append(max(i1, i2))
+                                    color = (1, 1, 0, alpha)
+                                    call_c.append(color)
+                    tlen += end_bin - start_bin
+
             img = np.array(gl).transpose()
             ax.imshow(img, aspect=&#39;auto&#39;)
             ax.xaxis.set_ticklabels([])
             ax.yaxis.set_ticklabels([])
             ax.xaxis.set_ticks(np.arange(0, len(gl), 50), [])
+            ax.set_xlim([-0.5, img.shape[1] - 0.5])
+            if self.snp_call:
+                if self.markersize == &#34;auto&#34;:
+                    plt.scatter(call_pos, call_i1, s=2, color=np.array(call_c), edgecolors=&#39;face&#39;, marker=&#39;_&#39;)
+                    plt.scatter(call_pos, call_i2, s=2, color=np.array(call_c), edgecolors=&#39;face&#39;, marker=&#39;_&#39;)
+                else:
+                    plt.scatter(call_pos, call_i1, s=self.markersize, color=np.array(call_c), edgecolors=&#39;face&#39;,
+                                marker=&#39;_&#39;)
+                    plt.scatter(call_pos, call_i2, s=self.markersize, color=np.array(call_c), edgecolors=&#39;face&#39;,
+                                marker=&#39;_&#39;)
 
             for i in borders[:-1]:
-                ax.axvline(i, color=sep_color, lw=1)
+                ax.axvline(i + 0.5, color=sep_color, lw=1)
             self.fig.add_subplot(ax)</code></pre>
 </details>
 </dd>
@@ -4170,9 +4927,12 @@ def set_style(style):
                     chroms.append(snp_chr)
             else:
                 if self.io[self.plot_file].signal_exists(snp_chr, None, &#34;somatic SNP pos&#34;, 0, name=callset) and \
-                        self.io[self.plot_file].signal_exists(snp_chr, None, &#34;somatic SNP desc&#34;, 0, name=callset) and \
-                        self.io[self.plot_file].signal_exists(snp_chr, None, &#34;somatic SNP counts&#34;, 0, name=callset) and \
-                        self.io[self.plot_file].signal_exists(snp_chr, None, &#34;somatic SNP qual&#34;, 0, name=callset) and \
+                        self.io[self.plot_file].signal_exists(snp_chr, None, &#34;somatic SNP desc&#34;, 0,
+                                                              name=callset) and \
+                        self.io[self.plot_file].signal_exists(snp_chr, None, &#34;somatic SNP counts&#34;, 0,
+                                                              name=callset) and \
+                        self.io[self.plot_file].signal_exists(snp_chr, None, &#34;somatic SNP qual&#34;, 0,
+                                                              name=callset) and \
                         (Genome.is_autosome(c) or Genome.is_sex_chrom(c)):
                     chroms.append(snp_chr)
     sx, sy = self.panels_shape(len(chroms))
@@ -4217,6 +4977,44 @@ def set_style(style):
         plt.draw()
     else:
         plt.show()</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.viewer.Viewer.snp_dist"><code class="name flex">
+<span>def <span class="ident">snp_dist</span></span>(<span>self, regions, callset=None, n_bins=100, titles=None)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def snp_dist(self, regions, callset=None, n_bins=100, titles=None):
+    regions = regions.split(&#34; &#34;)
+    n = len(regions)
+    self.new_figure(panel_count=n)
+    for i in range(n):
+        ax = self.get_panel(i)
+        if titles is None:
+            ax.set_title(regions[i], position=(0.01, 1.07),
+                         fontdict={&#39;verticalalignment&#39;: &#39;top&#39;, &#39;horizontalalignment&#39;: &#39;left&#39;})
+        else:
+            ax.set_title(titles[i], position=(0.01, 1.07),
+                         fontdict={&#39;verticalalignment&#39;: &#39;top&#39;, &#39;horizontalalignment&#39;: &#39;left&#39;})
+        regs = decode_region(regions[i])
+        baf = []
+        for c, (pos1, pos2) in regs:
+            pos, ref, alt, nref, nalt, gt, flag, qual = self.io[self.plot_file].read_snp(c, callset=callset)
+            ix = 0
+            while ix &lt; len(pos) and pos[ix] &lt;= pos2:
+                if pos[ix] &gt;= pos1 and (nref[ix] + nalt[ix]) != 0:
+                    if gt[ix] % 4 != 2:
+                        baf.append(1.0 * nalt[ix] / (nref[ix] + nalt[ix]))
+                    else:
+                        baf.append(1.0 * nref[ix] / (nref[ix] + nalt[ix]))
+                ix += 1
+        ax.hist(baf, bins=np.arange(0, 1.0 + 1. / (n_bins + 1), 1. / (n_bins + 1)))
+        ax.set_xlabel(&#34;VAF&#34;)
+        ax.set_ylabel(&#34;distribution&#34;)
+
+    self.fig_show(suffix=&#34;snp_dist&#34;)</code></pre>
 </details>
 </dd>
 <dt id="cnvpytor.viewer.Viewer.stat"><code class="name flex">
@@ -4298,9 +5096,16 @@ def set_style(style):
 </dl>
 <h3>Inherited members</h3>
 <ul class="hlist">
-<li><code><b><a title="cnvpytor.viewparams.ViewParams" href="viewparams.html#cnvpytor.viewparams.ViewParams">ViewParams</a></b></code>:
+<li><code><b><a title="cnvpytor.viewer.Show" href="#cnvpytor.viewer.Show">Show</a></b></code>:
 <ul class="hlist">
-<li><code><a title="cnvpytor.viewparams.ViewParams.bin_size_f" href="viewparams.html#cnvpytor.viewparams.ViewParams.bin_size_f">bin_size_f</a></code></li>
+<li><code><a title="cnvpytor.viewer.Show.info" href="#cnvpytor.viewer.Show.info">info</a></code></li>
+<li><code><a title="cnvpytor.viewer.Show.ls" href="#cnvpytor.viewer.Show.ls">ls</a></code></li>
+<li><code><a title="cnvpytor.viewer.Show.meta" href="#cnvpytor.viewer.Show.meta">meta</a></code></li>
+</ul>
+</li>
+<li><code><b><a title="cnvpytor.viewer.Figure" href="#cnvpytor.viewer.Figure">Figure</a></b></code>:
+<ul class="hlist">
+<li><code><a title="cnvpytor.viewer.Figure.bin_size_f" href="viewparams.html#cnvpytor.viewparams.ViewParams.bin_size_f">bin_size_f</a></code></li>
 </ul>
 </li>
 </ul>
@@ -4335,6 +5140,17 @@ def set_style(style):
 </ul>
 </li>
 <li>
+<h4><code><a title="cnvpytor.viewer.Figure" href="#cnvpytor.viewer.Figure">Figure</a></code></h4>
+<ul class="two-column">
+<li><code><a title="cnvpytor.viewer.Figure.fig_show" href="#cnvpytor.viewer.Figure.fig_show">fig_show</a></code></li>
+<li><code><a title="cnvpytor.viewer.Figure.get_grid" href="#cnvpytor.viewer.Figure.get_grid">get_grid</a></code></li>
+<li><code><a title="cnvpytor.viewer.Figure.get_panel" href="#cnvpytor.viewer.Figure.get_panel">get_panel</a></code></li>
+<li><code><a title="cnvpytor.viewer.Figure.image_filename" href="#cnvpytor.viewer.Figure.image_filename">image_filename</a></code></li>
+<li><code><a title="cnvpytor.viewer.Figure.new_figure" href="#cnvpytor.viewer.Figure.new_figure">new_figure</a></code></li>
+<li><code><a title="cnvpytor.viewer.Figure.panels_shape" href="#cnvpytor.viewer.Figure.panels_shape">panels_shape</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="cnvpytor.viewer.Reader" href="#cnvpytor.viewer.Reader">Reader</a></code></h4>
 </li>
 <li>
@@ -4351,24 +5167,25 @@ def set_style(style):
 <li><code><a title="cnvpytor.viewer.Viewer.circular" href="#cnvpytor.viewer.Viewer.circular">circular</a></code></li>
 <li><code><a title="cnvpytor.viewer.Viewer.compare" href="#cnvpytor.viewer.Viewer.compare">compare</a></code></li>
 <li><code><a title="cnvpytor.viewer.Viewer.dispersion" href="#cnvpytor.viewer.Viewer.dispersion">dispersion</a></code></li>
+<li><code><a title="cnvpytor.viewer.Viewer.file_title" href="#cnvpytor.viewer.Viewer.file_title">file_title</a></code></li>
 <li><code><a title="cnvpytor.viewer.Viewer.genotype" href="#cnvpytor.viewer.Viewer.genotype">genotype</a></code></li>
 <li><code><a title="cnvpytor.viewer.Viewer.genotype_prompt" href="#cnvpytor.viewer.Viewer.genotype_prompt">genotype_prompt</a></code></li>
 <li><code><a title="cnvpytor.viewer.Viewer.help" href="#cnvpytor.viewer.Viewer.help">help</a></code></li>
-<li><code><a title="cnvpytor.viewer.Viewer.image_filename" href="#cnvpytor.viewer.Viewer.image_filename">image_filename</a></code></li>
 <li><code><a title="cnvpytor.viewer.Viewer.likelihood" href="#cnvpytor.viewer.Viewer.likelihood">likelihood</a></code></li>
 <li><code><a title="cnvpytor.viewer.Viewer.manhattan" href="#cnvpytor.viewer.Viewer.manhattan">manhattan</a></code></li>
 <li><code><a title="cnvpytor.viewer.Viewer.multiple_regions" href="#cnvpytor.viewer.Viewer.multiple_regions">multiple_regions</a></code></li>
-<li><code><a title="cnvpytor.viewer.Viewer.panels_shape" href="#cnvpytor.viewer.Viewer.panels_shape">panels_shape</a></code></li>
 <li><code><a title="cnvpytor.viewer.Viewer.parse" href="#cnvpytor.viewer.Viewer.parse">parse</a></code></li>
 <li><code><a title="cnvpytor.viewer.Viewer.plot" href="#cnvpytor.viewer.Viewer.plot">plot</a></code></li>
 <li><code><a title="cnvpytor.viewer.Viewer.prompt" href="#cnvpytor.viewer.Viewer.prompt">prompt</a></code></li>
 <li><code><a title="cnvpytor.viewer.Viewer.rd" href="#cnvpytor.viewer.Viewer.rd">rd</a></code></li>
 <li><code><a title="cnvpytor.viewer.Viewer.rd_baf" href="#cnvpytor.viewer.Viewer.rd_baf">rd_baf</a></code></li>
 <li><code><a title="cnvpytor.viewer.Viewer.rd_diff" href="#cnvpytor.viewer.Viewer.rd_diff">rd_diff</a></code></li>
+<li><code><a title="cnvpytor.viewer.Viewer.region_rd_stat" href="#cnvpytor.viewer.Viewer.region_rd_stat">region_rd_stat</a></code></li>
 <li><code><a title="cnvpytor.viewer.Viewer.regions" href="#cnvpytor.viewer.Viewer.regions">regions</a></code></li>
 <li><code><a title="cnvpytor.viewer.Viewer.set_style" href="#cnvpytor.viewer.Viewer.set_style">set_style</a></code></li>
 <li><code><a title="cnvpytor.viewer.Viewer.show" href="#cnvpytor.viewer.Viewer.show">show</a></code></li>
 <li><code><a title="cnvpytor.viewer.Viewer.snp" href="#cnvpytor.viewer.Viewer.snp">snp</a></code></li>
+<li><code><a title="cnvpytor.viewer.Viewer.snp_dist" href="#cnvpytor.viewer.Viewer.snp_dist">snp_dist</a></code></li>
 <li><code><a title="cnvpytor.viewer.Viewer.stat" href="#cnvpytor.viewer.Viewer.stat">stat</a></code></li>
 </ul>
 </li>

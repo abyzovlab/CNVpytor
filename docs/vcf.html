@@ -31,6 +31,7 @@ class Vcf: reads SNP data from VCF file
 &#34;&#34;&#34;
 import pysam
 import logging
+import numpy as np
 
 _logger = logging.getLogger(&#34;cnvpytor.vcf&#34;)
 
@@ -162,7 +163,8 @@ class Vcf:
                             UNICODE_EXISTS = bool(type(unicode))
                         except NameError:
                             unicode = str
-                        if isinstance(rec.samples[sample][gt_tag], str) or isinstance(rec.samples[sample][gt_tag], unicode):
+                        if isinstance(rec.samples[sample][gt_tag], str) or isinstance(rec.samples[sample][gt_tag],
+                                                                                      unicode):
                             gt.append(int(rec.samples[sample][gt_tag][0]) * 2 + int(rec.samples[sample][gt_tag][2]))
                             if rec.samples[sample][gt_tag][1] == &#34;|&#34;:
                                 gt[-1] += 4
@@ -230,7 +232,8 @@ class Vcf:
                             UNICODE_EXISTS = bool(type(unicode))
                         except NameError:
                             unicode = str
-                        if isinstance(rec.samples[sample][gt_tag], str) or isinstance(rec.samples[sample][gt_tag], unicode):
+                        if isinstance(rec.samples[sample][gt_tag], str) or isinstance(rec.samples[sample][gt_tag],
+                                                                                      unicode):
                             gt.append(int(rec.samples[sample][gt_tag][0]) * 2 + int(rec.samples[sample][gt_tag][2]))
                             if rec.samples[sample][gt_tag][1] == &#34;|&#34;:
                                 gt[-1] += 4
@@ -243,6 +246,70 @@ class Vcf:
             _logger.error(&#34;Variant file reading problem. Probably index file is missing or corrupted.&#34;)
             exit(0)
         return pos, ref, alt, gt, flag, qual
+
+    def read_chromosome_rd(self, chr_name, sample=&#39;&#39;, ad_tag=&#39;AD&#39;, dp_tag=&#39;DP&#39;):
+        &#34;&#34;&#34;
+        Read RD data for given chromosome and sample.
+
+        Parameters
+        ----------
+        chr_name : str
+            Name of the chromosome.
+        sample : str
+            Name of the sample (first one if empty - default)
+
+        Returns
+        -------
+        rd_p : list of int
+            binned RD signal from DP tag (100 bins)
+        rd_u : list of int
+            binned RD signal from AD tag (100 bins)
+
+        &#34;&#34;&#34;
+        if sample == &#39;&#39;:
+            sample = self.samples[0]
+        pos = []
+        rd_ad = []
+        rd_dp = []
+        try:
+            for rec in self.file.fetch(chr_name):
+                if (ad_tag in rec.samples[sample].keys()) and len(rec.samples[sample][ad_tag]) &gt; 1 and (
+                        dp_tag in rec.samples[sample].keys()) and (rec.samples[sample][dp_tag] is not None):
+                    try:
+                        rd1 = sum(map(int, rec.samples[sample][ad_tag]))
+                        rd2 = int(rec.samples[sample][dp_tag])
+                        pos.append(rec.pos)
+                        rd_ad.append(rd1)
+                        rd_dp.append(rd2)
+                    except ValueError:
+                        pass
+        except ValueError:
+            _logger.error(&#34;Variant file reading problem. Probably index file is missing or corrupted.&#34;)
+            exit(0)
+        n = 0
+        if len(pos) == 0:
+            return None, None
+        n = pos[-1] + 1
+        if self.lengths[chr_name] is not None:
+            n = self.lengths[chr_name]
+        n = n // 100 + 1
+        rd_p = np.zeros(n)
+        rd_u = np.zeros(n)
+        count = np.zeros(n)
+        for p, rd1, rd2 in zip(pos, rd_dp, rd_ad):
+            cgb = (p - 1) // 10000 * 100
+            rd_p[cgb] += rd1
+            rd_u[cgb] += rd2
+            count[cgb] += 1
+        for i in range(n // 100 + 1):
+            if (100 * i) &lt; n:
+                if count[100 * i] != 0:
+                    rd_p[i * 100:(i + 1) * 100] = rd_p[i * 100] / count[i * 100]
+                    rd_u[i * 100:(i + 1) * 100] = rd_u[i * 100] / count[i * 100]
+                else:
+                    rd_p[i * 100:(i + 1) * 100] = np.nan
+                    rd_u[i * 100:(i + 1) * 100] = np.nan
+        return rd_p, rd_u
 
     def read_all_snp(self, callback, sample=&#39;&#39;, ad_tag=&#39;AD&#39;, gt_tag=&#39;GT&#39;):
         &#34;&#34;&#34;
@@ -303,7 +370,7 @@ class Vcf:
                         pos.append(rec.pos)
                         ref.append(rec.ref)
                         alt.append(rec.alts[0])
-                        flag.append(2)   # Assign P region as default (-mask_snps updates this flag)
+                        flag.append(2)  # Assign P region as default (-mask_snps updates this flag)
                         if rec.qual == &#34;.&#34; or rec.qual is None:
                             qual.append(0)
                         else:
@@ -320,7 +387,8 @@ class Vcf:
                             UNICODE_EXISTS = bool(type(unicode))
                         except NameError:
                             unicode = str
-                        if isinstance(rec.samples[sample][gt_tag], str) or isinstance(rec.samples[sample][gt_tag], unicode):
+                        if isinstance(rec.samples[sample][gt_tag], str) or isinstance(rec.samples[sample][gt_tag],
+                                                                                      unicode):
                             gt.append(int(rec.samples[sample][gt_tag][0]) * 2 + int(rec.samples[sample][gt_tag][2]))
                             if rec.samples[sample][gt_tag][1] == &#34;|&#34;:
                                 gt[-1] += 4
@@ -386,7 +454,8 @@ class Vcf:
                 if &#34;PASS&#34; in rec.filter.keys() and rec.alts and len(rec.alts) == 1 and (
                         gt_tag in rec.samples[sample].keys()) and len(rec.samples[sample][gt_tag]) &gt; 1:
                     if (rec.ref in alphabet) and (rec.alts[0] in alphabet) and (
-                            rec.samples[sample][gt_tag][0] is not None) and (rec.samples[sample][gt_tag][1] is not None):
+                            rec.samples[sample][gt_tag][0] is not None) and (
+                            rec.samples[sample][gt_tag][1] is not None):
                         pos.append(rec.pos)
                         ref.append(rec.ref)
                         alt.append(rec.alts[0])
@@ -401,7 +470,8 @@ class Vcf:
                             UNICODE_EXISTS = bool(type(unicode))
                         except NameError:
                             unicode = str
-                        if isinstance(rec.samples[sample][gt_tag], str) or isinstance(rec.samples[sample][gt_tag], unicode):
+                        if isinstance(rec.samples[sample][gt_tag], str) or isinstance(rec.samples[sample][gt_tag],
+                                                                                      unicode):
                             gt.append(int(rec.samples[sample][gt_tag][0]) * 2 + int(rec.samples[sample][gt_tag][2]))
                             if rec.samples[sample][gt_tag][1] == &#34;|&#34;:
                                 gt[-1] += 4
@@ -417,6 +487,104 @@ class Vcf:
             return count
         except ValueError:
             _logger.error(&#34;Variant file reading problem.&#34;)
+            exit(0)
+
+    def read_all_rd(self, callback, sample=&#39;&#39;, ad_tag=&#39;AD&#39;, dp_tag=&#39;DP&#39;):
+        &#34;&#34;&#34;
+        Read RD data for given chromosome and sample.
+
+        Parameters
+        ----------
+        chr_name : str
+            Name of the chromosome.
+        sample : str
+            Name of the sample (first one if empty - default)
+
+        Returns
+        -------
+        rd_p : list of int
+            binned RD signal from DP tag (100 bins)
+        rd_u : list of int
+            binned RD signal from AD tag (100 bins)
+
+        &#34;&#34;&#34;
+        if sample == &#39;&#39;:
+            sample = self.samples[0]
+        pos = []
+        rd_ad = []
+        rd_dp = []
+        last_chrom = None
+        chr_count = 0
+
+        try:
+            for rec in self.file.fetch():
+                if last_chrom is None:
+                    last_chrom = rec.chrom
+                if last_chrom != rec.chrom and len(pos) &gt; 0:
+                    n = pos[-1] + 1
+                    if self.lengths[last_chrom] is not None:
+                        n = self.lengths[last_chrom]
+                    n = n // 100 + 1
+                    rd_p = np.zeros(n)
+                    rd_u = np.zeros(n)
+                    count = np.zeros(n)
+                    for p, rd1, rd2 in zip(pos, rd_dp, rd_ad):
+                        cgb = (p - 1) // 10000 * 100
+                        rd_p[cgb] += rd1
+                        rd_u[cgb] += rd2
+                        count[cgb] += 1
+                    for i in range(n // 100 + 1):
+                        if (100 * i) &lt; n:
+                            if count[100 * i] != 0:
+                                rd_p[i * 100 :(i + 1) * 100] = rd_p[i * 100] / count[i * 100]
+                                rd_u[i * 100 :(i + 1) * 100] = rd_u[i * 100] / count[i * 100]
+                            else:
+                                rd_p[i * 100:(i + 1) * 100] = np.nan
+                                rd_u[i * 100:(i + 1) * 100] = np.nan
+                    callback(last_chrom, rd_p, rd_u)
+                    pos = []
+                    rd_ad = []
+                    rd_dp = []
+                    chr_count += 1
+
+                if (ad_tag in rec.samples[sample].keys()) and len(rec.samples[sample][ad_tag]) &gt; 1 and (
+                        dp_tag in rec.samples[sample].keys()) and (rec.samples[sample][dp_tag] is not None):
+                    try:
+                        rd1 = sum(map(int, rec.samples[sample][ad_tag]))
+                        rd2 = int(rec.samples[sample][dp_tag])
+                        pos.append(rec.pos)
+                        rd_ad.append(rd1)
+                        rd_dp.append(rd2)
+                    except ValueError:
+                        pass
+                last_chrom = rec.chrom
+            if len(pos) &gt; 0:
+                n = pos[-1] + 1
+                if self.lengths[last_chrom] is not None:
+                    n = self.lengths[last_chrom]
+                n = n // 100 + 1
+                rd_p = np.zeros(n)
+                rd_u = np.zeros(n)
+                count = np.zeros(n)
+
+                for p, rd1, rd2 in zip(pos, rd_dp, rd_ad):
+                    cgb = (p - 1) // 10000 * 100
+                    rd_p[cgb] += rd1
+                    rd_u[cgb] += rd2
+                    count[cgb] += 1
+                for i in range(n // 100 + 1):
+                    if (100 * i) &lt; n:
+                        if count[100 * i] != 0:
+                            rd_p[i * 100:(i + 1) * 100] = rd_p[i * 100] / count[i * 100]
+                            rd_u[i * 100:(i + 1) * 100] = rd_u[i * 100] / count[i * 100]
+                        else:
+                            rd_p[i * 100:(i + 1) * 100] = np.nan
+                            rd_u[i * 100:(i + 1) * 100] = np.nan
+                callback(last_chrom, rd_p, rd_u)
+                chr_count += 1
+            return chr_count
+        except ValueError:
+            _logger.error(&#34;Variant file reading problem. Probably index file is missing or corrupted.&#34;)
             exit(0)</code></pre>
 </details>
 </section>
@@ -494,6 +662,126 @@ class Vcf:
 
     &#34;&#34;&#34;
     return self.samples</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.vcf.Vcf.read_all_rd"><code class="name flex">
+<span>def <span class="ident">read_all_rd</span></span>(<span>self, callback, sample='', ad_tag='AD', dp_tag='DP')</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Read RD data for given chromosome and sample.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>chr_name</code></strong> :&ensp;<code>str</code></dt>
+<dd>Name of the chromosome.</dd>
+<dt><strong><code>sample</code></strong> :&ensp;<code>str</code></dt>
+<dd>Name of the sample (first one if empty - default)</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>rd_p</code></strong> :&ensp;<code>list</code> of <code>int</code></dt>
+<dd>binned RD signal from DP tag (100 bins)</dd>
+<dt><strong><code>rd_u</code></strong> :&ensp;<code>list</code> of <code>int</code></dt>
+<dd>binned RD signal from AD tag (100 bins)</dd>
+</dl></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def read_all_rd(self, callback, sample=&#39;&#39;, ad_tag=&#39;AD&#39;, dp_tag=&#39;DP&#39;):
+    &#34;&#34;&#34;
+    Read RD data for given chromosome and sample.
+
+    Parameters
+    ----------
+    chr_name : str
+        Name of the chromosome.
+    sample : str
+        Name of the sample (first one if empty - default)
+
+    Returns
+    -------
+    rd_p : list of int
+        binned RD signal from DP tag (100 bins)
+    rd_u : list of int
+        binned RD signal from AD tag (100 bins)
+
+    &#34;&#34;&#34;
+    if sample == &#39;&#39;:
+        sample = self.samples[0]
+    pos = []
+    rd_ad = []
+    rd_dp = []
+    last_chrom = None
+    chr_count = 0
+
+    try:
+        for rec in self.file.fetch():
+            if last_chrom is None:
+                last_chrom = rec.chrom
+            if last_chrom != rec.chrom and len(pos) &gt; 0:
+                n = pos[-1] + 1
+                if self.lengths[last_chrom] is not None:
+                    n = self.lengths[last_chrom]
+                n = n // 100 + 1
+                rd_p = np.zeros(n)
+                rd_u = np.zeros(n)
+                count = np.zeros(n)
+                for p, rd1, rd2 in zip(pos, rd_dp, rd_ad):
+                    cgb = (p - 1) // 10000 * 100
+                    rd_p[cgb] += rd1
+                    rd_u[cgb] += rd2
+                    count[cgb] += 1
+                for i in range(n // 100 + 1):
+                    if (100 * i) &lt; n:
+                        if count[100 * i] != 0:
+                            rd_p[i * 100 :(i + 1) * 100] = rd_p[i * 100] / count[i * 100]
+                            rd_u[i * 100 :(i + 1) * 100] = rd_u[i * 100] / count[i * 100]
+                        else:
+                            rd_p[i * 100:(i + 1) * 100] = np.nan
+                            rd_u[i * 100:(i + 1) * 100] = np.nan
+                callback(last_chrom, rd_p, rd_u)
+                pos = []
+                rd_ad = []
+                rd_dp = []
+                chr_count += 1
+
+            if (ad_tag in rec.samples[sample].keys()) and len(rec.samples[sample][ad_tag]) &gt; 1 and (
+                    dp_tag in rec.samples[sample].keys()) and (rec.samples[sample][dp_tag] is not None):
+                try:
+                    rd1 = sum(map(int, rec.samples[sample][ad_tag]))
+                    rd2 = int(rec.samples[sample][dp_tag])
+                    pos.append(rec.pos)
+                    rd_ad.append(rd1)
+                    rd_dp.append(rd2)
+                except ValueError:
+                    pass
+            last_chrom = rec.chrom
+        if len(pos) &gt; 0:
+            n = pos[-1] + 1
+            if self.lengths[last_chrom] is not None:
+                n = self.lengths[last_chrom]
+            n = n // 100 + 1
+            rd_p = np.zeros(n)
+            rd_u = np.zeros(n)
+            count = np.zeros(n)
+
+            for p, rd1, rd2 in zip(pos, rd_dp, rd_ad):
+                cgb = (p - 1) // 10000 * 100
+                rd_p[cgb] += rd1
+                rd_u[cgb] += rd2
+                count[cgb] += 1
+            for i in range(n // 100 + 1):
+                if (100 * i) &lt; n:
+                    if count[100 * i] != 0:
+                        rd_p[i * 100:(i + 1) * 100] = rd_p[i * 100] / count[i * 100]
+                        rd_u[i * 100:(i + 1) * 100] = rd_u[i * 100] / count[i * 100]
+                    else:
+                        rd_p[i * 100:(i + 1) * 100] = np.nan
+                        rd_u[i * 100:(i + 1) * 100] = np.nan
+            callback(last_chrom, rd_p, rd_u)
+            chr_count += 1
+        return chr_count
+    except ValueError:
+        _logger.error(&#34;Variant file reading problem. Probably index file is missing or corrupted.&#34;)
+        exit(0)</code></pre>
 </details>
 </dd>
 <dt id="cnvpytor.vcf.Vcf.read_all_snp"><code class="name flex">
@@ -575,7 +863,7 @@ callback(chrom, pos, ref, alt, nref, nalt, gt, flag, qual)</dd>
                     pos.append(rec.pos)
                     ref.append(rec.ref)
                     alt.append(rec.alts[0])
-                    flag.append(2)   # Assign P region as default (-mask_snps updates this flag)
+                    flag.append(2)  # Assign P region as default (-mask_snps updates this flag)
                     if rec.qual == &#34;.&#34; or rec.qual is None:
                         qual.append(0)
                     else:
@@ -592,7 +880,8 @@ callback(chrom, pos, ref, alt, nref, nalt, gt, flag, qual)</dd>
                         UNICODE_EXISTS = bool(type(unicode))
                     except NameError:
                         unicode = str
-                    if isinstance(rec.samples[sample][gt_tag], str) or isinstance(rec.samples[sample][gt_tag], unicode):
+                    if isinstance(rec.samples[sample][gt_tag], str) or isinstance(rec.samples[sample][gt_tag],
+                                                                                  unicode):
                         gt.append(int(rec.samples[sample][gt_tag][0]) * 2 + int(rec.samples[sample][gt_tag][2]))
                         if rec.samples[sample][gt_tag][1] == &#34;|&#34;:
                             gt[-1] += 4
@@ -679,7 +968,8 @@ callback(chrom, pos, ref, alt, gt, flag, qual)</dd>
             if &#34;PASS&#34; in rec.filter.keys() and rec.alts and len(rec.alts) == 1 and (
                     gt_tag in rec.samples[sample].keys()) and len(rec.samples[sample][gt_tag]) &gt; 1:
                 if (rec.ref in alphabet) and (rec.alts[0] in alphabet) and (
-                        rec.samples[sample][gt_tag][0] is not None) and (rec.samples[sample][gt_tag][1] is not None):
+                        rec.samples[sample][gt_tag][0] is not None) and (
+                        rec.samples[sample][gt_tag][1] is not None):
                     pos.append(rec.pos)
                     ref.append(rec.ref)
                     alt.append(rec.alts[0])
@@ -694,7 +984,8 @@ callback(chrom, pos, ref, alt, gt, flag, qual)</dd>
                         UNICODE_EXISTS = bool(type(unicode))
                     except NameError:
                         unicode = str
-                    if isinstance(rec.samples[sample][gt_tag], str) or isinstance(rec.samples[sample][gt_tag], unicode):
+                    if isinstance(rec.samples[sample][gt_tag], str) or isinstance(rec.samples[sample][gt_tag],
+                                                                                  unicode):
                         gt.append(int(rec.samples[sample][gt_tag][0]) * 2 + int(rec.samples[sample][gt_tag][2]))
                         if rec.samples[sample][gt_tag][1] == &#34;|&#34;:
                             gt[-1] += 4
@@ -711,6 +1002,92 @@ callback(chrom, pos, ref, alt, gt, flag, qual)</dd>
     except ValueError:
         _logger.error(&#34;Variant file reading problem.&#34;)
         exit(0)</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.vcf.Vcf.read_chromosome_rd"><code class="name flex">
+<span>def <span class="ident">read_chromosome_rd</span></span>(<span>self, chr_name, sample='', ad_tag='AD', dp_tag='DP')</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Read RD data for given chromosome and sample.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>chr_name</code></strong> :&ensp;<code>str</code></dt>
+<dd>Name of the chromosome.</dd>
+<dt><strong><code>sample</code></strong> :&ensp;<code>str</code></dt>
+<dd>Name of the sample (first one if empty - default)</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>rd_p</code></strong> :&ensp;<code>list</code> of <code>int</code></dt>
+<dd>binned RD signal from DP tag (100 bins)</dd>
+<dt><strong><code>rd_u</code></strong> :&ensp;<code>list</code> of <code>int</code></dt>
+<dd>binned RD signal from AD tag (100 bins)</dd>
+</dl></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def read_chromosome_rd(self, chr_name, sample=&#39;&#39;, ad_tag=&#39;AD&#39;, dp_tag=&#39;DP&#39;):
+    &#34;&#34;&#34;
+    Read RD data for given chromosome and sample.
+
+    Parameters
+    ----------
+    chr_name : str
+        Name of the chromosome.
+    sample : str
+        Name of the sample (first one if empty - default)
+
+    Returns
+    -------
+    rd_p : list of int
+        binned RD signal from DP tag (100 bins)
+    rd_u : list of int
+        binned RD signal from AD tag (100 bins)
+
+    &#34;&#34;&#34;
+    if sample == &#39;&#39;:
+        sample = self.samples[0]
+    pos = []
+    rd_ad = []
+    rd_dp = []
+    try:
+        for rec in self.file.fetch(chr_name):
+            if (ad_tag in rec.samples[sample].keys()) and len(rec.samples[sample][ad_tag]) &gt; 1 and (
+                    dp_tag in rec.samples[sample].keys()) and (rec.samples[sample][dp_tag] is not None):
+                try:
+                    rd1 = sum(map(int, rec.samples[sample][ad_tag]))
+                    rd2 = int(rec.samples[sample][dp_tag])
+                    pos.append(rec.pos)
+                    rd_ad.append(rd1)
+                    rd_dp.append(rd2)
+                except ValueError:
+                    pass
+    except ValueError:
+        _logger.error(&#34;Variant file reading problem. Probably index file is missing or corrupted.&#34;)
+        exit(0)
+    n = 0
+    if len(pos) == 0:
+        return None, None
+    n = pos[-1] + 1
+    if self.lengths[chr_name] is not None:
+        n = self.lengths[chr_name]
+    n = n // 100 + 1
+    rd_p = np.zeros(n)
+    rd_u = np.zeros(n)
+    count = np.zeros(n)
+    for p, rd1, rd2 in zip(pos, rd_dp, rd_ad):
+        cgb = (p - 1) // 10000 * 100
+        rd_p[cgb] += rd1
+        rd_u[cgb] += rd2
+        count[cgb] += 1
+    for i in range(n // 100 + 1):
+        if (100 * i) &lt; n:
+            if count[100 * i] != 0:
+                rd_p[i * 100:(i + 1) * 100] = rd_p[i * 100] / count[i * 100]
+                rd_u[i * 100:(i + 1) * 100] = rd_u[i * 100] / count[i * 100]
+            else:
+                rd_p[i * 100:(i + 1) * 100] = np.nan
+                rd_u[i * 100:(i + 1) * 100] = np.nan
+    return rd_p, rd_u</code></pre>
 </details>
 </dd>
 <dt id="cnvpytor.vcf.Vcf.read_chromosome_snp"><code class="name flex">
@@ -815,7 +1192,8 @@ callback(chrom, pos, ref, alt, gt, flag, qual)</dd>
                         UNICODE_EXISTS = bool(type(unicode))
                     except NameError:
                         unicode = str
-                    if isinstance(rec.samples[sample][gt_tag], str) or isinstance(rec.samples[sample][gt_tag], unicode):
+                    if isinstance(rec.samples[sample][gt_tag], str) or isinstance(rec.samples[sample][gt_tag],
+                                                                                  unicode):
                         gt.append(int(rec.samples[sample][gt_tag][0]) * 2 + int(rec.samples[sample][gt_tag][2]))
                         if rec.samples[sample][gt_tag][1] == &#34;|&#34;:
                             gt[-1] += 4
@@ -913,7 +1291,8 @@ callback(chrom, pos, ref, alt, gt, flag, qual)</dd>
                         UNICODE_EXISTS = bool(type(unicode))
                     except NameError:
                         unicode = str
-                    if isinstance(rec.samples[sample][gt_tag], str) or isinstance(rec.samples[sample][gt_tag], unicode):
+                    if isinstance(rec.samples[sample][gt_tag], str) or isinstance(rec.samples[sample][gt_tag],
+                                                                                  unicode):
                         gt.append(int(rec.samples[sample][gt_tag][0]) * 2 + int(rec.samples[sample][gt_tag][2]))
                         if rec.samples[sample][gt_tag][1] == &#34;|&#34;:
                             gt[-1] += 4
@@ -951,8 +1330,10 @@ callback(chrom, pos, ref, alt, gt, flag, qual)</dd>
 <ul class="">
 <li><code><a title="cnvpytor.vcf.Vcf.get_chromosomes" href="#cnvpytor.vcf.Vcf.get_chromosomes">get_chromosomes</a></code></li>
 <li><code><a title="cnvpytor.vcf.Vcf.get_samples" href="#cnvpytor.vcf.Vcf.get_samples">get_samples</a></code></li>
+<li><code><a title="cnvpytor.vcf.Vcf.read_all_rd" href="#cnvpytor.vcf.Vcf.read_all_rd">read_all_rd</a></code></li>
 <li><code><a title="cnvpytor.vcf.Vcf.read_all_snp" href="#cnvpytor.vcf.Vcf.read_all_snp">read_all_snp</a></code></li>
 <li><code><a title="cnvpytor.vcf.Vcf.read_all_snp_no_counts" href="#cnvpytor.vcf.Vcf.read_all_snp_no_counts">read_all_snp_no_counts</a></code></li>
+<li><code><a title="cnvpytor.vcf.Vcf.read_chromosome_rd" href="#cnvpytor.vcf.Vcf.read_chromosome_rd">read_chromosome_rd</a></code></li>
 <li><code><a title="cnvpytor.vcf.Vcf.read_chromosome_snp" href="#cnvpytor.vcf.Vcf.read_chromosome_snp">read_chromosome_snp</a></code></li>
 <li><code><a title="cnvpytor.vcf.Vcf.read_chromosome_snp_no_counts" href="#cnvpytor.vcf.Vcf.read_chromosome_snp_no_counts">read_chromosome_snp_no_counts</a></code></li>
 </ul>

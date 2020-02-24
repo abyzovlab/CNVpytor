@@ -35,15 +35,31 @@ class Export(Reader):
 
 class Show(Reader):
     def ls(self):
+        """ Prints to stdout content of all cnvpytor files.
+
+        """
         for i in self.io:
             i.ls()
 
     def meta(self):
+        """ Prints to stdout meta tags of all cnvpytor files.
+
+        """
         for i in self.io:
             i.read_meta_attribute()
 
     def info(self, bin_sizes):
-        bin_sizes = [100] + bin_sizes
+        """ Prints to stdout RD info for all cnvpytor files.
+        Columns are following:
+            filename
+            mean read length, stdev of read length in %
+            mean template length, stdev of template length in %
+            for each bin_size (including 100 always):
+                rd level and corresponding stdev for each chromosome type (autosomes, sex chromosomes and mitochondria)
+
+        """
+        if 100 not in bin_sizes:
+            bin_sizes = [100] + bin_sizes
         labels = ["FILE", "RL", "dRL[%]", "FL", "dFL[%]"]
         for bs in bin_sizes:
             labels.append("RD_AUTO_" + binsize_format(bs))
@@ -59,7 +75,7 @@ class Show(Reader):
                 labels.append("dRD_MT_" + binsize_format(bs) + "[%]")
                 labels.append("RD_GC_MT_" + binsize_format(bs))
                 labels.append("dRD_CG_MT_" + binsize_format(bs) + "[%]")
-        print(("{:25}{:>20}{:>20}{:>20}{:>20}" + "{:>20}" * (len(labels) - 5)).format(*tuple(labels)))
+        print(("{:}\t{:}\t{:}\t{:}\t{:}\t" + "{:}\t" * (len(labels) - 5)).format(*tuple(labels)))
         for i in self.io:
             rfd = i.get_signal(None, None, "read frg dist")
             rd = np.sum(rfd, axis=1)
@@ -70,7 +86,7 @@ class Show(Reader):
             mfl2 = np.sum(fd * np.arange(fd.size) * np.arange(fd.size)) / np.sum(fd)
             sdr = 100. * np.sqrt(mrl2 - mrl * mrl) / mrl
             sdf = 100. * np.sqrt(mfl2 - mfl * mfl) / mfl
-            print("{:25}{:20.2f}{:20.2f}{:20.2f}{:20.2f}".format(i.filename, mrl, sdr, mfl, sdf), end="")
+            print("{:}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t".format(i.filename, mrl, sdr, mfl, sdf), end="")
             for bs in bin_sizes:
                 for flag in [FLAG_AUTO, FLAG_SEX, FLAG_MT]:
                     if bs <= 500 or not flag == FLAG_MT:
@@ -78,16 +94,16 @@ class Show(Reader):
                             stat = i.get_signal(None, bs, "RD stat", flags=flag)
                             if stat[4] > 0:
                                 stat[5] /= stat[4] / 100.
-                            print("{:20.2f}{:20.2f}".format(stat[4], stat[5]), end="")
+                            print("{:.2f}\t{:.2f}\t".format(stat[4], stat[5]), end="")
                         else:
-                            print("{:>20}{:>20}".format("-", "-"), end="")
+                            print("{:}\t{:}\t".format("-", "-"), end="")
                         if i.signal_exists(None, bs, "RD stat", flags=(flag | FLAG_GC_CORR)):
                             stat = i.get_signal(None, bs, "RD stat", flags=(flag | FLAG_GC_CORR))
                             if stat[4] > 0:
                                 stat[5] /= stat[4] / 100.
-                            print("{:20.2f}{:20.2f}".format(stat[4], stat[5]), end="")
+                            print("{:.2f}\t{:.2f}\t".format(stat[4], stat[5]), end="")
                         else:
-                            print("{:>20}{:>20}".format("-", "-"), end="")
+                            print("{:}\t{:}\t".format("-", "-"), end="")
             print()
 
 
@@ -179,7 +195,7 @@ class Figure(ViewParams):
 
 class Viewer(Show, Figure, HelpDescription):
 
-    def __init__(self, files, params):
+    def __init__(self, files, params={}):
         _logger.debug("Viewer class init: files [%s], params %s." % (", ".join(files), str(params)))
         Figure.__init__(self, params)
         Show.__init__(self, files)

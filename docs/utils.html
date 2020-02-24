@@ -335,7 +335,7 @@ def t_test_1_sample(mean, m, s, n):
         s = 1
     t = (mean - m) / s * np.sqrt(n)
     p = 1.0 - stats.t.cdf(np.abs(t), df=n - 1)
-    return 2 * p
+    return p
 
 
 def t_test_2_samples(m1, s1, n1, m2, s2, n2):
@@ -347,14 +347,14 @@ def t_test_2_samples(m1, s1, n1, m2, s2, n2):
     df = (s1 ** 2 / n1 + s2 ** 2 / n2) ** 2 * (n1 - 1) * (n2 - 1) / (
             s1 ** 4 * (n2 - 1) / n1 ** 2 + s2 ** 4 * (n1 - 1) / n2 ** 2)
     p = 1.0 - stats.t.cdf(np.abs(t), df=int(df + 0.5))
-    return 2 * p
+    return p
 
 
 def getEValue(mean, sigma, rd, start, end):
     aver = np.mean(rd[start:end])
     s = np.std(rd[start:end])
     if s == 0:
-        s = sigma if sigma &gt; 0 else 1
+        s = sigma * aver / mean if sigma &gt; 0 else 1
     return t_test_1_sample(mean, aver, s, end - start) / (end - start)
 
 
@@ -558,6 +558,30 @@ def likelihood_baf_pval(likelihood):
     p = np.sum(likelihood[ix1:ix2]) / np.sum(likelihood)
     return b, p
 
+def likelihood_pixels_pval(likelihood):
+    &#34;&#34;&#34;
+    Calculates maximum likelihood pixel positions and p-value.
+    Parameters
+    ----------
+    likelihood
+
+    Returns
+    -------
+    b : float
+        BAF level (difference from 1/2)
+    p : float
+        p-value for event different than 1/2
+
+    &#34;&#34;&#34;
+    res = likelihood.size
+    max_lh = np.amax(likelihood)
+    ix = np.where(likelihood == max_lh)[0][0]
+    if ix &gt; res // 2:
+        ix = res - 1 - ix
+    ix1 = (res // 2 + ix) // 2
+    ix2 = res - 1 - ix1
+    p = np.sum(likelihood[ix1:ix2]) / np.sum(likelihood)
+    return ix, res - 1 - ix, p
 
 def is_downloadable(url):
     &#34;&#34;&#34;
@@ -1146,7 +1170,7 @@ Transforms #at, #gc -&gt; #at, 100-#at-#gc</p>
     aver = np.mean(rd[start:end])
     s = np.std(rd[start:end])
     if s == 0:
-        s = sigma if sigma &gt; 0 else 1
+        s = sigma * aver / mean if sigma &gt; 0 else 1
     return t_test_1_sample(mean, aver, s, end - start) / (end - start)</code></pre>
 </details>
 </dd>
@@ -1324,6 +1348,52 @@ Parameters</p>
 
     &#34;&#34;&#34;
     return np.sum(np.min((lk1, lk2), axis=0))</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.utils.likelihood_pixels_pval"><code class="name flex">
+<span>def <span class="ident">likelihood_pixels_pval</span></span>(<span>likelihood)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Calculates maximum likelihood pixel positions and p-value.
+Parameters</p>
+<hr>
+<dl>
+<dt><strong><code>likelihood</code></strong></dt>
+<dd>&nbsp;</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>b</code></strong> :&ensp;<code>float</code></dt>
+<dd>BAF level (difference from 1/2)</dd>
+<dt><strong><code>p</code></strong> :&ensp;<code>float</code></dt>
+<dd>p-value for event different than 1/2</dd>
+</dl></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def likelihood_pixels_pval(likelihood):
+    &#34;&#34;&#34;
+    Calculates maximum likelihood pixel positions and p-value.
+    Parameters
+    ----------
+    likelihood
+
+    Returns
+    -------
+    b : float
+        BAF level (difference from 1/2)
+    p : float
+        p-value for event different than 1/2
+
+    &#34;&#34;&#34;
+    res = likelihood.size
+    max_lh = np.amax(likelihood)
+    ix = np.where(likelihood == max_lh)[0][0]
+    if ix &gt; res // 2:
+        ix = res - 1 - ix
+    ix1 = (res // 2 + ix) // 2
+    ix2 = res - 1 - ix1
+    p = np.sum(likelihood[ix1:ix2]) / np.sum(likelihood)
+    return ix, res - 1 - ix, p</code></pre>
 </details>
 </dd>
 <dt id="cnvpytor.utils.log_beta"><code class="name flex">
@@ -1656,7 +1726,7 @@ snp_qual - 8 bits</p></section>
         s = 1
     t = (mean - m) / s * np.sqrt(n)
     p = 1.0 - stats.t.cdf(np.abs(t), df=n - 1)
-    return 2 * p</code></pre>
+    return p</code></pre>
 </details>
 </dd>
 <dt id="cnvpytor.utils.t_test_2_samples"><code class="name flex">
@@ -1675,7 +1745,7 @@ snp_qual - 8 bits</p></section>
     df = (s1 ** 2 / n1 + s2 ** 2 / n2) ** 2 * (n1 - 1) * (n2 - 1) / (
             s1 ** 4 * (n2 - 1) / n1 ** 2 + s2 ** 4 * (n1 - 1) / n2 ** 2)
     p = 1.0 - stats.t.cdf(np.abs(t), df=int(df + 0.5))
-    return 2 * p</code></pre>
+    return p</code></pre>
 </details>
 </dd>
 </dl>
@@ -1851,6 +1921,7 @@ snp_qual - 8 bits</p></section>
 <li><code><a title="cnvpytor.utils.key_val_str" href="#cnvpytor.utils.key_val_str">key_val_str</a></code></li>
 <li><code><a title="cnvpytor.utils.likelihood_baf_pval" href="#cnvpytor.utils.likelihood_baf_pval">likelihood_baf_pval</a></code></li>
 <li><code><a title="cnvpytor.utils.likelihood_overlap" href="#cnvpytor.utils.likelihood_overlap">likelihood_overlap</a></code></li>
+<li><code><a title="cnvpytor.utils.likelihood_pixels_pval" href="#cnvpytor.utils.likelihood_pixels_pval">likelihood_pixels_pval</a></code></li>
 <li><code><a title="cnvpytor.utils.log_beta" href="#cnvpytor.utils.log_beta">log_beta</a></code></li>
 <li><code><a title="cnvpytor.utils.mask_compress" href="#cnvpytor.utils.mask_compress">mask_compress</a></code></li>
 <li><code><a title="cnvpytor.utils.mask_decompress" href="#cnvpytor.utils.mask_decompress">mask_decompress</a></code></li>

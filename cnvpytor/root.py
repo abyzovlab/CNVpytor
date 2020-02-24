@@ -48,7 +48,7 @@ class Root:
                     _logger.debug("Using strict mask from database for reference genome '%s'." % rg_name)
                     self.io_mask = IO(Genome.reference_genomes[rg_name]["mask_file"], ro=True, buffer=True)
 
-    def read_bam(self, bf, chroms, reference_filename=False):
+    def _read_bam(self, bf, chroms, reference_filename=False):
         bamf = Bam(bf, reference_filename=reference_filename)
         if bamf.reference_genome:
             self.io.create_signal(None, None, "reference genome", np.array([np.string_(bamf.reference_genome)]))
@@ -94,7 +94,15 @@ class Root:
                 self.io.create_signal(None, None, "read frg dist", cum_his_read_frg)
             return count
 
-    def rd_stat(self, chroms=[], plot=True):
+    def rd_stat(self, chroms=[]):
+        """ Calculate RD statistics for 100 bp bins.
+
+        Parameters
+        ----------
+        chroms : list of str
+            List of chromosomes. Calculates for all available if empty.
+
+        """
         rd_stat = []
         auto, sex, mt = False, False, False
 
@@ -220,21 +228,8 @@ class Root:
             gc_corr_mt = calculate_gc_correction(dist_p_gc_mt, m_mt, s_mt, bin_size_mt)
             self.io.create_signal(None, 100, "GC corr", gc_corr_mt, flags=FLAG_MT)
 
-    def read_vcf(self, vcf_file, chroms, sample='', use_index=False, no_counts=False, ad_tag="AD", gt_tag="GT",
-                 callset=None):
-        """
-
-        Parameters
-        ----------
-        vcf_file
-        chroms
-        sample
-        use_index
-
-        Returns
-        -------
-
-        """
+    def _read_vcf(self, vcf_file, chroms, sample='', use_index=False, no_counts=False, ad_tag="AD", gt_tag="GT",
+                  callset=None):
         vcff = Vcf(vcf_file)
         chrs = [c for c in vcff.get_chromosomes() if len(chroms) == 0 or c in chroms]
 
@@ -272,14 +267,20 @@ class Root:
                 return vcff.read_all_snp(save_data, sample, ad_tag=ad_tag, gt_tag=gt_tag)
 
     def rd(self, bamfiles, chroms=[], reference_filename=False):
-        """ Read chromosomes from bam/sam/cram file(s) and store in .cnvnator file
-                Arguments:
-                    * list of bam file names
-                    * list of chromosome names
+        """ Read chromosomes from bam/sam/cram file(s) and store in cnvpytor file.
+
+        Parameters
+        ----------
+        bamfiles : list of str
+            List of bam/sam/cram files
+        chroms : list of str
+            List of chromosomes. Import all available if empty.
+        reference_filename : str
+            Only for CRAM files - reference genome filename
+
         """
-        hm = 0
         for bf in bamfiles:
-            hm += self.read_bam(bf, chroms, reference_filename=reference_filename)
+            self._read_bam(bf, chroms, reference_filename=reference_filename)
             self.io.add_meta_attribute("BAM", bf)
 
         if self.io.signal_exists(None, None, "reference genome"):
@@ -292,36 +293,32 @@ class Root:
                 self.io_gc = IO(Genome.reference_genomes[rg_name]["gc_file"])
                 self.rd_stat()
 
-        return hm
-
     def vcf(self, vcf_files, chroms=[], sample='', no_counts=False, ad_tag="AD", gt_tag="GT", callset=None):
         """ Read SNP data from variant file(s) and store in .cnvpytor file
 
         Parameters
         ----------
         vcf_files : list of str
-            List of variant filenames
+            List of variant filenames.
         chroms : list of str
-            List of chromosome names
+            List of chromosomes. Import all available if empty.
         sample : str
             Name of the sample. It will read first sample if empty string is provided.
         no_counts : bool
-            Do not read AD counts if true
+            Do not read AD counts if true.
         ad_tag : str
-            AD tag (default 'AD')
+            AD tag (default 'AD').
         gt_tag : str
-            GT tag (default 'GT')
+            GT tag (default 'GT').
         callset : str or None
             It will assume SNP data if None. Otherwise it will assume SNV data and
             store under the name provided by callset variable.
 
         """
-        hm = 0
         for vcf_file in vcf_files:
-            hm += self.read_vcf(vcf_file, chroms, sample, no_counts=no_counts, ad_tag=ad_tag, gt_tag=gt_tag,
-                                callset=callset)
+            self._read_vcf(vcf_file, chroms, sample, no_counts=no_counts, ad_tag=ad_tag, gt_tag=gt_tag,
+                                 callset=callset)
             self.io.add_meta_attribute("VCF", vcf_file)
-        return hm
 
     def rd_from_vcf(self, vcf_file, chroms=[], sample='', ad_tag="AD", dp_tag="DP", use_index=False):
         """
@@ -332,13 +329,15 @@ class Root:
         vcf_file : str
             Variant filename
         chroms : list of str
-            List of chromosome names
+            List of chromosomes. Imports all available if empty.
         sample : str
             Name of the sample. It will read first sample if empty string is provided.
         ad_tag : str
             AD tag (default 'AD')
         dp_tag : str
             DP tag (default 'DP')
+        use_index : bool
+            Use index file for vcf parsing. Default is False.
 
         """
         vcff = Vcf(vcf_file)
@@ -347,7 +346,7 @@ class Root:
         def save_data(chr, rd_p, rd_u):
             if (len(chroms) == 0 or chr in chroms) and (not rd_p is None) and (len(rd_p) > 0):
                 self.io.save_rd(chr, rd_p, rd_u, chromosome_length=vcff.lengths[chr])
-            # TODO: Stop reading if all from chrom list are read.
+            # TODO: Stop reading if all from chroms list are already read.
 
         if use_index:
             count = 0
@@ -365,16 +364,7 @@ class Root:
             self.io.add_meta_attribute("RD from VCF", vcf_file)
             return count
 
-    def pileup_bam(self, bamfile, chroms, pos, ref, alt, nref, nalt, reference_filename):
-        """
-        TODO:
-
-        Parameters
-        ----------
-        bamfile
-        chroms
-
-        """
+    def _pileup_bam(self, bamfile, chroms, pos, ref, alt, nref, nalt, reference_filename):
         _logger.info("Calculating pileup from bam file '%s'." % bamfile)
         bamf = Bam(bamfile, reference_filename=reference_filename)
 
@@ -408,6 +398,10 @@ class Root:
         ----------
         bamfiles : list of str
             Bam files.
+        chroms : list of str
+            List of chromosomes. Calculates for all available if empty.
+        reference_filename : str
+            Only for CRAM files - reference genome filename
         """
         chrs = [c for c in self.io.snp_chromosomes() if (len(chroms) == 0 or c in chroms)]
 
@@ -418,13 +412,27 @@ class Root:
             nref[c] = [0] * len(nref[c])
             nalt[c] = [0] * len(nalt[c])
         for bf in bamfiles:
-            self.pileup_bam(bf, chrs, pos, ref, alt, nref, nalt, reference_filename=reference_filename)
+            self._pileup_bam(bf, chrs, pos, ref, alt, nref, nalt, reference_filename=reference_filename)
 
         for c in chrs:
             _logger.info("Saving SNP data for chromosome '%s' in file '%s'." % (c, self.io.filename))
             self.io.save_snp(c, pos[c], ref[c], alt[c], nref[c], nalt[c], gt[c], flag[c], qual[c])
 
     def rd_from_snp(self, chroms=[], callset=None):
+        """ Create RD signal from already imported SNP signal
+
+        Parameters
+        ----------
+        chroms : list of str
+            List of chromosomes. Calculates for all available if empty.
+        callset : str or None
+            It will assume SNP data if None. Otherwise it will assume SNV data
+            stored under the name provided by callset variable.
+
+        Returns
+        -------
+
+        """
 
         chromosomes = [c for c in self.io.snp_chromosomes() if (len(chroms) == 0 or c in chroms)]
 
@@ -1036,7 +1044,7 @@ class Root:
 
                         self.io.create_signal(c, bin_size, "RD partition", levels, flags=flag_rd)
 
-    def call(self, bin_sizes, chroms=[], use_gc_corr=True, use_mask=False, genome_size=2.9e9, genome_cnv_fraction=0.01):
+    def call(self, bin_sizes, chroms=[], print_calls=False, use_gc_corr=True, use_mask=False, genome_size=2.9e9, genome_cnv_fraction=0.01):
         """
         CNV caller based on the segmented RD signal.
 
@@ -1046,12 +1054,26 @@ class Root:
             List of histogram bin sizes
         chroms : list of str
             List of chromosomes. Calculates for all available if empty.
+        print_calls : bool
+            Print to stdout list of calls if true.
         use_gc_corr : bool
             Use GC corrected signal if True. Default: True.
         use_mask : bool
             Use P-mask filter if True. Default: False.
 
+        Returns
+        -------
+        calls: dist
+            Dictionary bin_size -> list of calls
+            Each call is list with values:
+                type ("deletion" or "duplication"),
+                chromosome name, start, end,
+                size, cnv level
+                e1, e2, e3, e4 - estimations of p-Value
+                q0 - percentage of uniquely mapped reads in cnv region
+
         """
+        ret = {}
         normal_genome_size = genome_size * (1 - genome_cnv_fraction)
         rd_gc_chromosomes = {}
         for c in self.io_gc.gc_chromosomes():
@@ -1066,6 +1088,7 @@ class Root:
                 rd_mask_chromosomes[rd_name] = c
 
         for bin_size in bin_sizes:
+            ret[bin_size]=[]
             for c in self.io.rd_chromosomes():
                 if (c in rd_gc_chromosomes or not use_gc_corr) and (c in rd_mask_chromosomes or not use_mask) and (
                         len(chroms) == 0 or (c in chroms)):
@@ -1183,7 +1206,7 @@ class Root:
 
                         self.io.create_signal(c, bin_size, "RD call", merge, flags=flag_rd)
 
-                        _logger.debug("Print calls")
+                        _logger.debug("Calculate/print calls")
                         b = 0
                         while b < len(levels):
                             cf = flags[b]
@@ -1213,10 +1236,13 @@ class Root:
                             q0 = -1
                             if sum(rd_p[bs:b]) > 0:
                                 q0 = (sum(rd_p[bs:b]) - sum(rd_u[bs:b])) / sum(rd_p[bs:b])
-                            print("%s\t%s:%d-%d\t%d\t%.4f\t%e\t%e\t%e\t%e\t%.4f\t" % (
-                                etype, c, start, end, size, cnv, e1, e2, e3, e4, q0))
+                            if print_calls:
+                                print("%s\t%s:%d-%d\t%d\t%.4f\t%e\t%e\t%e\t%e\t%.4f\t" % (
+                                    etype, c, start, end, size, cnv, e1, e2, e3, e4, q0))
+                            ret[bin_size].append([etype, c, start, end, size, cnv, e1, e2, e3, e4, q0])
+        return ret
 
-    def call_mosaic(self, bin_sizes, chroms=[], use_gc_corr=True, use_mask=False, odec=0.9, omin=None,
+    def call_mosaic(self, bin_sizes, chroms=[], use_gc_corr=True, use_mask=False, omin=None,
                     max_distance=0.3, anim=""):
         """
         CNV caller based on likelihood merger.
@@ -1372,9 +1398,14 @@ class Root:
                                               data=np.array([level, error], dtype="float32"), flags=flag_rd)
 
     def mask_snps(self, callset=None):
-        """
-        Flags SNPs in P-region (sets second bit of the flag to 1 for SNP inside P region, or to 0 otherwise).
+        """ Flags SNPs in P-region (sets second bit of the flag to 1 for SNP inside P region, or to 0 otherwise).
         Requires imported mask data or recognized reference genome with mask data.
+
+        Parameters
+        ----------
+        callset : str or None
+            It will assume SNP data if None. Otherwise it will assume SNV data
+            stored under the name provided by callset variable.
 
         """
         snp_mask_chromosomes = {}
@@ -1415,6 +1446,8 @@ class Root:
             Use P-mask filter if True. Default: True.
         use_id : bool
             Use id flag filter if True. Default: False.
+        use_phase : bool
+            Use phasing information if True and available. Default: False.
         res: int
             Likelihood function resolution. Default: 200.
 
@@ -1537,12 +1570,20 @@ class Root:
 
     def call_baf(self, bin_sizes, chroms=[], use_mask=True, use_id=False, odec=0.9, omin=None, mcount=None,
                  max_distance=0.1, anim=""):
+        """ CNV caller based on BAF likelihood mearger
+
+        Parameters
+        ----------
+        bin_sizes : list of int
+            List of histogram bin sizes
+        chroms : list of str
+            List of chromosomes. Calculates for all available if empty.
+        use_mask : bool
+            Use P-mask filter if True. Default: False.
+        use_id : bool
+            Use ID filter if True. Default: False.
         """
 
-        Returns
-        -------
-
-        """
         for bin_size in bin_sizes:
             if omin is None:
                 overlap_min = 1e-7 * bin_size
@@ -1871,4 +1912,7 @@ class Root:
         return
 
     def ls(self):
+        """ Print to stdout content of cnvpytor file.
+
+        """
         self.io.ls()

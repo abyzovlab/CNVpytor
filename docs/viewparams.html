@@ -51,6 +51,7 @@ class ViewParams(object):
         &#34;snp_use_mask&#34;: True,
         &#34;snp_use_id&#34;: False,
         &#34;snp_use_phase&#34;: False,
+        &#34;snp_call&#34;: False,
         &#34;markersize&#34;: &#34;auto&#34;,
         &#34;rd_colors&#34;: &#34;&#34;,
         &#34;snp_colors&#34;: [&#34;yellow&#34;, &#34;orange&#34;, &#34;cyan&#34;, &#34;blue&#34;, &#34;lime&#34;, &#34;green&#34;, &#34;yellow&#34;, &#34;orange&#34;],
@@ -58,6 +59,7 @@ class ViewParams(object):
         &#34;lh_colors&#34;: &#34;&#34;,
         &#34;plot_files&#34;: [],
         &#34;plot_file&#34;: 0,
+        &#34;file_titles&#34;: [],
         &#34;chrom&#34;: [],
         &#34;style&#34;: None,
         &#34;grid&#34;: &#34;auto&#34;,
@@ -111,6 +113,8 @@ class ViewParams(object):
     def unset(self, param):
         if param in self.params and self.params[param] is True:
             self.__setattr__(param, False)
+        if param in self.params and isinstance(self.params[param], list):
+            self.__setattr__(param, [])
 
     @property
     def params(self):
@@ -332,6 +336,15 @@ class HelpDescription(object):
         &#34;snp_use_mask&#34;: &#34;&#34;,
         &#34;snp_use_id&#34;: &#34;&#34;,
         &#34;snp_use_phase&#34;: &#34;&#34;,
+        &#34;snp_call&#34;: help_format(
+            topic=&#34;snp_call&#34;,
+            p_desc=&#34;Enables plotting call signal in likelihood/baf plots&#34;,
+            p_type=&#34;bool&#34;,
+            p_default=str(default[&#34;snp_call&#34;]),
+            p_affects=&#34;region plot, rd&#34;,
+            p_example=&#34;set snp_call\nunset snp_call&#34;,
+            p_see=&#34;rd_call, rd_call_mosaic&#34;
+        ),
         &#34;markersize&#34;: help_format(
             topic=&#34;markersize&#34;,
             p_desc=&#34;Size of markers used in scatter like plots (e.g. manhattan, snp).&#34;,
@@ -347,6 +360,15 @@ class HelpDescription(object):
         &#34;lh_colors&#34;: &#34;&#34;,
         &#34;plot_files&#34;: &#34;&#34;,
         &#34;plot_file&#34;: &#34;&#34;,
+        &#34;file_titles&#34;: help_format(
+            topic=&#34;file_titles&#34;,
+            p_desc=&#34;List of titles used with multiple file plots. If empty filename will be used instead.&#34;,
+            p_type=&#34;list of str&#34;,
+            p_default=str(default[&#34;file_titles&#34;]),
+            p_affects=&#34;manhattan, circular&#34;,
+            p_example=&#34;set file_titles Title1 Title2\nunset file_titles&#34;,
+            p_see=&#34;plot_files&#34;
+        ),
         &#34;chrom&#34;: &#34;&#34;,
         &#34;style&#34;: &#34;&#34;,
         &#34;grid&#34;: &#34;&#34;,
@@ -550,6 +572,15 @@ class HelpDescription(object):
         &#34;snp_use_mask&#34;: &#34;&#34;,
         &#34;snp_use_id&#34;: &#34;&#34;,
         &#34;snp_use_phase&#34;: &#34;&#34;,
+        &#34;snp_call&#34;: help_format(
+            topic=&#34;snp_call&#34;,
+            p_desc=&#34;Enables plotting call signal in likelihood/baf plots&#34;,
+            p_type=&#34;bool&#34;,
+            p_default=str(default[&#34;snp_call&#34;]),
+            p_affects=&#34;region plot, rd&#34;,
+            p_example=&#34;set snp_call\nunset snp_call&#34;,
+            p_see=&#34;rd_call, rd_call_mosaic&#34;
+        ),
         &#34;markersize&#34;: help_format(
             topic=&#34;markersize&#34;,
             p_desc=&#34;Size of markers used in scatter like plots (e.g. manhattan, snp).&#34;,
@@ -565,6 +596,15 @@ class HelpDescription(object):
         &#34;lh_colors&#34;: &#34;&#34;,
         &#34;plot_files&#34;: &#34;&#34;,
         &#34;plot_file&#34;: &#34;&#34;,
+        &#34;file_titles&#34;: help_format(
+            topic=&#34;file_titles&#34;,
+            p_desc=&#34;List of titles used with multiple file plots. If empty filename will be used instead.&#34;,
+            p_type=&#34;list of str&#34;,
+            p_default=str(default[&#34;file_titles&#34;]),
+            p_affects=&#34;manhattan, circular&#34;,
+            p_example=&#34;set file_titles Title1 Title2\nunset file_titles&#34;,
+            p_see=&#34;plot_files&#34;
+        ),
         &#34;chrom&#34;: &#34;&#34;,
         &#34;style&#34;: &#34;&#34;,
         &#34;grid&#34;: &#34;&#34;,
@@ -618,6 +658,7 @@ class HelpDescription(object):
         &#34;snp_use_mask&#34;: True,
         &#34;snp_use_id&#34;: False,
         &#34;snp_use_phase&#34;: False,
+        &#34;snp_call&#34;: False,
         &#34;markersize&#34;: &#34;auto&#34;,
         &#34;rd_colors&#34;: &#34;&#34;,
         &#34;snp_colors&#34;: [&#34;yellow&#34;, &#34;orange&#34;, &#34;cyan&#34;, &#34;blue&#34;, &#34;lime&#34;, &#34;green&#34;, &#34;yellow&#34;, &#34;orange&#34;],
@@ -625,6 +666,7 @@ class HelpDescription(object):
         &#34;lh_colors&#34;: &#34;&#34;,
         &#34;plot_files&#34;: [],
         &#34;plot_file&#34;: 0,
+        &#34;file_titles&#34;: [],
         &#34;chrom&#34;: [],
         &#34;style&#34;: None,
         &#34;grid&#34;: &#34;auto&#34;,
@@ -678,6 +720,8 @@ class HelpDescription(object):
     def unset(self, param):
         if param in self.params and self.params[param] is True:
             self.__setattr__(param, False)
+        if param in self.params and isinstance(self.params[param], list):
+            self.__setattr__(param, [])
 
     @property
     def params(self):
@@ -726,7 +770,7 @@ class HelpDescription(object):
 </details>
 <h3>Subclasses</h3>
 <ul class="hlist">
-<li><a title="cnvpytor.viewer.Viewer" href="viewer.html#cnvpytor.viewer.Viewer">Viewer</a></li>
+<li><a title="cnvpytor.viewer.Figure" href="viewer.html#cnvpytor.viewer.Figure">Figure</a></li>
 </ul>
 <h3>Class variables</h3>
 <dl>
@@ -826,7 +870,9 @@ def params(self):
 <summary>Source code</summary>
 <pre><code class="python">def unset(self, param):
     if param in self.params and self.params[param] is True:
-        self.__setattr__(param, False)</code></pre>
+        self.__setattr__(param, False)
+    if param in self.params and isinstance(self.params[param], list):
+        self.__setattr__(param, [])</code></pre>
 </details>
 </dd>
 </dl>
