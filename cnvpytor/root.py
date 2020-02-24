@@ -948,7 +948,7 @@ class Root:
                                     else:
                                         return np.zeros_like(nm_levels)
 
-                                if self.max_cores == 1:
+                                if True:
                                     grad = np.sum([calc_grad(k) for k in range(1, 3 * bin_band + 1)], axis=0)
                                 else:
                                     import multiprocessing
