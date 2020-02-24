@@ -580,6 +580,29 @@ class Viewer(Show, Figure, HelpDescription):
             ax.xaxis.set_ticklabels([])
             ax.yaxis.set_ticklabels([])
             ax.xaxis.set_ticks(np.arange(0, likelihood.shape[0], 50), [])
+            ax.set_xlim([0, likelihood.shape[0]])
+            if self.snp_call:
+                likelihood = self.io[self.plot_file].get_signal(c, bin_size, "SNP likelihood call", snp_flag)
+                segments = segments_decode(
+                    self.io[self.plot_file].get_signal(c, bin_size, "SNP likelihood segments", snp_flag))
+                call_pos = []
+                call_i1 = []
+                call_i2 = []
+                call_c = []
+                for s, lh in zip(segments, likelihood):
+                    i1, i2, p = likelihood_pixels_pval(lh)
+                    if i1 != i2 and len(s) > self.min_segment_size:
+                        alpha = -np.log(p + 1e-40) / self.contrast
+                        if alpha > 1:
+                            alpha = 1
+                        for pos in s:
+                            call_pos.append(pos)
+                            call_i1.append(min(i1, i2))
+                            call_i2.append(max(i1, i2))
+                            color = (1, 1, 0, alpha)
+                            call_c.append(color)
+                plt.scatter(call_pos, call_i1, s=20, color=np.array(call_c), edgecolors='face', marker='_')
+                plt.scatter(call_pos, call_i2, s=20, color=np.array(call_c), edgecolors='face', marker='_')
             ix += 1
         plt.subplots_adjust(bottom=0., top=1., wspace=0, hspace=0, left=0., right=1.)
         if self.output_filename != "":
@@ -754,8 +777,6 @@ class Viewer(Show, Figure, HelpDescription):
                 cix = 0
                 cmap = list(map(colors.to_rgba, plt.rcParams['axes.prop_cycle'].by_key()['color']))
                 for c, l in chroms:
-                    flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
-
                     likelihood = io.get_signal(c, bin_size, "SNP likelihood call", snp_flag)
                     segments = segments_decode(io.get_signal(c, bin_size, "SNP likelihood segments", snp_flag))
                     call_pos = []
@@ -836,11 +857,11 @@ class Viewer(Show, Figure, HelpDescription):
                              color='C0')
 
             if panels[i] == "rd":
-                g_p = []
-                g_p_corr = []
-                g_p_seg = []
-                g_p_call = []
-                g_p_call_mosaic = []
+                g_p = [0]
+                g_p_corr = [0]
+                g_p_seg = [0]
+                g_p_call = [0]
+                g_p_call_mosaic = [0]
                 mean, stdev = 0, 0
                 borders = []
                 for c, (pos1, pos2) in r:
@@ -878,13 +899,11 @@ class Viewer(Show, Figure, HelpDescription):
                         g_p_call_mosaic.extend(list(his_p_mosaic[start_bin:end_bin]))
                     borders.append(len(g_p) - 1)
 
-                # ax.xaxis.set_ticklabels([])
                 ax.yaxis.set_ticklabels([])
                 l = len(g_p)
-                # ax.xaxis.set_ticks(np.arange(0, l, 10), [])
                 ax.yaxis.set_ticks(np.arange(0, 3, 0.5) * mean, [])
                 ax.set_ylim([0, max(3. * mean, mean + 5. * stdev)])
-                ax.set_xlim([-l * 0.0, l * 1.0])
+                ax.set_xlim([-l * 0.0, (l - 1) * 1.0])
 
                 ax.yaxis.grid()
                 ax.step(g_p, "grey")
@@ -1022,20 +1041,54 @@ class Viewer(Show, Figure, HelpDescription):
             elif panels[i] == "likelihood":
                 borders = []
                 gl = []
+                call_pos = []
+                call_i1 = []
+                call_i2 = []
+                call_c = []
+                tlen = 0
                 for c, (pos1, pos2) in r:
                     likelihood = io.get_signal(c, bin_size, "SNP likelihood", snp_flag)
                     start_bin = (pos1 - 1) // bin_size
                     end_bin = pos2 // bin_size
                     gl.extend(list(likelihood[start_bin:end_bin]))
                     borders.append(len(gl) - 1)
+                    if self.snp_call:
+                        likelihood_call = io.get_signal(c, bin_size, "SNP likelihood call", snp_flag)
+                        segments = segments_decode(io.get_signal(c, bin_size, "SNP likelihood segments", snp_flag))
+
+                        for s, lh in zip(segments, likelihood_call):
+                            i1, i2, p = likelihood_pixels_pval(lh)
+                            if i1 != i2 and len(s) > self.min_segment_size:
+                                alpha = -np.log(p + 1e-40) / self.contrast
+                                if alpha > 1:
+                                    alpha = 1
+                                for pos in s:
+                                    if pos >= start_bin and pos < end_bin:
+                                        call_pos.append(pos - start_bin + tlen)
+                                        call_i1.append(min(i1, i2))
+                                        call_i2.append(max(i1, i2))
+                                        color = (1, 1, 0, alpha)
+                                        call_c.append(color)
+                        tlen += end_bin - start_bin
+
                 img = np.array(gl).transpose()
                 ax.imshow(img, aspect='auto')
                 ax.xaxis.set_ticklabels([])
                 ax.yaxis.set_ticklabels([])
                 ax.xaxis.set_ticks(np.arange(0, len(gl), 50), [])
+                ax.set_xlim([-0.5, img.shape[1] - 0.5])
+                if self.snp_call:
+                    if self.markersize == "auto":
+                        plt.scatter(call_pos, call_i1, s=2, color=np.array(call_c), edgecolors='face', marker='_')
+                        plt.scatter(call_pos, call_i2, s=2, color=np.array(call_c), edgecolors='face', marker='_')
+                    else:
+                        plt.scatter(call_pos, call_i1, s=self.markersize, color=np.array(call_c), edgecolors='face',
+                                    marker='_')
+                        plt.scatter(call_pos, call_i2, s=self.markersize, color=np.array(call_c), edgecolors='face',
+                                    marker='_')
 
                 for i in borders[:-1]:
-                    ax.axvline(i, color=sep_color, lw=1)
+                    ax.axvline(i + 0.5, color=sep_color, lw=1)
                 self.fig.add_subplot(ax)
 
     def circular(self, bin_size, chroms=[], use_mask_rd=True):

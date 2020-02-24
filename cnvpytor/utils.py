@@ -532,6 +532,30 @@ def likelihood_baf_pval(likelihood):
     p = np.sum(likelihood[ix1:ix2]) / np.sum(likelihood)
     return b, p
 
+def likelihood_pixels_pval(likelihood):
+    """
+    Calculates maximum likelihood pixel positions and p-value.
+    Parameters
+    ----------
+    likelihood
+
+    Returns
+    -------
+    b : float
+        BAF level (difference from 1/2)
+    p : float
+        p-value for event different than 1/2
+
+    """
+    res = likelihood.size
+    max_lh = np.amax(likelihood)
+    ix = np.where(likelihood == max_lh)[0][0]
+    if ix > res // 2:
+        ix = res - 1 - ix
+    ix1 = (res // 2 + ix) // 2
+    ix2 = res - 1 - ix1
+    p = np.sum(likelihood[ix1:ix2]) / np.sum(likelihood)
+    return ix, res - 1 - ix, p
 
 def is_downloadable(url):
     """

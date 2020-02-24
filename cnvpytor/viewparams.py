@@ -25,6 +25,7 @@ class ViewParams(object):
         "snp_use_mask": True,
         "snp_use_id": False,
         "snp_use_phase": False,
+        "snp_call": False,
         "markersize": "auto",
         "rd_colors": "",
         "snp_colors": ["yellow", "orange", "cyan", "blue", "lime", "green", "yellow", "orange"],
@@ -309,6 +310,15 @@ class HelpDescription(object):
         "snp_use_mask": "",
         "snp_use_id": "",
         "snp_use_phase": "",
+        "snp_call": help_format(
+            topic="snp_call",
+            p_desc="Enables plotting call signal in likelihood/baf plots",
+            p_type="bool",
+            p_default=str(default["snp_call"]),
+            p_affects="region plot, rd",
+            p_example="set snp_call\nunset snp_call",
+            p_see="rd_call, rd_call_mosaic"
+        ),
         "markersize": help_format(
             topic="markersize",
             p_desc="Size of markers used in scatter like plots (e.g. manhattan, snp).",
