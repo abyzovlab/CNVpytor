@@ -8,6 +8,13 @@ _logger = logging.getLogger("cnvpytor.export")
 
 class Wiggle:
     def __init__(self, filename):
+        """
+        creates bigwig file
+        Parameters
+        ----------
+        filename : path
+            Path for the bigwig filename
+        """
         self.filename = filename
         self.file = None
         import pyBigWig
@@ -23,9 +30,37 @@ class Wiggle:
             self.file = pyBigWig.open(filename)
 
     def add_header_list(self, chr_len_list):
+        """
+        Add header to the bigwig file
+        Parameters
+        ----------
+        chr_len_list : list of tuple
+            chromosome name and length list.
+
+        Returns
+        -------
+
+        """
         self.file.addHeader(chr_len_list)
 
     def add_fixedstep(self, chrom, position_int, value_list, span=1, step=1):
+        """
+        Add fixed step formatted data
+        Parameters
+        ----------
+        chrom : str
+            chromosome name
+        position_int : int
+            start position
+        value_list : list of values
+            input values
+        span : int
+        step : int
+
+        Returns
+        -------
+
+        """
         self.file.addEntries(chrom, position_int, values=value_list, span=span, step=step)
 
     def get_cnvpytor_signal(self, md5, chrom, bin_size, signal, flag):
@@ -68,7 +103,7 @@ class Wiggle:
             self.file.close()
 
 
-class ExportJbrowse:
+class ExportJBrowse:
 
     rd_signal_dct = {
         "RD": {
@@ -87,7 +122,7 @@ class ExportJbrowse:
     snp_signal_dct = {
         "SNP baf": {
             "FLAG": [0x0100],
-            "color": ["black"],
+            "color": ["gray"],
             "nonCont": [True],
         },
         "SNP i1": {
@@ -110,6 +145,15 @@ class ExportJbrowse:
     }
 
     def __init__(self, files, dir_name):
+        """
+        Exports CNVpytor data
+        Parameters
+        ----------
+        files : path
+            CNVpytor files path
+        dir_name: path
+            Export directory path
+        """
         self.files = files
         self.dir = Path(dir_name)
         self.io = [IO(f, ro=True) for f in files]

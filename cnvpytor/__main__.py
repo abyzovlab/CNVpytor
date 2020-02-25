@@ -161,7 +161,7 @@ def main():
                 export_program = args.export[0].lower()
                 if export_program in ['jbrowse', 'cnvnator']:
                     if export_program == 'jbrowse':
-                        export_j = ExportJbrowse(args.root, dir_name)
+                        export_j = ExportJBrowse(args.root, dir_name)
                         export_j.create_reference_json()
                         export_j.rd_signal()
                         export_j.snp_signal()
