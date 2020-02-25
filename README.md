@@ -6,6 +6,10 @@ CNVpytor is a Python package and command line tool for CNV analysis from depth-o
 
 **NEW: CNVpytor release ver 1.0 is available to install!**
 
+## Learn how to use CNVpytor in 10 minutes
+
+* [Geting started](GettingStarted.md) with command line interface
+* [Jupyter notebook](examples/CNVpytor.ipynb): How to use CNVpytor from Python 
 
 ## Gallery
 
@@ -16,10 +20,6 @@ CNVpytor is a Python package and command line tool for CNV analysis from depth-o
 | Region plot ([see example](examples/region.md))| Compare regions ([see example](examples/compare.md))|
 |<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/region.png" width="512px">|<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/compare.png" width="512px">|
 
-## Learn how to use CNVpytor in 10 minutes
-
-* [Geting started](GettingStarted.md) with command line interface
-* [Jupyter notebook](examples/CNVpytor.ipynb): How to use CNVpytor from Python 
 
 ## Install
 
@@ -66,7 +66,7 @@ For single user (without admin privileges) use:
 
 _Diagram made using [Draw.io](https://github.com/jgraph/drawio)._ 
 
-### Call CNV using read depth:
+### Call CNVs using read depth:
 ```
 > cnvpytor -root file.pytor -rd file.bam
 > cnvpytor -root file.pytor -his 1000 10000 100000
@@ -168,7 +168,10 @@ cnvpytor> chr1:1M-50M chr2:60M-65M > filename.png
 
 CNVpytor is not just command line tool but also Python package. 
 
-For more details check [API Documentation](https://abyzovlab.github.io/CNVpytor/)
+For more details check [API Documentation](https://abyzovlab.github.io/CNVpytor/) or 
+see examples in [Jupyter notebook](examples/CNVpytor.ipynb).
+
+
 ## Export
 ### 1. CNVpytor data visualization using JBrowse
 #### JBrowse version and plugins

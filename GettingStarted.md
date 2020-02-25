@@ -57,4 +57,6 @@ Using reference genome: hg19 [ GC: yes, mask: yes ]
 
 ## Ploting
 
+## Visualize CNVpytor data inside [JBrowse](https://github.com/GMOD/jbrowse)
+
 ## Other
