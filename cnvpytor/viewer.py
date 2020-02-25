@@ -316,7 +316,7 @@ class Viewer(Show, Figure, HelpDescription):
                 elif current == "circular":
                     self.circular()
                 elif current == "regions":
-                    self.multiple_regions(int(p), regions, panels=self.panels)
+                    self.multiple_regions(regions)
                     regions = []
             elif p == "rdstat":
                 self.stat()
@@ -885,12 +885,16 @@ class Viewer(Show, Figure, HelpDescription):
         self.fig_show(suffix="manhattan" if plot_type == "rd" else "snp_calls", bottom=0.02, top=0.92,
                       wspace=0, hspace=0.2, left=0.02, right=0.98)
 
-    def multiple_regions(self, bin_size, regions, panels=["rd"], sep_color="g"):
-        n = len(self.plot_files)
+    def multiple_regions(self, regions):
+        bin_size = self.bin_size
+        n = len(self.plot_files) * len(regions)
         ix = self.plot_files
         plt.clf()
         plt.rcParams["font.size"] = 8
-        if self.grid == "auto":
+        if len(self.plot_files) > 1 and len(regions) > 1:
+            sx = len(regions)
+            sy = len(self.plot_files)
+        elif self.grid == "auto":
             sx, sy = self._panels_shape(n)
         else:
             sx, sy = tuple(self.grid)
@@ -899,21 +903,17 @@ class Viewer(Show, Figure, HelpDescription):
             self.fig.set_figheight(3 * sy)
             self.fig.set_figwidth(4 * sx)
         grid = gridspec.GridSpec(sy, sx, wspace=0.2, hspace=0.2)
-        for i in range(n):
+        j = 0
+        for i in range(len(self.plot_files)):
             for r in regions:
-                self.regions(ix[i], grid[i], bin_size, r, panels=panels, sep_color=sep_color)
-        plt.subplots_adjust(bottom=0.05, top=0.95, wspace=0, hspace=0, left=0.05, right=0.95)
+                self.regions(ix[i], grid[j], r)
+                j += 1
+        self.fig_show(suffix="regions", bottom=0.05, top=0.95, wspace=0, hspace=0, left=0.05, right=0.95)
 
-        if self.output_filename != "":
-            plt.savefig(self._image_filename("regions"), dpi=150)
-            plt.close(self.fig)
-        elif self.interactive:
-            plt.show(block=False)
-            plt.draw()
-        else:
-            plt.show()
 
-    def regions(self, ix, element, bin_size, region, panels=["rd"], sep_color="g"):
+    def regions(self, ix, element, region):
+        panels = self.panels
+        bin_size = self.bin_size
         snp_flag = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0) | (
             FLAG_USEHAP if self.snp_use_phase else 0)
         grid = gridspec.GridSpecFromSubplotSpec(len(panels), 1, subplot_spec=element, wspace=0, hspace=0.1)
@@ -986,7 +986,7 @@ class Viewer(Show, Figure, HelpDescription):
                 if len(g_p_call_mosaic) > 0:
                     plt.step(g_p_call_mosaic, self.rd_colors[4])
                 for i in borders[:-1]:
-                    ax.axvline(i, color=sep_color, lw=1)
+                    ax.axvline(i, color="g", lw=1)
                 self.fig.add_subplot(ax)
 
             elif panels[i] == "snp":
@@ -1027,7 +1027,7 @@ class Viewer(Show, Figure, HelpDescription):
                     ax.scatter(hpos, baf, marker='.', edgecolor=color, c=color, s=self.markersize, alpha=0.7)
 
                 for i in borders[:-1]:
-                    ax.axvline(i, color=sep_color, lw=1)
+                    ax.axvline(i, color="g", lw=1)
                 self.fig.add_subplot(ax)
 
             elif panels[i] == "snv" or panels[i][:4] == "snv:":
@@ -1071,7 +1071,7 @@ class Viewer(Show, Figure, HelpDescription):
                     ax.scatter(hpos, baf, marker='.', edgecolor=color, c=color, s=self.markersize, alpha=0.7)
 
                 for i in borders[:-1]:
-                    ax.axvline(i, color=sep_color, lw=1)
+                    ax.axvline(i, color="g", lw=1)
                 self.fig.add_subplot(ax)
 
             elif panels[i] == "baf":
@@ -1106,7 +1106,7 @@ class Viewer(Show, Figure, HelpDescription):
                 ax.step(g_maf, self.baf_colors[1])
                 ax.step(g_i1, self.baf_colors[2])
                 for i in borders[:-1]:
-                    ax.axvline(i, color=sep_color, lw=1)
+                    ax.axvline(i, color="g", lw=1)
                 self.fig.add_subplot(ax)
 
             elif panels[i] == "likelihood":
@@ -1159,7 +1159,7 @@ class Viewer(Show, Figure, HelpDescription):
                                     marker='_')
 
                 for i in borders[:-1]:
-                    ax.axvline(i + 0.5, color=sep_color, lw=1)
+                    ax.axvline(i + 0.5, color="g", lw=1)
                 self.fig.add_subplot(ax)
 
     def circular(self):

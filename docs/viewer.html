@@ -342,7 +342,7 @@ class Viewer(Show, Figure, HelpDescription):
                 elif current == &#34;circular&#34;:
                     self.circular()
                 elif current == &#34;regions&#34;:
-                    self.multiple_regions(int(p), regions, panels=self.panels)
+                    self.multiple_regions(regions)
                     regions = []
             elif p == &#34;rdstat&#34;:
                 self.stat()
@@ -911,12 +911,16 @@ class Viewer(Show, Figure, HelpDescription):
         self.fig_show(suffix=&#34;manhattan&#34; if plot_type == &#34;rd&#34; else &#34;snp_calls&#34;, bottom=0.02, top=0.92,
                       wspace=0, hspace=0.2, left=0.02, right=0.98)
 
-    def multiple_regions(self, bin_size, regions, panels=[&#34;rd&#34;], sep_color=&#34;g&#34;):
-        n = len(self.plot_files)
+    def multiple_regions(self, regions):
+        bin_size = self.bin_size
+        n = len(self.plot_files) * len(regions)
         ix = self.plot_files
         plt.clf()
         plt.rcParams[&#34;font.size&#34;] = 8
-        if self.grid == &#34;auto&#34;:
+        if len(self.plot_files) &gt; 1 and len(regions) &gt; 1:
+            sx = len(regions)
+            sy = len(self.plot_files)
+        elif self.grid == &#34;auto&#34;:
             sx, sy = self._panels_shape(n)
         else:
             sx, sy = tuple(self.grid)
@@ -925,21 +929,17 @@ class Viewer(Show, Figure, HelpDescription):
             self.fig.set_figheight(3 * sy)
             self.fig.set_figwidth(4 * sx)
         grid = gridspec.GridSpec(sy, sx, wspace=0.2, hspace=0.2)
-        for i in range(n):
+        j = 0
+        for i in range(len(self.plot_files)):
             for r in regions:
-                self.regions(ix[i], grid[i], bin_size, r, panels=panels, sep_color=sep_color)
-        plt.subplots_adjust(bottom=0.05, top=0.95, wspace=0, hspace=0, left=0.05, right=0.95)
+                self.regions(ix[i], grid[j], r)
+                j += 1
+        self.fig_show(suffix=&#34;regions&#34;, bottom=0.05, top=0.95, wspace=0, hspace=0, left=0.05, right=0.95)
 
-        if self.output_filename != &#34;&#34;:
-            plt.savefig(self._image_filename(&#34;regions&#34;), dpi=150)
-            plt.close(self.fig)
-        elif self.interactive:
-            plt.show(block=False)
-            plt.draw()
-        else:
-            plt.show()
 
-    def regions(self, ix, element, bin_size, region, panels=[&#34;rd&#34;], sep_color=&#34;g&#34;):
+    def regions(self, ix, element, region):
+        panels = self.panels
+        bin_size = self.bin_size
         snp_flag = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0) | (
             FLAG_USEHAP if self.snp_use_phase else 0)
         grid = gridspec.GridSpecFromSubplotSpec(len(panels), 1, subplot_spec=element, wspace=0, hspace=0.1)
@@ -1012,7 +1012,7 @@ class Viewer(Show, Figure, HelpDescription):
                 if len(g_p_call_mosaic) &gt; 0:
                     plt.step(g_p_call_mosaic, self.rd_colors[4])
                 for i in borders[:-1]:
-                    ax.axvline(i, color=sep_color, lw=1)
+                    ax.axvline(i, color=&#34;g&#34;, lw=1)
                 self.fig.add_subplot(ax)
 
             elif panels[i] == &#34;snp&#34;:
@@ -1053,7 +1053,7 @@ class Viewer(Show, Figure, HelpDescription):
                     ax.scatter(hpos, baf, marker=&#39;.&#39;, edgecolor=color, c=color, s=self.markersize, alpha=0.7)
 
                 for i in borders[:-1]:
-                    ax.axvline(i, color=sep_color, lw=1)
+                    ax.axvline(i, color=&#34;g&#34;, lw=1)
                 self.fig.add_subplot(ax)
 
             elif panels[i] == &#34;snv&#34; or panels[i][:4] == &#34;snv:&#34;:
@@ -1097,7 +1097,7 @@ class Viewer(Show, Figure, HelpDescription):
                     ax.scatter(hpos, baf, marker=&#39;.&#39;, edgecolor=color, c=color, s=self.markersize, alpha=0.7)
 
                 for i in borders[:-1]:
-                    ax.axvline(i, color=sep_color, lw=1)
+                    ax.axvline(i, color=&#34;g&#34;, lw=1)
                 self.fig.add_subplot(ax)
 
             elif panels[i] == &#34;baf&#34;:
@@ -1132,7 +1132,7 @@ class Viewer(Show, Figure, HelpDescription):
                 ax.step(g_maf, self.baf_colors[1])
                 ax.step(g_i1, self.baf_colors[2])
                 for i in borders[:-1]:
-                    ax.axvline(i, color=sep_color, lw=1)
+                    ax.axvline(i, color=&#34;g&#34;, lw=1)
                 self.fig.add_subplot(ax)
 
             elif panels[i] == &#34;likelihood&#34;:
@@ -1185,7 +1185,7 @@ class Viewer(Show, Figure, HelpDescription):
                                     marker=&#39;_&#39;)
 
                 for i in borders[:-1]:
-                    ax.axvline(i + 0.5, color=sep_color, lw=1)
+                    ax.axvline(i + 0.5, color=&#34;g&#34;, lw=1)
                 self.fig.add_subplot(ax)
 
     def circular(self):
@@ -2412,7 +2412,7 @@ rd level and corresponding stdev for each chromosome type (autosomes, sex chromo
                 elif current == &#34;circular&#34;:
                     self.circular()
                 elif current == &#34;regions&#34;:
-                    self.multiple_regions(int(p), regions, panels=self.panels)
+                    self.multiple_regions(regions)
                     regions = []
             elif p == &#34;rdstat&#34;:
                 self.stat()
@@ -2981,12 +2981,16 @@ rd level and corresponding stdev for each chromosome type (autosomes, sex chromo
         self.fig_show(suffix=&#34;manhattan&#34; if plot_type == &#34;rd&#34; else &#34;snp_calls&#34;, bottom=0.02, top=0.92,
                       wspace=0, hspace=0.2, left=0.02, right=0.98)
 
-    def multiple_regions(self, bin_size, regions, panels=[&#34;rd&#34;], sep_color=&#34;g&#34;):
-        n = len(self.plot_files)
+    def multiple_regions(self, regions):
+        bin_size = self.bin_size
+        n = len(self.plot_files) * len(regions)
         ix = self.plot_files
         plt.clf()
         plt.rcParams[&#34;font.size&#34;] = 8
-        if self.grid == &#34;auto&#34;:
+        if len(self.plot_files) &gt; 1 and len(regions) &gt; 1:
+            sx = len(regions)
+            sy = len(self.plot_files)
+        elif self.grid == &#34;auto&#34;:
             sx, sy = self._panels_shape(n)
         else:
             sx, sy = tuple(self.grid)
@@ -2995,21 +2999,17 @@ rd level and corresponding stdev for each chromosome type (autosomes, sex chromo
             self.fig.set_figheight(3 * sy)
             self.fig.set_figwidth(4 * sx)
         grid = gridspec.GridSpec(sy, sx, wspace=0.2, hspace=0.2)
-        for i in range(n):
+        j = 0
+        for i in range(len(self.plot_files)):
             for r in regions:
-                self.regions(ix[i], grid[i], bin_size, r, panels=panels, sep_color=sep_color)
-        plt.subplots_adjust(bottom=0.05, top=0.95, wspace=0, hspace=0, left=0.05, right=0.95)
+                self.regions(ix[i], grid[j], r)
+                j += 1
+        self.fig_show(suffix=&#34;regions&#34;, bottom=0.05, top=0.95, wspace=0, hspace=0, left=0.05, right=0.95)
 
-        if self.output_filename != &#34;&#34;:
-            plt.savefig(self._image_filename(&#34;regions&#34;), dpi=150)
-            plt.close(self.fig)
-        elif self.interactive:
-            plt.show(block=False)
-            plt.draw()
-        else:
-            plt.show()
 
-    def regions(self, ix, element, bin_size, region, panels=[&#34;rd&#34;], sep_color=&#34;g&#34;):
+    def regions(self, ix, element, region):
+        panels = self.panels
+        bin_size = self.bin_size
         snp_flag = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0) | (
             FLAG_USEHAP if self.snp_use_phase else 0)
         grid = gridspec.GridSpecFromSubplotSpec(len(panels), 1, subplot_spec=element, wspace=0, hspace=0.1)
@@ -3082,7 +3082,7 @@ rd level and corresponding stdev for each chromosome type (autosomes, sex chromo
                 if len(g_p_call_mosaic) &gt; 0:
                     plt.step(g_p_call_mosaic, self.rd_colors[4])
                 for i in borders[:-1]:
-                    ax.axvline(i, color=sep_color, lw=1)
+                    ax.axvline(i, color=&#34;g&#34;, lw=1)
                 self.fig.add_subplot(ax)
 
             elif panels[i] == &#34;snp&#34;:
@@ -3123,7 +3123,7 @@ rd level and corresponding stdev for each chromosome type (autosomes, sex chromo
                     ax.scatter(hpos, baf, marker=&#39;.&#39;, edgecolor=color, c=color, s=self.markersize, alpha=0.7)
 
                 for i in borders[:-1]:
-                    ax.axvline(i, color=sep_color, lw=1)
+                    ax.axvline(i, color=&#34;g&#34;, lw=1)
                 self.fig.add_subplot(ax)
 
             elif panels[i] == &#34;snv&#34; or panels[i][:4] == &#34;snv:&#34;:
@@ -3167,7 +3167,7 @@ rd level and corresponding stdev for each chromosome type (autosomes, sex chromo
                     ax.scatter(hpos, baf, marker=&#39;.&#39;, edgecolor=color, c=color, s=self.markersize, alpha=0.7)
 
                 for i in borders[:-1]:
-                    ax.axvline(i, color=sep_color, lw=1)
+                    ax.axvline(i, color=&#34;g&#34;, lw=1)
                 self.fig.add_subplot(ax)
 
             elif panels[i] == &#34;baf&#34;:
@@ -3202,7 +3202,7 @@ rd level and corresponding stdev for each chromosome type (autosomes, sex chromo
                 ax.step(g_maf, self.baf_colors[1])
                 ax.step(g_i1, self.baf_colors[2])
                 for i in borders[:-1]:
-                    ax.axvline(i, color=sep_color, lw=1)
+                    ax.axvline(i, color=&#34;g&#34;, lw=1)
                 self.fig.add_subplot(ax)
 
             elif panels[i] == &#34;likelihood&#34;:
@@ -3255,7 +3255,7 @@ rd level and corresponding stdev for each chromosome type (autosomes, sex chromo
                                     marker=&#39;_&#39;)
 
                 for i in borders[:-1]:
-                    ax.axvline(i + 0.5, color=sep_color, lw=1)
+                    ax.axvline(i + 0.5, color=&#34;g&#34;, lw=1)
                 self.fig.add_subplot(ax)
 
     def circular(self):
@@ -4266,18 +4266,22 @@ def set_style(style):
 </details>
 </dd>
 <dt id="cnvpytor.viewer.Viewer.multiple_regions"><code class="name flex">
-<span>def <span class="ident">multiple_regions</span></span>(<span>self, bin_size, regions, panels=['rd'], sep_color='g')</span>
+<span>def <span class="ident">multiple_regions</span></span>(<span>self, regions)</span>
 </code></dt>
 <dd>
 <section class="desc"></section>
 <details class="source">
 <summary>Source code</summary>
-<pre><code class="python">def multiple_regions(self, bin_size, regions, panels=[&#34;rd&#34;], sep_color=&#34;g&#34;):
-    n = len(self.plot_files)
+<pre><code class="python">def multiple_regions(self, regions):
+    bin_size = self.bin_size
+    n = len(self.plot_files) * len(regions)
     ix = self.plot_files
     plt.clf()
     plt.rcParams[&#34;font.size&#34;] = 8
-    if self.grid == &#34;auto&#34;:
+    if len(self.plot_files) &gt; 1 and len(regions) &gt; 1:
+        sx = len(regions)
+        sy = len(self.plot_files)
+    elif self.grid == &#34;auto&#34;:
         sx, sy = self._panels_shape(n)
     else:
         sx, sy = tuple(self.grid)
@@ -4286,19 +4290,12 @@ def set_style(style):
         self.fig.set_figheight(3 * sy)
         self.fig.set_figwidth(4 * sx)
     grid = gridspec.GridSpec(sy, sx, wspace=0.2, hspace=0.2)
-    for i in range(n):
+    j = 0
+    for i in range(len(self.plot_files)):
         for r in regions:
-            self.regions(ix[i], grid[i], bin_size, r, panels=panels, sep_color=sep_color)
-    plt.subplots_adjust(bottom=0.05, top=0.95, wspace=0, hspace=0, left=0.05, right=0.95)
-
-    if self.output_filename != &#34;&#34;:
-        plt.savefig(self._image_filename(&#34;regions&#34;), dpi=150)
-        plt.close(self.fig)
-    elif self.interactive:
-        plt.show(block=False)
-        plt.draw()
-    else:
-        plt.show()</code></pre>
+            self.regions(ix[i], grid[j], r)
+            j += 1
+    self.fig_show(suffix=&#34;regions&#34;, bottom=0.05, top=0.95, wspace=0, hspace=0, left=0.05, right=0.95)</code></pre>
 </details>
 </dd>
 <dt id="cnvpytor.viewer.Viewer.parse"><code class="name flex">
@@ -4330,7 +4327,7 @@ def set_style(style):
             elif current == &#34;circular&#34;:
                 self.circular()
             elif current == &#34;regions&#34;:
-                self.multiple_regions(int(p), regions, panels=self.panels)
+                self.multiple_regions(regions)
                 regions = []
         elif p == &#34;rdstat&#34;:
             self.stat()
@@ -4713,13 +4710,15 @@ def set_style(style):
 </details>
 </dd>
 <dt id="cnvpytor.viewer.Viewer.regions"><code class="name flex">
-<span>def <span class="ident">regions</span></span>(<span>self, ix, element, bin_size, region, panels=['rd'], sep_color='g')</span>
+<span>def <span class="ident">regions</span></span>(<span>self, ix, element, region)</span>
 </code></dt>
 <dd>
 <section class="desc"></section>
 <details class="source">
 <summary>Source code</summary>
-<pre><code class="python">def regions(self, ix, element, bin_size, region, panels=[&#34;rd&#34;], sep_color=&#34;g&#34;):
+<pre><code class="python">def regions(self, ix, element, region):
+    panels = self.panels
+    bin_size = self.bin_size
     snp_flag = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0) | (
         FLAG_USEHAP if self.snp_use_phase else 0)
     grid = gridspec.GridSpecFromSubplotSpec(len(panels), 1, subplot_spec=element, wspace=0, hspace=0.1)
@@ -4792,7 +4791,7 @@ def set_style(style):
             if len(g_p_call_mosaic) &gt; 0:
                 plt.step(g_p_call_mosaic, self.rd_colors[4])
             for i in borders[:-1]:
-                ax.axvline(i, color=sep_color, lw=1)
+                ax.axvline(i, color=&#34;g&#34;, lw=1)
             self.fig.add_subplot(ax)
 
         elif panels[i] == &#34;snp&#34;:
@@ -4833,7 +4832,7 @@ def set_style(style):
                 ax.scatter(hpos, baf, marker=&#39;.&#39;, edgecolor=color, c=color, s=self.markersize, alpha=0.7)
 
             for i in borders[:-1]:
-                ax.axvline(i, color=sep_color, lw=1)
+                ax.axvline(i, color=&#34;g&#34;, lw=1)
             self.fig.add_subplot(ax)
 
         elif panels[i] == &#34;snv&#34; or panels[i][:4] == &#34;snv:&#34;:
@@ -4877,7 +4876,7 @@ def set_style(style):
                 ax.scatter(hpos, baf, marker=&#39;.&#39;, edgecolor=color, c=color, s=self.markersize, alpha=0.7)
 
             for i in borders[:-1]:
-                ax.axvline(i, color=sep_color, lw=1)
+                ax.axvline(i, color=&#34;g&#34;, lw=1)
             self.fig.add_subplot(ax)
 
         elif panels[i] == &#34;baf&#34;:
@@ -4912,7 +4911,7 @@ def set_style(style):
             ax.step(g_maf, self.baf_colors[1])
             ax.step(g_i1, self.baf_colors[2])
             for i in borders[:-1]:
-                ax.axvline(i, color=sep_color, lw=1)
+                ax.axvline(i, color=&#34;g&#34;, lw=1)
             self.fig.add_subplot(ax)
 
         elif panels[i] == &#34;likelihood&#34;:
@@ -4965,7 +4964,7 @@ def set_style(style):
                                 marker=&#39;_&#39;)
 
             for i in borders[:-1]:
-                ax.axvline(i + 0.5, color=sep_color, lw=1)
+                ax.axvline(i + 0.5, color=&#34;g&#34;, lw=1)
             self.fig.add_subplot(ax)</code></pre>
 </details>
 </dd>
