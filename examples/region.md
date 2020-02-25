@@ -6,22 +6,22 @@ Import RD signal for each sample from bam/sam/cram file and calculate histograms
 It can be any positive integer divisible by 100. We use 100000 in this example
 
 ```
-> cnvpytor -root sample.root -rd sample.bam
-> cnvpytor -root sample.root -his 100000
+> cnvpytor -root sample.pytor -rd sample.bam
+> cnvpytor -root sample.pytor -his 100000
 ```
 
 Import BAF signal for each sample from vcf file and calculate histograms with specified bin size. 
 
 ```
-> cnvpytor -root sample.root -snp sample.vcf.gz
-> cnvpytor -root sample.root -mask_snps
-> cnvpytor -root sample.root -baf 100000
+> cnvpytor -root sample.pytor -snp sample.vcf.gz
+> cnvpytor -root sample.pytor -mask_snps
+> cnvpytor -root sample.pytor -baf 100000
 ```
 Second line is used to filter out all SNP-s that are not in P-region of the strict 1kG mask.
 
 Enter interactive plotting mode with all sample you want to plot listed:
 ```
-> cnvpytor -root sample1.root sample2.root sample3.root sample4.root -view 100000
+> cnvpytor -root sample1.pytor sample2.pytor sample3.pytor sample4.pytor -view 100000
 
 cnvpytor> set style classic
 cnvpytor> set rd_use_mask
