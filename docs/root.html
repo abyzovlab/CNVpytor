@@ -319,7 +319,7 @@ class Root:
                 self.io_gc = IO(Genome.reference_genomes[rg_name][&#34;gc_file&#34;])
                 self.rd_stat()
 
-    def vcf(self, vcf_files, chroms=[], sample=&#39;&#39;, no_counts=False, ad_tag=&#34;AD&#34;, gt_tag=&#34;GT&#34;, callset=None):
+    def vcf(self, vcf_files, chroms=[], sample=&#39;&#39;, no_counts=False, ad_tag=&#34;AD&#34;, gt_tag=&#34;GT&#34;, callset=None, use_index=False):
         &#34;&#34;&#34; Read SNP data from variant file(s) and store in .cnvpytor file
 
         Parameters
@@ -339,11 +339,13 @@ class Root:
         callset : str or None
             It will assume SNP data if None. Otherwise it will assume SNV data and
             store under the name provided by callset variable.
+        use_index : bool
+            Use index file for vcf parsing. Default is False.
 
         &#34;&#34;&#34;
         for vcf_file in vcf_files:
             self._read_vcf(vcf_file, chroms, sample, no_counts=no_counts, ad_tag=ad_tag, gt_tag=gt_tag,
-                                 callset=callset)
+                                 callset=callset, use_index=use_index)
             self.io.add_meta_attribute(&#34;VCF&#34;, vcf_file)
 
     def rd_from_vcf(self, vcf_file, chroms=[], sample=&#39;&#39;, ad_tag=&#34;AD&#34;, dp_tag=&#34;DP&#34;, use_index=False):
@@ -4035,7 +4037,7 @@ stored under the name provided by callset variable.</dd>
 </details>
 </dd>
 <dt id="cnvpytor.root.Root.vcf"><code class="name flex">
-<span>def <span class="ident">vcf</span></span>(<span>self, vcf_files, chroms=[], sample='', no_counts=False, ad_tag='AD', gt_tag='GT', callset=None)</span>
+<span>def <span class="ident">vcf</span></span>(<span>self, vcf_files, chroms=[], sample='', no_counts=False, ad_tag='AD', gt_tag='GT', callset=None, use_index=False)</span>
 </code></dt>
 <dd>
 <section class="desc"><p>Read SNP data from variant file(s) and store in .cnvpytor file</p>
@@ -4056,10 +4058,12 @@ stored under the name provided by callset variable.</dd>
 <dt><strong><code>callset</code></strong> :&ensp;<code>str</code> or <code>None</code></dt>
 <dd>It will assume SNP data if None. Otherwise it will assume SNV data and
 store under the name provided by callset variable.</dd>
+<dt><strong><code>use_index</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Use index file for vcf parsing. Default is False.</dd>
 </dl></section>
 <details class="source">
 <summary>Source code</summary>
-<pre><code class="python">def vcf(self, vcf_files, chroms=[], sample=&#39;&#39;, no_counts=False, ad_tag=&#34;AD&#34;, gt_tag=&#34;GT&#34;, callset=None):
+<pre><code class="python">def vcf(self, vcf_files, chroms=[], sample=&#39;&#39;, no_counts=False, ad_tag=&#34;AD&#34;, gt_tag=&#34;GT&#34;, callset=None, use_index=False):
     &#34;&#34;&#34; Read SNP data from variant file(s) and store in .cnvpytor file
 
     Parameters
@@ -4079,11 +4083,13 @@ store under the name provided by callset variable.</dd>
     callset : str or None
         It will assume SNP data if None. Otherwise it will assume SNV data and
         store under the name provided by callset variable.
+    use_index : bool
+        Use index file for vcf parsing. Default is False.
 
     &#34;&#34;&#34;
     for vcf_file in vcf_files:
         self._read_vcf(vcf_file, chroms, sample, no_counts=no_counts, ad_tag=ad_tag, gt_tag=gt_tag,
-                             callset=callset)
+                             callset=callset, use_index=use_index)
         self.io.add_meta_attribute(&#34;VCF&#34;, vcf_file)</code></pre>
 </details>
 </dd>

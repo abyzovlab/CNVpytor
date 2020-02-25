@@ -41,11 +41,13 @@ class ViewParams(object):
     default = {
         &#34;bin_size&#34;: None,
         &#34;panels&#34;: [&#34;rd&#34;],
+        &#34;rd_raw&#34;: True,
         &#34;rd_partition&#34;: True,
         &#34;rd_call&#34;: True,
         &#34;rd_call_mosaic&#34;: False,
         &#34;rd_use_mask&#34;: False,
         &#34;rd_use_gc_corr&#34;: True,
+        &#34;rd_range&#34; : [0, 3],
         &#34;rd_manhattan_range&#34;: [0, 2],
         &#34;rd_manhattan_call&#34;: False,
         &#34;snp_use_mask&#34;: True,
@@ -53,10 +55,12 @@ class ViewParams(object):
         &#34;snp_use_phase&#34;: False,
         &#34;snp_call&#34;: False,
         &#34;markersize&#34;: &#34;auto&#34;,
-        &#34;rd_colors&#34;: &#34;&#34;,
+        &#34;rd_colors&#34;: [&#34;grey&#34;,&#34;black&#34;,&#34;red&#34;,&#34;green&#34;,&#34;blue&#34;],
         &#34;snp_colors&#34;: [&#34;yellow&#34;, &#34;orange&#34;, &#34;cyan&#34;, &#34;blue&#34;, &#34;lime&#34;, &#34;green&#34;, &#34;yellow&#34;, &#34;orange&#34;],
-        &#34;baf_colors&#34;: &#34;&#34;,
-        &#34;lh_colors&#34;: &#34;&#34;,
+        &#34;rd_circular_colors&#34;: [&#34;#555555&#34;, &#34;#aaaaaa&#34;],
+        &#34;snp_circular_colors&#34;: [&#34;#00ff00&#34;, &#34;#0000ff&#34;],
+        &#34;baf_colors&#34;: [&#34;gray&#34;,&#34;black&#34;,&#34;red&#34;,&#34;green&#34;,&#34;blue&#34;],
+        &#34;lh_colors&#34;: [&#34;yellow&#34;],
         &#34;plot_files&#34;: [],
         &#34;plot_file&#34;: 0,
         &#34;file_titles&#34;: [],
@@ -64,9 +68,8 @@ class ViewParams(object):
         &#34;style&#34;: None,
         &#34;grid&#34;: &#34;auto&#34;,
         &#34;xkcd&#34;: False,
+        &#34;dpi&#34;: 200,
         &#34;output_filename&#34;: &#34;&#34;,
-        &#34;palette1&#34;: [&#34;#555555&#34;, &#34;#aaaaaa&#34;],
-        &#34;palette2&#34;: [&#34;#00ff00&#34;, &#34;#0000ff&#34;],
         &#34;contrast&#34;: 20,
         &#34;min_segment_size&#34;: 0
     }
@@ -77,44 +80,82 @@ class ViewParams(object):
                 setattr(self, key, params[key])
             else:
                 setattr(self, key, self.default[key])
+        for p in self.params:
+            self.command_tree[&#34;set&#34;][p] = None
+            self.command_tree[&#34;unset&#34;][p] = None
+        for c in self.param_help:
+            self.command_tree[&#34;help&#34;][c] = None
+        self.command_tree[&#34;set&#34;][&#34;panels&#34;] = {}
+        for panel1 in [&#34;rd&#34;, &#34;likelihood&#34;, &#34;snp&#34;, &#34;baf&#34;, &#34;snv&#34;]:
+            self.command_tree[&#34;set&#34;][&#34;panels&#34;][panel1] = self.command_tree[&#34;set&#34;][&#34;panels&#34;]
 
     def set(self, param, args):
         if param in self.params and self.params[param] is False:
             self.__setattr__(param, True)
-        elif param == &#34;bin_size&#34; and len(args) &gt; 0:
-            self.__setattr__(param, args[0])
-        elif param == &#34;contrast&#34; and len(args) &gt; 0:
-            self.__setattr__(param, float(args[0]))
-        elif param == &#34;markersize&#34; and len(args) &gt; 0:
-            if args[0] == &#34;auto&#34;:
-                self.__setattr__(param, &#34;auto&#34;)
-            else:
+        elif param.find(&#34;.&#34;)&gt;0:
+            sp = param.split(&#34;.&#34;)
+            if len(sp)==2 and (sp[0] in self.params) and sp[0][-7:]==&#34;_colors&#34; and sp[1].isdigit():
+                ix = int(sp[1])
+                self.params[sp[0]][ix] = args[0]
+
+        elif param == &#34;bin_size&#34;:
+            if len(args) &gt; 0:
+                self.__setattr__(param, args[0])
+        elif param == &#34;contrast&#34;:
+            if len(args) &gt; 0:
                 self.__setattr__(param, float(args[0]))
-        elif param == &#34;grid&#34; and len(args) &gt; 0:
-            if args[0] == &#34;auto&#34;:
-                self.__setattr__(param, &#34;auto&#34;)
-            else:
-                self.__setattr__(param, list(map(int, args)))
-        elif param == &#34;manhattan_range&#34; and len(args) &gt; 0:
-            self.__setattr__(param, list(map(float, args)))
-        elif param == &#34;min_segment_size&#34; and len(args) &gt; 0:
-            self.__setattr__(param, int(args[0]))
-        elif param == &#34;output_filename&#34; and len(args) &gt; 0:
-            self.__setattr__(param, args[0])
-        elif param == &#34;plot_file&#34; and len(args) &gt; 0:
-            self.__setattr__(param, int(args[0]))
+        elif param == &#34;markersize&#34;:
+            if len(args) &gt; 0:
+                if args[0] == &#34;auto&#34;:
+                    self.__setattr__(param, &#34;auto&#34;)
+                else:
+                    self.__setattr__(param, float(args[0]))
+        elif param == &#34;grid&#34;:
+            if len(args) &gt; 0:
+                if args[0] == &#34;auto&#34;:
+                    self.__setattr__(param, &#34;auto&#34;)
+                else:
+                    self.__setattr__(param, list(map(int, args[:2])))
+        elif param == &#34;dpi&#34;:
+            if len(args) &gt; 0:
+                self.__setattr__(param, int(args[0]))
+        elif param == &#34;rd_range&#34;:
+            if len(args) &gt; 1:
+                self.__setattr__(param, list(map(float, args[:2])))
+        elif param == &#34;rd_manhattan_range&#34;:
+            if len(args) &gt; 1:
+                self.__setattr__(param, list(map(float, args[:2])))
+        elif param == &#34;min_segment_size&#34;:
+            if len(args) &gt; 0:
+                self.__setattr__(param, int(args[0]))
+        elif param == &#34;output_filename&#34;:
+            if len(args) &gt; 0:
+                self.__setattr__(param, args[0])
+        elif param == &#34;plot_file&#34;:
+            if len(args) &gt; 0:
+                self.__setattr__(param, int(args[0]))
         elif param == &#34;plot_files&#34;:
             self.__setattr__(param, list(map(int, args)))
         elif param == &#34;style&#34;:
-            self.__setattr__(param, args[0])
+            if len(args) &gt; 0:
+                self.__setattr__(param, args[0])
         elif param in self.params and self.params[param] is not True:
             self.__setattr__(param, args)
+        if param in self.params:
+            print(&#34;    * %s: %s&#34; % (param, str(self.params[param])))
+        else:
+            sp = param.split(&#34;.&#34;)
+            if sp[0] in self.params:
+                print(&#34;    * %s: %s&#34; % (sp[0], str(self.params[sp[0]])))
+
 
     def unset(self, param):
-        if param in self.params and self.params[param] is True:
-            self.__setattr__(param, False)
-        if param in self.params and isinstance(self.params[param], list):
-            self.__setattr__(param, [])
+        if param in self.params:
+            if type(self.default[param]) == type(True):
+                self.__setattr__(param, False)
+            else:
+                self.__setattr__(param, self.default[param])
+            print(&#34;    * %s: %s&#34; % (param, str(self.params[param])))
 
     @property
     def params(self):
@@ -172,6 +213,7 @@ class HelpDescription(object):
         &#34;save&#34;: None,
         &#34;show&#34;: None,
         &#34;quit&#34;: None,
+        &#34;exit&#34;: None,
         &#34;rd&#34;: None,
         &#34;likelihood&#34;: None,
         &#34;baf&#34;: None,
@@ -207,6 +249,17 @@ class HelpDescription(object):
                    &#34;    * circular: circular plots of read-depth and MAF&#34;,
             p_example=&#34;chr1:1M-20M\nchr21\nchr1:1M-20M,chr2:30M-45M chr21&#34;,
             p_see=&#34;regions, rdstat, stat, rd, baf, snp, likelihood, manhattan, calls, circular&#34;
+        ),
+        &#34;regions&#34;: help_format(
+            topic=&#34;Region plot&#34;,
+            p_desc=&#34;Command line is string composed of comma or space separated regions.\n&#34; +
+                   &#34;Regions are defined by string using following format: CHR[:START-END]]\n&#34; +
+                   &#34;If regions are separated by comma they will be ploted in the same subplot. \n&#34; +
+                   &#34;Each region is ploted using multiple panes defined by &#39;panels&#39; parameter.&#34; +
+                   &#34;Available panels are: rd, likelihood, snp, snv, snv:callset&#34;,
+            p_usage=&#34;CHR[:START-END]]&#34;,
+            p_example=&#34;chr1:1M-20M\nchr21\nchr1:1M-20M,chr2:30M-45M chr21&#34;,
+            p_see=&#34;plotting, panels, rdstat, stat, rd, baf, snp, likelihood, manhattan, calls, circular&#34;
         ),
         &#34;signals&#34;: help_format(
             topic=&#34;SIGNALS&#34;,
@@ -260,24 +313,93 @@ class HelpDescription(object):
             topic=&#34;quit&#34;,
             p_desc=&#34;Exists interactive mode.&#34;,
             p_usage=&#34;quit&#34;,
-            p_see=&#34;help&#34;
+            p_see=&#34;help, exit&#34;
         ),
-        &#34;rd&#34;: &#34;&#34;,
-        &#34;likelihood&#34;: &#34;&#34;,
-        &#34;snp&#34;: &#34;&#34;,
-        &#34;baf&#34;: &#34;&#34;,
-        &#34;stat&#34;: &#34;&#34;,
-        &#34;rdstat&#34;: &#34;&#34;,
-        &#34;circular&#34;: &#34;&#34;,
-        &#34;manhattan&#34;: &#34;&#34;,
-        &#34;calls&#34;: &#34;&#34;,
+        &#34;exit&#34;: help_format(
+            topic=&#34;quit&#34;,
+            p_desc=&#34;Exists interactive mode.&#34;,
+            p_usage=&#34;quit&#34;,
+            p_see=&#34;help, quit&#34;
+        ),
+        &#34;rd&#34;: help_format(
+            topic=&#34;rd&#34;,
+            p_desc=&#34;Genome wide plot. Plots rd signal from a single cnvpytor file defined by &#39;plot_file&#39; parameter.&#34;,
+            p_usage=&#34;rd&#34;,
+            p_example=&#34;rd&#34;,
+            p_see=&#34;plotting, regions, panels, rdstat, stat, baf, snp, likelihood, manhattan, calls, circular&#34;
+        ),
+        &#34;likelihood&#34;: help_format(
+            topic=&#34;likelihood&#34;,
+            p_desc=&#34;Genome wide plot. Plots likelihood from a single cnvpytor file defined by &#39;plot_file&#39; parameter.&#34;,
+            p_usage=&#34;likelihood&#34;,
+            p_example=&#34;likelihood&#34;,
+            p_see=&#34;plotting, regions, panels, rd, rdstat, stat, baf, snp, manhattan, calls, circular&#34;
+        ),
+        &#34;snp&#34;: help_format(
+            topic=&#34;snp&#34;,
+            p_desc=&#34;Genome wide plot. Plots SNPs from a single cnvpytor file defined by &#39;plot_file&#39; parameter.&#34;,
+            p_usage=&#34;snp&#34;,
+            p_example=&#34;snp&#34;,
+            p_see=&#34;plotting, regions, panels, rdstat, stat, baf, rd, likelihood, manhattan, calls, circular&#34;
+        ),
+        &#34;baf&#34;: help_format(
+            topic=&#34;baf&#34;,
+            p_desc=&#34;Genome wide plot. Plots baf signals from a single cnvpytor file defined by &#39;plot_file&#39; parameter.&#34;,
+            p_usage=&#34;baf&#34;,
+            p_example=&#34;baf&#34;,
+            p_see=&#34;plotting, regions, panels, rdstat, stat, rd, snp, likelihood, manhattan, calls, circular&#34;
+        ),
+        &#34;stat&#34;: help_format(
+            topic=&#34;stat&#34;,
+            p_desc=&#34;Plot RD distribution and GC correction curve for bin size given by parameter &#39;bin_size&#39;.&#34;,
+            p_usage=&#34;stat&#34;,
+            p_example=&#34;stat&#34;,
+            p_see=&#34;rdstat, plotting, bin_size&#34;
+        ),
+        &#34;rdstat&#34;: help_format(
+            topic=&#34;rdstat&#34;,
+            p_desc=&#34;Plot RD distribution and GC correction curve for 100 bp bin size.&#34;,
+            p_usage=&#34;rdstat&#34;,
+            p_example=&#34;rdstat&#34;,
+            p_see=&#34;stat, plotting&#34;
+        ),
+        &#34;circular&#34;: help_format(
+            topic=&#34;circular&#34;,
+            p_desc=&#34;Plots RD and MAF signal in circular plot for all chromosomes defined by &#39;chrom&#39; parameter.&#34;,
+            p_usage=&#34;circular&#34;,
+            p_example=&#34;circular&#34;,
+            p_see=&#34;plotting, manhattan, chrom, bin_size&#34;
+        ),
+        &#34;manhattan&#34;: help_format(
+            topic=&#34;manhattan&#34;,
+            p_desc=&#34;Scatter plot of RD signal for all chromosomes defined by &#39;chrom&#39; parameter.&#34;,
+            p_usage=&#34;manhattan&#34;,
+            p_example=&#34;manhattan&#34;,
+            p_see=&#34;plotting, circular, chrom, bin_size&#34;
+        ),
+        &#34;calls&#34;: help_format(
+            topic=&#34;calls&#34;,
+            p_desc=&#34;Line plot of SNP calls for all chromosomes defined by &#39;chrom&#39; parameter.&#34;,
+            p_usage=&#34;calls&#34;,
+            p_example=&#34;calls&#34;,
+            p_see=&#34;plotting, manhattan, chrom, bin_size&#34;
+        ),
+        &#34;compare&#34;: help_format(
+            topic=&#34;compare&#34;,
+            p_desc=&#34;Compare RD in two genomic regions. Plot and print statistics to stdout for each file\n&#34; +
+                   &#34;defined by &#39;plot_files&#39; parameter. Printed columns are:\n&#34; +
+                   &#34;filename, REGION1, REGION2, mean rd in REGION1, stdev in REGION1\n&#34; +
+                   &#34;mean rd in REGION2, stdev in REGION2, t-test P value, RD ratio, RD ratio error.&#34;,
+            p_usage=&#34;compare REGION1 REGION2&#34;,
+            p_example=&#34;compare 1:10M-20M 2:25M-45M\ncompare 1 X&#34;,
+            p_see=&#34;rdstat, stat&#34;
+        ),
         &#34;ls&#34;: help_format(
             topic=&#34;ls&#34;,
             p_desc=&#34;Print content of pytor files&#34;,
             p_usage=&#34;ls&#34;,
             p_see=&#34;show&#34;
         ),
-        &#34;compare&#34;: &#34;&#34;,
         &#34;bin_size&#34;: help_format(
             topic=&#34;bin_size&#34;,
             p_desc=&#34;Size of bins used for plotting&#34;,
@@ -320,22 +442,94 @@ class HelpDescription(object):
         ),
         &#34;rd_call_mosaic&#34;: help_format(
             topic=&#34;rd_call_mosaic&#34;,
-            p_desc=&#34;Enables plotting mosaic call signal in rd plots&#34;,
+            p_desc=&#34;Enables plotting mosaic call signal in rd plots (calculated using -call mosaic option)&#34;,
             p_type=&#34;bool&#34;,
             p_default=str(default[&#34;rd_call_mosaic&#34;]),
             p_affects=&#34;region plot, rd&#34;,
             p_example=&#34;set rd_call_mosaic\nunset rd_call_mosaic&#34;,
             p_see=&#34;rd_partition, rd_call&#34;
         ),
-        &#34;rd_raw&#34;: &#34;&#34;,
-        &#34;rd_use_mask&#34;: &#34;&#34;,
-        &#34;rd_use_gc_corr&#34;: &#34;&#34;,
-        &#34;rd_range&#34;: &#34;&#34;,
-        &#34;rd_manhattan_range&#34;: &#34;&#34;,
-        &#34;rd_manhattan_call&#34;: &#34;&#34;,
-        &#34;snp_use_mask&#34;: &#34;&#34;,
-        &#34;snp_use_id&#34;: &#34;&#34;,
-        &#34;snp_use_phase&#34;: &#34;&#34;,
+        &#34;rd_raw&#34;: help_format(
+            topic=&#34;rd_raw&#34;,
+            p_desc=&#34;Enables plotting raw signal in rd plots&#34;,
+            p_type=&#34;bool&#34;,
+            p_default=str(default[&#34;rd_raw&#34;]),
+            p_affects=&#34;region plot, rd&#34;,
+            p_example=&#34;set rd_call_mosaic\nunset rd_call_mosaic&#34;,
+            p_see=&#34;rd_partition, rd_call, rd_call_mosaic&#34;
+        ),
+        &#34;rd_use_mask&#34;: help_format(
+            topic=&#34;rd_use_mask&#34;,
+            p_desc=&#34;If set for all plots rd signal with P mask will be used.&#34;,
+            p_type=&#34;bool&#34;,
+            p_default=str(default[&#34;rd_use_mask&#34;]),
+            p_affects=&#34;region plot, rd&#34;,
+            p_example=&#34;set rd_use_mask\nunset rd_use_mask&#34;,
+            p_see=&#34;rd_use_gc_corr, snp_use_mask, snp_use_id, snp_use_phase&#34;
+        ),
+        &#34;rd_use_gc_corr&#34;: help_format(
+            topic=&#34;rd_use_gc_corr&#34;,
+            p_desc=&#34;If set for all plots rd signal with gc correction will be used.&#34;,
+            p_type=&#34;bool&#34;,
+            p_default=str(default[&#34;rd_use_gc_corr&#34;]),
+            p_affects=&#34;region plot, rd&#34;,
+            p_example=&#34;set rd_use_gc_corr\nunset rd_use_gc_corr&#34;,
+            p_see=&#34;rd_use_mask, snp_use_mask, snp_use_id, snp_use_phase&#34;
+        ),
+        &#34;rd_range&#34;: help_format(
+            topic=&#34;rd_range&#34;,
+            p_desc=&#34;Range used for y-axis in rd plots defined in mean rd.&#34;,
+            p_type=&#34;two floats&#34;,
+            p_default=str(default[&#34;rd_range&#34;]),
+            p_affects=&#34;region plot, rd&#34;,
+            p_example=&#34;set rd_range 0 2\nunset rd_range&#34;,
+            p_see=&#34;rd_manhattan_range, rd_colors&#34;
+        ),
+        &#34;rd_manhattan_range&#34;: help_format(
+            topic=&#34;rd_manhattan_range&#34;,
+            p_desc=&#34;Range used for y-axis in manhattan rd plot defined in copy numbers&#34;,
+            p_type=&#34;two floats&#34;,
+            p_default=str(default[&#34;rd_range&#34;]),
+            p_affects=&#34;manhattan&#34;,
+            p_example=&#34;set rd_manhattan_range 0 2\nunset rd_manhattan_range&#34;,
+            p_see=&#34;rd_range, rd_colors&#34;
+        ),
+        &#34;rd_manhattan_call&#34;: help_format(
+            topic=&#34;rd_manhattan_call&#34;,
+            p_desc=&#34;Enables plotting call signal (defined by parameters rd_call and rd_call_mosaic) in manhattan plots&#34;,
+            p_type=&#34;bool&#34;,
+            p_default=str(default[&#34;rd_manhattan_call&#34;]),
+            p_affects=&#34;manhattan&#34;,
+            p_example=&#34;set rd_manhattan_call\nunset rd_manhattan_call&#34;,
+            p_see=&#34;rd_partition, rd_call, rd_call_mosaic&#34;
+        ),
+        &#34;snp_use_mask&#34;: help_format(
+            topic=&#34;snp_use_mask&#34;,
+            p_desc=&#34;If set for all plots snp signal with P mask will be used.&#34;,
+            p_type=&#34;bool&#34;,
+            p_default=str(default[&#34;snp_use_mask&#34;]),
+            p_affects=&#34;region plot, likelihood, baf, snp&#34;,
+            p_example=&#34;set snp_use_mask\nunset snp_use_mask&#34;,
+            p_see=&#34;rd_use_gc_corr, rd_use_mask, snp_use_id, snp_use_phase&#34;
+        ),
+        &#34;snp_use_id&#34;: help_format(
+            topic=&#34;snp_use_mask&#34;,
+            p_desc=&#34;If set for all plots snp signal with ID filter will be used.&#34;,
+            p_type=&#34;bool&#34;,
+            p_default=str(default[&#34;snp_use_id&#34;]),
+            p_affects=&#34;region plot, likelihood, baf, snp&#34;,
+            p_example=&#34;set snp_use_id\nunset snp_use_id&#34;,
+            p_see=&#34;rd_use_gc_corr, rd_use_mask, snp_use_mask, snp_use_phase&#34;
+        ),
+        &#34;snp_use_phase&#34;: help_format(
+            topic=&#34;snp_use_mask&#34;,
+            p_desc=&#34;If set for all plots phased snp signal will be used.&#34;,
+            p_type=&#34;bool&#34;,
+            p_default=str(default[&#34;snp_use_phase&#34;]),
+            p_affects=&#34;region plot, likelihood, baf, snp&#34;,
+            p_example=&#34;set snp_use_phase\nunset snp_use_phase&#34;,
+            p_see=&#34;rd_use_gc_corr, rd_use_mask, snp_use_mask, snp_use_id&#34;
+        ),
         &#34;snp_call&#34;: help_format(
             topic=&#34;snp_call&#34;,
             p_desc=&#34;Enables plotting call signal in likelihood/baf plots&#34;,
@@ -354,12 +548,71 @@ class HelpDescription(object):
             p_example=&#34;set markersize 10\nset markersize auto&#34;,
             p_see=&#34;rd_colors, snp_colors, baf_colors, lh_colors&#34;
         ),
-        &#34;rd_colors&#34;: &#34;&#34;,
-        &#34;snp_colors&#34;: &#34;&#34;,
-        &#34;baf_colors&#34;: &#34;&#34;,
-        &#34;lh_colors&#34;: &#34;&#34;,
-        &#34;plot_files&#34;: &#34;&#34;,
-        &#34;plot_file&#34;: &#34;&#34;,
+        &#34;rd_colors&#34;: help_format(
+            topic=&#34;rd_colors&#34;,
+            p_desc=&#34;Colors used in rd plot.\n&#34; +
+                   &#34;Colors correspond to following signals: raw, gc corrected, partition, call, mosaic call&#34;,
+            p_type=&#34;list of strings&#34;,
+            p_default=str(default[&#34;rd_colors&#34;]),
+            p_affects=&#34;rd, region plot with rd panel&#34;,
+            p_example=&#34;set rd_colors red grey green black blue\nunset rd_colors\nset rd_colors.1 red&#34;,
+            p_see=&#34;markersize, snp_colors, baf_colors, lh_colors&#34;
+        ),
+        &#34;snp_colors&#34;: help_format(
+            topic=&#34;snp_colors&#34;,
+            p_desc=&#34;Colors used in snp plot.\n&#34; +
+                   &#34;Eight colors correspond to following SNPs:\n&#34; +
+                   &#34;    &#34;+ TerminalColor.YELLOW +&#34;0|0 out of P region, &#34;+ TerminalColor.YELLOW2 +&#34;0|0 inside P region,\n&#34; +
+                   &#34;    &#34;+ TerminalColor.CYAN +&#34;0|1 out of P region, &#34;+ TerminalColor.BLUE +&#34;0|1 inside P region,\n&#34; +
+                   &#34;    &#34;+ TerminalColor.GREEN2 +&#34;1|0 out of P region, &#34;+ TerminalColor.GREEN +&#34;1|0 inside P region,\n&#34; +
+                   &#34;    &#34;+ TerminalColor.YELLOW +&#34;1|1 out of P region, &#34;+ TerminalColor.YELLOW2 +&#34;1|1 inside P region.\n&#34; +
+                   TerminalColor.DARKCYAN + &#34;P region refers to 1kG project strict mask.&#34;,
+            p_type=&#34;list of strings&#34;,
+            p_default=str(default[&#34;snp_colors&#34;]),
+            p_affects=&#34;snp, region plot with snp panel&#34;,
+            p_example=&#34;set snp_colors red grey green black blue yellow orange cyan\nunset snp_colors\nset snp_colors.7 red&#34;,
+            p_see=&#34;markersize, rd_colors, baf_colors, lh_colors&#34;
+        ),
+        &#34;baf_colors&#34;: help_format(
+            topic=&#34;baf_colors&#34;,
+            p_desc=&#34;Colors used in baf plot.\n&#34; +
+                   &#34;Colors correspond to following signals: baf, maf, i1 (p2p distance in likelihood function)&#34;,
+            p_type=&#34;list of strings&#34;,
+            p_default=str(default[&#34;baf_colors&#34;]),
+            p_affects=&#34;baf, region plot with baf panel&#34;,
+            p_example=&#34;set baf_colors red grey green\nunset baf_colors\nset baf_colors.1 red&#34;,
+            p_see=&#34;markersize, snp_colors, rd_colors, lh_colors&#34;
+        ),
+        &#34;lh_colors&#34;: help_format(
+            topic=&#34;lh_colors&#34;,
+            p_desc=&#34;Colors used in likelihood plot.\n&#34; +
+                   &#34;Colors correspond to following signals: likelihood call (snp_call parameter)&#34;,
+            p_type=&#34;list of strings&#34;,
+            p_default=str(default[&#34;lh_colors&#34;]),
+            p_affects=&#34;likelihood, region plot with likelihood panel&#34;,
+            p_example=&#34;set baf_colors green\nunset baf_colors\nset baf_colors.0 red&#34;,
+            p_see=&#34;markersize, baf_colors, rd_colors, lh_colors, snp_call&#34;
+        ),
+        &#34;plot_files&#34;: help_format(
+            topic=&#34;plot_files&#34;,
+            p_desc=&#34;Indices of files to be plot. Only for plots that support multi file plotting.\n&#34; +
+                   &#34;One file can be ploted multiple times. Use &#39;show&#39; to view list of files.&#34;,
+            p_type=&#34;list of integers&#34;,
+            p_default=str(default[&#34;plot_files&#34;]),
+            p_affects=&#34;region plot, manhattan, circular, compare&#34;,
+            p_example=&#34;set plot_files 0 1 2\nunset plot_files&#34;,
+            p_see=&#34;plot_file, panels&#34;
+        ),
+        &#34;plot_file&#34;: help_format(
+            topic=&#34;plot_file&#34;,
+            p_desc=&#34;Index of a file to be plot. Only for single file plots.\n&#34; +
+                   &#34;Use &#39;show&#39; to view list of files.&#34;,
+            p_type=&#34;integer&#34;,
+            p_default=str(default[&#34;plot_file&#34;]),
+            p_affects=&#34;rd, likelihood, baf, snp, snv&#34;,
+            p_example=&#34;set plot_files 0 1 2\nunset plot_files&#34;,
+            p_see=&#34;plot_file, panels&#34;
+        ),
         &#34;file_titles&#34;: help_format(
             topic=&#34;file_titles&#34;,
             p_desc=&#34;List of titles used with multiple file plots. If empty filename will be used instead.&#34;,
@@ -367,17 +620,113 @@ class HelpDescription(object):
             p_default=str(default[&#34;file_titles&#34;]),
             p_affects=&#34;manhattan, circular&#34;,
             p_example=&#34;set file_titles Title1 Title2\nunset file_titles&#34;,
-            p_see=&#34;plot_files&#34;
+            p_see=&#34;plot_files, grid&#34;
         ),
-        &#34;chrom&#34;: &#34;&#34;,
-        &#34;style&#34;: &#34;&#34;,
-        &#34;grid&#34;: &#34;&#34;,
-        &#34;xkcd&#34;: &#34;&#34;,
-        &#34;output_filename&#34;: &#34;&#34;,
-        &#34;palette1&#34;: &#34;&#34;,
-        &#34;palette2&#34;: &#34;&#34;,
-        &#34;contrast&#34;: &#34;&#34;,
-        &#34;min_segment_size&#34;: &#34;&#34;,
+        &#34;chrom&#34;: help_format(
+            topic=&#34;chrom&#34;,
+            p_desc=&#34;List of chromosomes to be plotted. All available will be plotted if empty.&#34;,
+            p_type=&#34;list of str&#34;,
+            p_default=str(default[&#34;chrom&#34;]),
+            p_affects=&#34;manhattan, rd, likelihood, baf, snp. snv, circular&#34;,
+            p_example=&#34;set chrom 1 2 3 MT\nset chrom chr1 chr15 chrX \nunset chrom&#34;,
+            p_see=&#34;plot_files, plot_file&#34;
+        ),
+        &#34;style&#34;: help_format(
+            topic=&#34;style&#34;,
+            p_desc=&#34;Matplotlib style to be used.\n&#34; +
+                   &#34;Use double &lt;tab&gt; after &#39;set style&#39; to get list of all available styles.&#34;,
+            p_type=&#34;str&#34;,
+            p_default=str(default[&#34;style&#34;]),
+            p_affects=&#34;all plots&#34;,
+            p_example=&#34;set style seaborn\nunset style&#34;,
+            p_see=&#34;xkcd, chrom, output_filename&#34;
+        ),
+        &#34;grid&#34;: help_format(
+            topic=&#34;grid&#34;,
+            p_desc=&#34;Set plot layout grid. Automatic if &#39;auto&#39;.&#34;,
+            p_type=&#34;two integers or &#39;auto&#39;&#34;,
+            p_default=str(default[&#34;grid&#34;]),
+            p_affects=&#34;all plots&#34;,
+            p_example=&#34;set grid 5 4\nunset grid&#34;,
+            p_see=&#34;xkcd, chrom, output_filename&#34;
+        ),
+        &#34;xkcd&#34;: help_format(
+            topic=&#34;xkcd&#34;,
+            p_desc=&#34;Use xkcd comic plot style (see http://xkcd.com).&#34;,
+            p_type=&#34;bool&#34;,
+            p_default=str(default[&#34;xkcd&#34;]),
+            p_affects=&#34;all plots&#34;,
+            p_example=&#34;set xkcd\nunset xkcd&#34;,
+            p_see=&#34;style, chrom, output_filename&#34;
+        ),
+        &#34;output_filename&#34;: help_format(
+            topic=&#34;output_filename&#34;,
+            p_desc=&#34;If not empty plots will be store into file without plotting on the screen.&#34; +
+                   &#34;Use one of following extensions:\n&#34; +
+                   &#34;    * pgf - PGF code for LaTeX\n&#34; +
+                   &#34;    * svgz - Scalable Vector Graphics\n&#34; +
+                   &#34;    * tiff - Tagged Image File Format\n&#34; +
+                   &#34;    * jpg - Joint Photographic Experts Group\n&#34; +
+                   &#34;    * raw - Raw RGBA bitmap\n&#34; +
+                   &#34;    * jpeg - Joint Photographic Experts Group\n&#34; +
+                   &#34;    * png - Portable Network Graphics\n&#34; +
+                   &#34;    * ps - Postscript\n&#34; +
+                   &#34;    * svg - Scalable Vector Graphics\n&#34; +
+                   &#34;    * eps - Encapsulated Postscript\n&#34; +
+                   &#34;    * rgba - Raw RGBA bitmap\n&#34; +
+                   &#34;    * pdf - Portable Document Format\n&#34; +
+                   &#34;    * tif - Tagged Image File Format&#34;,
+            p_type=&#34;str&#34;,
+            p_default=str(default[&#34;output_filename&#34;]),
+            p_affects=&#34;all plots&#34;,
+            p_example=&#34;set output_filename filename.png\nunset output_filename&#34;,
+            p_see=&#34;save, dpi, style, xkcd&#34;
+        ),
+        &#34;rd_circular_colors&#34;: help_format(
+            topic=&#34;rd_circular_colors&#34;,
+            p_desc=&#34;Colors used in circular plot for filling chromosomes in rd signal.&#34;,
+            p_type=&#34;list of strings&#34;,
+            p_default=str(default[&#34;rd_circular_colors&#34;]),
+            p_affects=&#34;circular&#34;,
+            p_example=&#34;set rd_circular_colors red grey green black blue\nunset rd_circular_colors\nset rd_circular_colors.1 red&#34;,
+            p_see=&#34;snp_circular_colors, circular, rd_colors, snp_colors, baf_colors, lh_colors&#34;
+        ),
+        &#34;snp_circular_colors&#34;: help_format(
+            topic=&#34;snp_circular_colors&#34;,
+            p_desc=&#34;Colors used in circular plot for filling chromosomes in snp signal.&#34;,
+            p_type=&#34;list of strings&#34;,
+            p_default=str(default[&#34;snp_circular_colors&#34;]),
+            p_affects=&#34;circular&#34;,
+            p_example=&#34;set snp_circular_colors red grey green black blue\nunset snp_circular_colors\nset snp_circular_colors.1 red&#34;,
+            p_see=&#34;rd_circular_colors, circular, rd_colors, snp_colors, baf_colors, lh_colors&#34;
+        ),
+        &#34;contrast&#34;: help_format(
+            topic=&#34;contrast&#34;,
+            p_desc=&#34;Contrast used for transparency in snp call plots.&#34;,
+            p_type=&#34;float&#34;,
+            p_default=str(default[&#34;contrast&#34;]),
+            p_affects=&#34;calls, likelihood, region plot&#34;,
+            p_example=&#34;set contrast 100\nunset contrast&#34;,
+            p_see=&#34;min_segment_size&#34;
+        ),
+        &#34;min_segment_size&#34;: help_format(
+            topic=&#34;min_segment_size&#34;,
+            p_desc=&#34;Threshold for call size used in snp call plots.&#34;,
+            p_type=&#34;float&#34;,
+            p_default=str(default[&#34;min_segment_size&#34;]),
+            p_affects=&#34;calls, likelihood, region plot&#34;,
+            p_example=&#34;set min_segment_size 10\nunset min_segment_size&#34;,
+            p_see=&#34;contrast&#34;
+        ),
+        &#34;dpi&#34; : help_format(
+            topic=&#34;dpi&#34;,
+            p_desc=&#34;Resolution (dots per inch) used for plotting.&#34;,
+            p_type=&#34;int&#34;,
+            p_default=str(default[&#34;dpi&#34;]),
+            p_affects=&#34;calls, likelihood, region plot&#34;,
+            p_example=&#34;set dpi 300\nunset dpi&#34;,
+            p_see=&#34;style, output_filename, xkcd&#34;
+        ),
     }</code></pre>
 </details>
 </section>
@@ -408,6 +757,7 @@ class HelpDescription(object):
         &#34;save&#34;: None,
         &#34;show&#34;: None,
         &#34;quit&#34;: None,
+        &#34;exit&#34;: None,
         &#34;rd&#34;: None,
         &#34;likelihood&#34;: None,
         &#34;baf&#34;: None,
@@ -443,6 +793,17 @@ class HelpDescription(object):
                    &#34;    * circular: circular plots of read-depth and MAF&#34;,
             p_example=&#34;chr1:1M-20M\nchr21\nchr1:1M-20M,chr2:30M-45M chr21&#34;,
             p_see=&#34;regions, rdstat, stat, rd, baf, snp, likelihood, manhattan, calls, circular&#34;
+        ),
+        &#34;regions&#34;: help_format(
+            topic=&#34;Region plot&#34;,
+            p_desc=&#34;Command line is string composed of comma or space separated regions.\n&#34; +
+                   &#34;Regions are defined by string using following format: CHR[:START-END]]\n&#34; +
+                   &#34;If regions are separated by comma they will be ploted in the same subplot. \n&#34; +
+                   &#34;Each region is ploted using multiple panes defined by &#39;panels&#39; parameter.&#34; +
+                   &#34;Available panels are: rd, likelihood, snp, snv, snv:callset&#34;,
+            p_usage=&#34;CHR[:START-END]]&#34;,
+            p_example=&#34;chr1:1M-20M\nchr21\nchr1:1M-20M,chr2:30M-45M chr21&#34;,
+            p_see=&#34;plotting, panels, rdstat, stat, rd, baf, snp, likelihood, manhattan, calls, circular&#34;
         ),
         &#34;signals&#34;: help_format(
             topic=&#34;SIGNALS&#34;,
@@ -496,24 +857,93 @@ class HelpDescription(object):
             topic=&#34;quit&#34;,
             p_desc=&#34;Exists interactive mode.&#34;,
             p_usage=&#34;quit&#34;,
-            p_see=&#34;help&#34;
+            p_see=&#34;help, exit&#34;
         ),
-        &#34;rd&#34;: &#34;&#34;,
-        &#34;likelihood&#34;: &#34;&#34;,
-        &#34;snp&#34;: &#34;&#34;,
-        &#34;baf&#34;: &#34;&#34;,
-        &#34;stat&#34;: &#34;&#34;,
-        &#34;rdstat&#34;: &#34;&#34;,
-        &#34;circular&#34;: &#34;&#34;,
-        &#34;manhattan&#34;: &#34;&#34;,
-        &#34;calls&#34;: &#34;&#34;,
+        &#34;exit&#34;: help_format(
+            topic=&#34;quit&#34;,
+            p_desc=&#34;Exists interactive mode.&#34;,
+            p_usage=&#34;quit&#34;,
+            p_see=&#34;help, quit&#34;
+        ),
+        &#34;rd&#34;: help_format(
+            topic=&#34;rd&#34;,
+            p_desc=&#34;Genome wide plot. Plots rd signal from a single cnvpytor file defined by &#39;plot_file&#39; parameter.&#34;,
+            p_usage=&#34;rd&#34;,
+            p_example=&#34;rd&#34;,
+            p_see=&#34;plotting, regions, panels, rdstat, stat, baf, snp, likelihood, manhattan, calls, circular&#34;
+        ),
+        &#34;likelihood&#34;: help_format(
+            topic=&#34;likelihood&#34;,
+            p_desc=&#34;Genome wide plot. Plots likelihood from a single cnvpytor file defined by &#39;plot_file&#39; parameter.&#34;,
+            p_usage=&#34;likelihood&#34;,
+            p_example=&#34;likelihood&#34;,
+            p_see=&#34;plotting, regions, panels, rd, rdstat, stat, baf, snp, manhattan, calls, circular&#34;
+        ),
+        &#34;snp&#34;: help_format(
+            topic=&#34;snp&#34;,
+            p_desc=&#34;Genome wide plot. Plots SNPs from a single cnvpytor file defined by &#39;plot_file&#39; parameter.&#34;,
+            p_usage=&#34;snp&#34;,
+            p_example=&#34;snp&#34;,
+            p_see=&#34;plotting, regions, panels, rdstat, stat, baf, rd, likelihood, manhattan, calls, circular&#34;
+        ),
+        &#34;baf&#34;: help_format(
+            topic=&#34;baf&#34;,
+            p_desc=&#34;Genome wide plot. Plots baf signals from a single cnvpytor file defined by &#39;plot_file&#39; parameter.&#34;,
+            p_usage=&#34;baf&#34;,
+            p_example=&#34;baf&#34;,
+            p_see=&#34;plotting, regions, panels, rdstat, stat, rd, snp, likelihood, manhattan, calls, circular&#34;
+        ),
+        &#34;stat&#34;: help_format(
+            topic=&#34;stat&#34;,
+            p_desc=&#34;Plot RD distribution and GC correction curve for bin size given by parameter &#39;bin_size&#39;.&#34;,
+            p_usage=&#34;stat&#34;,
+            p_example=&#34;stat&#34;,
+            p_see=&#34;rdstat, plotting, bin_size&#34;
+        ),
+        &#34;rdstat&#34;: help_format(
+            topic=&#34;rdstat&#34;,
+            p_desc=&#34;Plot RD distribution and GC correction curve for 100 bp bin size.&#34;,
+            p_usage=&#34;rdstat&#34;,
+            p_example=&#34;rdstat&#34;,
+            p_see=&#34;stat, plotting&#34;
+        ),
+        &#34;circular&#34;: help_format(
+            topic=&#34;circular&#34;,
+            p_desc=&#34;Plots RD and MAF signal in circular plot for all chromosomes defined by &#39;chrom&#39; parameter.&#34;,
+            p_usage=&#34;circular&#34;,
+            p_example=&#34;circular&#34;,
+            p_see=&#34;plotting, manhattan, chrom, bin_size&#34;
+        ),
+        &#34;manhattan&#34;: help_format(
+            topic=&#34;manhattan&#34;,
+            p_desc=&#34;Scatter plot of RD signal for all chromosomes defined by &#39;chrom&#39; parameter.&#34;,
+            p_usage=&#34;manhattan&#34;,
+            p_example=&#34;manhattan&#34;,
+            p_see=&#34;plotting, circular, chrom, bin_size&#34;
+        ),
+        &#34;calls&#34;: help_format(
+            topic=&#34;calls&#34;,
+            p_desc=&#34;Line plot of SNP calls for all chromosomes defined by &#39;chrom&#39; parameter.&#34;,
+            p_usage=&#34;calls&#34;,
+            p_example=&#34;calls&#34;,
+            p_see=&#34;plotting, manhattan, chrom, bin_size&#34;
+        ),
+        &#34;compare&#34;: help_format(
+            topic=&#34;compare&#34;,
+            p_desc=&#34;Compare RD in two genomic regions. Plot and print statistics to stdout for each file\n&#34; +
+                   &#34;defined by &#39;plot_files&#39; parameter. Printed columns are:\n&#34; +
+                   &#34;filename, REGION1, REGION2, mean rd in REGION1, stdev in REGION1\n&#34; +
+                   &#34;mean rd in REGION2, stdev in REGION2, t-test P value, RD ratio, RD ratio error.&#34;,
+            p_usage=&#34;compare REGION1 REGION2&#34;,
+            p_example=&#34;compare 1:10M-20M 2:25M-45M\ncompare 1 X&#34;,
+            p_see=&#34;rdstat, stat&#34;
+        ),
         &#34;ls&#34;: help_format(
             topic=&#34;ls&#34;,
             p_desc=&#34;Print content of pytor files&#34;,
             p_usage=&#34;ls&#34;,
             p_see=&#34;show&#34;
         ),
-        &#34;compare&#34;: &#34;&#34;,
         &#34;bin_size&#34;: help_format(
             topic=&#34;bin_size&#34;,
             p_desc=&#34;Size of bins used for plotting&#34;,
@@ -556,22 +986,94 @@ class HelpDescription(object):
         ),
         &#34;rd_call_mosaic&#34;: help_format(
             topic=&#34;rd_call_mosaic&#34;,
-            p_desc=&#34;Enables plotting mosaic call signal in rd plots&#34;,
+            p_desc=&#34;Enables plotting mosaic call signal in rd plots (calculated using -call mosaic option)&#34;,
             p_type=&#34;bool&#34;,
             p_default=str(default[&#34;rd_call_mosaic&#34;]),
             p_affects=&#34;region plot, rd&#34;,
             p_example=&#34;set rd_call_mosaic\nunset rd_call_mosaic&#34;,
             p_see=&#34;rd_partition, rd_call&#34;
         ),
-        &#34;rd_raw&#34;: &#34;&#34;,
-        &#34;rd_use_mask&#34;: &#34;&#34;,
-        &#34;rd_use_gc_corr&#34;: &#34;&#34;,
-        &#34;rd_range&#34;: &#34;&#34;,
-        &#34;rd_manhattan_range&#34;: &#34;&#34;,
-        &#34;rd_manhattan_call&#34;: &#34;&#34;,
-        &#34;snp_use_mask&#34;: &#34;&#34;,
-        &#34;snp_use_id&#34;: &#34;&#34;,
-        &#34;snp_use_phase&#34;: &#34;&#34;,
+        &#34;rd_raw&#34;: help_format(
+            topic=&#34;rd_raw&#34;,
+            p_desc=&#34;Enables plotting raw signal in rd plots&#34;,
+            p_type=&#34;bool&#34;,
+            p_default=str(default[&#34;rd_raw&#34;]),
+            p_affects=&#34;region plot, rd&#34;,
+            p_example=&#34;set rd_call_mosaic\nunset rd_call_mosaic&#34;,
+            p_see=&#34;rd_partition, rd_call, rd_call_mosaic&#34;
+        ),
+        &#34;rd_use_mask&#34;: help_format(
+            topic=&#34;rd_use_mask&#34;,
+            p_desc=&#34;If set for all plots rd signal with P mask will be used.&#34;,
+            p_type=&#34;bool&#34;,
+            p_default=str(default[&#34;rd_use_mask&#34;]),
+            p_affects=&#34;region plot, rd&#34;,
+            p_example=&#34;set rd_use_mask\nunset rd_use_mask&#34;,
+            p_see=&#34;rd_use_gc_corr, snp_use_mask, snp_use_id, snp_use_phase&#34;
+        ),
+        &#34;rd_use_gc_corr&#34;: help_format(
+            topic=&#34;rd_use_gc_corr&#34;,
+            p_desc=&#34;If set for all plots rd signal with gc correction will be used.&#34;,
+            p_type=&#34;bool&#34;,
+            p_default=str(default[&#34;rd_use_gc_corr&#34;]),
+            p_affects=&#34;region plot, rd&#34;,
+            p_example=&#34;set rd_use_gc_corr\nunset rd_use_gc_corr&#34;,
+            p_see=&#34;rd_use_mask, snp_use_mask, snp_use_id, snp_use_phase&#34;
+        ),
+        &#34;rd_range&#34;: help_format(
+            topic=&#34;rd_range&#34;,
+            p_desc=&#34;Range used for y-axis in rd plots defined in mean rd.&#34;,
+            p_type=&#34;two floats&#34;,
+            p_default=str(default[&#34;rd_range&#34;]),
+            p_affects=&#34;region plot, rd&#34;,
+            p_example=&#34;set rd_range 0 2\nunset rd_range&#34;,
+            p_see=&#34;rd_manhattan_range, rd_colors&#34;
+        ),
+        &#34;rd_manhattan_range&#34;: help_format(
+            topic=&#34;rd_manhattan_range&#34;,
+            p_desc=&#34;Range used for y-axis in manhattan rd plot defined in copy numbers&#34;,
+            p_type=&#34;two floats&#34;,
+            p_default=str(default[&#34;rd_range&#34;]),
+            p_affects=&#34;manhattan&#34;,
+            p_example=&#34;set rd_manhattan_range 0 2\nunset rd_manhattan_range&#34;,
+            p_see=&#34;rd_range, rd_colors&#34;
+        ),
+        &#34;rd_manhattan_call&#34;: help_format(
+            topic=&#34;rd_manhattan_call&#34;,
+            p_desc=&#34;Enables plotting call signal (defined by parameters rd_call and rd_call_mosaic) in manhattan plots&#34;,
+            p_type=&#34;bool&#34;,
+            p_default=str(default[&#34;rd_manhattan_call&#34;]),
+            p_affects=&#34;manhattan&#34;,
+            p_example=&#34;set rd_manhattan_call\nunset rd_manhattan_call&#34;,
+            p_see=&#34;rd_partition, rd_call, rd_call_mosaic&#34;
+        ),
+        &#34;snp_use_mask&#34;: help_format(
+            topic=&#34;snp_use_mask&#34;,
+            p_desc=&#34;If set for all plots snp signal with P mask will be used.&#34;,
+            p_type=&#34;bool&#34;,
+            p_default=str(default[&#34;snp_use_mask&#34;]),
+            p_affects=&#34;region plot, likelihood, baf, snp&#34;,
+            p_example=&#34;set snp_use_mask\nunset snp_use_mask&#34;,
+            p_see=&#34;rd_use_gc_corr, rd_use_mask, snp_use_id, snp_use_phase&#34;
+        ),
+        &#34;snp_use_id&#34;: help_format(
+            topic=&#34;snp_use_mask&#34;,
+            p_desc=&#34;If set for all plots snp signal with ID filter will be used.&#34;,
+            p_type=&#34;bool&#34;,
+            p_default=str(default[&#34;snp_use_id&#34;]),
+            p_affects=&#34;region plot, likelihood, baf, snp&#34;,
+            p_example=&#34;set snp_use_id\nunset snp_use_id&#34;,
+            p_see=&#34;rd_use_gc_corr, rd_use_mask, snp_use_mask, snp_use_phase&#34;
+        ),
+        &#34;snp_use_phase&#34;: help_format(
+            topic=&#34;snp_use_mask&#34;,
+            p_desc=&#34;If set for all plots phased snp signal will be used.&#34;,
+            p_type=&#34;bool&#34;,
+            p_default=str(default[&#34;snp_use_phase&#34;]),
+            p_affects=&#34;region plot, likelihood, baf, snp&#34;,
+            p_example=&#34;set snp_use_phase\nunset snp_use_phase&#34;,
+            p_see=&#34;rd_use_gc_corr, rd_use_mask, snp_use_mask, snp_use_id&#34;
+        ),
         &#34;snp_call&#34;: help_format(
             topic=&#34;snp_call&#34;,
             p_desc=&#34;Enables plotting call signal in likelihood/baf plots&#34;,
@@ -590,12 +1092,71 @@ class HelpDescription(object):
             p_example=&#34;set markersize 10\nset markersize auto&#34;,
             p_see=&#34;rd_colors, snp_colors, baf_colors, lh_colors&#34;
         ),
-        &#34;rd_colors&#34;: &#34;&#34;,
-        &#34;snp_colors&#34;: &#34;&#34;,
-        &#34;baf_colors&#34;: &#34;&#34;,
-        &#34;lh_colors&#34;: &#34;&#34;,
-        &#34;plot_files&#34;: &#34;&#34;,
-        &#34;plot_file&#34;: &#34;&#34;,
+        &#34;rd_colors&#34;: help_format(
+            topic=&#34;rd_colors&#34;,
+            p_desc=&#34;Colors used in rd plot.\n&#34; +
+                   &#34;Colors correspond to following signals: raw, gc corrected, partition, call, mosaic call&#34;,
+            p_type=&#34;list of strings&#34;,
+            p_default=str(default[&#34;rd_colors&#34;]),
+            p_affects=&#34;rd, region plot with rd panel&#34;,
+            p_example=&#34;set rd_colors red grey green black blue\nunset rd_colors\nset rd_colors.1 red&#34;,
+            p_see=&#34;markersize, snp_colors, baf_colors, lh_colors&#34;
+        ),
+        &#34;snp_colors&#34;: help_format(
+            topic=&#34;snp_colors&#34;,
+            p_desc=&#34;Colors used in snp plot.\n&#34; +
+                   &#34;Eight colors correspond to following SNPs:\n&#34; +
+                   &#34;    &#34;+ TerminalColor.YELLOW +&#34;0|0 out of P region, &#34;+ TerminalColor.YELLOW2 +&#34;0|0 inside P region,\n&#34; +
+                   &#34;    &#34;+ TerminalColor.CYAN +&#34;0|1 out of P region, &#34;+ TerminalColor.BLUE +&#34;0|1 inside P region,\n&#34; +
+                   &#34;    &#34;+ TerminalColor.GREEN2 +&#34;1|0 out of P region, &#34;+ TerminalColor.GREEN +&#34;1|0 inside P region,\n&#34; +
+                   &#34;    &#34;+ TerminalColor.YELLOW +&#34;1|1 out of P region, &#34;+ TerminalColor.YELLOW2 +&#34;1|1 inside P region.\n&#34; +
+                   TerminalColor.DARKCYAN + &#34;P region refers to 1kG project strict mask.&#34;,
+            p_type=&#34;list of strings&#34;,
+            p_default=str(default[&#34;snp_colors&#34;]),
+            p_affects=&#34;snp, region plot with snp panel&#34;,
+            p_example=&#34;set snp_colors red grey green black blue yellow orange cyan\nunset snp_colors\nset snp_colors.7 red&#34;,
+            p_see=&#34;markersize, rd_colors, baf_colors, lh_colors&#34;
+        ),
+        &#34;baf_colors&#34;: help_format(
+            topic=&#34;baf_colors&#34;,
+            p_desc=&#34;Colors used in baf plot.\n&#34; +
+                   &#34;Colors correspond to following signals: baf, maf, i1 (p2p distance in likelihood function)&#34;,
+            p_type=&#34;list of strings&#34;,
+            p_default=str(default[&#34;baf_colors&#34;]),
+            p_affects=&#34;baf, region plot with baf panel&#34;,
+            p_example=&#34;set baf_colors red grey green\nunset baf_colors\nset baf_colors.1 red&#34;,
+            p_see=&#34;markersize, snp_colors, rd_colors, lh_colors&#34;
+        ),
+        &#34;lh_colors&#34;: help_format(
+            topic=&#34;lh_colors&#34;,
+            p_desc=&#34;Colors used in likelihood plot.\n&#34; +
+                   &#34;Colors correspond to following signals: likelihood call (snp_call parameter)&#34;,
+            p_type=&#34;list of strings&#34;,
+            p_default=str(default[&#34;lh_colors&#34;]),
+            p_affects=&#34;likelihood, region plot with likelihood panel&#34;,
+            p_example=&#34;set baf_colors green\nunset baf_colors\nset baf_colors.0 red&#34;,
+            p_see=&#34;markersize, baf_colors, rd_colors, lh_colors, snp_call&#34;
+        ),
+        &#34;plot_files&#34;: help_format(
+            topic=&#34;plot_files&#34;,
+            p_desc=&#34;Indices of files to be plot. Only for plots that support multi file plotting.\n&#34; +
+                   &#34;One file can be ploted multiple times. Use &#39;show&#39; to view list of files.&#34;,
+            p_type=&#34;list of integers&#34;,
+            p_default=str(default[&#34;plot_files&#34;]),
+            p_affects=&#34;region plot, manhattan, circular, compare&#34;,
+            p_example=&#34;set plot_files 0 1 2\nunset plot_files&#34;,
+            p_see=&#34;plot_file, panels&#34;
+        ),
+        &#34;plot_file&#34;: help_format(
+            topic=&#34;plot_file&#34;,
+            p_desc=&#34;Index of a file to be plot. Only for single file plots.\n&#34; +
+                   &#34;Use &#39;show&#39; to view list of files.&#34;,
+            p_type=&#34;integer&#34;,
+            p_default=str(default[&#34;plot_file&#34;]),
+            p_affects=&#34;rd, likelihood, baf, snp, snv&#34;,
+            p_example=&#34;set plot_files 0 1 2\nunset plot_files&#34;,
+            p_see=&#34;plot_file, panels&#34;
+        ),
         &#34;file_titles&#34;: help_format(
             topic=&#34;file_titles&#34;,
             p_desc=&#34;List of titles used with multiple file plots. If empty filename will be used instead.&#34;,
@@ -603,17 +1164,113 @@ class HelpDescription(object):
             p_default=str(default[&#34;file_titles&#34;]),
             p_affects=&#34;manhattan, circular&#34;,
             p_example=&#34;set file_titles Title1 Title2\nunset file_titles&#34;,
-            p_see=&#34;plot_files&#34;
+            p_see=&#34;plot_files, grid&#34;
         ),
-        &#34;chrom&#34;: &#34;&#34;,
-        &#34;style&#34;: &#34;&#34;,
-        &#34;grid&#34;: &#34;&#34;,
-        &#34;xkcd&#34;: &#34;&#34;,
-        &#34;output_filename&#34;: &#34;&#34;,
-        &#34;palette1&#34;: &#34;&#34;,
-        &#34;palette2&#34;: &#34;&#34;,
-        &#34;contrast&#34;: &#34;&#34;,
-        &#34;min_segment_size&#34;: &#34;&#34;,
+        &#34;chrom&#34;: help_format(
+            topic=&#34;chrom&#34;,
+            p_desc=&#34;List of chromosomes to be plotted. All available will be plotted if empty.&#34;,
+            p_type=&#34;list of str&#34;,
+            p_default=str(default[&#34;chrom&#34;]),
+            p_affects=&#34;manhattan, rd, likelihood, baf, snp. snv, circular&#34;,
+            p_example=&#34;set chrom 1 2 3 MT\nset chrom chr1 chr15 chrX \nunset chrom&#34;,
+            p_see=&#34;plot_files, plot_file&#34;
+        ),
+        &#34;style&#34;: help_format(
+            topic=&#34;style&#34;,
+            p_desc=&#34;Matplotlib style to be used.\n&#34; +
+                   &#34;Use double &lt;tab&gt; after &#39;set style&#39; to get list of all available styles.&#34;,
+            p_type=&#34;str&#34;,
+            p_default=str(default[&#34;style&#34;]),
+            p_affects=&#34;all plots&#34;,
+            p_example=&#34;set style seaborn\nunset style&#34;,
+            p_see=&#34;xkcd, chrom, output_filename&#34;
+        ),
+        &#34;grid&#34;: help_format(
+            topic=&#34;grid&#34;,
+            p_desc=&#34;Set plot layout grid. Automatic if &#39;auto&#39;.&#34;,
+            p_type=&#34;two integers or &#39;auto&#39;&#34;,
+            p_default=str(default[&#34;grid&#34;]),
+            p_affects=&#34;all plots&#34;,
+            p_example=&#34;set grid 5 4\nunset grid&#34;,
+            p_see=&#34;xkcd, chrom, output_filename&#34;
+        ),
+        &#34;xkcd&#34;: help_format(
+            topic=&#34;xkcd&#34;,
+            p_desc=&#34;Use xkcd comic plot style (see http://xkcd.com).&#34;,
+            p_type=&#34;bool&#34;,
+            p_default=str(default[&#34;xkcd&#34;]),
+            p_affects=&#34;all plots&#34;,
+            p_example=&#34;set xkcd\nunset xkcd&#34;,
+            p_see=&#34;style, chrom, output_filename&#34;
+        ),
+        &#34;output_filename&#34;: help_format(
+            topic=&#34;output_filename&#34;,
+            p_desc=&#34;If not empty plots will be store into file without plotting on the screen.&#34; +
+                   &#34;Use one of following extensions:\n&#34; +
+                   &#34;    * pgf - PGF code for LaTeX\n&#34; +
+                   &#34;    * svgz - Scalable Vector Graphics\n&#34; +
+                   &#34;    * tiff - Tagged Image File Format\n&#34; +
+                   &#34;    * jpg - Joint Photographic Experts Group\n&#34; +
+                   &#34;    * raw - Raw RGBA bitmap\n&#34; +
+                   &#34;    * jpeg - Joint Photographic Experts Group\n&#34; +
+                   &#34;    * png - Portable Network Graphics\n&#34; +
+                   &#34;    * ps - Postscript\n&#34; +
+                   &#34;    * svg - Scalable Vector Graphics\n&#34; +
+                   &#34;    * eps - Encapsulated Postscript\n&#34; +
+                   &#34;    * rgba - Raw RGBA bitmap\n&#34; +
+                   &#34;    * pdf - Portable Document Format\n&#34; +
+                   &#34;    * tif - Tagged Image File Format&#34;,
+            p_type=&#34;str&#34;,
+            p_default=str(default[&#34;output_filename&#34;]),
+            p_affects=&#34;all plots&#34;,
+            p_example=&#34;set output_filename filename.png\nunset output_filename&#34;,
+            p_see=&#34;save, dpi, style, xkcd&#34;
+        ),
+        &#34;rd_circular_colors&#34;: help_format(
+            topic=&#34;rd_circular_colors&#34;,
+            p_desc=&#34;Colors used in circular plot for filling chromosomes in rd signal.&#34;,
+            p_type=&#34;list of strings&#34;,
+            p_default=str(default[&#34;rd_circular_colors&#34;]),
+            p_affects=&#34;circular&#34;,
+            p_example=&#34;set rd_circular_colors red grey green black blue\nunset rd_circular_colors\nset rd_circular_colors.1 red&#34;,
+            p_see=&#34;snp_circular_colors, circular, rd_colors, snp_colors, baf_colors, lh_colors&#34;
+        ),
+        &#34;snp_circular_colors&#34;: help_format(
+            topic=&#34;snp_circular_colors&#34;,
+            p_desc=&#34;Colors used in circular plot for filling chromosomes in snp signal.&#34;,
+            p_type=&#34;list of strings&#34;,
+            p_default=str(default[&#34;snp_circular_colors&#34;]),
+            p_affects=&#34;circular&#34;,
+            p_example=&#34;set snp_circular_colors red grey green black blue\nunset snp_circular_colors\nset snp_circular_colors.1 red&#34;,
+            p_see=&#34;rd_circular_colors, circular, rd_colors, snp_colors, baf_colors, lh_colors&#34;
+        ),
+        &#34;contrast&#34;: help_format(
+            topic=&#34;contrast&#34;,
+            p_desc=&#34;Contrast used for transparency in snp call plots.&#34;,
+            p_type=&#34;float&#34;,
+            p_default=str(default[&#34;contrast&#34;]),
+            p_affects=&#34;calls, likelihood, region plot&#34;,
+            p_example=&#34;set contrast 100\nunset contrast&#34;,
+            p_see=&#34;min_segment_size&#34;
+        ),
+        &#34;min_segment_size&#34;: help_format(
+            topic=&#34;min_segment_size&#34;,
+            p_desc=&#34;Threshold for call size used in snp call plots.&#34;,
+            p_type=&#34;float&#34;,
+            p_default=str(default[&#34;min_segment_size&#34;]),
+            p_affects=&#34;calls, likelihood, region plot&#34;,
+            p_example=&#34;set min_segment_size 10\nunset min_segment_size&#34;,
+            p_see=&#34;contrast&#34;
+        ),
+        &#34;dpi&#34; : help_format(
+            topic=&#34;dpi&#34;,
+            p_desc=&#34;Resolution (dots per inch) used for plotting.&#34;,
+            p_type=&#34;int&#34;,
+            p_default=str(default[&#34;dpi&#34;]),
+            p_affects=&#34;calls, likelihood, region plot&#34;,
+            p_example=&#34;set dpi 300\nunset dpi&#34;,
+            p_see=&#34;style, output_filename, xkcd&#34;
+        ),
     }</code></pre>
 </details>
 <h3>Subclasses</h3>
@@ -648,11 +1305,13 @@ class HelpDescription(object):
     default = {
         &#34;bin_size&#34;: None,
         &#34;panels&#34;: [&#34;rd&#34;],
+        &#34;rd_raw&#34;: True,
         &#34;rd_partition&#34;: True,
         &#34;rd_call&#34;: True,
         &#34;rd_call_mosaic&#34;: False,
         &#34;rd_use_mask&#34;: False,
         &#34;rd_use_gc_corr&#34;: True,
+        &#34;rd_range&#34; : [0, 3],
         &#34;rd_manhattan_range&#34;: [0, 2],
         &#34;rd_manhattan_call&#34;: False,
         &#34;snp_use_mask&#34;: True,
@@ -660,10 +1319,12 @@ class HelpDescription(object):
         &#34;snp_use_phase&#34;: False,
         &#34;snp_call&#34;: False,
         &#34;markersize&#34;: &#34;auto&#34;,
-        &#34;rd_colors&#34;: &#34;&#34;,
+        &#34;rd_colors&#34;: [&#34;grey&#34;,&#34;black&#34;,&#34;red&#34;,&#34;green&#34;,&#34;blue&#34;],
         &#34;snp_colors&#34;: [&#34;yellow&#34;, &#34;orange&#34;, &#34;cyan&#34;, &#34;blue&#34;, &#34;lime&#34;, &#34;green&#34;, &#34;yellow&#34;, &#34;orange&#34;],
-        &#34;baf_colors&#34;: &#34;&#34;,
-        &#34;lh_colors&#34;: &#34;&#34;,
+        &#34;rd_circular_colors&#34;: [&#34;#555555&#34;, &#34;#aaaaaa&#34;],
+        &#34;snp_circular_colors&#34;: [&#34;#00ff00&#34;, &#34;#0000ff&#34;],
+        &#34;baf_colors&#34;: [&#34;gray&#34;,&#34;black&#34;,&#34;red&#34;,&#34;green&#34;,&#34;blue&#34;],
+        &#34;lh_colors&#34;: [&#34;yellow&#34;],
         &#34;plot_files&#34;: [],
         &#34;plot_file&#34;: 0,
         &#34;file_titles&#34;: [],
@@ -671,9 +1332,8 @@ class HelpDescription(object):
         &#34;style&#34;: None,
         &#34;grid&#34;: &#34;auto&#34;,
         &#34;xkcd&#34;: False,
+        &#34;dpi&#34;: 200,
         &#34;output_filename&#34;: &#34;&#34;,
-        &#34;palette1&#34;: [&#34;#555555&#34;, &#34;#aaaaaa&#34;],
-        &#34;palette2&#34;: [&#34;#00ff00&#34;, &#34;#0000ff&#34;],
         &#34;contrast&#34;: 20,
         &#34;min_segment_size&#34;: 0
     }
@@ -684,44 +1344,82 @@ class HelpDescription(object):
                 setattr(self, key, params[key])
             else:
                 setattr(self, key, self.default[key])
+        for p in self.params:
+            self.command_tree[&#34;set&#34;][p] = None
+            self.command_tree[&#34;unset&#34;][p] = None
+        for c in self.param_help:
+            self.command_tree[&#34;help&#34;][c] = None
+        self.command_tree[&#34;set&#34;][&#34;panels&#34;] = {}
+        for panel1 in [&#34;rd&#34;, &#34;likelihood&#34;, &#34;snp&#34;, &#34;baf&#34;, &#34;snv&#34;]:
+            self.command_tree[&#34;set&#34;][&#34;panels&#34;][panel1] = self.command_tree[&#34;set&#34;][&#34;panels&#34;]
 
     def set(self, param, args):
         if param in self.params and self.params[param] is False:
             self.__setattr__(param, True)
-        elif param == &#34;bin_size&#34; and len(args) &gt; 0:
-            self.__setattr__(param, args[0])
-        elif param == &#34;contrast&#34; and len(args) &gt; 0:
-            self.__setattr__(param, float(args[0]))
-        elif param == &#34;markersize&#34; and len(args) &gt; 0:
-            if args[0] == &#34;auto&#34;:
-                self.__setattr__(param, &#34;auto&#34;)
-            else:
+        elif param.find(&#34;.&#34;)&gt;0:
+            sp = param.split(&#34;.&#34;)
+            if len(sp)==2 and (sp[0] in self.params) and sp[0][-7:]==&#34;_colors&#34; and sp[1].isdigit():
+                ix = int(sp[1])
+                self.params[sp[0]][ix] = args[0]
+
+        elif param == &#34;bin_size&#34;:
+            if len(args) &gt; 0:
+                self.__setattr__(param, args[0])
+        elif param == &#34;contrast&#34;:
+            if len(args) &gt; 0:
                 self.__setattr__(param, float(args[0]))
-        elif param == &#34;grid&#34; and len(args) &gt; 0:
-            if args[0] == &#34;auto&#34;:
-                self.__setattr__(param, &#34;auto&#34;)
-            else:
-                self.__setattr__(param, list(map(int, args)))
-        elif param == &#34;manhattan_range&#34; and len(args) &gt; 0:
-            self.__setattr__(param, list(map(float, args)))
-        elif param == &#34;min_segment_size&#34; and len(args) &gt; 0:
-            self.__setattr__(param, int(args[0]))
-        elif param == &#34;output_filename&#34; and len(args) &gt; 0:
-            self.__setattr__(param, args[0])
-        elif param == &#34;plot_file&#34; and len(args) &gt; 0:
-            self.__setattr__(param, int(args[0]))
+        elif param == &#34;markersize&#34;:
+            if len(args) &gt; 0:
+                if args[0] == &#34;auto&#34;:
+                    self.__setattr__(param, &#34;auto&#34;)
+                else:
+                    self.__setattr__(param, float(args[0]))
+        elif param == &#34;grid&#34;:
+            if len(args) &gt; 0:
+                if args[0] == &#34;auto&#34;:
+                    self.__setattr__(param, &#34;auto&#34;)
+                else:
+                    self.__setattr__(param, list(map(int, args[:2])))
+        elif param == &#34;dpi&#34;:
+            if len(args) &gt; 0:
+                self.__setattr__(param, int(args[0]))
+        elif param == &#34;rd_range&#34;:
+            if len(args) &gt; 1:
+                self.__setattr__(param, list(map(float, args[:2])))
+        elif param == &#34;rd_manhattan_range&#34;:
+            if len(args) &gt; 1:
+                self.__setattr__(param, list(map(float, args[:2])))
+        elif param == &#34;min_segment_size&#34;:
+            if len(args) &gt; 0:
+                self.__setattr__(param, int(args[0]))
+        elif param == &#34;output_filename&#34;:
+            if len(args) &gt; 0:
+                self.__setattr__(param, args[0])
+        elif param == &#34;plot_file&#34;:
+            if len(args) &gt; 0:
+                self.__setattr__(param, int(args[0]))
         elif param == &#34;plot_files&#34;:
             self.__setattr__(param, list(map(int, args)))
         elif param == &#34;style&#34;:
-            self.__setattr__(param, args[0])
+            if len(args) &gt; 0:
+                self.__setattr__(param, args[0])
         elif param in self.params and self.params[param] is not True:
             self.__setattr__(param, args)
+        if param in self.params:
+            print(&#34;    * %s: %s&#34; % (param, str(self.params[param])))
+        else:
+            sp = param.split(&#34;.&#34;)
+            if sp[0] in self.params:
+                print(&#34;    * %s: %s&#34; % (sp[0], str(self.params[sp[0]])))
+
 
     def unset(self, param):
-        if param in self.params and self.params[param] is True:
-            self.__setattr__(param, False)
-        if param in self.params and isinstance(self.params[param], list):
-            self.__setattr__(param, [])
+        if param in self.params:
+            if type(self.default[param]) == type(True):
+                self.__setattr__(param, False)
+            else:
+                self.__setattr__(param, self.default[param])
+            print(&#34;    * %s: %s&#34; % (param, str(self.params[param])))
 
     @property
     def params(self):
@@ -831,34 +1529,61 @@ def params(self):
 <pre><code class="python">def set(self, param, args):
     if param in self.params and self.params[param] is False:
         self.__setattr__(param, True)
-    elif param == &#34;bin_size&#34; and len(args) &gt; 0:
-        self.__setattr__(param, args[0])
-    elif param == &#34;contrast&#34; and len(args) &gt; 0:
-        self.__setattr__(param, float(args[0]))
-    elif param == &#34;markersize&#34; and len(args) &gt; 0:
-        if args[0] == &#34;auto&#34;:
-            self.__setattr__(param, &#34;auto&#34;)
-        else:
+    elif param.find(&#34;.&#34;)&gt;0:
+        sp = param.split(&#34;.&#34;)
+        if len(sp)==2 and (sp[0] in self.params) and sp[0][-7:]==&#34;_colors&#34; and sp[1].isdigit():
+            ix = int(sp[1])
+            self.params[sp[0]][ix] = args[0]
+
+    elif param == &#34;bin_size&#34;:
+        if len(args) &gt; 0:
+            self.__setattr__(param, args[0])
+    elif param == &#34;contrast&#34;:
+        if len(args) &gt; 0:
             self.__setattr__(param, float(args[0]))
-    elif param == &#34;grid&#34; and len(args) &gt; 0:
-        if args[0] == &#34;auto&#34;:
-            self.__setattr__(param, &#34;auto&#34;)
-        else:
-            self.__setattr__(param, list(map(int, args)))
-    elif param == &#34;manhattan_range&#34; and len(args) &gt; 0:
-        self.__setattr__(param, list(map(float, args)))
-    elif param == &#34;min_segment_size&#34; and len(args) &gt; 0:
-        self.__setattr__(param, int(args[0]))
-    elif param == &#34;output_filename&#34; and len(args) &gt; 0:
-        self.__setattr__(param, args[0])
-    elif param == &#34;plot_file&#34; and len(args) &gt; 0:
-        self.__setattr__(param, int(args[0]))
+    elif param == &#34;markersize&#34;:
+        if len(args) &gt; 0:
+            if args[0] == &#34;auto&#34;:
+                self.__setattr__(param, &#34;auto&#34;)
+            else:
+                self.__setattr__(param, float(args[0]))
+    elif param == &#34;grid&#34;:
+        if len(args) &gt; 0:
+            if args[0] == &#34;auto&#34;:
+                self.__setattr__(param, &#34;auto&#34;)
+            else:
+                self.__setattr__(param, list(map(int, args[:2])))
+    elif param == &#34;dpi&#34;:
+        if len(args) &gt; 0:
+            self.__setattr__(param, int(args[0]))
+    elif param == &#34;rd_range&#34;:
+        if len(args) &gt; 1:
+            self.__setattr__(param, list(map(float, args[:2])))
+    elif param == &#34;rd_manhattan_range&#34;:
+        if len(args) &gt; 1:
+            self.__setattr__(param, list(map(float, args[:2])))
+    elif param == &#34;min_segment_size&#34;:
+        if len(args) &gt; 0:
+            self.__setattr__(param, int(args[0]))
+    elif param == &#34;output_filename&#34;:
+        if len(args) &gt; 0:
+            self.__setattr__(param, args[0])
+    elif param == &#34;plot_file&#34;:
+        if len(args) &gt; 0:
+            self.__setattr__(param, int(args[0]))
     elif param == &#34;plot_files&#34;:
         self.__setattr__(param, list(map(int, args)))
     elif param == &#34;style&#34;:
-        self.__setattr__(param, args[0])
+        if len(args) &gt; 0:
+            self.__setattr__(param, args[0])
     elif param in self.params and self.params[param] is not True:
-        self.__setattr__(param, args)</code></pre>
+        self.__setattr__(param, args)
+    if param in self.params:
+        print(&#34;    * %s: %s&#34; % (param, str(self.params[param])))
+    else:
+        sp = param.split(&#34;.&#34;)
+        if sp[0] in self.params:
+            print(&#34;    * %s: %s&#34; % (sp[0], str(self.params[sp[0]])))</code></pre>
 </details>
 </dd>
 <dt id="cnvpytor.viewparams.ViewParams.unset"><code class="name flex">
@@ -869,10 +1594,12 @@ def params(self):
 <details class="source">
 <summary>Source code</summary>
 <pre><code class="python">def unset(self, param):
-    if param in self.params and self.params[param] is True:
-        self.__setattr__(param, False)
-    if param in self.params and isinstance(self.params[param], list):
-        self.__setattr__(param, [])</code></pre>
+    if param in self.params:
+        if type(self.default[param]) == type(True):
+            self.__setattr__(param, False)
+        else:
+            self.__setattr__(param, self.default[param])
+        print(&#34;    * %s: %s&#34; % (param, str(self.params[param])))</code></pre>
 </details>
 </dd>
 </dl>

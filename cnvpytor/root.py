@@ -313,6 +313,8 @@ class Root:
         callset : str or None
             It will assume SNP data if None. Otherwise it will assume SNV data and
             store under the name provided by callset variable.
+        use_index : bool
+            Use index file for vcf parsing. Default is False.
 
         """
         for vcf_file in vcf_files:

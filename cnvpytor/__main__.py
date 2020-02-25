@@ -153,7 +153,6 @@ def main():
             show.ls()
 
         if args.export:
-            export = Export(args.root)
             if len(args.export) > 0:
                 dir_name_list = args.export[1:]
                 dir_name = ''
@@ -169,9 +168,9 @@ def main():
                         export_j.create_tracklist_json()
                     elif export_program == 'cnvnator':
                         logger.info("Under Development")
-                        # export.cnvnator(args.export[1:])
                 else:
                     logger.error("Incorrect export program name")
+
         if args.metadata:
             show = Show(args.root)
             show.meta()
