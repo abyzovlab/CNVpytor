@@ -4,7 +4,7 @@
 
 CNVpytor is a Python package and command line tool for CNV analysis from depth-of-coverage by mapped reads developed in Abyzov Lab, Mayo Clinic.
 
-**CNVpytor project is in early development stage.**
+**NEW: CNVpytor release ver 1.0 is available to install!**
 
 
 ## Gallery
@@ -16,22 +16,29 @@ CNVpytor is a Python package and command line tool for CNV analysis from depth-o
 | Region plot ([see example](examples/region.md))| Compare regions ([see example](examples/compare.md))|
 |<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/region.png" width="512px">|<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/compare.png" width="512px">|
 
-## Dependencies
+## Learn how to use CNVpytor in 10 minutes
 
+* [Geting started](GettingStarted.md) with command line interface
+* [Jupyter notebook](examples/CNVpytor.ipynb): How to use CNVpytor from Python 
+
+## Install
+
+### Dependencies
+
+* requests>=2.0
 * gnureadline
-* requests
-* pysam
-* numpy
-* scipy
-* matplotlib
-* h5py >= 2.9
+* pysam>=0.15
+* numpy>=1.16
+* scipy>=1.1
+* matplotlib>=2.2
+* h5py>=2.9
 
 Optional:
 
+* pyBigWig - for JBrowse export functionality
 * ROOT - for CNVnator root import/export functionality
 * seaborn - for additional plotting styles 
 
-## Install
 
 ### Install by cloning from GitHub
 
@@ -52,9 +59,14 @@ For single user (without admin privileges) use:
 > cnvpytor -download
 ```
 
-## Simple example
 
-Call CNV using read depth:
+## Use as a command line tool
+
+![scheme](cnvpytor/imgs/CNVpytor_v1.0.svg)
+
+_Diagram made using [Draw.io](https://github.com/jgraph/drawio)._ 
+
+### Call CNV using read depth:
 ```
 > cnvpytor -root file.pytor -rd file.bam
 > cnvpytor -root file.pytor -his 1000 10000 100000
@@ -62,55 +74,97 @@ Call CNV using read depth:
 > cnvpytor -root file.pytor -call 1000 10000 100000
 ```
 
-Call CNV using single nucleotide polymorphism::
+### Importing and using single nucleotide polymorphism data:
 ```
 > cnvpytor -root file.pytor -snp file.vcf
 > cnvpytor -root file.pytor -pileup file.bam
 > cnvpytor -root file.pytor -baf 10000 100000
-> cnvpytor -root file.pytor -call baf 10000 100000
 ```
 
-Plot
+### Plot from command line
 ```
-> cnvpytor -root file.pytor -plot stat
-> cnvpytor -root file.pytor -plot 10000 100000
-> cnvpytor -root file.pytor -plot stat manhattan 100000 -o prefix.pdf
-> cnvpytor -root file.pytor -plot baf -chrom 1 2 3 4
+> cnvpytor -root file.pytor -plot rdstat
+> cnvpytor -root file.pytor -plot rd 10000 100000
+> cnvpytor -root file.pytor -plot rdstat manhattan 100000 -o prefix.pdf
+> cnvpytor -root file.pytor -plot baf 100000 
 > cnvpytor -root file.pytor -plot regions 1:10M-20M,2:20M-43M 3:10M-20M 10000
 > cnvpytor -root file.pytor -plot circular 100000 -use_mask_rd -o prefix.png
 ```
 
-Plot - interactive mode
+### Plot from interactive mode
+
+CNVpytor view interactive mode is implemented with **<tab> completion** and internal documentation (**help** command).
+
+To enter interactive mode use '-view bin_size' option:
+
 ```
 > cnvpytor -root file.pytor -view 10000
 cnvpytor> chr1:1M-50M
 cnvpytor> rd
 cnvpytor> set panels rd likelihood
 cnvpytor> show
-    Parameters
-        * bin_size: 100000
-        * panels: ['rd','likelihood']
-        * use_mask_rd: False
-        * use_mask: True
-        * use_id: False
-        * plot_files:
-             0 file1.pytor True
-             1 file2.pytor True
-             2 file3.pytor True
-        * plot_file: 0
-        * grid: auto
+Parameters
+    * baf_colors: ['gray', 'black', 'red', 'green', 'blue']
+    * bin_size: 100000
+    * chrom: []
+    * contrast: 20
+    * dpi: 200
+    * file_titles: []
+    * grid: auto
+    * lh_colors: ['yellow']
+    * markersize: auto
+    * min_segment_size: 0
+    * output_filename: 
+    * panels: ['rd']
+    * plot_file: 0
+    * plot_files: [0]
+            0: file.pytor
+    * rd_call: True
+    * rd_call_mosaic: False
+    * rd_circular_colors: ['#555555', '#aaaaaa']
+    * rd_colors: ['grey', 'black', 'red', 'green', 'blue']
+    * rd_manhattan_call: False
+    * rd_manhattan_range: [0, 2]
+    * rd_partition: True
+    * rd_range: [0, 3]
+    * rd_raw: True
+    * rd_use_gc_corr: True
+    * rd_use_mask: False
+    * snp_call: False
+    * snp_circular_colors: ['#00ff00', '#0000ff']
+    * snp_colors: ['yellow', 'orange', 'cyan', 'blue', 'lime', 'green', 'yellow', 'orange']
+    * snp_use_id: False
+    * snp_use_mask: True
+    * snp_use_phase: False
+    * style: None
+    * xkcd: False
+
+cnvpytor> help markersize
+
+markersize
+    Size of markers used in scatter like plots (e.g. manhattan, snp).
+
+TYPE
+    float or str
+
+DEFAULT
+    auto
+
+PLOTS AFFECTS
+    manhattan, snp, region plot with snp panel
+
+EXAMPLE(s)
+    set markersize 10
+    set markersize auto
+
+SEE ALSO
+    rd_colors, snp_colors, baf_colors, lh_colors
 
 cnvpytor> set bin_size 100000
 cnvpytor> chr1:1M-50M chr2:60M-65M > filename.png
 ```
-## Pipeline scheme
 
-![scheme](cnvpytor/imgs/CNVpytor.svg)
-
-Diagram made using [Draw.io](https://github.com/jgraph/drawio).
-
-
-## Use as Python package
+## Use as a Python package
 
 CNVpytor is not just command line tool but also Python package. 
 
