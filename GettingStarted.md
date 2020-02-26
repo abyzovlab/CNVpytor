@@ -14,6 +14,7 @@ For single user (without admin privileges) use:
 
 ## Import read depth signal
 
+
 Make sure that you have indexed SAM, BAM or CRAM file.
 
 Initialize your CNVpytor project by running:
@@ -34,16 +35,35 @@ To check is reference genome detected use:
 
 ```
 > cnvpytor -root file.pytor -ls
-
 ```
 CNVpytor will print out details about file.pytor including line that specify which reference genome is
 used and are there available GC and mask data.
 ```
 Using reference genome: hg19 [ GC: yes, mask: yes ]
-
 ```
 
 ## Calling CNV/CNA events
+
+
+
+First hose bin size. It has to be divisible by 100. Here we will use 10 kbp and 100 kbp bins.
+
+To calculate binned, GC corrected RD signal type:
+```
+> cnvpytor -root file.pytor -his 10000 100000
+```
+CNVpytor stores 
+
+
+```
+> cnvpytor -root file.pytor -partition 10000 100000
+```
+
+```
+> cnvpytor -root file.pytor -call 10000 > calls.10000.tsv
+> cnvpytor -root file.pytor -call 100000 > calls.100000.tsv
+```
+
 
 ## Import SNP data
 
@@ -57,6 +77,8 @@ Using reference genome: hg19 [ GC: yes, mask: yes ]
 
 ## Ploting
 
-## Visualize CNVpytor data inside [JBrowse](https://github.com/GMOD/jbrowse)
+## Export
+
+### Visualize CNVpytor data inside [JBrowse](https://github.com/GMOD/jbrowse)
 
 ## Other

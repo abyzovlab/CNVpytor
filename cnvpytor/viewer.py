@@ -216,7 +216,10 @@ class Figure(ViewParams):
             if add_sufix:
                 image_filename = self._image_filename(suffix)
             if image_filename is not None:
-                plt.savefig(image_filename, dpi=self.dpi)
+                try:
+                    plt.savefig(image_filename, dpi=self.dpi)
+                except:
+                    _logger.warning("Figure is not saved due to an error!")
                 plt.close(self.fig)
             else:
                 _logger.warning("Figure is not saved!")
@@ -367,36 +370,50 @@ class Viewer(Show, Figure, HelpDescription):
                         eval(compile(line[1:], '<string>', 'single'))
                     except Exception as e:
                         print(traceback.format_exc())
-                elif f[0] == "save" and n > 1:
-                    plt.savefig(f[1])
-                elif f[0] in ["draw", "repaint", "update"] and n == 1:
-                    self.fig.canvas.draw()
+                elif f[0] == "save":
+                    if n > 1:
+                        try:
+                            plt.savefig(f[1])
+                        except ValueError:
+                            _logger.warning("File extension should be: .jpg, .png, .svg, .eps or .pdf")
+                        except:
+                            _logger.warning("Figure is not saved due to an error!")
+
+                elif f[0] in ["draw", "repaint", "update"]:
+                    if n == 1:
+                        self.fig.canvas.draw()
                 elif f[0] == "ls":
                     self.ls()
                 elif f[0] == "show":
                     if n == 1:
                         self.show()
-                elif f[0] == "set" and n > 1:
-                    self.set(f[1], f[2:])
+                elif f[0] == "set":
+                    if n > 1:
+                        self.set(f[1], f[2:])
                 elif f[0] == "help" and n > 1:
                     self.help(f[1])
                 elif f[0] == "help" and n == 1:
                     self.help("help")
-                elif f[0] == "unset" and n > 1:
-                    self.unset(f[1])
-                elif f[0] == "genotype" and n > 1:
-                    for ni in range(1, n):
-                        self.genotype([self.bin_size], f[ni])
-                elif f[0] == "compare" and n == 3:
-                    self.compare(f[1], f[2], plot=True)
-                elif f[0] == "snv" and n == 2:
-                    self.snp(callset=f[1])
-                elif f[0] == "snv" and n == 1:
-                    self.snp(callset="default")
-                elif f[0] == "compare" and n == 4:
-                    self.compare(f[1], f[2], n_bins=int(f[3]), plot=True)
-                elif f[0] == "info" and n > 1:
-                    self.info(list(map(binsize_type, f[1:])))
+                elif f[0] == "unset":
+                    if n > 1:
+                        self.unset(f[1])
+                elif f[0] == "genotype":
+                    if n > 1:
+                        for ni in range(1, n):
+                            self.genotype([self.bin_size], f[ni])
+                elif f[0] == "snv":
+                    if n == 2:
+                        self.snp(callset=f[1])
+                    elif n == 1:
+                        self.snp(callset="default")
+                elif f[0] == "compare":
+                    if n == 3:
+                        self.compare(f[1], f[2], plot=True)
+                    elif n==4:
+                        self.compare(f[1], f[2], n_bins=int(f[3]), plot=True)
+                elif f[0] == "info":
+                    if n > 1:
+                        self.info(list(map(binsize_type, f[1:])))
                 else:
                     try:
                         if f[0] not in ["rdstat", "snp"]:
