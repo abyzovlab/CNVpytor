@@ -173,7 +173,7 @@ see examples in [Jupyter notebook](examples/CNVpytor.ipynb).
 
 
 ## Export
-### 1. CNVpytor data visualization using JBrowse
+### [1. CNVpytor data visualization using JBrowse](GettingStarted.md#visualize-cnvpytor-data-inside-jbrowse)
 #### JBrowse version and plugins
 JBrowse version: https://github.com/GMOD/jbrowse/archive/1.16.6-release.tar.gz
 
