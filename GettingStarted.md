@@ -175,8 +175,14 @@ where
 
 ### Calculating BAF histograms
 
+To apply 1000 genomes strict mask filter:
 ```
-> cnvpytor -root file.pytor -baf 10000 100000 [-nomask] [-useid] [-usephase]
+> cnvpytor -root file.pytor -mask_snps
+```
+
+To calculate baf histograms for maf, baf and likelihood function for baf use:
+```
+> cnvpytor -root file.pytor -baf 10000 100000 [-nomask]
 ```
 
 ## Genotyping genomic regions
