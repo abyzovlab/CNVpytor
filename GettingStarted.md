@@ -28,8 +28,8 @@ in _pytor_ file.
 
 CNVpytor will detect reference genome and use internal database for GC content and 1000 genome strict mask.
 
-This works for hg19 and hg38 genomes. For other species or reference genomes you have to 
-[specify reference genome](examples/AddReferenceGenome.md).
+After instalation this works for hg19 and hg38 genomes. For other species or reference genomes you have to 
+[describe reference genome](examples/AddReferenceGenome.md).
 
 To check is reference genome detected use:
 
@@ -43,6 +43,7 @@ Using reference genome: hg19 [ GC: yes, mask: yes ]
 ```
 
 ## Calling CNV/CNA events
+
 
 
 
