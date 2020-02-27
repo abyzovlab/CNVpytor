@@ -12,6 +12,7 @@ from .genome import Genome
 from .viewer import anim_plot_likelihood, anim_plot_rd
 import numpy as np
 import logging
+import os.path
 
 _logger = logging.getLogger("cnvpytor.root")
 
@@ -233,6 +234,8 @@ class Root:
         vcff = Vcf(vcf_file)
         chrs = [c for c in vcff.get_chromosomes() if len(chroms) == 0 or c in chroms]
 
+        use_index = use_index and os.path.exists(vcf_file + ".tbi")
+
         def save_data(chr, pos, ref, alt, nref, nalt, gt, flag, qual):
             if (len(chroms) == 0 or chr in chroms) and (not pos is None) and (len(pos) > 0):
                 self.io.save_snp(chr, pos, ref, alt, nref, nalt, gt, flag, qual, callset=callset,
@@ -293,7 +296,8 @@ class Root:
                 self.io_gc = IO(Genome.reference_genomes[rg_name]["gc_file"])
                 self.rd_stat()
 
-    def vcf(self, vcf_files, chroms=[], sample='', no_counts=False, ad_tag="AD", gt_tag="GT", callset=None, use_index=False):
+    def vcf(self, vcf_files, chroms=[], sample='', no_counts=False, ad_tag="AD", gt_tag="GT", callset=None,
+            use_index=True):
         """ Read SNP data from variant file(s) and store in .cnvpytor file
 
         Parameters
@@ -319,7 +323,7 @@ class Root:
         """
         for vcf_file in vcf_files:
             self._read_vcf(vcf_file, chroms, sample, no_counts=no_counts, ad_tag=ad_tag, gt_tag=gt_tag,
-                                 callset=callset, use_index=use_index)
+                           callset=callset, use_index=use_index)
             self.io.add_meta_attribute("VCF", vcf_file)
 
     def rd_from_vcf(self, vcf_file, chroms=[], sample='', ad_tag="AD", dp_tag="DP", use_index=False):
@@ -1046,7 +1050,8 @@ class Root:
 
                         self.io.create_signal(c, bin_size, "RD partition", levels, flags=flag_rd)
 
-    def call(self, bin_sizes, chroms=[], print_calls=False, use_gc_corr=True, use_mask=False, genome_size=2.9e9, genome_cnv_fraction=0.01):
+    def call(self, bin_sizes, chroms=[], print_calls=False, use_gc_corr=True, use_mask=False, genome_size=2.9e9,
+             genome_cnv_fraction=0.01):
         """
         CNV caller based on the segmented RD signal.
 
@@ -1090,7 +1095,7 @@ class Root:
                 rd_mask_chromosomes[rd_name] = c
 
         for bin_size in bin_sizes:
-            ret[bin_size]=[]
+            ret[bin_size] = []
             for c in self.io.rd_chromosomes():
                 if (c in rd_gc_chromosomes or not use_gc_corr) and (c in rd_mask_chromosomes or not use_mask) and (
                         len(chroms) == 0 or (c in chroms)):
@@ -1856,7 +1861,7 @@ class Root:
                                 if (segments[j][0] - segments[i][-1]) < max_distance * (
                                         len(segments[i]) + len(segments[j])) and \
                                         normal_overlap(level[i], error[i], level[j], error[j]) * likelihood_overlap(
-                                        likelihood[i], likelihood[j]) == maxo:
+                                    likelihood[i], likelihood[j]) == maxo:
                                     nl, ne = normal_merge(level[i], error[i], level[j], error[j])
                                     nlh = likelihood[i] * likelihood[j]
                                     level[i] = nl
@@ -1898,9 +1903,9 @@ class Root:
                             rd_p = t_test_1_sample(mean, level[i], error[i], len(segments[i]))
                             baf_mean, baf_p = likelihood_baf_pval(likelihood[i])
                             print(c + ":" + str(segments[i][0] * bin_size + 1) + "-" + str(
-                                    segments[i][-1] * bin_size + bin_size),
-                                      (segments[i][-1] - segments[i][0] + 1) * bin_size, bin_size, len(segments[i]),
-                                      rd_mean, rd_p, baf_mean, baf_p)
+                                segments[i][-1] * bin_size + bin_size),
+                                  (segments[i][-1] - segments[i][0] + 1) * bin_size, bin_size, len(segments[i]),
+                                  rd_mean, rd_p, baf_mean, baf_p)
 
                         self.io.create_signal(c, bin_size, "RD mosaic segments",
                                               data=segments_code(segments), flags=flag_rd)

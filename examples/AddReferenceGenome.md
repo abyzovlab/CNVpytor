@@ -4,7 +4,7 @@ For GC correction and 1000 genome strict mask filtering CNVpytor uses informatio
 related to the reference genome. With installation two reference genomes are
 available: hg19 (GRCh37) and hg28 (GRCh38).
 
-If you want to use other reference genome for human or other species first we have 
+If we want to use CNVpytor for other species or different reference genome for human first we have 
 to create GC and mask file (optional).
 
 In this example we will configure mouse reference genome MGSCv37.
@@ -34,7 +34,7 @@ apart from the filtering step.
 You may also generate your own mask file by creating fasta file that contains character "P" if corresponding 
 base pair passes the filter and any character different than "P" if not.
 
-Now, we will create example_ref_genome_conf.py file containing following:
+Now, we will create _example_ref_genome_conf.py_ file containing list of chromosomes and chromosome lengths:
 
 ```
 import_reference_genomes = {
@@ -56,7 +56,9 @@ import_reference_genomes = {
 }
 ```
 
-Last line can be skipped, if there is no mask file. 
+Last line can be skipped, if there is no mask file. Letter next to chromosome length denote type of a chromosome:
+A - autosome, S - sex chromosome, M - mitochondria.
+
 
 To use CNVpytor with new reference genome us -conf option in each cnvpytor command, e.g.
 ```
@@ -71,7 +73,7 @@ cnvpytor -conf REL_PATH/example_ref_genome_conf.py -root file.pytor -rg mm9
 ```
 
 To avoid typing "-conf REL_PATH/example_ref_genome_conf.py" each time you run cnvpytor, 
-you can create an alias. However, we would like to encourage you to send us configuration, 
+you can create an bash alias. However, we would like to encourage you to send us configuration, 
 gc and mask file and we would be glad to include it into the CNVpytor code. Or, even better, 
 fork the repository on GitHub, add configuration in cnvpytor/genome.py, data files in cnvpytor/data 
 and create a pull request.
