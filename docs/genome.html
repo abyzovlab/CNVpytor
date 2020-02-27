@@ -308,8 +308,7 @@ class Genome:
 
         &#34;&#34;&#34;
         _logger.info(&#34;Reading configuration file &#39;%s&#39;.&#34; % filename)
-        import_reference_genomes = {}
-        exec(open(filename).read())
+        exec(open(filename).read(),globals())
         for g in import_reference_genomes:
             _logger.info(&#34;Importing reference genome data: &#39;%s&#39;.&#34; % g)
             cls.reference_genomes[g] = import_reference_genomes[g]</code></pre>
@@ -744,8 +743,7 @@ def load_reference_genomes(cls, filename):
 
     &#34;&#34;&#34;
     _logger.info(&#34;Reading configuration file &#39;%s&#39;.&#34; % filename)
-    import_reference_genomes = {}
-    exec(open(filename).read())
+    exec(open(filename).read(),globals())
     for g in import_reference_genomes:
         _logger.info(&#34;Importing reference genome data: &#39;%s&#39;.&#34; % g)
         cls.reference_genomes[g] = import_reference_genomes[g]</code></pre>

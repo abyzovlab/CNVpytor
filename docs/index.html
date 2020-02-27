@@ -25,83 +25,12 @@ from depth-of-coverage by mapped reads developed in Abyzov Lab, Mayo …" />
 <h1 id="cnvpytor">CNVpytor</h1>
 <p>CNVpytor is a Python package and command line tool for CNV analysis
 from depth-of-coverage by mapped reads developed in Abyzov Lab, Mayo Clinic.</p>
-<p>Source::
+<p>Source and tutorial::
 <a href="https://github.com/abyzovlab/CNVpytor">https://github.com/abyzovlab/CNVpytor</a></p>
 <p>Bug reports::
 <a href="https://github.com/abyzovlab/CNVpytor/issues">https://github.com/abyzovlab/CNVpytor/issues</a></p>
 <p>API Documentation::
 <a href="https://abyzovlab.github.io/CNVpytor/">https://abyzovlab.github.io/CNVpytor/</a></p>
-<h2 id="dependencies">Dependencies</h2>
-<ul>
-<li>gnureadline</li>
-<li>requests</li>
-<li>pysam</li>
-<li>numpy</li>
-<li>scipy</li>
-<li>matplotlib</li>
-<li>h5py &gt;= 2.9</li>
-</ul>
-<p>Optional:</p>
-<ul>
-<li>ROOT - for CNVnator root import/export functionality</li>
-<li>seaborn - for additional plotting styles</li>
-</ul>
-<h2 id="install">Install</h2>
-<h3 id="install-by-cloning-from-github">Install by cloning from GitHub</h3>
-<pre><code>&gt; git clone &lt;https://github.com/abyzovlab/CNVpytor.git&gt;
-&gt; cd CNVpytor
-&gt; pip install .
-</code></pre>
-<p>For single user (without admin privileges) use:</p>
-<pre><code>&gt; pip install --user .
-</code></pre>
-<h3 id="install-using-pip">Install using pip</h3>
-<pre><code>&gt; pip install cnvpytor
-&gt; cnvpytor -download
-</code></pre>
-<h2 id="simple-example">Simple example</h2>
-<p>Call CNV using read depth:</p>
-<pre><code>&gt; cnvpytor -root file.pytor -rd file.bam
-&gt; cnvpytor -root file.pytor -his 1000 10000 100000
-&gt; cnvpytor -root file.pytor -partition 1000 10000 100000
-&gt; cnvpytor -root file.pytor -call 1000 10000 100000
-</code></pre>
-<p>Call CNV using single nucleotide polymorphism::</p>
-<pre><code>&gt; cnvpytor -root file.pytor -snp file.vcf
-&gt; cnvpytor -root file.pytor -pileup file.bam
-&gt; cnvpytor -root file.pytor -baf 10000 100000
-&gt; cnvpytor -root file.pytor -call baf 10000 100000
-</code></pre>
-<p>Plot</p>
-<pre><code>&gt; cnvpytor -root file.pytor -plot stat
-&gt; cnvpytor -root file.pytor -plot 10000 100000
-&gt; cnvpytor -root file.pytor -plot stat manhattan 100000 -o prefix.pdf
-&gt; cnvpytor -root file.pytor -plot baf -chrom 1 2 3 4
-&gt; cnvpytor -root file.pytor -plot regions 1:10M-20M,2:20M-43M 3:10M-20M 10000
-&gt; cnvpytor -root file.pytor -plot circular 100000 -use_mask_rd -o prefix.png
-</code></pre>
-<p>Plot - interactive mode</p>
-<pre><code>&gt; cnvpytor -root file.pytor -view 10000
-cnvpytor&gt; chr1:1M-50M
-cnvpytor&gt; rd
-cnvpytor&gt; set panels rd likelihood
-cnvpytor&gt; show
-    Parameters
-        * bin_size: 100000
-        * panels: ['rd','likelihood']
-        * use_mask_rd: False
-        * use_mask: True
-        * use_id: False
-        * plot_files:
-             0 file1.pytor True
-             1 file2.pytor True
-             2 file3.pytor True
-        * plot_file: 0
-        * grid: auto
-
-cnvpytor&gt; set bin_size 100000
-cnvpytor&gt; chr1:1M-50M chr2:60M-65M &gt; filename.png
-</code></pre>
 <h2 id="bugs">Bugs</h2>
 <p>Please report any bugs that you find on GitHub:
 <a href="https://github.com/abyzovlab/CNVpytor/issues">https://github.com/abyzovlab/CNVpytor/issues</a></p>
@@ -116,7 +45,7 @@ CNVpytor
 CNVpytor is a Python package and command line tool for CNV analysis
 from depth-of-coverage by mapped reads developed in Abyzov Lab, Mayo Clinic.
 
-Source::
+Source and tutorial::
     https://github.com/abyzovlab/CNVpytor
 
 Bug reports::
@@ -124,95 +53,6 @@ Bug reports::
 
 API Documentation::
     https://abyzovlab.github.io/CNVpytor/
-
-## Dependencies
-
-* gnureadline
-* requests
-* pysam
-* numpy
-* scipy
-* matplotlib
-* h5py &gt;= 2.9
-
-Optional:
-
-* ROOT - for CNVnator root import/export functionality
-* seaborn - for additional plotting styles
-
-## Install
-
-### Install by cloning from GitHub
-
-```
-&gt; git clone https://github.com/abyzovlab/CNVpytor.git
-&gt; cd CNVpytor
-&gt; pip install .
-```
-For single user (without admin privileges) use:
-```
-&gt; pip install --user .
-```
-
-### Install using pip
-
-```
-&gt; pip install cnvpytor
-&gt; cnvpytor -download
-```
-
-## Simple example
-
-Call CNV using read depth:
-```
-&gt; cnvpytor -root file.pytor -rd file.bam
-&gt; cnvpytor -root file.pytor -his 1000 10000 100000
-&gt; cnvpytor -root file.pytor -partition 1000 10000 100000
-&gt; cnvpytor -root file.pytor -call 1000 10000 100000
-```
-
-Call CNV using single nucleotide polymorphism::
-```
-&gt; cnvpytor -root file.pytor -snp file.vcf
-&gt; cnvpytor -root file.pytor -pileup file.bam
-&gt; cnvpytor -root file.pytor -baf 10000 100000
-&gt; cnvpytor -root file.pytor -call baf 10000 100000
-```
-
-Plot
-```
-&gt; cnvpytor -root file.pytor -plot stat
-&gt; cnvpytor -root file.pytor -plot 10000 100000
-&gt; cnvpytor -root file.pytor -plot stat manhattan 100000 -o prefix.pdf
-&gt; cnvpytor -root file.pytor -plot baf -chrom 1 2 3 4
-&gt; cnvpytor -root file.pytor -plot regions 1:10M-20M,2:20M-43M 3:10M-20M 10000
-&gt; cnvpytor -root file.pytor -plot circular 100000 -use_mask_rd -o prefix.png
-```
-
-Plot - interactive mode
-```
-&gt; cnvpytor -root file.pytor -view 10000
-cnvpytor&gt; chr1:1M-50M
-cnvpytor&gt; rd
-cnvpytor&gt; set panels rd likelihood
-cnvpytor&gt; show
-    Parameters
-        * bin_size: 100000
-        * panels: [&#39;rd&#39;,&#39;likelihood&#39;]
-        * use_mask_rd: False
-        * use_mask: True
-        * use_id: False
-        * plot_files:
-             0 file1.pytor True
-             1 file2.pytor True
-             2 file3.pytor True
-        * plot_file: 0
-        * grid: auto
-
-cnvpytor&gt; set bin_size 100000
-cnvpytor&gt; chr1:1M-50M chr2:60M-65M &gt; filename.png
-```
-
 
 ## Bugs
 
@@ -303,13 +143,6 @@ from .version import __version__</code></pre>
 <div class="toc">
 <ul>
 <li><a href="#cnvpytor">CNVpytor</a><ul>
-<li><a href="#dependencies">Dependencies</a></li>
-<li><a href="#install">Install</a><ul>
-<li><a href="#install-by-cloning-from-github">Install by cloning from GitHub</a></li>
-<li><a href="#install-using-pip">Install using pip</a></li>
-</ul>
-</li>
-<li><a href="#simple-example">Simple example</a></li>
 <li><a href="#bugs">Bugs</a></li>
 <li><a href="#license">License</a></li>
 </ul>

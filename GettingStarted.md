@@ -151,7 +151,7 @@ where:
 
 Chromosome names must be specified the same way as they are described in the vcf header, 
 e.g., chrX or X. One can specify multiple chromosomes separated by space. If no chromosome is specified, 
-read mapping is extracted for all chromosomes in the vcf file.
+all chromosomes from the vcf file will be parsed.
 
 If chromosome names in variant and alignment file are different in prefix chr (e.g. in "1" and "chr1")
 cnvpytor will detect it and match the names using first imported name for both signals.

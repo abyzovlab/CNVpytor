@@ -242,7 +242,10 @@ class Figure(ViewParams):
             if add_sufix:
                 image_filename = self._image_filename(suffix)
             if image_filename is not None:
-                plt.savefig(image_filename, dpi=self.dpi)
+                try:
+                    plt.savefig(image_filename, dpi=self.dpi)
+                except:
+                    _logger.warning(&#34;Figure is not saved due to an error!&#34;)
                 plt.close(self.fig)
             else:
                 _logger.warning(&#34;Figure is not saved!&#34;)
@@ -393,36 +396,50 @@ class Viewer(Show, Figure, HelpDescription):
                         eval(compile(line[1:], &#39;&lt;string&gt;&#39;, &#39;single&#39;))
                     except Exception as e:
                         print(traceback.format_exc())
-                elif f[0] == &#34;save&#34; and n &gt; 1:
-                    plt.savefig(f[1])
-                elif f[0] in [&#34;draw&#34;, &#34;repaint&#34;, &#34;update&#34;] and n == 1:
-                    self.fig.canvas.draw()
+                elif f[0] == &#34;save&#34;:
+                    if n &gt; 1:
+                        try:
+                            plt.savefig(f[1])
+                        except ValueError:
+                            _logger.warning(&#34;File extension should be: .jpg, .png, .svg, .eps or .pdf&#34;)
+                        except:
+                            _logger.warning(&#34;Figure is not saved due to an error!&#34;)
+
+                elif f[0] in [&#34;draw&#34;, &#34;repaint&#34;, &#34;update&#34;]:
+                    if n == 1:
+                        self.fig.canvas.draw()
                 elif f[0] == &#34;ls&#34;:
                     self.ls()
                 elif f[0] == &#34;show&#34;:
                     if n == 1:
                         self.show()
-                elif f[0] == &#34;set&#34; and n &gt; 1:
-                    self.set(f[1], f[2:])
+                elif f[0] == &#34;set&#34;:
+                    if n &gt; 1:
+                        self.set(f[1], f[2:])
                 elif f[0] == &#34;help&#34; and n &gt; 1:
                     self.help(f[1])
                 elif f[0] == &#34;help&#34; and n == 1:
                     self.help(&#34;help&#34;)
-                elif f[0] == &#34;unset&#34; and n &gt; 1:
-                    self.unset(f[1])
-                elif f[0] == &#34;genotype&#34; and n &gt; 1:
-                    for ni in range(1, n):
-                        self.genotype([self.bin_size], f[ni])
-                elif f[0] == &#34;compare&#34; and n == 3:
-                    self.compare(f[1], f[2], plot=True)
-                elif f[0] == &#34;snv&#34; and n == 2:
-                    self.snp(callset=f[1])
-                elif f[0] == &#34;snv&#34; and n == 1:
-                    self.snp(callset=&#34;default&#34;)
-                elif f[0] == &#34;compare&#34; and n == 4:
-                    self.compare(f[1], f[2], n_bins=int(f[3]), plot=True)
-                elif f[0] == &#34;info&#34; and n &gt; 1:
-                    self.info(list(map(binsize_type, f[1:])))
+                elif f[0] == &#34;unset&#34;:
+                    if n &gt; 1:
+                        self.unset(f[1])
+                elif f[0] == &#34;genotype&#34;:
+                    if n &gt; 1:
+                        for ni in range(1, n):
+                            self.genotype([self.bin_size], f[ni])
+                elif f[0] == &#34;snv&#34;:
+                    if n == 2:
+                        self.snp(callset=f[1])
+                    elif n == 1:
+                        self.snp(callset=&#34;default&#34;)
+                elif f[0] == &#34;compare&#34;:
+                    if n == 3:
+                        self.compare(f[1], f[2], plot=True)
+                    elif n==4:
+                        self.compare(f[1], f[2], n_bins=int(f[3]), plot=True)
+                elif f[0] == &#34;info&#34;:
+                    if n &gt; 1:
+                        self.info(list(map(binsize_type, f[1:])))
                 else:
                     try:
                         if f[0] not in [&#34;rdstat&#34;, &#34;snp&#34;]:
@@ -1876,7 +1893,10 @@ def anim_plot_rd(level, error, segments, n, iter, prefix, maxp, minp, mean):
             if add_sufix:
                 image_filename = self._image_filename(suffix)
             if image_filename is not None:
-                plt.savefig(image_filename, dpi=self.dpi)
+                try:
+                    plt.savefig(image_filename, dpi=self.dpi)
+                except:
+                    _logger.warning(&#34;Figure is not saved due to an error!&#34;)
                 plt.close(self.fig)
             else:
                 _logger.warning(&#34;Figure is not saved!&#34;)
@@ -1970,7 +1990,10 @@ prefix.extension is parsed from output_filename parameter.</dd>
         if add_sufix:
             image_filename = self._image_filename(suffix)
         if image_filename is not None:
-            plt.savefig(image_filename, dpi=self.dpi)
+            try:
+                plt.savefig(image_filename, dpi=self.dpi)
+            except:
+                _logger.warning(&#34;Figure is not saved due to an error!&#34;)
             plt.close(self.fig)
         else:
             _logger.warning(&#34;Figure is not saved!&#34;)
@@ -2463,36 +2486,50 @@ rd level and corresponding stdev for each chromosome type (autosomes, sex chromo
                         eval(compile(line[1:], &#39;&lt;string&gt;&#39;, &#39;single&#39;))
                     except Exception as e:
                         print(traceback.format_exc())
-                elif f[0] == &#34;save&#34; and n &gt; 1:
-                    plt.savefig(f[1])
-                elif f[0] in [&#34;draw&#34;, &#34;repaint&#34;, &#34;update&#34;] and n == 1:
-                    self.fig.canvas.draw()
+                elif f[0] == &#34;save&#34;:
+                    if n &gt; 1:
+                        try:
+                            plt.savefig(f[1])
+                        except ValueError:
+                            _logger.warning(&#34;File extension should be: .jpg, .png, .svg, .eps or .pdf&#34;)
+                        except:
+                            _logger.warning(&#34;Figure is not saved due to an error!&#34;)
+
+                elif f[0] in [&#34;draw&#34;, &#34;repaint&#34;, &#34;update&#34;]:
+                    if n == 1:
+                        self.fig.canvas.draw()
                 elif f[0] == &#34;ls&#34;:
                     self.ls()
                 elif f[0] == &#34;show&#34;:
                     if n == 1:
                         self.show()
-                elif f[0] == &#34;set&#34; and n &gt; 1:
-                    self.set(f[1], f[2:])
+                elif f[0] == &#34;set&#34;:
+                    if n &gt; 1:
+                        self.set(f[1], f[2:])
                 elif f[0] == &#34;help&#34; and n &gt; 1:
                     self.help(f[1])
                 elif f[0] == &#34;help&#34; and n == 1:
                     self.help(&#34;help&#34;)
-                elif f[0] == &#34;unset&#34; and n &gt; 1:
-                    self.unset(f[1])
-                elif f[0] == &#34;genotype&#34; and n &gt; 1:
-                    for ni in range(1, n):
-                        self.genotype([self.bin_size], f[ni])
-                elif f[0] == &#34;compare&#34; and n == 3:
-                    self.compare(f[1], f[2], plot=True)
-                elif f[0] == &#34;snv&#34; and n == 2:
-                    self.snp(callset=f[1])
-                elif f[0] == &#34;snv&#34; and n == 1:
-                    self.snp(callset=&#34;default&#34;)
-                elif f[0] == &#34;compare&#34; and n == 4:
-                    self.compare(f[1], f[2], n_bins=int(f[3]), plot=True)
-                elif f[0] == &#34;info&#34; and n &gt; 1:
-                    self.info(list(map(binsize_type, f[1:])))
+                elif f[0] == &#34;unset&#34;:
+                    if n &gt; 1:
+                        self.unset(f[1])
+                elif f[0] == &#34;genotype&#34;:
+                    if n &gt; 1:
+                        for ni in range(1, n):
+                            self.genotype([self.bin_size], f[ni])
+                elif f[0] == &#34;snv&#34;:
+                    if n == 2:
+                        self.snp(callset=f[1])
+                    elif n == 1:
+                        self.snp(callset=&#34;default&#34;)
+                elif f[0] == &#34;compare&#34;:
+                    if n == 3:
+                        self.compare(f[1], f[2], plot=True)
+                    elif n==4:
+                        self.compare(f[1], f[2], n_bins=int(f[3]), plot=True)
+                elif f[0] == &#34;info&#34;:
+                    if n &gt; 1:
+                        self.info(list(map(binsize_type, f[1:])))
                 else:
                     try:
                         if f[0] not in [&#34;rdstat&#34;, &#34;snp&#34;]:
@@ -4394,36 +4431,50 @@ def set_style(style):
                     eval(compile(line[1:], &#39;&lt;string&gt;&#39;, &#39;single&#39;))
                 except Exception as e:
                     print(traceback.format_exc())
-            elif f[0] == &#34;save&#34; and n &gt; 1:
-                plt.savefig(f[1])
-            elif f[0] in [&#34;draw&#34;, &#34;repaint&#34;, &#34;update&#34;] and n == 1:
-                self.fig.canvas.draw()
+            elif f[0] == &#34;save&#34;:
+                if n &gt; 1:
+                    try:
+                        plt.savefig(f[1])
+                    except ValueError:
+                        _logger.warning(&#34;File extension should be: .jpg, .png, .svg, .eps or .pdf&#34;)
+                    except:
+                        _logger.warning(&#34;Figure is not saved due to an error!&#34;)
+
+            elif f[0] in [&#34;draw&#34;, &#34;repaint&#34;, &#34;update&#34;]:
+                if n == 1:
+                    self.fig.canvas.draw()
             elif f[0] == &#34;ls&#34;:
                 self.ls()
             elif f[0] == &#34;show&#34;:
                 if n == 1:
                     self.show()
-            elif f[0] == &#34;set&#34; and n &gt; 1:
-                self.set(f[1], f[2:])
+            elif f[0] == &#34;set&#34;:
+                if n &gt; 1:
+                    self.set(f[1], f[2:])
             elif f[0] == &#34;help&#34; and n &gt; 1:
                 self.help(f[1])
             elif f[0] == &#34;help&#34; and n == 1:
                 self.help(&#34;help&#34;)
-            elif f[0] == &#34;unset&#34; and n &gt; 1:
-                self.unset(f[1])
-            elif f[0] == &#34;genotype&#34; and n &gt; 1:
-                for ni in range(1, n):
-                    self.genotype([self.bin_size], f[ni])
-            elif f[0] == &#34;compare&#34; and n == 3:
-                self.compare(f[1], f[2], plot=True)
-            elif f[0] == &#34;snv&#34; and n == 2:
-                self.snp(callset=f[1])
-            elif f[0] == &#34;snv&#34; and n == 1:
-                self.snp(callset=&#34;default&#34;)
-            elif f[0] == &#34;compare&#34; and n == 4:
-                self.compare(f[1], f[2], n_bins=int(f[3]), plot=True)
-            elif f[0] == &#34;info&#34; and n &gt; 1:
-                self.info(list(map(binsize_type, f[1:])))
+            elif f[0] == &#34;unset&#34;:
+                if n &gt; 1:
+                    self.unset(f[1])
+            elif f[0] == &#34;genotype&#34;:
+                if n &gt; 1:
+                    for ni in range(1, n):
+                        self.genotype([self.bin_size], f[ni])
+            elif f[0] == &#34;snv&#34;:
+                if n == 2:
+                    self.snp(callset=f[1])
+                elif n == 1:
+                    self.snp(callset=&#34;default&#34;)
+            elif f[0] == &#34;compare&#34;:
+                if n == 3:
+                    self.compare(f[1], f[2], plot=True)
+                elif n==4:
+                    self.compare(f[1], f[2], n_bins=int(f[3]), plot=True)
+            elif f[0] == &#34;info&#34;:
+                if n &gt; 1:
+                    self.info(list(map(binsize_type, f[1:])))
             else:
                 try:
                     if f[0] not in [&#34;rdstat&#34;, &#34;snp&#34;]:

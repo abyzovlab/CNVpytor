@@ -27,11 +27,19 @@ from pathlib import Path
 from .io import *
 from .genome import *
 
+
 _logger = logging.getLogger(&#34;cnvpytor.export&#34;)
 
 
 class Wiggle:
     def __init__(self, filename):
+        &#34;&#34;&#34;
+        creates bigwig file
+        Parameters
+        ----------
+        filename : path
+            Path for the bigwig filename
+        &#34;&#34;&#34;
         self.filename = filename
         self.file = None
         import pyBigWig
@@ -47,9 +55,37 @@ class Wiggle:
             self.file = pyBigWig.open(filename)
 
     def add_header_list(self, chr_len_list):
+        &#34;&#34;&#34;
+        Add header to the bigwig file
+        Parameters
+        ----------
+        chr_len_list : list of tuple
+            chromosome name and length list.
+
+        Returns
+        -------
+
+        &#34;&#34;&#34;
         self.file.addHeader(chr_len_list)
 
     def add_fixedstep(self, chrom, position_int, value_list, span=1, step=1):
+        &#34;&#34;&#34;
+        Add fixed step formatted data
+        Parameters
+        ----------
+        chrom : str
+            chromosome name
+        position_int : int
+            start position
+        value_list : list of values
+            input values
+        span : int
+        step : int
+
+        Returns
+        -------
+
+        &#34;&#34;&#34;
         self.file.addEntries(chrom, position_int, values=value_list, span=span, step=step)
 
     def get_cnvpytor_signal(self, md5, chrom, bin_size, signal, flag):
@@ -92,7 +128,7 @@ class Wiggle:
             self.file.close()
 
 
-class ExportJbrowse:
+class ExportJBrowse:
 
     rd_signal_dct = {
         &#34;RD&#34;: {
@@ -111,7 +147,7 @@ class ExportJbrowse:
     snp_signal_dct = {
         &#34;SNP baf&#34;: {
             &#34;FLAG&#34;: [0x0100],
-            &#34;color&#34;: [&#34;black&#34;],
+            &#34;color&#34;: [&#34;gray&#34;],
             &#34;nonCont&#34;: [True],
         },
         &#34;SNP i1&#34;: {
@@ -134,6 +170,15 @@ class ExportJbrowse:
     }
 
     def __init__(self, files, dir_name):
+        &#34;&#34;&#34;
+        Exports CNVpytor data
+        Parameters
+        ----------
+        files : path
+            CNVpytor files path
+        dir_name: path
+            Export directory path
+        &#34;&#34;&#34;
         self.files = files
         self.dir = Path(dir_name)
         self.io = [IO(f, ro=True) for f in files]
@@ -480,15 +525,23 @@ class ExportJbrowse:
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="cnvpytor.export.ExportJbrowse"><code class="flex name class">
-<span>class <span class="ident">ExportJbrowse</span></span>
+<dt id="cnvpytor.export.ExportJBrowse"><code class="flex name class">
+<span>class <span class="ident">ExportJBrowse</span></span>
 <span>(</span><span>files, dir_name)</span>
 </code></dt>
 <dd>
-<section class="desc"></section>
+<section class="desc"><p>Exports CNVpytor data
+Parameters</p>
+<hr>
+<dl>
+<dt><strong><code>files</code></strong> :&ensp;<code>path</code></dt>
+<dd>CNVpytor files path</dd>
+<dt><strong><code>dir_name</code></strong> :&ensp;<code>path</code></dt>
+<dd>Export directory path</dd>
+</dl></section>
 <details class="source">
 <summary>Source code</summary>
-<pre><code class="python">class ExportJbrowse:
+<pre><code class="python">class ExportJBrowse:
 
     rd_signal_dct = {
         &#34;RD&#34;: {
@@ -507,7 +560,7 @@ class ExportJbrowse:
     snp_signal_dct = {
         &#34;SNP baf&#34;: {
             &#34;FLAG&#34;: [0x0100],
-            &#34;color&#34;: [&#34;black&#34;],
+            &#34;color&#34;: [&#34;gray&#34;],
             &#34;nonCont&#34;: [True],
         },
         &#34;SNP i1&#34;: {
@@ -530,6 +583,15 @@ class ExportJbrowse:
     }
 
     def __init__(self, files, dir_name):
+        &#34;&#34;&#34;
+        Exports CNVpytor data
+        Parameters
+        ----------
+        files : path
+            CNVpytor files path
+        dir_name: path
+            Export directory path
+        &#34;&#34;&#34;
         self.files = files
         self.dir = Path(dir_name)
         self.io = [IO(f, ro=True) for f in files]
@@ -868,22 +930,22 @@ class ExportJbrowse:
 </details>
 <h3>Class variables</h3>
 <dl>
-<dt id="cnvpytor.export.ExportJbrowse.rd_signal_dct"><code class="name">var <span class="ident">rd_signal_dct</span></code></dt>
+<dt id="cnvpytor.export.ExportJBrowse.rd_signal_dct"><code class="name">var <span class="ident">rd_signal_dct</span></code></dt>
 <dd>
 <section class="desc"></section>
 </dd>
-<dt id="cnvpytor.export.ExportJbrowse.signal_dct"><code class="name">var <span class="ident">signal_dct</span></code></dt>
+<dt id="cnvpytor.export.ExportJBrowse.signal_dct"><code class="name">var <span class="ident">signal_dct</span></code></dt>
 <dd>
 <section class="desc"></section>
 </dd>
-<dt id="cnvpytor.export.ExportJbrowse.snp_signal_dct"><code class="name">var <span class="ident">snp_signal_dct</span></code></dt>
+<dt id="cnvpytor.export.ExportJBrowse.snp_signal_dct"><code class="name">var <span class="ident">snp_signal_dct</span></code></dt>
 <dd>
 <section class="desc"></section>
 </dd>
 </dl>
 <h3>Static methods</h3>
 <dl>
-<dt id="cnvpytor.export.ExportJbrowse.add_config_reference"><code class="name flex">
+<dt id="cnvpytor.export.ExportJBrowse.add_config_reference"><code class="name flex">
 <span>def <span class="ident">add_config_reference</span></span>(<span>)</span>
 </code></dt>
 <dd>
@@ -906,7 +968,7 @@ def add_config_reference():
     return track_dct</code></pre>
 </details>
 </dd>
-<dt id="cnvpytor.export.ExportJbrowse.create_bigwig"><code class="name flex">
+<dt id="cnvpytor.export.ExportJBrowse.create_bigwig"><code class="name flex">
 <span>def <span class="ident">create_bigwig</span></span>(<span>root_io, bigwig_file, chr_list, bin_size, signal_name, flag, offset=None)</span>
 </code></dt>
 <dd>
@@ -934,7 +996,7 @@ def create_bigwig(root_io, bigwig_file, chr_list, bin_size, signal_name, flag, o
 </dl>
 <h3>Instance variables</h3>
 <dl>
-<dt id="cnvpytor.export.ExportJbrowse.export_data_dir_list"><code class="name">var <span class="ident">export_data_dir_list</span></code></dt>
+<dt id="cnvpytor.export.ExportJBrowse.export_data_dir_list"><code class="name">var <span class="ident">export_data_dir_list</span></code></dt>
 <dd>
 <section class="desc"></section>
 <details class="source">
@@ -951,7 +1013,7 @@ def export_data_dir_list(self):
     return data_dir_list</code></pre>
 </details>
 </dd>
-<dt id="cnvpytor.export.ExportJbrowse.export_directory"><code class="name">var <span class="ident">export_directory</span></code></dt>
+<dt id="cnvpytor.export.ExportJBrowse.export_directory"><code class="name">var <span class="ident">export_directory</span></code></dt>
 <dd>
 <section class="desc"></section>
 <details class="source">
@@ -983,7 +1045,7 @@ def export_directory(self):
             exit(0)</code></pre>
 </details>
 </dd>
-<dt id="cnvpytor.export.ExportJbrowse.export_ref_file"><code class="name">var <span class="ident">export_ref_file</span></code></dt>
+<dt id="cnvpytor.export.ExportJBrowse.export_ref_file"><code class="name">var <span class="ident">export_ref_file</span></code></dt>
 <dd>
 <section class="desc"></section>
 <details class="source">
@@ -994,7 +1056,7 @@ def export_ref_file(self):
     return ref_file</code></pre>
 </details>
 </dd>
-<dt id="cnvpytor.export.ExportJbrowse.export_seq_dir"><code class="name">var <span class="ident">export_seq_dir</span></code></dt>
+<dt id="cnvpytor.export.ExportJBrowse.export_seq_dir"><code class="name">var <span class="ident">export_seq_dir</span></code></dt>
 <dd>
 <section class="desc"></section>
 <details class="source">
@@ -1006,7 +1068,7 @@ def export_seq_dir(self):
     return seq_dir</code></pre>
 </details>
 </dd>
-<dt id="cnvpytor.export.ExportJbrowse.export_tracklist_file"><code class="name">var <span class="ident">export_tracklist_file</span></code></dt>
+<dt id="cnvpytor.export.ExportJBrowse.export_tracklist_file"><code class="name">var <span class="ident">export_tracklist_file</span></code></dt>
 <dd>
 <section class="desc"></section>
 <details class="source">
@@ -1017,7 +1079,7 @@ def export_tracklist_file(self):
     return track_list</code></pre>
 </details>
 </dd>
-<dt id="cnvpytor.export.ExportJbrowse.pytor_names"><code class="name">var <span class="ident">pytor_names</span></code></dt>
+<dt id="cnvpytor.export.ExportJBrowse.pytor_names"><code class="name">var <span class="ident">pytor_names</span></code></dt>
 <dd>
 <section class="desc"></section>
 <details class="source">
@@ -1033,7 +1095,7 @@ def pytor_names(self):
 </dl>
 <h3>Methods</h3>
 <dl>
-<dt id="cnvpytor.export.ExportJbrowse.add_rd_config_track"><code class="name flex">
+<dt id="cnvpytor.export.ExportJBrowse.add_rd_config_track"><code class="name flex">
 <span>def <span class="ident">add_rd_config_track</span></span>(<span>self)</span>
 </code></dt>
 <dd>
@@ -1088,7 +1150,7 @@ def pytor_names(self):
     return track_dct_list</code></pre>
 </details>
 </dd>
-<dt id="cnvpytor.export.ExportJbrowse.add_snp_config_track"><code class="name flex">
+<dt id="cnvpytor.export.ExportJBrowse.add_snp_config_track"><code class="name flex">
 <span>def <span class="ident">add_snp_config_track</span></span>(<span>self)</span>
 </code></dt>
 <dd>
@@ -1150,7 +1212,7 @@ def pytor_names(self):
     return track_dct_list</code></pre>
 </details>
 </dd>
-<dt id="cnvpytor.export.ExportJbrowse.create_reference_json"><code class="name flex">
+<dt id="cnvpytor.export.ExportJBrowse.create_reference_json"><code class="name flex">
 <span>def <span class="ident">create_reference_json</span></span>(<span>self)</span>
 </code></dt>
 <dd>
@@ -1174,7 +1236,7 @@ def pytor_names(self):
         json.dump(chr_dct_list, f, indent=2)</code></pre>
 </details>
 </dd>
-<dt id="cnvpytor.export.ExportJbrowse.create_tracklist_json"><code class="name flex">
+<dt id="cnvpytor.export.ExportJBrowse.create_tracklist_json"><code class="name flex">
 <span>def <span class="ident">create_tracklist_json</span></span>(<span>self)</span>
 </code></dt>
 <dd>
@@ -1202,7 +1264,7 @@ def pytor_names(self):
     return track_dct</code></pre>
 </details>
 </dd>
-<dt id="cnvpytor.export.ExportJbrowse.export_create_dir"><code class="name flex">
+<dt id="cnvpytor.export.ExportJBrowse.export_create_dir"><code class="name flex">
 <span>def <span class="ident">export_create_dir</span></span>(<span>self)</span>
 </code></dt>
 <dd>
@@ -1216,7 +1278,7 @@ def pytor_names(self):
     return main_dir</code></pre>
 </details>
 </dd>
-<dt id="cnvpytor.export.ExportJbrowse.rd_chr_bin"><code class="name flex">
+<dt id="cnvpytor.export.ExportJBrowse.rd_chr_bin"><code class="name flex">
 <span>def <span class="ident">rd_chr_bin</span></span>(<span>self, root_io)</span>
 </code></dt>
 <dd>
@@ -1236,7 +1298,7 @@ def pytor_names(self):
     return chrs, bss</code></pre>
 </details>
 </dd>
-<dt id="cnvpytor.export.ExportJbrowse.rd_signal"><code class="name flex">
+<dt id="cnvpytor.export.ExportJBrowse.rd_signal"><code class="name flex">
 <span>def <span class="ident">rd_signal</span></span>(<span>self)</span>
 </code></dt>
 <dd>
@@ -1265,7 +1327,7 @@ def pytor_names(self):
                     self.create_bigwig(root_io, bigwig_file, chr_list, bin_size, signal_name, flag)</code></pre>
 </details>
 </dd>
-<dt id="cnvpytor.export.ExportJbrowse.signal_name"><code class="name flex">
+<dt id="cnvpytor.export.ExportJBrowse.signal_name"><code class="name flex">
 <span>def <span class="ident">signal_name</span></span>(<span>self, bin_size, signal, flags=0)</span>
 </code></dt>
 <dd>
@@ -1284,7 +1346,7 @@ def pytor_names(self):
         return None</code></pre>
 </details>
 </dd>
-<dt id="cnvpytor.export.ExportJbrowse.snp_chr_bin"><code class="name flex">
+<dt id="cnvpytor.export.ExportJBrowse.snp_chr_bin"><code class="name flex">
 <span>def <span class="ident">snp_chr_bin</span></span>(<span>self, root_io)</span>
 </code></dt>
 <dd>
@@ -1304,7 +1366,7 @@ def pytor_names(self):
     return chrs, bss</code></pre>
 </details>
 </dd>
-<dt id="cnvpytor.export.ExportJbrowse.snp_signal"><code class="name flex">
+<dt id="cnvpytor.export.ExportJBrowse.snp_signal"><code class="name flex">
 <span>def <span class="ident">snp_signal</span></span>(<span>self)</span>
 </code></dt>
 <dd>
@@ -1352,11 +1414,24 @@ def pytor_names(self):
 <span>(</span><span>filename)</span>
 </code></dt>
 <dd>
-<section class="desc"></section>
+<section class="desc"><p>creates bigwig file
+Parameters</p>
+<hr>
+<dl>
+<dt><strong><code>filename</code></strong> :&ensp;<code>path</code></dt>
+<dd>Path for the bigwig filename</dd>
+</dl></section>
 <details class="source">
 <summary>Source code</summary>
 <pre><code class="python">class Wiggle:
     def __init__(self, filename):
+        &#34;&#34;&#34;
+        creates bigwig file
+        Parameters
+        ----------
+        filename : path
+            Path for the bigwig filename
+        &#34;&#34;&#34;
         self.filename = filename
         self.file = None
         import pyBigWig
@@ -1372,9 +1447,37 @@ def pytor_names(self):
             self.file = pyBigWig.open(filename)
 
     def add_header_list(self, chr_len_list):
+        &#34;&#34;&#34;
+        Add header to the bigwig file
+        Parameters
+        ----------
+        chr_len_list : list of tuple
+            chromosome name and length list.
+
+        Returns
+        -------
+
+        &#34;&#34;&#34;
         self.file.addHeader(chr_len_list)
 
     def add_fixedstep(self, chrom, position_int, value_list, span=1, step=1):
+        &#34;&#34;&#34;
+        Add fixed step formatted data
+        Parameters
+        ----------
+        chrom : str
+            chromosome name
+        position_int : int
+            start position
+        value_list : list of values
+            input values
+        span : int
+        step : int
+
+        Returns
+        -------
+
+        &#34;&#34;&#34;
         self.file.addEntries(chrom, position_int, values=value_list, span=span, step=step)
 
     def get_cnvpytor_signal(self, md5, chrom, bin_size, signal, flag):
@@ -1422,10 +1525,42 @@ def pytor_names(self):
 <span>def <span class="ident">add_fixedstep</span></span>(<span>self, chrom, position_int, value_list, span=1, step=1)</span>
 </code></dt>
 <dd>
-<section class="desc"></section>
+<section class="desc"><p>Add fixed step formatted data
+Parameters</p>
+<hr>
+<dl>
+<dt><strong><code>chrom</code></strong> :&ensp;<code>str</code></dt>
+<dd>chromosome name</dd>
+<dt><strong><code>position_int</code></strong> :&ensp;<code>int</code></dt>
+<dd>start position</dd>
+<dt><strong><code>value_list</code></strong> :&ensp;<code>list</code> of <code>values</code></dt>
+<dd>input values</dd>
+<dt><strong><code>span</code></strong> :&ensp;<code>int</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>step</code></strong> :&ensp;<code>int</code></dt>
+<dd>&nbsp;</dd>
+</dl>
+<h2 id="returns">Returns</h2></section>
 <details class="source">
 <summary>Source code</summary>
 <pre><code class="python">def add_fixedstep(self, chrom, position_int, value_list, span=1, step=1):
+    &#34;&#34;&#34;
+    Add fixed step formatted data
+    Parameters
+    ----------
+    chrom : str
+        chromosome name
+    position_int : int
+        start position
+    value_list : list of values
+        input values
+    span : int
+    step : int
+
+    Returns
+    -------
+
+    &#34;&#34;&#34;
     self.file.addEntries(chrom, position_int, values=value_list, span=span, step=step)</code></pre>
 </details>
 </dd>
@@ -1433,10 +1568,28 @@ def pytor_names(self):
 <span>def <span class="ident">add_header_list</span></span>(<span>self, chr_len_list)</span>
 </code></dt>
 <dd>
-<section class="desc"></section>
+<section class="desc"><p>Add header to the bigwig file
+Parameters</p>
+<hr>
+<dl>
+<dt><strong><code>chr_len_list</code></strong> :&ensp;<code>list</code> of <code>tuple</code></dt>
+<dd>chromosome name and length list.</dd>
+</dl>
+<h2 id="returns">Returns</h2></section>
 <details class="source">
 <summary>Source code</summary>
 <pre><code class="python">def add_header_list(self, chr_len_list):
+    &#34;&#34;&#34;
+    Add header to the bigwig file
+    Parameters
+    ----------
+    chr_len_list : list of tuple
+        chromosome name and length list.
+
+    Returns
+    -------
+
+    &#34;&#34;&#34;
     self.file.addHeader(chr_len_list)</code></pre>
 </details>
 </dd>
@@ -1525,29 +1678,29 @@ def pytor_names(self):
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="cnvpytor.export.ExportJbrowse" href="#cnvpytor.export.ExportJbrowse">ExportJbrowse</a></code></h4>
+<h4><code><a title="cnvpytor.export.ExportJBrowse" href="#cnvpytor.export.ExportJBrowse">ExportJBrowse</a></code></h4>
 <ul class="">
-<li><code><a title="cnvpytor.export.ExportJbrowse.add_config_reference" href="#cnvpytor.export.ExportJbrowse.add_config_reference">add_config_reference</a></code></li>
-<li><code><a title="cnvpytor.export.ExportJbrowse.add_rd_config_track" href="#cnvpytor.export.ExportJbrowse.add_rd_config_track">add_rd_config_track</a></code></li>
-<li><code><a title="cnvpytor.export.ExportJbrowse.add_snp_config_track" href="#cnvpytor.export.ExportJbrowse.add_snp_config_track">add_snp_config_track</a></code></li>
-<li><code><a title="cnvpytor.export.ExportJbrowse.create_bigwig" href="#cnvpytor.export.ExportJbrowse.create_bigwig">create_bigwig</a></code></li>
-<li><code><a title="cnvpytor.export.ExportJbrowse.create_reference_json" href="#cnvpytor.export.ExportJbrowse.create_reference_json">create_reference_json</a></code></li>
-<li><code><a title="cnvpytor.export.ExportJbrowse.create_tracklist_json" href="#cnvpytor.export.ExportJbrowse.create_tracklist_json">create_tracklist_json</a></code></li>
-<li><code><a title="cnvpytor.export.ExportJbrowse.export_create_dir" href="#cnvpytor.export.ExportJbrowse.export_create_dir">export_create_dir</a></code></li>
-<li><code><a title="cnvpytor.export.ExportJbrowse.export_data_dir_list" href="#cnvpytor.export.ExportJbrowse.export_data_dir_list">export_data_dir_list</a></code></li>
-<li><code><a title="cnvpytor.export.ExportJbrowse.export_directory" href="#cnvpytor.export.ExportJbrowse.export_directory">export_directory</a></code></li>
-<li><code><a title="cnvpytor.export.ExportJbrowse.export_ref_file" href="#cnvpytor.export.ExportJbrowse.export_ref_file">export_ref_file</a></code></li>
-<li><code><a title="cnvpytor.export.ExportJbrowse.export_seq_dir" href="#cnvpytor.export.ExportJbrowse.export_seq_dir">export_seq_dir</a></code></li>
-<li><code><a title="cnvpytor.export.ExportJbrowse.export_tracklist_file" href="#cnvpytor.export.ExportJbrowse.export_tracklist_file">export_tracklist_file</a></code></li>
-<li><code><a title="cnvpytor.export.ExportJbrowse.pytor_names" href="#cnvpytor.export.ExportJbrowse.pytor_names">pytor_names</a></code></li>
-<li><code><a title="cnvpytor.export.ExportJbrowse.rd_chr_bin" href="#cnvpytor.export.ExportJbrowse.rd_chr_bin">rd_chr_bin</a></code></li>
-<li><code><a title="cnvpytor.export.ExportJbrowse.rd_signal" href="#cnvpytor.export.ExportJbrowse.rd_signal">rd_signal</a></code></li>
-<li><code><a title="cnvpytor.export.ExportJbrowse.rd_signal_dct" href="#cnvpytor.export.ExportJbrowse.rd_signal_dct">rd_signal_dct</a></code></li>
-<li><code><a title="cnvpytor.export.ExportJbrowse.signal_dct" href="#cnvpytor.export.ExportJbrowse.signal_dct">signal_dct</a></code></li>
-<li><code><a title="cnvpytor.export.ExportJbrowse.signal_name" href="#cnvpytor.export.ExportJbrowse.signal_name">signal_name</a></code></li>
-<li><code><a title="cnvpytor.export.ExportJbrowse.snp_chr_bin" href="#cnvpytor.export.ExportJbrowse.snp_chr_bin">snp_chr_bin</a></code></li>
-<li><code><a title="cnvpytor.export.ExportJbrowse.snp_signal" href="#cnvpytor.export.ExportJbrowse.snp_signal">snp_signal</a></code></li>
-<li><code><a title="cnvpytor.export.ExportJbrowse.snp_signal_dct" href="#cnvpytor.export.ExportJbrowse.snp_signal_dct">snp_signal_dct</a></code></li>
+<li><code><a title="cnvpytor.export.ExportJBrowse.add_config_reference" href="#cnvpytor.export.ExportJBrowse.add_config_reference">add_config_reference</a></code></li>
+<li><code><a title="cnvpytor.export.ExportJBrowse.add_rd_config_track" href="#cnvpytor.export.ExportJBrowse.add_rd_config_track">add_rd_config_track</a></code></li>
+<li><code><a title="cnvpytor.export.ExportJBrowse.add_snp_config_track" href="#cnvpytor.export.ExportJBrowse.add_snp_config_track">add_snp_config_track</a></code></li>
+<li><code><a title="cnvpytor.export.ExportJBrowse.create_bigwig" href="#cnvpytor.export.ExportJBrowse.create_bigwig">create_bigwig</a></code></li>
+<li><code><a title="cnvpytor.export.ExportJBrowse.create_reference_json" href="#cnvpytor.export.ExportJBrowse.create_reference_json">create_reference_json</a></code></li>
+<li><code><a title="cnvpytor.export.ExportJBrowse.create_tracklist_json" href="#cnvpytor.export.ExportJBrowse.create_tracklist_json">create_tracklist_json</a></code></li>
+<li><code><a title="cnvpytor.export.ExportJBrowse.export_create_dir" href="#cnvpytor.export.ExportJBrowse.export_create_dir">export_create_dir</a></code></li>
+<li><code><a title="cnvpytor.export.ExportJBrowse.export_data_dir_list" href="#cnvpytor.export.ExportJBrowse.export_data_dir_list">export_data_dir_list</a></code></li>
+<li><code><a title="cnvpytor.export.ExportJBrowse.export_directory" href="#cnvpytor.export.ExportJBrowse.export_directory">export_directory</a></code></li>
+<li><code><a title="cnvpytor.export.ExportJBrowse.export_ref_file" href="#cnvpytor.export.ExportJBrowse.export_ref_file">export_ref_file</a></code></li>
+<li><code><a title="cnvpytor.export.ExportJBrowse.export_seq_dir" href="#cnvpytor.export.ExportJBrowse.export_seq_dir">export_seq_dir</a></code></li>
+<li><code><a title="cnvpytor.export.ExportJBrowse.export_tracklist_file" href="#cnvpytor.export.ExportJBrowse.export_tracklist_file">export_tracklist_file</a></code></li>
+<li><code><a title="cnvpytor.export.ExportJBrowse.pytor_names" href="#cnvpytor.export.ExportJBrowse.pytor_names">pytor_names</a></code></li>
+<li><code><a title="cnvpytor.export.ExportJBrowse.rd_chr_bin" href="#cnvpytor.export.ExportJBrowse.rd_chr_bin">rd_chr_bin</a></code></li>
+<li><code><a title="cnvpytor.export.ExportJBrowse.rd_signal" href="#cnvpytor.export.ExportJBrowse.rd_signal">rd_signal</a></code></li>
+<li><code><a title="cnvpytor.export.ExportJBrowse.rd_signal_dct" href="#cnvpytor.export.ExportJBrowse.rd_signal_dct">rd_signal_dct</a></code></li>
+<li><code><a title="cnvpytor.export.ExportJBrowse.signal_dct" href="#cnvpytor.export.ExportJBrowse.signal_dct">signal_dct</a></code></li>
+<li><code><a title="cnvpytor.export.ExportJBrowse.signal_name" href="#cnvpytor.export.ExportJBrowse.signal_name">signal_name</a></code></li>
+<li><code><a title="cnvpytor.export.ExportJBrowse.snp_chr_bin" href="#cnvpytor.export.ExportJBrowse.snp_chr_bin">snp_chr_bin</a></code></li>
+<li><code><a title="cnvpytor.export.ExportJBrowse.snp_signal" href="#cnvpytor.export.ExportJBrowse.snp_signal">snp_signal</a></code></li>
+<li><code><a title="cnvpytor.export.ExportJBrowse.snp_signal_dct" href="#cnvpytor.export.ExportJBrowse.snp_signal_dct">snp_signal_dct</a></code></li>
 </ul>
 </li>
 <li>
