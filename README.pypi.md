@@ -24,6 +24,7 @@ CNVpytor is a Python package and command line tool for CNV/CNA analysis from dep
 
 * requests>=2.0
 * gnureadline
+* pathlib>=1.0
 * pysam>=0.15
 * numpy>=1.16
 * scipy>=1.1
