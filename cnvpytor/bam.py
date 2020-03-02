@@ -105,9 +105,14 @@ class Bam:
                         continue
                 if r.reference_start and r.reference_end and not (r.mapping_quality is None):
                     mid = (r.reference_end + r.reference_start) // 200
-                    rd_p[mid] += 1
-                    if r.mapping_quality > 0:
-                        rd_u[mid] += 1
+                    if mid >=0 and mid < n:
+                        rd_p[mid] += 1
+                        if r.mapping_quality > 0:
+                            rd_u[mid] += 1
+                    else:
+                        logging.warning("Record: " + r.to_string())
+                        logging.warning("Out of bound! Ignoring...")
+
         except IOError:
             _logger.error("Error while reading file '%s'" % self.filename)
             exit(0)
