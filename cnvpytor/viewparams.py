@@ -64,63 +64,66 @@ class ViewParams(object):
             self.command_tree["set"]["panels"][panel1] = self.command_tree["set"]["panels"]
 
     def set(self, param, args):
-        if param in self.params and self.params[param] is False:
-            self.__setattr__(param, True)
-        elif param.find(".")>0:
-            sp = param.split(".")
-            if len(sp)==2 and (sp[0] in self.params) and sp[0][-7:]=="_colors" and sp[1].isdigit():
-                ix = int(sp[1])
-                self.params[sp[0]][ix] = args[0]
+        try:
+            if param in self.params and self.params[param] is False:
+                self.__setattr__(param, True)
+            elif param.find(".")>0:
+                sp = param.split(".")
+                if len(sp)==2 and (sp[0] in self.params) and sp[0][-7:]=="_colors" and sp[1].isdigit():
+                    ix = int(sp[1])
+                    self.params[sp[0]][ix] = args[0]
 
-        elif param == "bin_size":
-            if len(args) > 0:
-                self.__setattr__(param, args[0])
-        elif param == "contrast":
-            if len(args) > 0:
-                self.__setattr__(param, float(args[0]))
-        elif param == "markersize":
-            if len(args) > 0:
-                if args[0] == "auto":
-                    self.__setattr__(param, "auto")
-                else:
+            elif param == "bin_size":
+                if len(args) > 0:
+                    self.__setattr__(param, args[0])
+            elif param == "contrast":
+                if len(args) > 0:
                     self.__setattr__(param, float(args[0]))
-        elif param == "grid":
-            if len(args) > 0:
-                if args[0] == "auto":
-                    self.__setattr__(param, "auto")
-                else:
-                    self.__setattr__(param, list(map(int, args[:2])))
-        elif param == "dpi":
-            if len(args) > 0:
-                self.__setattr__(param, int(args[0]))
-        elif param == "rd_range":
-            if len(args) > 1:
-                self.__setattr__(param, list(map(float, args[:2])))
-        elif param == "rd_manhattan_range":
-            if len(args) > 1:
-                self.__setattr__(param, list(map(float, args[:2])))
-        elif param == "min_segment_size":
-            if len(args) > 0:
-                self.__setattr__(param, int(args[0]))
-        elif param == "output_filename":
-            if len(args) > 0:
-                self.__setattr__(param, args[0])
-        elif param == "plot_file":
-            if len(args) > 0:
-                self.__setattr__(param, int(args[0]))
-        elif param == "plot_files":
-            self.__setattr__(param, list(map(int, args)))
-        elif param == "style":
-            if len(args) > 0:
-                self.__setattr__(param, args[0])
-        elif param in self.params and self.params[param] is not True:
-            self.__setattr__(param, args)
-        if param in self.params:
-            print("    * %s: %s" % (param, str(self.params[param])))
-        else:
-            sp = param.split(".")
-            if sp[0] in self.params:
-                print("    * %s: %s" % (sp[0], str(self.params[sp[0]])))
+            elif param == "markersize":
+                if len(args) > 0:
+                    if args[0] == "auto":
+                        self.__setattr__(param, "auto")
+                    else:
+                        self.__setattr__(param, float(args[0]))
+            elif param == "grid":
+                if len(args) > 0:
+                    if args[0] == "auto":
+                        self.__setattr__(param, "auto")
+                    else:
+                        self.__setattr__(param, list(map(int, args[:2])))
+            elif param == "dpi":
+                if len(args) > 0:
+                    self.__setattr__(param, int(args[0]))
+            elif param == "rd_range":
+                if len(args) > 1:
+                    self.__setattr__(param, list(map(float, args[:2])))
+            elif param == "rd_manhattan_range":
+                if len(args) > 1:
+                    self.__setattr__(param, list(map(float, args[:2])))
+            elif param == "min_segment_size":
+                if len(args) > 0:
+                    self.__setattr__(param, int(args[0]))
+            elif param == "output_filename":
+                if len(args) > 0:
+                    self.__setattr__(param, args[0])
+            elif param == "plot_file":
+                if len(args) > 0:
+                    self.__setattr__(param, int(args[0]))
+            elif param == "plot_files":
+                self.__setattr__(param, list(map(int, args)))
+            elif param == "style":
+                if len(args) > 0:
+                    self.__setattr__(param, args[0])
+            elif param in self.params and self.params[param] is not True:
+                self.__setattr__(param, args)
+            if param in self.params:
+                print("    * %s: %s" % (param, str(self.params[param])))
+            else:
+                sp = param.split(".")
+                if sp[0] in self.params:
+                    print("    * %s: %s" % (sp[0], str(self.params[sp[0]])))
+        except ValueError:
+            _logger.warning("Value error while setting %s!" % param)
 
 
     def unset(self, param):

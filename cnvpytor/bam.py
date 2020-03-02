@@ -110,8 +110,8 @@ class Bam:
                         if r.mapping_quality > 0:
                             rd_u[mid] += 1
                     else:
-                        logging.warning("Record: " + r.to_string())
-                        logging.warning("Out of bound! Ignoring...")
+                        _logger.warning("Record: " + r.to_string())
+                        _logger.warning("Out of bound! Ignoring...")
 
         except IOError:
             _logger.error("Error while reading file '%s'" % self.filename)
