@@ -554,6 +554,8 @@ class Viewer(Show, Figure, HelpDescription):
             his_p_mosaic_seg = segments_decode(his_p_mosaic_seg)
             his_p_mosaic_call = self.io[self.plot_file].get_signal(c, bin_size, "RD mosaic call",
                                                                    flag_rd | FLAG_GC_CORR)
+            his_p_mosaic_call_2d = self.io[self.plot_file].get_signal(c, bin_size, "RD mosaic call 2d",
+                                                                   flag_rd | FLAG_GC_CORR)
             his_p_mosaic = np.zeros_like(his_p) * np.nan
             if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and self.rd_call_mosaic:
                 for seg, lev in zip(list(his_p_mosaic_seg), list(his_p_mosaic_call[0])):
@@ -579,6 +581,8 @@ class Viewer(Show, Figure, HelpDescription):
                 plt.step(his_p_call, self.rd_colors[3])
             if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and self.rd_call_mosaic:
                 plt.step(his_p_mosaic, self.rd_colors[4])
+            if his_p_mosaic_call_2d is not None and len(his_p_mosaic_call_2d) > 0 and self.rd_call_mosaic_2d:
+                plt.step(his_p_mosaic_2d, self.rd_colors[5])
         self.fig_show(suffix="rd")
 
     def rd_diff(self, file1, file2):
@@ -820,6 +824,8 @@ class Viewer(Show, Figure, HelpDescription):
                         his_p_mosaic_seg = segments_decode(his_p_mosaic_seg)
                         his_p_mosaic_call = io.get_signal(c, bin_size, "RD mosaic call",
                                                           flag_rd | FLAG_GC_CORR)
+                        his_p_mosaic_call_2d = io.get_signal(c, bin_size, "RD mosaic call 2d",
+                                                          flag_rd | FLAG_GC_CORR)
                         his_p_mosaic = np.zeros_like(his_p) * np.nan
                         if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and self.rd_call_mosaic:
                             for seg, lev in zip(list(his_p_mosaic_seg), list(his_p_mosaic_call[0])):
@@ -837,6 +843,8 @@ class Viewer(Show, Figure, HelpDescription):
                             plt.step(pos, his_p_call, "r")
                         if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and self.rd_call_mosaic:
                             plt.plot(pos, his_p_mosaic, "k")
+                        if his_p_mosaic_call_2d is not None and len(his_p_mosaic_call_2d) > 0 and self.rd_call_mosaic_2d:
+                            plt.plot(pos, his_p_mosaic_2d, "k")
                     apos += len(his_p)
                     xticks.append(apos)
                 ax.xaxis.set_ticklabels([])
@@ -948,6 +956,7 @@ class Viewer(Show, Figure, HelpDescription):
                 g_p_seg = [0]
                 g_p_call = [0]
                 g_p_call_mosaic = [0]
+                g_p_call_mosaic_2d = [0]
                 mean, stdev = 0, 0
                 borders = []
                 for c, (pos1, pos2) in r:
@@ -967,6 +976,8 @@ class Viewer(Show, Figure, HelpDescription):
                     his_p_mosaic_seg = segments_decode(his_p_mosaic_seg)
                     his_p_mosaic_call = io.get_signal(c, bin_size, "RD mosaic call",
                                                       flag_rd | FLAG_GC_CORR)
+                    his_p_mosaic_call_2d = io.get_signal(c, bin_size, "RD mosaic call 2d",
+                                                      flag_rd | FLAG_GC_CORR)
                     his_p_mosaic = np.zeros_like(his_p) * np.nan
                     if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and self.rd_call_mosaic:
                         for seg, lev in zip(list(his_p_mosaic_seg), list(his_p_mosaic_call[0])):
@@ -983,6 +994,8 @@ class Viewer(Show, Figure, HelpDescription):
                         g_p_call.extend(list(his_p_call[start_bin:end_bin]))
                     if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and self.rd_call_mosaic:
                         g_p_call_mosaic.extend(list(his_p_mosaic[start_bin:end_bin]))
+                    if his_p_mosaic_call_2d is not None and len(his_p_mosaic_call_2d) > 0 and self.rd_call_mosaic_2d:
+                        g_p_call_mosaic_2d.extend(list(his_p_mosaic_2d[start_bin:end_bin]))
                     borders.append(len(g_p) - 1)
 
                 ax.yaxis.set_ticklabels([])
@@ -1001,6 +1014,8 @@ class Viewer(Show, Figure, HelpDescription):
                     plt.step(g_p_call, self.rd_colors[3])
                 if len(g_p_call_mosaic) > 0:
                     plt.step(g_p_call_mosaic, self.rd_colors[4])
+                if len(g_p_call_mosaic_2d) > 0:
+                    plt.step(g_p_call_mosaic_2d, self.rd_colors[5])
                 for i in borders[:-1]:
                     ax.axvline(i, color="g", lw=1)
                 self.fig.add_subplot(ax)

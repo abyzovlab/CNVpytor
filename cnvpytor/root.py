@@ -1911,13 +1911,13 @@ class Root:
                                   (segments[i][-1] - segments[i][0] + 1) * bin_size, bin_size, len(segments[i]),
                                   rd_mean, rd_p, baf_mean, baf_p)
 
-                        self.io.create_signal(c, bin_size, "RD mosaic segments",
+                        self.io.create_signal(c, bin_size, "RD mosaic segments 2d",
                                               data=segments_code(segments), flags=flag_rd)
-                        self.io.create_signal(c, bin_size, "RD mosaic call",
+                        self.io.create_signal(c, bin_size, "RD mosaic call 2d",
                                               data=np.array([level, error], dtype="float32"), flags=flag_rd)
-                        self.io.create_signal(c, bin_size, "SNP likelihood segments",
+                        self.io.create_signal(c, bin_size, "SNP likelihood segments 2d",
                                               data=segments_code(segments), flags=snp_flag)
-                        self.io.create_signal(c, bin_size, "SNP likelihood call",
+                        self.io.create_signal(c, bin_size, "SNP likelihood call 2d",
                                               data=np.array(likelihood, dtype="float32"), flags=snp_flag)
 
         return
