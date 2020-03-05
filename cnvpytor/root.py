@@ -13,6 +13,7 @@ from .viewer import anim_plot_likelihood, anim_plot_rd
 import numpy as np
 import logging
 import os.path
+import  matplotlib.pyplot as plt
 
 _logger = logging.getLogger("cnvpytor.root")
 
@@ -1710,7 +1711,7 @@ class Root:
                                           data=np.array(likelihood, dtype="float32"), flags=snp_flag)
 
     def call_2d(self, bin_sizes, chroms=[], use_gc_corr=True, rd_use_mask=False, snp_use_mask=True, snp_use_id=False,
-                odec=0.9, omin=None, mcount=None, max_distance=0.1, anim=""):
+                omin=None, mcount=None, max_distance=0.1, anim=""):
         """
         CNV caller using combined RD and BAF sigal based on likelihood merger.
 
@@ -1864,6 +1865,7 @@ class Root:
                                     likelihood[i], likelihood[j]) == maxo:
                                     nl, ne = normal_merge(level[i], error[i], level[j], error[j])
                                     nlh = likelihood[i] * likelihood[j]
+
                                     level[i] = nl
                                     error[i] = ne
                                     likelihood[i] = nlh / np.sum(nlh)
@@ -1871,7 +1873,9 @@ class Root:
                                     segments[i] = sorted(segments[i])
                                     del level[j]
                                     del error[j]
+                                    del likelihood[j]
                                     del segments[j]
+
 
                                     if j >= len(segments):
                                         i += 1

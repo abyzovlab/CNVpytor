@@ -120,7 +120,6 @@ class Figure(ViewParams):
         ViewParams.__init__(self, params)
         self.fig = None
         self.fig_grid = None
-        self.interactive = False
         self.count = 0
         self.current = -1
 
