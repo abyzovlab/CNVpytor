@@ -138,13 +138,14 @@ Result is stored in tab separated files with following columns:
 
 To import variant data from VCF file use following command:
 ```
-> cnvpytor -root file.root -snp file.vcf.gz [-chrom name1 ...] [-ad AD_TAG] [-gt GT_TAG] [-noAD]
+> cnvpytor -root file.root -snp file.vcf.gz [-sample sample_name] [-chrom name1 ...] [-ad AD_TAG] [-gt GT_TAG] [-noAD]
 ```
 where:
 
 * file.pytor -- specifies cnvpytor file,
-* name1 ... -- specifies chromosome name(s),
 * file.vcf -- specifies variant file name.
+* sample_name -- specifies VCF sample name,
+* name1 ... -- specifies chromosome name(s),
 * -ad AD_TAG -- specifies AD tag used in vcf file (default AD)
 * -gt GT_TAG -- specifies GT tag used in vcf file (default GT)
 * -noAD -- ref and alt read counts will not be readed (see next section)

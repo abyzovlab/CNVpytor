@@ -554,6 +554,9 @@ class Viewer(Show, Figure, HelpDescription):
             his_p_mosaic_seg = segments_decode(his_p_mosaic_seg)
             his_p_mosaic_call = self.io[self.plot_file].get_signal(c, bin_size, "RD mosaic call",
                                                                    flag_rd | FLAG_GC_CORR)
+            his_p_mosaic_seg_2d = self.io[self.plot_file].get_signal(c, bin_size, "RD mosaic segments 2d",
+                                                                  flag_rd | FLAG_GC_CORR)
+            his_p_mosaic_seg_2d = segments_decode(his_p_mosaic_seg_2d)
             his_p_mosaic_call_2d = self.io[self.plot_file].get_signal(c, bin_size, "RD mosaic call 2d",
                                                                    flag_rd | FLAG_GC_CORR)
             his_p_mosaic = np.zeros_like(his_p) * np.nan
@@ -561,13 +564,18 @@ class Viewer(Show, Figure, HelpDescription):
                 for seg, lev in zip(list(his_p_mosaic_seg), list(his_p_mosaic_call[0])):
                     for segi in seg:
                         his_p_mosaic[segi] = lev
+            his_p_mosaic_2d = np.zeros_like(his_p) * np.nan
+            if his_p_mosaic_call_2d is not None and len(his_p_mosaic_call_2d) > 0 and self.rd_call_mosaic_2d:
+                for seg, lev in zip(list(his_p_mosaic_seg_2d), list(his_p_mosaic_call_2d[0])):
+                    for segi in seg:
+                        his_p_mosaic_2d[segi] = lev
             ax = self.next_panel()
             ax.set_title(c, position=(0.01, 0.9), fontdict={'verticalalignment': 'top', 'horizontalalignment': 'left'},
                          color='C0')
             ax.xaxis.set_ticklabels([])
             ax.yaxis.set_ticklabels([])
-            ax.yaxis.set_ticks(np.arange(0, 3, 0.5) * stat[4], [])
-            ax.xaxis.set_ticks(np.arange(0, (l + 10e6) // bin_size, 10e6 // bin_size), [])
+            ax.yaxis.set_ticks(np.arange(0, 3, 0.5) * stat[4], minor=[])
+            ax.xaxis.set_ticks(np.arange(0, (l + 10e6) // bin_size, 10e6 // bin_size), minor=[])
             ax.set_ylim([0, max(3. * stat[4], stat[4] + 5. * stat[5])])
             n_bins = l // bin_size
             ax.set_xlim([-n_bins * 0.05, n_bins * 1.05])
@@ -618,8 +626,8 @@ class Viewer(Show, Figure, HelpDescription):
                          color='C0')
             ax.xaxis.set_ticklabels([])
             ax.yaxis.set_ticklabels([])
-            ax.yaxis.set_ticks(np.arange(0, 2, 0.25), [])
-            ax.xaxis.set_ticks(np.arange(0, (l + 10e6) // bin_size, 10e6 // bin_size), [])
+            ax.yaxis.set_ticks(np.arange(0, 2, 0.25), minor=[])
+            ax.xaxis.set_ticks(np.arange(0, (l + 10e6) // bin_size, 10e6 // bin_size), minor=[])
             ax.set_ylim([0, 1])
             n_bins = l // bin_size
             ax.set_xlim([-n_bins * 0.05, n_bins * 1.05])
@@ -654,7 +662,7 @@ class Viewer(Show, Figure, HelpDescription):
             ax.imshow(img, aspect='auto')
             ax.xaxis.set_ticklabels([])
             ax.yaxis.set_ticklabels([])
-            ax.xaxis.set_ticks(np.arange(0, likelihood.shape[0], 50), [])
+            ax.xaxis.set_ticks(np.arange(0, likelihood.shape[0], 50), minor=[])
             ax.set_xlim([0, likelihood.shape[0]])
             if self.snp_call:
                 likelihood = self.io[self.plot_file].get_signal(c, bin_size, "SNP likelihood call", snp_flag)
@@ -708,8 +716,8 @@ class Viewer(Show, Figure, HelpDescription):
                          color='C0')
             ax.xaxis.set_ticklabels([])
             ax.yaxis.set_ticklabels([])
-            ax.yaxis.set_ticks([0, 0.25, 0.5, 0.75, 1.0], [])
-            ax.xaxis.set_ticks(np.arange(0, (l + 10e6) // self.bin_size, 10e6 // self.bin_size), [])
+            ax.yaxis.set_ticks([0, 0.25, 0.5, 0.75, 1.0], minor=[])
+            ax.xaxis.set_ticks(np.arange(0, (l + 10e6) // self.bin_size, 10e6 // self.bin_size), minor=[])
             ax.set_ylim([0, 1])
             n_bins = l // self.bin_size
             ax.set_xlim([-n_bins * 0.05, n_bins * 1.05])
@@ -768,9 +776,9 @@ class Viewer(Show, Figure, HelpDescription):
                          color='C0')
             ax.xaxis.set_ticklabels([])
             ax.yaxis.set_ticklabels([])
-            ax.yaxis.set_ticks([0, 0.25, 0.5, 0.75, 1.0], [])
+            ax.yaxis.set_ticks([0, 0.25, 0.5, 0.75, 1.0], minor=[])
             l = max(pos)
-            ax.xaxis.set_ticks(np.arange(0, (l + 10e6), 10e6), [])
+            ax.xaxis.set_ticks(np.arange(0, (l + 10e6), 10e6), minor=[])
             ax.set_ylim([0., 1.])
             ax.set_xlim([-0.05 * l, 1.05 * l])
             ax.grid()
@@ -824,6 +832,9 @@ class Viewer(Show, Figure, HelpDescription):
                         his_p_mosaic_seg = segments_decode(his_p_mosaic_seg)
                         his_p_mosaic_call = io.get_signal(c, bin_size, "RD mosaic call",
                                                           flag_rd | FLAG_GC_CORR)
+                        his_p_mosaic_seg_2d = io.get_signal(c, bin_size, "RD mosaic segments 2d",
+                                                         flag_rd | FLAG_GC_CORR)
+                        his_p_mosaic_seg_2d = segments_decode(his_p_mosaic_seg_2d)
                         his_p_mosaic_call_2d = io.get_signal(c, bin_size, "RD mosaic call 2d",
                                                           flag_rd | FLAG_GC_CORR)
                         his_p_mosaic = np.zeros_like(his_p) * np.nan
@@ -831,6 +842,11 @@ class Viewer(Show, Figure, HelpDescription):
                             for seg, lev in zip(list(his_p_mosaic_seg), list(his_p_mosaic_call[0])):
                                 for segi in seg:
                                     his_p_mosaic[segi] = lev
+                        his_p_mosaic_2d = np.zeros_like(his_p) * np.nan
+                        if his_p_mosaic_call_2d is not None and len(his_p_mosaic_call_2d) > 0 and self.rd_call_mosaic_2d:
+                            for seg, lev in zip(list(his_p_mosaic_seg_2d), list(his_p_mosaic_call_2d[0])):
+                                for segi in seg:
+                                    his_p_mosaic_2d[segi] = lev
                     pos = range(apos, apos + len(his_p))
                     ax.text(apos + len(his_p) // 2, stat[4] // 10, Genome.canonical_chrom_name(c),
                             fontsize=8, verticalalignment='bottom', horizontalalignment='center', )
@@ -849,8 +865,8 @@ class Viewer(Show, Figure, HelpDescription):
                     xticks.append(apos)
                 ax.xaxis.set_ticklabels([])
                 ax.yaxis.set_ticklabels([])
-                ax.yaxis.set_ticks(np.arange(0, 15, 0.5) * max_m, [])
-                ax.xaxis.set_ticks(xticks, [])
+                ax.yaxis.set_ticks(np.arange(0, 15, 0.5) * max_m, minor=[])
+                ax.xaxis.set_ticks(xticks, minor=[])
                 ax.set_ylim([self.rd_manhattan_range[0] * max_m, self.rd_manhattan_range[1] * max_m])
             else:
                 chroms = []
@@ -898,8 +914,8 @@ class Viewer(Show, Figure, HelpDescription):
 
                 ax.xaxis.set_ticklabels([])
                 ax.yaxis.set_ticklabels([])
-                ax.yaxis.set_ticks(np.arange(0, 0.5, 0.1), [])
-                ax.xaxis.set_ticks(xticks, [])
+                ax.yaxis.set_ticks(np.arange(0, 0.5, 0.1), minor=[])
+                ax.xaxis.set_ticks(xticks, minor=[])
                 ax.set_ylim([0, 0.5])
 
             n_bins = apos
@@ -976,6 +992,9 @@ class Viewer(Show, Figure, HelpDescription):
                     his_p_mosaic_seg = segments_decode(his_p_mosaic_seg)
                     his_p_mosaic_call = io.get_signal(c, bin_size, "RD mosaic call",
                                                       flag_rd | FLAG_GC_CORR)
+                    his_p_mosaic_seg_2d = io.get_signal(c, bin_size, "RD mosaic segments 2d",
+                                                     flag_rd | FLAG_GC_CORR)
+                    his_p_mosaic_seg_2d = segments_decode(his_p_mosaic_seg_2d)
                     his_p_mosaic_call_2d = io.get_signal(c, bin_size, "RD mosaic call 2d",
                                                       flag_rd | FLAG_GC_CORR)
                     his_p_mosaic = np.zeros_like(his_p) * np.nan
@@ -983,7 +1002,11 @@ class Viewer(Show, Figure, HelpDescription):
                         for seg, lev in zip(list(his_p_mosaic_seg), list(his_p_mosaic_call[0])):
                             for segi in seg:
                                 his_p_mosaic[segi] = lev
-
+                    his_p_mosaic_2d = np.zeros_like(his_p) * np.nan
+                    if his_p_mosaic_call_2d is not None and len(his_p_mosaic_call_2d) > 0 and self.rd_call_mosaic_2d:
+                        for seg, lev in zip(list(his_p_mosaic_seg_2d), list(his_p_mosaic_call_2d[0])):
+                            for segi in seg:
+                                his_p_mosaic_2d[segi] = lev
                     start_bin = (pos1 - 1) // bin_size
                     end_bin = pos2 // bin_size
                     g_p.extend(list(his_p[start_bin:end_bin]))
@@ -1000,7 +1023,7 @@ class Viewer(Show, Figure, HelpDescription):
 
                 ax.yaxis.set_ticklabels([])
                 l = len(g_p)
-                ax.yaxis.set_ticks(np.arange(0, 3, 0.5) * mean, [])
+                ax.yaxis.set_ticks(np.arange(0, 3, 0.5) * mean, minor=[])
                 ax.set_ylim([0, max(3. * mean, mean + 5. * stdev)])
                 ax.set_xlim([-l * 0.0, (l - 1) * 1.0])
 
@@ -1048,7 +1071,6 @@ class Viewer(Show, Figure, HelpDescription):
                 ax.yaxis.set_ticklabels([])
                 ax.yaxis.set_ticks([0, 0.25, 0.5, 0.75, 1.0], [])
                 l = max(hpos)
-                # ax.xaxis.set_ticks(np.arange(0, (l + 10e6), 10e6), [])
                 ax.set_ylim([0., 1.])
                 ax.set_xlim([0, borders[-1]])
                 ax.yaxis.grid()
@@ -1090,9 +1112,7 @@ class Viewer(Show, Figure, HelpDescription):
 
                 ax.xaxis.set_ticklabels([])
                 ax.yaxis.set_ticklabels([])
-                ax.yaxis.set_ticks([0, 0.25, 0.5, 0.75, 1.0], [])
-                l = max(hpos)
-                # ax.xaxis.set_ticks(np.arange(0, (l + 10e6), 10e6), [])
+                ax.yaxis.set_ticks([0, 0.25, 0.5, 0.75, 1.0], minor=[])
                 ax.set_ylim([0., 1.])
                 ax.set_xlim([0, borders[-1]])
                 ax.yaxis.grid()
@@ -1124,11 +1144,9 @@ class Viewer(Show, Figure, HelpDescription):
                     g_i2.extend(list(i2[start_bin:end_bin]))
                     borders.append(len(g_baf) - 1)
 
-                # ax.xaxis.set_ticklabels([])
                 ax.yaxis.set_ticklabels([])
                 l = len(g_baf)
-                # ax.xaxis.set_ticks(np.arange(0, l, 10), [])
-                ax.yaxis.set_ticks([0, 0.25, 0.5, 0.75, 1.0], [])
+                ax.yaxis.set_ticks([0, 0.25, 0.5, 0.75, 1.0], minor=[])
                 ax.set_ylim([0, 1])
                 ax.set_xlim([-l * 0.0, l * 1.0])
 
@@ -1177,7 +1195,7 @@ class Viewer(Show, Figure, HelpDescription):
                 ax.imshow(img, aspect='auto')
                 ax.xaxis.set_ticklabels([])
                 ax.yaxis.set_ticklabels([])
-                ax.xaxis.set_ticks(np.arange(0, len(gl), 50), [])
+                ax.xaxis.set_ticks(np.arange(0, len(gl), 50), minor=[])
                 ax.set_xlim([-0.5, img.shape[1] - 0.5])
                 if self.snp_call:
                     if self.markersize == "auto":

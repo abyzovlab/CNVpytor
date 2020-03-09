@@ -77,7 +77,7 @@ _Diagram made using [Draw.io](https://github.com/jgraph/drawio)._
 
 ### Importing and using single nucleotide polymorphism data:
 ```
-> cnvpytor -root file.pytor -snp file.vcf
+> cnvpytor -root file.pytor -snp file.vcf -sample sample_name
 > cnvpytor -root file.pytor -pileup file.bam
 > cnvpytor -root file.pytor -baf 10000 100000
 ```
