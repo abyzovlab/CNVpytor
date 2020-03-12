@@ -243,7 +243,7 @@ def main():
 
         if args.somatic_snv:
             app = Root(args.root[0], create=True, max_cores=args.max_cores)
-            app.vcf(args.vcf, chroms=args.chrom, sample=args.vcf_sample, no_counts=args.no_snp_counts,
+            app.vcf(args.somatic_snv, chroms=args.chrom, sample=args.vcf_sample, no_counts=args.no_snp_counts,
                     ad_tag=args.ad_tag, gt_tag=args.gt_tag, callset=args.callset)
 
         if args.rd_from_vcf:

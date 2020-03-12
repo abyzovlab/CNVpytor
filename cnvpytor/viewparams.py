@@ -16,7 +16,7 @@ class ViewParams(object):
         "bin_size": None,
         "panels": ["rd"],
         "rd_raw": True,
-        "rd_partition": True,
+        "rd_partition": False,
         "rd_call": True,
         "rd_call_mosaic": True,
         "rd_call_mosaic_2d": True,
@@ -31,6 +31,8 @@ class ViewParams(object):
         "snp_call": True,
         "snp_call_2d": True,
         "markersize": "auto",
+        "lh_markersize": 20,
+        "lh_marker": "_",
         "rd_colors": ["grey","black","red","green","blue","cyan"],
         "snp_colors": ["yellow", "orange", "cyan", "blue", "lime", "green", "yellow", "orange"],
         "rd_circular_colors": ["#555555", "#aaaaaa"],
@@ -43,6 +45,7 @@ class ViewParams(object):
         "chrom": [],
         "style": None,
         "grid": "auto",
+        "subgrid": "vertical",
         "xkcd": False,
         "dpi": 200,
         "output_filename": "",
@@ -87,10 +90,22 @@ class ViewParams(object):
                         self.__setattr__(param, "auto")
                     else:
                         self.__setattr__(param, float(args[0]))
+            elif param == "lh_markersize":
+                if len(args) > 0:
+                    self.__setattr__(param, float(args[0]))
+            elif param == "lh_marker":
+                if len(args) > 0:
+                    self.__setattr__(param, args[0])
             elif param == "grid":
                 if len(args) > 0:
-                    if args[0] == "auto":
-                        self.__setattr__(param, "auto")
+                    if args[0] in ["auto", "horizontal", "vertical"]:
+                        self.__setattr__(param, args[0])
+                    else:
+                        self.__setattr__(param, list(map(int, args[:2])))
+            elif param == "subgrid":
+                if len(args) > 0:
+                    if args[0] in ["auto", "horizontal", "vertical"]:
+                        self.__setattr__(param, args[0])
                     else:
                         self.__setattr__(param, list(map(int, args[:2])))
             elif param == "dpi":

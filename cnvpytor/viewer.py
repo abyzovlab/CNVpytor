@@ -120,8 +120,10 @@ class Figure(ViewParams):
         ViewParams.__init__(self, params)
         self.fig = None
         self.fig_grid = None
+        self.fig_sub_grid = None
         self.count = 0
         self.current = -1
+        self.sg_current = -1
 
     def new_figure(self, panel_count, grid="auto", panel_size=(8, 6), hspace=0, wspace=0):
         """ Clear figure and create new plot layout.
@@ -149,6 +151,16 @@ class Figure(ViewParams):
             self.fig.set_figwidth(panel_size[0] * sx)
         self.fig_grid = gridspec.GridSpec(sy, sx, hspace=hspace, wspace=wspace)
         self.current = -1
+        self.sg_current = -1
+
+
+    def new_subgrid(self, panel_count, grid="auto", hspace=0, wspace=0):
+        if grid == "auto":
+            grid = self.subgrid
+        sx, sy = self._get_grid(grid, panel_count)
+        self.current += 1
+        self.fig_sub_grid=gridspec.GridSpecFromSubplotSpec(sy, sx, subplot_spec=self.fig_grid[self.current], wspace=wspace, hspace=hspace)
+        self.sg_current = -1
 
     def next_panel(self):
         """ Return axes of next panel
@@ -160,6 +172,17 @@ class Figure(ViewParams):
         """
         self.current += 1
         return self.fig.add_subplot(self.fig_grid[self.current])
+
+    def next_subpanel(self):
+        """ Return axes of next sub panel
+
+        Returns
+        -------
+        ax : matplotlib.axes.Axes
+            Axes for a given panel
+        """
+        self.sg_current += 1
+        return self.fig.add_subplot(self.fig_sub_grid[self.sg_current])
 
     def next_polar_panel(self):
         """ Return axes of next panel
@@ -191,6 +214,10 @@ class Figure(ViewParams):
     def _get_grid(self, grid, panel_count):
         if grid == "auto":
             sx, sy = self._panels_shape(panel_count)
+        elif grid == "vertical":
+            sx, sy = 1, panel_count
+        elif grid == "horizontal":
+            sx, sy = panel_count, 1
         else:
             sx, sy = tuple(grid)
         return sx, sy
@@ -408,7 +435,7 @@ class Viewer(Show, Figure, HelpDescription):
                 elif f[0] == "compare":
                     if n == 3:
                         self.compare(f[1], f[2], plot=True)
-                    elif n==4:
+                    elif n == 4:
                         self.compare(f[1], f[2], n_bins=int(f[3]), plot=True)
                 elif f[0] == "info":
                     if n > 1:
@@ -555,10 +582,10 @@ class Viewer(Show, Figure, HelpDescription):
             his_p_mosaic_call = self.io[self.plot_file].get_signal(c, bin_size, "RD mosaic call",
                                                                    flag_rd | FLAG_GC_CORR)
             his_p_mosaic_seg_2d = self.io[self.plot_file].get_signal(c, bin_size, "RD mosaic segments 2d",
-                                                                  flag_rd | FLAG_GC_CORR)
+                                                                     flag_rd | FLAG_GC_CORR)
             his_p_mosaic_seg_2d = segments_decode(his_p_mosaic_seg_2d)
             his_p_mosaic_call_2d = self.io[self.plot_file].get_signal(c, bin_size, "RD mosaic call 2d",
-                                                                   flag_rd | FLAG_GC_CORR)
+                                                                      flag_rd | FLAG_GC_CORR)
             his_p_mosaic = np.zeros_like(his_p) * np.nan
             if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and self.rd_call_mosaic:
                 for seg, lev in zip(list(his_p_mosaic_seg), list(his_p_mosaic_call[0])):
@@ -684,8 +711,34 @@ class Viewer(Show, Figure, HelpDescription):
                             call_i2.append(max(i1, i2))
                             color = colors.to_rgb(self.lh_colors[0]) + (alpha,)
                             call_c.append(color)
-                plt.scatter(call_pos, call_i1, s=20, color=np.array(call_c), edgecolors='face', marker='_')
-                plt.scatter(call_pos, call_i2, s=20, color=np.array(call_c), edgecolors='face', marker='_')
+                plt.scatter(call_pos, call_i1, s=self.lh_markersize, color=np.array(call_c), edgecolors='face',
+                            marker=self.lh_marker)
+                plt.scatter(call_pos, call_i2, s=self.lh_markersize, color=np.array(call_c), edgecolors='face',
+                            marker=self.lh_marker)
+            if self.snp_call_2d:
+                likelihood = self.io[self.plot_file].get_signal(c, bin_size, "SNP likelihood call 2d", snp_flag)
+                segments = segments_decode(
+                    self.io[self.plot_file].get_signal(c, bin_size, "SNP likelihood segments 2d", snp_flag))
+                call_pos = []
+                call_i1 = []
+                call_i2 = []
+                call_c = []
+                for s, lh in zip(segments, likelihood):
+                    i1, i2, p = likelihood_pixels_pval(lh)
+                    if i1 != i2 and len(s) > self.min_segment_size:
+                        alpha = -np.log(p + 1e-40) / self.contrast
+                        if alpha > 1:
+                            alpha = 1
+                        for pos in s:
+                            call_pos.append(pos)
+                            call_i1.append(min(i1, i2))
+                            call_i2.append(max(i1, i2))
+                            color = colors.to_rgb(self.lh_colors[1]) + (alpha,)
+                            call_c.append(color)
+                plt.scatter(call_pos, call_i1, s=self.lh_markersize, color=np.array(call_c), edgecolors='face',
+                            marker=self.lh_marker)
+                plt.scatter(call_pos, call_i2, s=self.lh_markersize, color=np.array(call_c), edgecolors='face',
+                            marker=self.lh_marker)
         self.fig_show(suffix="rd")
 
     def baf(self):
@@ -833,17 +886,18 @@ class Viewer(Show, Figure, HelpDescription):
                         his_p_mosaic_call = io.get_signal(c, bin_size, "RD mosaic call",
                                                           flag_rd | FLAG_GC_CORR)
                         his_p_mosaic_seg_2d = io.get_signal(c, bin_size, "RD mosaic segments 2d",
-                                                         flag_rd | FLAG_GC_CORR)
+                                                            flag_rd | FLAG_GC_CORR)
                         his_p_mosaic_seg_2d = segments_decode(his_p_mosaic_seg_2d)
                         his_p_mosaic_call_2d = io.get_signal(c, bin_size, "RD mosaic call 2d",
-                                                          flag_rd | FLAG_GC_CORR)
+                                                             flag_rd | FLAG_GC_CORR)
                         his_p_mosaic = np.zeros_like(his_p) * np.nan
                         if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and self.rd_call_mosaic:
                             for seg, lev in zip(list(his_p_mosaic_seg), list(his_p_mosaic_call[0])):
                                 for segi in seg:
                                     his_p_mosaic[segi] = lev
                         his_p_mosaic_2d = np.zeros_like(his_p) * np.nan
-                        if his_p_mosaic_call_2d is not None and len(his_p_mosaic_call_2d) > 0 and self.rd_call_mosaic_2d:
+                        if his_p_mosaic_call_2d is not None and len(
+                                his_p_mosaic_call_2d) > 0 and self.rd_call_mosaic_2d:
                             for seg, lev in zip(list(his_p_mosaic_seg_2d), list(his_p_mosaic_call_2d[0])):
                                 for segi in seg:
                                     his_p_mosaic_2d[segi] = lev
@@ -859,7 +913,8 @@ class Viewer(Show, Figure, HelpDescription):
                             plt.step(pos, his_p_call, "r")
                         if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and self.rd_call_mosaic:
                             plt.plot(pos, his_p_mosaic, "k")
-                        if his_p_mosaic_call_2d is not None and len(his_p_mosaic_call_2d) > 0 and self.rd_call_mosaic_2d:
+                        if his_p_mosaic_call_2d is not None and len(
+                                his_p_mosaic_call_2d) > 0 and self.rd_call_mosaic_2d:
                             plt.plot(pos, his_p_mosaic_2d, "k")
                     apos += len(his_p)
                     xticks.append(apos)
@@ -922,45 +977,33 @@ class Viewer(Show, Figure, HelpDescription):
             ax.set_xlim([0, n_bins])
             ax.grid()
 
-        self.fig_show(suffix="manhattan" if plot_type == "rd" else "snp_calls", bottom=0.02, top=0.92,
+        self.fig_show(suffix="manhattan" if plot_type == "rd" else "snp_calls", bottom=0.02, top=(1.0-0.15/n),
                       wspace=0, hspace=0.2, left=0.02, right=0.98)
 
     def multiple_regions(self, regions):
         bin_size = self.bin_size
         n = len(self.plot_files) * len(regions)
         ix = self.plot_files
-        plt.clf()
-        plt.rcParams["font.size"] = 8
-        if len(self.plot_files) > 1 and len(regions) > 1:
-            sx = len(regions)
-            sy = len(self.plot_files)
-        elif self.grid == "auto":
-            sx, sy = self._panels_shape(n)
-        else:
-            sx, sy = tuple(self.grid)
-        self.fig = plt.figure(1, dpi=200, facecolor='w', edgecolor='k')
-        if self.output_filename != "":
-            self.fig.set_figheight(3 * sy)
-            self.fig.set_figwidth(4 * sx)
-        grid = gridspec.GridSpec(sy, sx, wspace=0.2, hspace=0.2)
+
+        self.new_figure(panel_count=n,wspace=0.1,hspace=0.1)
+
         j = 0
         for i in range(len(self.plot_files)):
             for r in regions:
-                self.regions(ix[i], grid[j], r)
+                self.regions(ix[i], r)
                 j += 1
         self.fig_show(suffix="regions", bottom=0.05, top=0.95, wspace=0, hspace=0, left=0.05, right=0.95)
 
-
-    def regions(self, ix, element, region):
+    def regions(self, ix, region):
         panels = self.panels
         bin_size = self.bin_size
         snp_flag = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0) | (
             FLAG_USEHAP if self.snp_use_phase else 0)
-        grid = gridspec.GridSpecFromSubplotSpec(len(panels), 1, subplot_spec=element, wspace=0, hspace=0.1)
+        self.new_subgrid(len(panels), hspace=0.15, wspace=0.1)
         r = decode_region(region)
         io = self.io[ix]
         for i in range(len(panels)):
-            ax = self.fig.add_subplot(grid[i])
+            ax = self.next_subpanel()
             if i == 0:
                 ax.set_title(self.file_title(ix) + ": " + region, position=(0.01, 0.9),
                              fontdict={'verticalalignment': 'top', 'horizontalalignment': 'left'},
@@ -993,10 +1036,10 @@ class Viewer(Show, Figure, HelpDescription):
                     his_p_mosaic_call = io.get_signal(c, bin_size, "RD mosaic call",
                                                       flag_rd | FLAG_GC_CORR)
                     his_p_mosaic_seg_2d = io.get_signal(c, bin_size, "RD mosaic segments 2d",
-                                                     flag_rd | FLAG_GC_CORR)
+                                                        flag_rd | FLAG_GC_CORR)
                     his_p_mosaic_seg_2d = segments_decode(his_p_mosaic_seg_2d)
                     his_p_mosaic_call_2d = io.get_signal(c, bin_size, "RD mosaic call 2d",
-                                                      flag_rd | FLAG_GC_CORR)
+                                                         flag_rd | FLAG_GC_CORR)
                     his_p_mosaic = np.zeros_like(his_p) * np.nan
                     if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and self.rd_call_mosaic:
                         for seg, lev in zip(list(his_p_mosaic_seg), list(his_p_mosaic_call[0])):
@@ -1165,7 +1208,12 @@ class Viewer(Show, Figure, HelpDescription):
                 call_i1 = []
                 call_i2 = []
                 call_c = []
+                call_pos_2d = []
+                call_i1_2d = []
+                call_i2_2d = []
+                call_c_2d = []
                 tlen = 0
+                tlen_2d = 0
                 for c, (pos1, pos2) in r:
                     likelihood = io.get_signal(c, bin_size, "SNP likelihood", snp_flag)
                     start_bin = (pos1 - 1) // bin_size
@@ -1190,6 +1238,24 @@ class Viewer(Show, Figure, HelpDescription):
                                         color = colors.to_rgb(self.lh_colors[0]) + (alpha,)
                                         call_c.append(color)
                         tlen += end_bin - start_bin
+                    if self.snp_call_2d:
+                        likelihood_call = io.get_signal(c, bin_size, "SNP likelihood call 2d", snp_flag)
+                        segments = segments_decode(io.get_signal(c, bin_size, "SNP likelihood segments 2d", snp_flag))
+
+                        for s, lh in zip(segments, likelihood_call):
+                            i1, i2, p = likelihood_pixels_pval(lh)
+                            if i1 != i2 and len(s) > self.min_segment_size:
+                                alpha = -np.log(p + 1e-40) / self.contrast
+                                if alpha > 1:
+                                    alpha = 1
+                                for pos in s:
+                                    if pos >= start_bin and pos < end_bin:
+                                        call_pos_2d.append(pos - start_bin + tlen_2d)
+                                        call_i1_2d.append(min(i1, i2))
+                                        call_i2_2d.append(max(i1, i2))
+                                        color = colors.to_rgb(self.lh_colors[1]) + (alpha,)
+                                        call_c_2d.append(color)
+                        tlen_2d += end_bin - start_bin
 
                 img = np.array(gl).transpose()
                 ax.imshow(img, aspect='auto')
@@ -1198,14 +1264,15 @@ class Viewer(Show, Figure, HelpDescription):
                 ax.xaxis.set_ticks(np.arange(0, len(gl), 50), minor=[])
                 ax.set_xlim([-0.5, img.shape[1] - 0.5])
                 if self.snp_call:
-                    if self.markersize == "auto":
-                        plt.scatter(call_pos, call_i1, s=2, color=np.array(call_c), edgecolors='face', marker='_')
-                        plt.scatter(call_pos, call_i2, s=2, color=np.array(call_c), edgecolors='face', marker='_')
-                    else:
-                        plt.scatter(call_pos, call_i1, s=self.markersize, color=np.array(call_c), edgecolors='face',
-                                    marker='_')
-                        plt.scatter(call_pos, call_i2, s=self.markersize, color=np.array(call_c), edgecolors='face',
-                                    marker='_')
+                    plt.scatter(call_pos, call_i1, s=self.lh_markersize, color=np.array(call_c), edgecolors='face',
+                                marker=self.lh_marker)
+                    plt.scatter(call_pos, call_i2, s=self.lh_markersize, color=np.array(call_c), edgecolors='face',
+                                marker=self.lh_marker)
+                if self.snp_call_2d:
+                    plt.scatter(call_pos_2d, call_i1_2d, s=self.lh_markersize, color=np.array(call_c_2d),
+                                edgecolors='face', marker=self.lh_marker)
+                    plt.scatter(call_pos_2d, call_i2_2d, s=self.lh_markersize, color=np.array(call_c_2d),
+                                edgecolors='face', marker=self.lh_marker)
 
                 for i in borders[:-1]:
                     ax.axvline(i + 0.5, color="g", lw=1)
