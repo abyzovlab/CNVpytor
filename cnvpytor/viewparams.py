@@ -549,7 +549,7 @@ class HelpDescription(object):
             p_type="list of strings",
             p_default=str(default["rd_colors"]),
             p_affects="rd, region plot with rd panel",
-            p_example="set rd_colors red grey green black blue\nunset rd_colors\nset rd_colors.1 red",
+            p_example="set rd_colors red grey green black blue cyan\nunset rd_colors\nset rd_colors.1 red",
             p_see="markersize, snp_colors, baf_colors, lh_colors"
         ),
         "snp_colors": help_format(
