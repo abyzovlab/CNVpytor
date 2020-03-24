@@ -506,7 +506,7 @@ class Viewer(Show, Figure, HelpDescription):
                 lim_rd = int(max(2 * stat[4], stat[4] + 3 * stat[5]))
                 _logger.info("RD stat for %s: %.2f +- %.2f" % (t, stat[4], stat[5]))
                 if t == "Mitochondria" and auto:
-                    _logger.info("RD stat for %s - number of miochondria per cell: %.2f +- %.2f" % (
+                    _logger.info("RD stat for %s - number of mitochondria per cell: %.2f +- %.2f" % (
                         t, 2 * stat[4] / stat_list[0][4],
                         2 * stat[5] / stat_list[0][4] + stat_list[0][5] * stat[4] / (
                                 stat_list[0][4] * stat_list[0][4])))
