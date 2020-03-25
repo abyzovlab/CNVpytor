@@ -567,6 +567,51 @@ class IO(Signals):
             # Save RD and SNP data into root file - TODO
             _logger.debug(root_filename, ROOT.__version__)
 
+    def add_rd(self, chr_name, rd_p, rd_u, chromosome_length=None):
+        """
+        Add RD signal, compress and stores into CNVpytor file and returns data set instances.
+
+        Parameters
+        ----------
+        chr_name : str
+            Name of the chromosome.
+        rd_p : numpy.ndarray
+            Array with RD parity data.
+        rd_u : numpy.ndarray
+            Array with RD unique data.
+
+        Returns
+        -------
+        ds_p : h5py._hl.dataset.Dataset
+            Data set instance with RD parity signal.
+        ds_u : h5py._hl.dataset.Dataset
+            Data set instance with RD unique signal.
+
+        """
+        _logger.info("Adding RD data for chromosome '%s'." % chr_name)
+        ord_p, ord_u = self.read_rd(chr_name)
+        if rd_p.size>ord_p.size:
+            _logger.warning("Different lengths (%d, %d). Using larger." % (rd_p.size, ord_p.size))
+            ord_p.resize(rd_p.size,refcheck=False)
+            ord_u.resize(rd_p.size,refcheck=False)
+        elif rd_p.size<ord_p.size:
+            _logger.warning("Different lengths (%d, %d). Using larger." % (rd_p.size, ord_p.size))
+            rd_p.resize(od_p.size,refcheck=False)
+            rd_u.resize(od_p.size,refcheck=False)
+
+        rd_p+=ord_p
+        rd_u+=ord_u
+
+        data_type = "uint32" if Genome.is_mt_chrom(chr_name) or (np.max(rd_p)>65535) else "uint16"
+        crd_p, crd_u = rd_compress(rd_p, rd_u, data_type)
+        ds_p = self.create_signal(chr_name, None, "RD p", crd_p)
+        ds_u = self.create_signal(chr_name, None, "RD u", crd_u)
+        if not (chr_name in self.rd_chromosomes()):
+            rd_chroms = self.rd_chromosomes()
+            rd_chroms.append(chr_name)
+            self.update_signal(None, None, "RD chromosomes", np.array([np.string_(x) for x in rd_chroms]))
+        return ds_p, ds_u
+
     def save_rd(self, chr_name, rd_p, rd_u, chromosome_length=None):
         """
         Compress and stores RD data into CNVpytor file and returns data set instances.
@@ -589,7 +634,7 @@ class IO(Signals):
 
         """
         _logger.info("Saving chromosome RD data for chromosome '%s'." % chr_name)
-        data_type = "uint32" if Genome.is_mt_chrom(chr_name) else "uint16"
+        data_type = "uint32" if Genome.is_mt_chrom(chr_name) or (np.max(rd_p)>65535) else "uint16"
         crd_p, crd_u = rd_compress(rd_p, rd_u, data_type)
         snp_name = self.snp_chromosome_name(chr_name)
         if not (snp_name is None):

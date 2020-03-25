@@ -13,7 +13,7 @@ from .viewer import anim_plot_likelihood, anim_plot_rd
 import numpy as np
 import logging
 import os.path
-import  matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 
 _logger = logging.getLogger("cnvpytor.root")
 
@@ -50,7 +50,7 @@ class Root:
                     _logger.debug("Using strict mask from database for reference genome '%s'." % rg_name)
                     self.io_mask = IO(Genome.reference_genomes[rg_name]["mask_file"], ro=True, buffer=True)
 
-    def _read_bam(self, bf, chroms, reference_filename=False):
+    def _read_bam(self, bf, chroms, reference_filename=False, overwrite=False):
         bamf = Bam(bf, reference_filename=reference_filename)
         if bamf.reference_genome:
             self.io.create_signal(None, None, "reference genome", np.array([np.string_(bamf.reference_genome)]))
@@ -74,7 +74,10 @@ class Root:
                         cum_his_read_frg = his_read_frg
                     else:
                         cum_his_read_frg += his_read_frg
-                    self.io.save_rd(cl[0], rd_p, rd_u, chromosome_length=cl[1])
+                    if (cl[0] in self.io.rd_chromosomes()) and not overwrite:
+                        self.io.add_rd(cl[0], rd_p, rd_u)
+                    else:
+                        self.io.save_rd(cl[0], rd_p, rd_u, chromosome_length=cl[1])
                     count += 1
             if not cum_his_read_frg is None:
                 self.io.create_signal(None, None, "read frg dist", cum_his_read_frg)
@@ -90,7 +93,10 @@ class Root:
                         cum_his_read_frg = r[2]
                     else:
                         cum_his_read_frg += r[2]
-                    self.io.save_rd(c[0], r[0], r[1], chromosome_length=c[1])
+                    if (c[0] in self.io.rd_chromosomes()) and not overwrite:
+                        self.io.add_rd(c[0], r[0], r[1])
+                    else:
+                        self.io.save_rd(c[0], r[0], r[1], chromosome_length=c[1])
                     count += 1
             if not cum_his_read_frg is None:
                 self.io.create_signal(None, None, "read frg dist", cum_his_read_frg)
@@ -270,7 +276,7 @@ class Root:
             else:
                 return vcff.read_all_snp(save_data, sample, ad_tag=ad_tag, gt_tag=gt_tag)
 
-    def rd(self, bamfiles, chroms=[], reference_filename=False):
+    def rd(self, bamfiles, chroms=[], reference_filename=False, overwrite=False):
         """ Read chromosomes from bam/sam/cram file(s) and store in cnvpytor file.
 
         Parameters
@@ -284,7 +290,7 @@ class Root:
 
         """
         for bf in bamfiles:
-            self._read_bam(bf, chroms, reference_filename=reference_filename)
+            self._read_bam(bf, chroms, reference_filename=reference_filename, overwrite=overwrite)
             self.io.add_meta_attribute("BAM", bf)
 
         if self.io.signal_exists(None, None, "reference genome"):
@@ -1440,7 +1446,7 @@ class Root:
                     self.io.save_snp(c, pos, ref, alt, nref, nalt, gt, flag, qual, update=True, callset=callset)
 
     def calculate_baf(self, bin_sizes, chroms=[], use_mask=True, use_id=False, use_phase=False, res=200,
-                      reduce_noise=False, blw=0.8):
+                      reduce_noise=False, blw=0.8, use_hom=False):
         """
         Calculates BAF histograms and store data into cnvpytor file.
 
@@ -1561,6 +1567,13 @@ class Root:
                             i1[bs][i] = 1.0 * (res // 2 - 1 - ix) / res if ix <= (res // 2 - 1) else 1.0 * (
                                     ix - res // 2 + 1) / res
                             i2[bs][i] = likelihood[bs][i][res // 2 - 1] / max_lh
+                        elif use_hom:
+                            likelihood[bs][i] = lh_x * 0. + 1 / res
+                            likelihood[bs][i][0] = 0.5 * (count11[bs][i] + count00[bs][i])
+                            likelihood[bs][i][-1] = 0.5 * (count11[bs][i] + count00[bs][i])
+                            s = np.sum(likelihood[bs][i])
+                            likelihood[bs][i] /= s
+
                     _logger.info("Saving BAF histograms with bin size %d for chromosome '%s'." % (bs, c))
                     self.io.create_signal(c, bs, "SNP bin count 0|0", count00[bs].astype("uint16"), snp_flag)
                     self.io.create_signal(c, bs, "SNP bin count 0|1", count01[bs].astype("uint16"), snp_flag)
@@ -1875,7 +1888,6 @@ class Root:
                                     del error[j]
                                     del likelihood[j]
                                     del segments[j]
-
 
                                     if j >= len(segments):
                                         i += 1

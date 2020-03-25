@@ -49,6 +49,8 @@ def main():
                         help="CNV caller: [baf] bin_size [bin_size2 ...] (multiple bin sizes separate by space)")
     parser.add_argument('-vcf', '-snp', '--vcf', nargs="+", type=str, help="read SNP data from vcf files")
     parser.add_argument('-somatic_snv', '--somatic_snv', nargs="+", type=str, help="read SNP data from vcf files")
+    parser.add_argument('-minc', '--min_count', type=int,
+                        help="minimal count of haterozygous SNPs", default=None)
     parser.add_argument('-vcf2rd', '--rd_from_vcf', type=str, help="read SNP data from vcf files")
     parser.add_argument('-noAD', '--no_snp_counts', action='store_true',
                         help="read positions of snps, not counts (AD tag)")
@@ -68,6 +70,7 @@ def main():
                         help="create BAF histograms for specified bin size (multiple bin sizes separate by space)")
     parser.add_argument('-nomask', '--no_mask', action='store_true', help="do not use P mask in BAF histograms")
     parser.add_argument('-useid', '--use_id', action='store_true', help="use id flag filtering in SNP histograms")
+    parser.add_argument('-usehom', '--use_hom', action='store_true', help="use hom")
     parser.add_argument('-usephase', '--use_phase', action='store_true',
                         help="use information about phase while processing SNP data")
     parser.add_argument('-reducenoise', '--reduce_noise', action='store_true',
@@ -248,7 +251,8 @@ def main():
 
         if args.rd_from_vcf:
             app = Root(args.root[0], create=True, max_cores=args.max_cores)
-            app.rd_from_vcf(args.rd_from_vcf, chroms=args.chrom, sample=args.vcf_sample, ad_tag=args.ad_tag, dp_tag=args.dp_tag)
+            app.rd_from_vcf(args.rd_from_vcf, chroms=args.chrom, sample=args.vcf_sample, ad_tag=args.ad_tag,
+                            dp_tag=args.dp_tag)
 
         if args.pileup_bam:
             app = Root(args.root[0], max_cores=args.max_cores)
@@ -281,7 +285,8 @@ def main():
         if args.baf:
             app = Root(args.root[0], max_cores=args.max_cores)
             app.calculate_baf(args.baf, chroms=args.chrom, use_id=args.use_id, use_mask=not args.no_mask,
-                              use_phase=args.use_phase, reduce_noise=args.reduce_noise, blw=args.baf_likelihood_width)
+                              use_phase=args.use_phase, reduce_noise=args.reduce_noise, blw=args.baf_likelihood_width,
+                              use_hom=args.use_hom)
         if args.partition:
             app = Root(args.root[0], max_cores=args.max_cores)
             app.partition(args.partition, chroms=args.chrom, use_gc_corr=not args.no_gc_corr,
@@ -291,7 +296,7 @@ def main():
             app = Root(args.root[0], max_cores=args.max_cores)
             if args.call[0] == "baf":
                 app.call_baf([binsize_type(x) for x in args.call[1:]], chroms=args.chrom, use_id=args.use_id,
-                             use_mask=not args.no_mask, anim=args.animation)
+                             use_mask=not args.no_mask, mcount=args.min_count, anim=args.animation)
             elif args.call[0] == "mosaic":
                 app.call_mosaic(list(map(binsize_type, args.call[1:])), chroms=args.chrom,
                                 use_gc_corr=not args.no_gc_corr,
@@ -299,7 +304,7 @@ def main():
             elif args.call[0] == "combined":
                 app.call_2d(list(map(binsize_type, args.call[1:])), chroms=args.chrom, use_gc_corr=not args.no_gc_corr,
                             rd_use_mask=args.use_mask_with_rd, snp_use_mask=not args.no_mask, snp_use_id=args.use_id,
-                            anim=args.animation)
+                            mcount=args.min_count, anim=args.animation)
             else:
                 app.call(list(map(binsize_type, args.call)), chroms=args.chrom, print_calls=True,
                          use_gc_corr=not args.no_gc_corr, use_mask=args.use_mask_with_rd)
