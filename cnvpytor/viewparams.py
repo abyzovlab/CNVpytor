@@ -22,7 +22,7 @@ class ViewParams(object):
         "rd_call_mosaic_2d": True,
         "rd_use_mask": False,
         "rd_use_gc_corr": True,
-        "rd_range" : [0, 3],
+        "rd_range" : [0, 6],
         "rd_manhattan_range": [0, 2],
         "rd_manhattan_call": False,
         "snp_use_mask": True,
@@ -34,6 +34,7 @@ class ViewParams(object):
         "lh_markersize": 20,
         "lh_marker": "_",
         "rd_colors": ["grey","black","red","green","blue","cyan"],
+        "legend": False,
         "snp_colors": ["yellow", "orange", "cyan", "blue", "lime", "green", "yellow", "orange"],
         "rd_circular_colors": ["#555555", "#aaaaaa"],
         "snp_circular_colors": ["#00ff00", "#0000ff"],
@@ -67,6 +68,7 @@ class ViewParams(object):
         self.command_tree["set"]["panels"] = {}
         for panel1 in ["rd", "likelihood", "snp", "baf", "snv"]:
             self.command_tree["set"]["panels"][panel1] = self.command_tree["set"]["panels"]
+        self.interactive = True
 
     def set(self, param, args):
         try:
@@ -134,11 +136,13 @@ class ViewParams(object):
             elif param in self.params and self.params[param] is not True:
                 self.__setattr__(param, args)
             if param in self.params:
-                print("    * %s: %s" % (param, str(self.params[param])))
+                if self.interactive:
+                    print("    * %s: %s" % (param, str(self.params[param])))
             else:
                 sp = param.split(".")
                 if sp[0] in self.params:
-                    print("    * %s: %s" % (sp[0], str(self.params[sp[0]])))
+                    if self.interactive:
+                        print("    * %s: %s" % (sp[0], str(self.params[sp[0]])))
         except ValueError:
             _logger.warning("Value error while setting %s!" % param)
 
@@ -551,6 +555,15 @@ class HelpDescription(object):
             p_affects="rd, region plot with rd panel",
             p_example="set rd_colors red grey green black blue cyan\nunset rd_colors\nset rd_colors.1 red",
             p_see="markersize, snp_colors, baf_colors, lh_colors"
+        ),
+        "legend": help_format(
+            topic="legend",
+            p_desc="Enables legend in region plots",
+            p_type="bool",
+            p_default=str(default["legend"]),
+            p_affects="region plot, rd, baf",
+            p_example="set legend\nunset legend",
+            p_see="rd_range, rd_call"
         ),
         "snp_colors": help_format(
             topic="snp_colors",

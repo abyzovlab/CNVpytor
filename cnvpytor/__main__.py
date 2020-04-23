@@ -81,6 +81,8 @@ def main():
     parser.add_argument('-plot', '--plot', type=str, nargs="+", help="plotting")
     parser.add_argument('-view', '--view', type=binsize_type,
                         help="Enters interactive ploting mode")
+    parser.add_argument('-agg', '--force_agg', action='store_true', help="Force Agg matplotlib backend")
+
     parser.add_argument('-panels', '--panels', type=str, nargs="+", default=["rd"], choices=["rd", "baf", "likelihood"],
                         help="plot panels (with -plot regions)")
 
@@ -183,7 +185,7 @@ def main():
             show.info(args.info)
 
         if args.genotype is not None:
-            view = Viewer(args.root, {})
+            view = Viewer(args.root, {}, force_agg=args.force_agg)
             view.genotype_prompt(list(map(binsize_type, args.genotype)))
 
         if args.compare is not None:
@@ -191,7 +193,7 @@ def main():
                       "rd_use_gc_corr": not args.no_gc_corr,
                       "rd_use_mask": args.use_mask_with_rd
                       }
-            view = Viewer(args.root, params)
+            view = Viewer(args.root, params, force_agg=args.force_agg)
             if len(args.compare) == 3:
                 view.compare(args.compare[0], args.compare[1])
             elif len(args.compare) == 4:
@@ -228,7 +230,7 @@ def main():
                       }
             if args.plot_style:
                 params["style"] = args.plot_style
-            view = Viewer(args.root, params)
+            view = Viewer(args.root, params, force_agg=args.force_agg)
             view.prompt()
 
         if args.gc:
@@ -302,7 +304,7 @@ def main():
                                 use_gc_corr=not args.no_gc_corr,
                                 use_mask=args.use_mask_with_rd, anim=args.animation)
             elif args.call[0] == "combined":
-                app.call_2d(list(map(binsize_type, args.call[1:])), chroms=args.chrom, use_gc_corr=not args.no_gc_corr,
+                app.call_2d(list(map(binsize_type, args.call[1:])), chroms=args.chrom, print_calls=True, use_gc_corr=not args.no_gc_corr,
                             rd_use_mask=args.use_mask_with_rd, snp_use_mask=not args.no_mask, snp_use_id=args.use_id,
                             mcount=args.min_count, anim=args.animation)
             else:

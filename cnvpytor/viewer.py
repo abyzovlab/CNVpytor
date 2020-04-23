@@ -16,6 +16,8 @@ import numpy as np
 import logging
 import readline
 import traceback
+import os
+import sys
 
 _logger = logging.getLogger("cnvpytor.viewer")
 
@@ -108,7 +110,7 @@ class Show(Reader):
 
 
 class Figure(ViewParams):
-    def __init__(self, params):
+    def __init__(self, params, force_agg=False):
         """ Class implements matplotlib frequently used figure manipulation and plot panels arrangement.
 
         Parameters
@@ -117,6 +119,10 @@ class Figure(ViewParams):
             Params to be passed to ViewParam class
 
         """
+        if force_agg:
+            import matplotlib
+            matplotlib.use("Agg")
+            import matplotlib.pyplot as plt
         ViewParams.__init__(self, params)
         self.fig = None
         self.fig_grid = None
@@ -153,13 +159,13 @@ class Figure(ViewParams):
         self.current = -1
         self.sg_current = -1
 
-
     def new_subgrid(self, panel_count, grid="auto", hspace=0, wspace=0):
         if grid == "auto":
             grid = self.subgrid
         sx, sy = self._get_grid(grid, panel_count)
         self.current += 1
-        self.fig_sub_grid=gridspec.GridSpecFromSubplotSpec(sy, sx, subplot_spec=self.fig_grid[self.current], wspace=wspace, hspace=hspace)
+        self.fig_sub_grid = gridspec.GridSpecFromSubplotSpec(sy, sx, subplot_spec=self.fig_grid[self.current],
+                                                             wspace=wspace, hspace=hspace)
         self.sg_current = -1
 
     def next_panel(self):
@@ -296,7 +302,7 @@ class Figure(ViewParams):
 
 class Viewer(Show, Figure, HelpDescription):
 
-    def __init__(self, files, params={}):
+    def __init__(self, files, params={}, force_agg=False):
         """
 
         Parameters
@@ -308,7 +314,7 @@ class Viewer(Show, Figure, HelpDescription):
 
         """
         _logger.debug("Viewer class init: files [%s], params %s." % (", ".join(files), str(params)))
-        Figure.__init__(self, params)
+        Figure.__init__(self, params, force_agg=force_agg)
         Show.__init__(self, files)
         self.io_gc = self.io[0]
         self.io_mask = self.io[0]
@@ -379,10 +385,15 @@ class Viewer(Show, Figure, HelpDescription):
         quit = False
         try:
             while not quit:
+                prompt_str = ""
+                if os.isatty(sys.stdin.fileno()):
+                    prompt_str = "cnvpytor> "
+                else:
+                    self.interactive = False
                 try:
-                    line = raw_input("cnvpytor> ")
+                    line = raw_input(prompt_str)
                 except NameError:
-                    line = input("cnvpytor> ")
+                    line = input(prompt_str)
 
                 pre = line.split(">")
                 f = pre[0].strip().split(" ")
@@ -923,7 +934,7 @@ class Viewer(Show, Figure, HelpDescription):
                 ax.yaxis.set_ticks(np.arange(0, 15, 0.5) * max_m, minor=[])
                 ax.xaxis.set_ticks(xticks, minor=[])
                 ax.set_ylim([self.rd_manhattan_range[0] * max_m, self.rd_manhattan_range[1] * max_m])
-            else:
+            elif plot_type == "calls_baf":
                 chroms = []
                 snp_flag = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0) | (
                     FLAG_USEHAP if self.snp_use_phase else 0)
@@ -962,7 +973,6 @@ class Viewer(Show, Figure, HelpDescription):
                     ax.text(apos + l // bin_size // 2, 0.4, Genome.canonical_chrom_name(c),
                             fontsize=8, verticalalignment='bottom', horizontalalignment='center', )
                     plt.scatter(call_pos, call_baf, s=20, color=np.array(call_c), edgecolors='face', marker='|')
-                    # plt.plot(call_pos, call_baf, color=np.array(call_c), ls='', marker='.')
                     apos += l // bin_size
                     xticks.append(apos)
                     cix += 1
@@ -972,12 +982,61 @@ class Viewer(Show, Figure, HelpDescription):
                 ax.yaxis.set_ticks(np.arange(0, 0.5, 0.1), minor=[])
                 ax.xaxis.set_ticks(xticks, minor=[])
                 ax.set_ylim([0, 0.5])
+            else:
+                chroms = []
+                flag = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0) | (
+                    FLAG_USEHAP if self.snp_use_phase else 0) | (FLAG_USEMASK if self.rd_use_mask else 0) | FLAG_GC_CORR
+
+                for c, (l, t) in self.reference_genome["chromosomes"].items():
+                    snp_chr = io.snp_chromosome_name(c)
+                    if len(self.chrom) == 0 or (snp_chr in self.chrom) or (c in self.chrom):
+                        if io.signal_exists(snp_chr, bin_size, "2d call", flag) and \
+                                (Genome.is_autosome(c) or Genome.is_sex_chrom(c)):
+                            chroms.append((snp_chr, l))
+
+                apos = 0
+                xticks = [0]
+
+                cix = 0
+                cmap = list(map(colors.to_rgba, plt.rcParams['axes.prop_cycle'].by_key()['color']))
+                for c, l in chroms:
+                    calls = io.get_signal(c, bin_size, "2d call", flag)
+                    call_pos = []
+                    call_conc = []
+                    call_c = []
+                    for call in calls:
+                        if call[11] > self.min_segment_size:
+                            alpha = -np.log(call[5] + 1e-40) / self.contrast
+                            if alpha > 1:
+                                alpha = 1
+                            for pos in range(int(call[1]) // bin_size, int(call[2]) // bin_size + 1):
+                                call_pos.append(apos + pos)
+                                call_conc.append(call[19])
+                                if call[0] == 1:
+                                    call_c.append((0, 1, 0, alpha))
+                                elif call[0] == -1:
+                                    call_c.append((1, 0, 0, alpha))
+                                else:
+                                    call_c.append((0, 0, 1, alpha))
+
+                    ax.text(apos + l // bin_size // 2, 0.4, Genome.canonical_chrom_name(c),
+                            fontsize=8, verticalalignment='bottom', horizontalalignment='center', )
+                    plt.scatter(call_pos, call_conc, s=20, color=np.array(call_c), edgecolors='face', marker='|')
+                    apos += l // bin_size
+                    xticks.append(apos)
+                    cix += 1
+
+                ax.xaxis.set_ticklabels([])
+                ax.yaxis.set_ticklabels([])
+                ax.yaxis.set_ticks(np.arange(0, 1.0, 0.1), minor=[])
+                ax.xaxis.set_ticks(xticks, minor=[])
+                ax.set_ylim([0, 1.0])
 
             n_bins = apos
             ax.set_xlim([0, n_bins])
             ax.grid()
 
-        self.fig_show(suffix="manhattan" if plot_type == "rd" else "snp_calls", bottom=0.02, top=(1.0-0.15/n),
+        self.fig_show(suffix="manhattan" if plot_type == "rd" else "snp_calls", bottom=0.02, top=(1.0 - 0.15 / n),
                       wspace=0, hspace=0.2, left=0.02, right=0.98)
 
     def multiple_regions(self, regions):
@@ -985,7 +1044,7 @@ class Viewer(Show, Figure, HelpDescription):
         n = len(self.plot_files) * len(regions)
         ix = self.plot_files
 
-        self.new_figure(panel_count=n,wspace=0.1,hspace=0.1)
+        self.new_figure(panel_count=n, wspace=0.1, hspace=0.1)
 
         j = 0
         for i in range(len(self.plot_files)):
@@ -1018,14 +1077,12 @@ class Viewer(Show, Figure, HelpDescription):
                 g_p_call_mosaic_2d = [0]
                 mean, stdev = 0, 0
                 borders = []
+                pos_x = []
                 for c, (pos1, pos2) in r:
-                    flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
                     flag_rd = 0
                     if self.rd_use_mask:
                         flag_rd = FLAG_USEMASK
-                    stat = io.get_signal(None, bin_size, "RD stat", flag)
-                    mean = stat[4]
-                    stdev = stat[5]
+                    mean, stdev = io.rd_normal_level(bin_size, flag_rd)
                     his_p = io.get_signal(c, bin_size, "RD", flag_rd)
                     his_p_corr = io.get_signal(c, bin_size, "RD", flag_rd | FLAG_GC_CORR)
                     his_p_seg = io.get_signal(c, bin_size, "RD partition", flag_rd | FLAG_GC_CORR)
@@ -1052,6 +1109,9 @@ class Viewer(Show, Figure, HelpDescription):
                                 his_p_mosaic_2d[segi] = lev
                     start_bin = (pos1 - 1) // bin_size
                     end_bin = pos2 // bin_size
+                    bins = len(list(his_p[start_bin:end_bin]))
+                    pos_x.extend(range(pos1, pos2 + bin_size, bin_size)[0:bins])
+
                     g_p.extend(list(his_p[start_bin:end_bin]))
                     g_p_corr.extend(list(his_p_corr[start_bin:end_bin]))
                     if his_p_seg is not None and len(his_p_seg) > 0 and self.rd_partition:
@@ -1064,26 +1124,46 @@ class Viewer(Show, Figure, HelpDescription):
                         g_p_call_mosaic_2d.extend(list(his_p_mosaic_2d[start_bin:end_bin]))
                     borders.append(len(g_p) - 1)
 
-                ax.yaxis.set_ticklabels([])
+                def format_func(value, tick_number):
+                    ix = int(value)
+                    if ix + 1 < len(pos_x):
+                        p = pos_x[ix] + (pos_x[ix + 1] - pos_x[ix]) * (value - ix)
+                        return "{0} Mbp".format(int(p / 100) / 10000)
+                    elif ix < len(pos_x):
+                        p = pos_x[ix]
+                        return "{0} Mbp".format(int(p / 100) / 10000)
+                    else:
+                        return ""
+
+                ax.xaxis.set_major_formatter(plt.FuncFormatter(format_func))
+                ax.xaxis.set_major_locator(plt.MaxNLocator(5))
+
                 l = len(g_p)
-                ax.yaxis.set_ticks(np.arange(0, 3, 0.5) * mean, minor=[])
+                ax.yaxis.set_ticks(np.arange(self.rd_range[0], self.rd_range[1]+1, 1) * mean / 2, minor=[])
+                ax.yaxis.set_ticklabels([str(i) for i in range(self.rd_range[0], self.rd_range[1]+1)])
+
                 ax.set_ylim([0, max(3. * mean, mean + 5. * stdev)])
                 ax.set_xlim([-l * 0.0, (l - 1) * 1.0])
 
+                ax.set_ylabel("RD")
                 ax.yaxis.grid()
+                ax.xaxis.grid()
+
                 if self.rd_raw:
-                    ax.step(g_p, self.rd_colors[0])
-                ax.step(g_p_corr, self.rd_colors[1])
-                if len(g_p_seg) > 0:
-                    plt.step(g_p_seg, self.rd_colors[2])
-                if len(g_p_call) > 0:
-                    plt.step(g_p_call, self.rd_colors[3])
-                if len(g_p_call_mosaic) > 0:
-                    plt.step(g_p_call_mosaic, self.rd_colors[4])
-                if len(g_p_call_mosaic_2d) > 0:
-                    plt.step(g_p_call_mosaic_2d, self.rd_colors[5])
+                    ax.step(g_p, self.rd_colors[0], label="raw")
+                ax.step(g_p_corr, self.rd_colors[1], label="GC corrected")
+                if len(g_p_seg) > 1:
+                    plt.step(g_p_seg, self.rd_colors[2], label="partitioning")
+                if len(g_p_call) > 1:
+                    plt.step(g_p_call, self.rd_colors[3], label="cnv calls")
+                if len(g_p_call_mosaic) > 1:
+                    plt.step(g_p_call_mosaic, self.rd_colors[4], label="mosaic cnv calls")
+                if len(g_p_call_mosaic_2d) > 1:
+                    plt.step(g_p_call_mosaic_2d, self.rd_colors[5], label="combined cnv calls")
                 for i in borders[:-1]:
                     ax.axvline(i, color="g", lw=1)
+                if self.legend:
+                    ax.legend()
                 self.fig.add_subplot(ax)
 
             elif panels[i] == "snp":
@@ -1169,8 +1249,10 @@ class Viewer(Show, Figure, HelpDescription):
                 self.fig.add_subplot(ax)
 
             elif panels[i] == "baf":
-                g_baf, g_maf, g_i1, g_i2 = [], [], [], []
+                g_baf, g_maf, g_i1, g_i2 = [0], [0], [0], [0]
                 borders = []
+                pos_x = []
+
                 for c, (pos1, pos2) in r:
                     flag_snp = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0) | (
                         FLAG_USEHAP if self.snp_use_phase else 0)
@@ -1181,11 +1263,28 @@ class Viewer(Show, Figure, HelpDescription):
 
                     start_bin = (pos1 - 1) // bin_size
                     end_bin = pos2 // bin_size
+                    bins = len(list(baf[start_bin:end_bin]))
+                    pos_x.extend(range(pos1, pos2 + bin_size, bin_size)[0:bins])
+
                     g_baf.extend(list(baf[start_bin:end_bin]))
                     g_maf.extend(list(maf[start_bin:end_bin]))
                     g_i1.extend(list(i1[start_bin:end_bin]))
                     g_i2.extend(list(i2[start_bin:end_bin]))
                     borders.append(len(g_baf) - 1)
+
+                def format_func(value, tick_number):
+                    ix = int(value)
+                    if ix + 1 < len(pos_x):
+                        p = pos_x[ix] + (pos_x[ix + 1] - pos_x[ix]) * (value - ix)
+                        return "{0} Mbp".format(int(p / 100) / 10000)
+                    elif ix < len(pos_x):
+                        p = pos_x[ix]
+                        return "{0} Mbp".format(int(p / 100) / 10000)
+                    else:
+                        return ""
+
+                ax.xaxis.set_major_formatter(plt.FuncFormatter(format_func))
+                ax.xaxis.set_major_locator(plt.MaxNLocator(5))
 
                 ax.yaxis.set_ticklabels([])
                 l = len(g_baf)
@@ -1194,9 +1293,12 @@ class Viewer(Show, Figure, HelpDescription):
                 ax.set_xlim([-l * 0.0, l * 1.0])
 
                 ax.yaxis.grid()
-                ax.step(g_baf, self.baf_colors[0])
-                ax.step(g_maf, self.baf_colors[1])
-                ax.step(g_i1, self.baf_colors[2])
+                ax.xaxis.grid()
+                ax.step(g_baf, self.baf_colors[0], label="BAF")
+                ax.step(g_maf, self.baf_colors[1], label="MAF")
+                ax.step(g_i1, self.baf_colors[2], label="I1")
+                if self.legend:
+                    ax.legend()
                 for i in borders[:-1]:
                     ax.axvline(i, color="g", lw=1)
                 self.fig.add_subplot(ax)
@@ -1638,6 +1740,86 @@ class Viewer(Show, Figure, HelpDescription):
             ax.hist(baf, bins=np.arange(0, 1.0 + 1. / (n_bins + 1), 1. / (n_bins + 1)))
             ax.set_xlabel("VAF")
             ax.set_ylabel("distribution")
+
+        self.fig_show(suffix="snp_dist", top=0.9, bottom=0.1, left=0.125, right=0.9)
+
+    def snp_compare(self, regions, ix1, ix2, callset=None, n_bins=100, titles=None, test_loh=False):
+        regions = regions.split(" ")
+        n = len(regions)
+        self.new_figure(panel_count=n, hspace=0.2, wspace=0.2)
+        for i in range(n):
+            ax = self.next_panel()
+            if titles is None:
+                ax.set_title(regions[i], position=(0.01, 1.07),
+                             fontdict={'verticalalignment': 'top', 'horizontalalignment': 'left'})
+            else:
+                ax.set_title(titles[i], position=(0.01, 1.07),
+                             fontdict={'verticalalignment': 'top', 'horizontalalignment': 'left'})
+            regs = decode_region(regions[i])
+            oval = []
+            for c, (pos_start, pos_end) in regs:
+                pos1, ref1, alt1, nref1, nalt1, gt1, flag1, qual1 = self.io[ix1].read_snp(c, callset=callset)
+                pos2, ref2, alt2, nref2, nalt2, gt2, flag2, qual2 = self.io[ix2].read_snp(c, callset=callset)
+
+                counts1 = {}
+                counts2 = {}
+                ix = 0
+                while ix < len(pos1) and pos1[ix] <= pos_end:
+                    if pos1[ix] >= pos_start and (nref1[ix] + nalt1[ix]) != 0:
+                        counts1[pos1[ix]] = (nref1[ix] / np.sqrt(nref1[ix] ** 2 + nalt1[ix] ** 2),
+                                             nalt1[ix] / np.sqrt(nref1[ix] ** 2 + nalt1[ix] ** 2))
+                    ix += 1
+                ix = 0
+                xx = []
+                yy = []
+                cc = []
+                hist1 = []
+                hist2 = []
+                while ix < len(pos2) and pos2[ix] <= pos_end:
+                    if pos2[ix] >= pos_start and (nref2[ix] + nalt2[ix]) != 0:
+                        counts2[pos2[ix]] = (nref2[ix], nalt2[ix])
+                    ix += 1
+                for p in counts1:
+                    if p in counts2:
+                        xx.append(p)
+                        yy.append(counts1[p][1] / (counts1[p][0] + counts1[p][1]))
+                        cc.append("green")
+                        xx.append(p)
+                        yy.append(counts2[p][1] / (counts2[p][0] + counts2[p][1]))
+                        cc.append("blue")
+                        if counts2[p][1] / (counts2[p][0] + counts2[p][1]) > 0.8:
+                            t = counts1[p][1] / (counts1[p][0] + counts1[p][1])
+                            if t > 0.2 and t < 0.8:
+                                hist1.append(t)
+                        else:
+                            t = counts1[p][1] / (counts1[p][0] + counts1[p][1])
+                            if t > 0.2 and t < 0.8:
+                                hist2.append(t)
+                    else:
+                        xx.append(p)
+                        yy.append(counts1[p][1] / (counts1[p][0] + counts1[p][1]))
+                        cc.append("red")
+                        t = counts1[p][1] / (counts1[p][0] + counts1[p][1])
+                        if t > 0.2 and t < 0.8:
+                            hist2.append(t)
+                for p in counts2:
+                    if not (p in counts1):
+                        xx.append(p)
+                        yy.append(counts2[p][1] / (counts2[p][0] + counts2[p][1]))
+                        cc.append("orange")
+
+            if test_loh:
+                ax.hist(hist1, bins=np.arange(0, 1.0 + 1. / (n_bins + 1), 1. / (n_bins + 1)), histtype='step')
+                ax.hist(hist2, bins=np.arange(0, 1.0 + 1. / (n_bins + 1), 1. / (n_bins + 1)), histtype='step')
+                print("H1:", np.mean(hist1), np.std(hist1), len(hist1))
+                print("H2:", np.mean(hist2), np.std(hist2), len(hist2))
+                ax.set_xlabel("baf")
+                ax.set_ylabel("distribnution")
+            else:
+                ax.scatter(xx, yy, marker=".", s=0.1, c=cc)
+                # ax.hist(oval, bins=np.arange(0, 1.0 + 1. / (n_bins + 1), 1. / (n_bins + 1)))
+                ax.set_xlabel("position")
+                ax.set_ylabel("baf")
 
         self.fig_show(suffix="snp_dist", top=0.9, bottom=0.1, left=0.125, right=0.9)
 

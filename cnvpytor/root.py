@@ -1723,8 +1723,8 @@ class Root:
                     self.io.create_signal(c, bin_size, "SNP likelihood call",
                                           data=np.array(likelihood, dtype="float32"), flags=snp_flag)
 
-    def call_2d(self, bin_sizes, chroms=[], use_gc_corr=True, rd_use_mask=False, snp_use_mask=True, snp_use_id=False,
-                omin=None, mcount=None, max_distance=0.1, anim=""):
+    def call_2d(self, bin_sizes, chroms=[], print_calls=False, use_gc_corr=True, rd_use_mask=False, snp_use_mask=True,
+                snp_use_id=False, omin=None, mcount=None, max_distance=0.1, anim=""):
         """
         CNV caller using combined RD and BAF sigal based on likelihood merger.
 
@@ -1734,6 +1734,8 @@ class Root:
             List of histogram bin sizes
         chroms : list of str
             List of chromosomes. Calculates for all available if empty.
+        print_calls : bool
+            Print to stdout list of calls if true.
         use_gc_corr : bool
             Use GC corrected signal if True. Default: True.
         rd_use_mask : bool
@@ -1758,7 +1760,9 @@ class Root:
             if not rd_name is None:
                 rd_mask_chromosomes[rd_name] = c
 
+        ret = {}
         for bin_size in bin_sizes:
+            ret[bin_size] = []
             if omin is None:
                 overlap_min = 0.05 * bin_size / 3e9
             else:
@@ -1767,6 +1771,14 @@ class Root:
                 min_count = bin_size // 10000
             else:
                 min_count = mcount
+
+            gstat_rd0 = []
+            gstat_rd = []
+            gstat_baf = []
+            gstat_error = []
+            gstat_lh = []
+            gstat_n = []
+            gstat_event = []
 
             for c in self.io.rd_chromosomes():
                 if (c in rd_gc_chromosomes or not use_gc_corr) and (c in rd_mask_chromosomes or not rd_use_mask) and (
@@ -1785,6 +1797,8 @@ class Root:
                         mean = stat[4]
                         std = stat[5]
                         rd = self.io.get_signal(c, bin_size, "RD", flag_rd)
+                        qrd_p = self.io.get_signal(c, bin_size, "RD")
+                        qrd_u = self.io.get_signal(c, bin_size, "RD unique")
                         rd_bins = len(rd)
 
                         snp_likelihood = list(
@@ -1901,7 +1915,7 @@ class Root:
                             if anim != "" and (iter % 100) == 0:
                                 anim_plot_rd(level, error, segments, bins, iter, anim + c + "_1_" + str(bin_size), maxo,
                                              mino, mean)
-                            _logger.info("Iteration: %d. Number of segments: %d." % (iter, len(level)))
+                            _logger.debug("Iteration: %d. Number of segments: %d." % (iter, len(level)))
                             if ons == len(segments):
                                 break
                             ons = len(segments)
@@ -1915,13 +1929,37 @@ class Root:
                         # return
 
                         for i in range(len(segments)):
-                            rd_mean = level[i] / mean
-                            rd_p = t_test_1_sample(mean, level[i], error[i], len(segments[i]))
+
                             baf_mean, baf_p = likelihood_baf_pval(likelihood[i])
-                            print(c + ":" + str(segments[i][0] * bin_size + 1) + "-" + str(
-                                segments[i][-1] * bin_size + bin_size),
-                                  (segments[i][-1] - segments[i][0] + 1) * bin_size, bin_size, len(segments[i]),
-                                  rd_mean, rd_p, baf_mean, baf_p)
+
+                            if Genome.is_autosome(c) and len(segments[i]) > 1:
+                                q0 = 0
+                                srdp = 0
+                                for bin in segments[i]:
+                                    if baf_mean == 0:
+                                        gstat_rd0.append(rd[bin])
+                                    srdp += qrd_p[bin]
+                                    q0 += qrd_p[bin] - qrd_u[bin]
+                                q0 /= srdp
+                                gstat_rd.append(level[i])
+                                gstat_error.append(error[i])
+                                gstat_baf.append(baf_mean)
+                                gstat_lh.append(likelihood[i])
+                                gstat_event.append({
+                                    "c": c,
+                                    "start": segments[i][0] * bin_size + 1,
+                                    "end": segments[i][-1] * bin_size + bin_size,
+                                    "size": (segments[i][-1] - segments[i][0] + 1) * bin_size,
+                                    "baf": baf_mean,
+                                    "baf_pval": baf_p,
+                                    "Q0": q0
+                                })
+
+                                gstat_n.append(len(segments[i]))
+                            # print(c + ":" + str(segments[i][0] * bin_size + 1) + "-" + str(
+                            #     segments[i][-1] * bin_size + bin_size),
+                            #       (segments[i][-1] - segments[i][0] + 1) * bin_size, bin_size, len(segments[i]),
+                            #       rd_mean, rd_p, baf_mean, baf_p)
 
                         self.io.create_signal(c, bin_size, "RD mosaic segments 2d",
                                               data=segments_code(segments), flags=flag_rd)
@@ -1932,7 +1970,133 @@ class Root:
                         self.io.create_signal(c, bin_size, "SNP likelihood call 2d",
                                               data=np.array(likelihood, dtype="float32"), flags=snp_flag)
 
-        return
+            data = np.array(gstat_rd0)
+            dmin = np.min(data)
+            dmax = np.max(data)
+            p1 = np.percentile(data, 1)
+            p99 = np.percentile(data, 99)
+            data = data[data > p1]
+            data = data[data < p99]
+            mean = np.mean(data)
+            std = np.std(data)
+            n_bins = 51
+            rd_min = mean - 5 * std
+            rd_max = mean + 5 * std
+            bins = np.linspace(rd_min, rd_max, n_bins)
+            hist, binsr = np.histogram(data, bins=bins)
+            fitn, fitm, fits = fit_normal(bins[:-1], hist)[0]
+            _logger.info("Estimating normal RD level:")
+            _logger.info("    * fit_mean = %.4f" % fitm)
+            _logger.info("    * fit_std  = %.4f" % fits)
+            _logger.info("    * rd_min   = %.4f" % dmin)
+            _logger.info("    * rd_max   = %.4f" % dmax)
+            _logger.info("    * rd_01p   = %.4f" % p1)
+            _logger.info("    * rd_99p   = %.4f" % p99)
+            _logger.info("    * rd_mean  = %.4f" % mean)
+            _logger.info("    * rd_std   = %.4f" % std)
+
+            # x = np.linspace(bins[0], bins[-1], 1001)
+            # plt.plot(x, normal(x, fitn, fitm, fits), "g-")
+            # plt.plot(bins[:-1], hist, "b*")
+            # plt.show()
+
+            _logger.info("Detecting event type for %d events!" % len(gstat_event))
+
+            x = np.linspace(0, 1, 1000)
+            master_lh = {}
+            for ei in range(len(gstat_rd)):
+                master_lh[ei] = []
+            for cn in range(10, -1, -1):
+                for h1 in range(cn // 2 + 1):
+                    h2 = cn - h1
+                    mrd = 1 - x + x * cn / 2
+                    np.seterr(divide='ignore')
+                    mbaf = 0.5 - (1 - x + x * h1) / (2 - 2 * x + (h1 + h2) * x)
+                    # plt.plot(mbaf, mrd, "-", label="%d: %d/%d" % (cn, h1, h2), zorder=6 - cn)
+                    for ei in range(len(gstat_rd)):
+                        slh = 0
+                        max_lh = 0
+                        max_x = 0
+                        for mi in range(len(mrd)):
+                            if not np.isnan(mbaf[mi]):
+                                tmpl = normal(mrd[mi] * fitm, 1., gstat_rd[ei], gstat_error[ei]) * likelihood_of_baf(
+                                    gstat_lh[ei],
+                                    0.5 + mbaf[
+                                        mi])
+                                slh += tmpl
+                                if tmpl > max_lh:
+                                    max_lh = tmpl
+                                    max_x = x[mi]
+
+                        master_lh[ei].append([cn, h1, h2, slh / len(x), max_x])
+
+            for ei in range(len(gstat_rd)):
+                master_lh[ei] = sorted(master_lh[ei], key=lambda x: -x[3])
+
+            # plt.legend()
+            # plt.xlabel("|ΔBAF|")
+            # plt.ylabel("Relative RD level")
+            #
+            # plt.scatter(gstat_baf, np.array(gstat_rd) / fitm, s=10 * np.log(np.array(gstat_n) + 1) + 1, alpha=0.8,
+            #             zorder=10)
+            # plt.show()
+
+            chrcalls = {}
+            for ei in range(len(gstat_rd)):
+                etype = "cnnloh"
+                netype = 0
+                if master_lh[ei][0][0] > 2:
+                    etype = "duplication"
+                    netype = 1
+                if master_lh[ei][0][0] < 2:
+                    etype = "deletion"
+                    netype = -1
+                cnv = gstat_rd[ei] / fitm;
+                rd_pval = t_test_1_sample(fitm, gstat_rd[ei], gstat_error[ei], gstat_n[ei])
+
+                pval = rd_pval * gstat_event[ei]["baf_pval"];
+                lh_del = 0
+                lh_loh = 0
+                lh_dup = 0
+                for mi in range(len(master_lh[ei])):
+                    if master_lh[ei][mi][0] > 2:
+                        lh_dup += master_lh[ei][mi][3]
+                    elif master_lh[ei][mi][0] < 2:
+                        lh_del += master_lh[ei][mi][3]
+                    else:
+                        lh_loh += master_lh[ei][mi][3]
+
+                if gstat_baf[ei]==0 and cnv<1.01 and cnv>0.99:
+                    continue
+
+                ret[bin_size].append([etype, gstat_event[ei]["c"], gstat_event[ei]["start"], gstat_event[ei]["end"],
+                                      gstat_event[ei]["size"], cnv, pval, lh_del, lh_loh, lh_dup,
+                                      gstat_event[ei]["Q0"], bin_size, gstat_n[ei], gstat_baf[ei], pval,
+                                      gstat_event[ei]["baf_pval"], master_lh[ei][0][0], master_lh[ei][0][1],
+                                      master_lh[ei][0][2], master_lh[ei][0][3], master_lh[ei][0][4],
+                                      master_lh[ei][1][0], master_lh[ei][1][1], master_lh[ei][1][2],
+                                      master_lh[ei][1][3], master_lh[ei][1][4]])
+
+                if gstat_event[ei]["c"] not in chrcalls:
+                    chrcalls[gstat_event[ei]["c"]] = []
+
+                chrcalls[gstat_event[ei]["c"]].append([netype, gstat_event[ei]["start"], gstat_event[ei]["end"],
+                                                       gstat_event[ei]["size"], cnv, pval, lh_del, lh_loh, lh_dup,
+                                                       gstat_event[ei]["Q0"], bin_size, gstat_n[ei], gstat_baf[ei],
+                                                       pval,
+                                                       gstat_event[ei]["baf_pval"], master_lh[ei][0][0],
+                                                       master_lh[ei][0][1], master_lh[ei][0][2], master_lh[ei][0][3],
+                                                       master_lh[ei][0][4], master_lh[ei][1][0], master_lh[ei][1][1],
+                                                       master_lh[ei][1][2], master_lh[ei][1][3], master_lh[ei][1][4]])
+
+                if print_calls:
+                    print(("%s\t%s:%d-%d\t%d\t%.4f\t%e\t%e\t%e\t%e\t%.4f\t" +
+                           "%d\t%d\t%.4f\t%e\t%e\t%d\tCN%d/CN%d\t%e\t%.4f\t%d\tCN%d/CN%d\t%e\t%.4f") % tuple(ret[bin_size][-1]))
+            for c in chrcalls:
+                self.io.create_signal(c, bin_size, "2d call",
+                                      data=np.array(chrcalls[c]), flags=(snp_flag | flag_rd))
+
+        return ret
 
     def ls(self):
         """ Print to stdout content of cnvpytor file.

@@ -530,7 +530,27 @@ def likelihood_baf_pval(likelihood):
     ix1 = (res // 2 + ix) // 2
     ix2 = res - 1 - ix1
     p = np.sum(likelihood[ix1:ix2]) / np.sum(likelihood)
+    if ix==res//2:
+        p = 1.0
     return b, p
+
+def likelihood_of_baf(likelihood,baf):
+    """
+    Calculates likelihood for given baf
+    Parameters
+    ----------
+    likelihood
+    baf
+
+    Returns
+    -------
+    lhv : float
+        likelihood value
+
+    """
+    res = likelihood.size
+    bin = int(baf * (res-1))
+    return likelihood[bin]
 
 def likelihood_pixels_pval(likelihood):
     """

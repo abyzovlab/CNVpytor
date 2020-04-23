@@ -86,6 +86,7 @@ class Signals(object):
         "SNP i2 call": "snp_i2_%(chr)s_%(bin_size)d%(snp_flag)s_call",
         "SNP i3 call": "snp_i3_%(chr)s_%(bin_size)d%(snp_flag)s_call",
         "SNP i4 call": "snp_i4_%(chr)s_%(bin_size)d%(snp_flag)s_call",
+        "2d call" : "2d_call_%(chr)s_%(bin_size)d%(snp_flag)s%(rd_flag)s",
         "somatic SNP pos": "somatic_%(name)s_%(chr)s_snp_pos",
         "somatic SNP desc": "somatic_%(name)s_%(chr)s_snp_desc",
         "somatic SNP counts": "somatic_%(name)s_%(chr)s_snp_counts",
@@ -946,6 +947,30 @@ class IO(Signals):
         chr_len = list(np.array(self.get_signal(None, None, "chromosome lengths")).astype("str"))
         chr_len = dict(zip(chr_len[::2], chr_len[1::2]))
         return chromosome in chr_len
+
+    def rd_normal_level(self, bin_size, flag = 0):
+        """
+        Returns normal rd level for CN2 and standard deviation
+
+        Parameters
+        ----------
+        flag : int
+            RD flag
+
+        Returns
+        -------
+        level : float
+        std : float
+
+        """
+        if self.signal_exists(None, bin_size, "RD stat", FLAG_AUTO | flag):
+            stat = self.get_signal(None, bin_size, "RD stat", FLAG_AUTO | flag)
+        elif self.signal_exists(None, bin_size, "RD stat", FLAG_SEX | flag):
+            stat = self.get_signal(None, bin_size, "RD stat", FLAG_SEX | flag)
+        else:
+            return 0, 0
+
+        return stat[4], stat[5]
 
     def add_meta_attribute(self, attribute, value):
         self.file.attrs[attribute] = str(value)
