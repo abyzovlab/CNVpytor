@@ -40,8 +40,8 @@ class Show(Reader):
         """ Prints to stdout content of all cnvpytor files.
 
         """
-        for i in self.io:
-            i.ls()
+        for i in self.plot_files:
+            self.io[self.plot_files[i]].ls()
 
     def meta(self):
         """ Prints to stdout meta tags of all cnvpytor files.
