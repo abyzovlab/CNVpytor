@@ -2034,7 +2034,7 @@ class Root:
                 master_lh[ei] = sorted(master_lh[ei], key=lambda x: -x[3])
 
             # plt.legend()
-            # plt.xlabel("|ΔBAF|")
+            # plt.xlabel("|delta BAF|")
             # plt.ylabel("Relative RD level")
             #
             # plt.scatter(gstat_baf, np.array(gstat_rd) / fitm, s=10 * np.log(np.array(gstat_n) + 1) + 1, alpha=0.8,

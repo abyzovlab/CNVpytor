@@ -22,7 +22,7 @@ class ViewParams(object):
         "rd_call_mosaic_2d": True,
         "rd_use_mask": False,
         "rd_use_gc_corr": True,
-        "rd_range" : [0, 6],
+        "rd_range": [0, 6],
         "rd_manhattan_range": [0, 2],
         "rd_manhattan_call": False,
         "snp_use_mask": True,
@@ -33,13 +33,13 @@ class ViewParams(object):
         "markersize": "auto",
         "lh_markersize": 20,
         "lh_marker": "_",
-        "rd_colors": ["grey","black","red","green","blue","cyan"],
+        "rd_colors": ["grey", "black", "red", "green", "blue", "cyan"],
         "legend": False,
         "snp_colors": ["yellow", "orange", "cyan", "blue", "lime", "green", "yellow", "orange"],
         "rd_circular_colors": ["#555555", "#aaaaaa"],
         "snp_circular_colors": ["#00ff00", "#0000ff"],
-        "baf_colors": ["gray","black","red","green","blue"],
-        "lh_colors": ["yellow","red"],
+        "baf_colors": ["gray", "black", "red", "green", "blue"],
+        "lh_colors": ["yellow", "red"],
         "plot_files": [],
         "plot_file": 0,
         "file_titles": [],
@@ -68,15 +68,17 @@ class ViewParams(object):
         self.command_tree["set"]["panels"] = {}
         for panel1 in ["rd", "likelihood", "snp", "baf", "snv"]:
             self.command_tree["set"]["panels"][panel1] = self.command_tree["set"]["panels"]
+        self.command_tree["set"]["grid"] = {"auto": None, "horizontal": None, "vertical": None}
+        self.command_tree["set"]["subgrid"] = {"auto": None, "horizontal": None, "vertical": None}
         self.interactive = True
 
     def set(self, param, args):
         try:
             if param in self.params and self.params[param] is False:
                 self.__setattr__(param, True)
-            elif param.find(".")>0:
+            elif param.find(".") > 0:
                 sp = param.split(".")
-                if len(sp)==2 and (sp[0] in self.params) and sp[0][-7:]=="_colors" and sp[1].isdigit():
+                if len(sp) == 2 and (sp[0] in self.params) and sp[0][-7:] == "_colors" and sp[1].isdigit():
                     ix = int(sp[1])
                     self.params[sp[0]][ix] = args[0]
 
@@ -145,7 +147,6 @@ class ViewParams(object):
                         print("    * %s: %s" % (sp[0], str(self.params[sp[0]])))
         except ValueError:
             _logger.warning("Value error while setting %s!" % param)
-
 
     def unset(self, param):
         if param in self.params:
@@ -569,10 +570,10 @@ class HelpDescription(object):
             topic="snp_colors",
             p_desc="Colors used in snp plot.\n" +
                    "Eight colors correspond to following SNPs:\n" +
-                   "    "+ TerminalColor.YELLOW +"0|0 out of P region, "+ TerminalColor.YELLOW2 +"0|0 inside P region,\n" +
-                   "    "+ TerminalColor.CYAN +"0|1 out of P region, "+ TerminalColor.BLUE +"0|1 inside P region,\n" +
-                   "    "+ TerminalColor.GREEN2 +"1|0 out of P region, "+ TerminalColor.GREEN +"1|0 inside P region,\n" +
-                   "    "+ TerminalColor.YELLOW +"1|1 out of P region, "+ TerminalColor.YELLOW2 +"1|1 inside P region.\n" +
+                   "    " + TerminalColor.YELLOW + "0|0 out of P region, " + TerminalColor.YELLOW2 + "0|0 inside P region,\n" +
+                   "    " + TerminalColor.CYAN + "0|1 out of P region, " + TerminalColor.BLUE + "0|1 inside P region,\n" +
+                   "    " + TerminalColor.GREEN2 + "1|0 out of P region, " + TerminalColor.GREEN + "1|0 inside P region,\n" +
+                   "    " + TerminalColor.YELLOW + "1|1 out of P region, " + TerminalColor.YELLOW2 + "1|1 inside P region.\n" +
                    TerminalColor.DARKCYAN + "P region refers to 1kG project strict mask.",
             p_type="list of strings",
             p_default=str(default["snp_colors"]),
@@ -651,11 +652,20 @@ class HelpDescription(object):
         "grid": help_format(
             topic="grid",
             p_desc="Set plot layout grid. Automatic if 'auto'.",
-            p_type="two integers or 'auto'",
+            p_type="two integers, 'auto', 'vertical' or 'horizontal'",
             p_default=str(default["grid"]),
             p_affects="all plots",
-            p_example="set grid 5 4\nunset grid",
-            p_see="xkcd, chrom, output_filename"
+            p_example="set grid 5 4\nset grid horizontal\nunset grid",
+            p_see="subgrid, xkcd, chrom, output_filename"
+        ),
+        "subgrid": help_format(
+            topic="subgrid",
+            p_desc="Set plot layout subgrid. Automatic if 'auto'.",
+            p_type="two integers, 'auto', 'vertical' or 'horizontal'",
+            p_default=str(default["subgrid"]),
+            p_affects="all plots",
+            p_example="set subgrid 5 4\nset subgrid horizontal\nunset subgrid",
+            p_see="grid, xkcd, chrom, output_filename"
         ),
         "xkcd": help_format(
             topic="xkcd",
@@ -725,7 +735,7 @@ class HelpDescription(object):
             p_example="set min_segment_size 10\nunset min_segment_size",
             p_see="contrast"
         ),
-        "dpi" : help_format(
+        "dpi": help_format(
             topic="dpi",
             p_desc="Resolution (dots per inch) used for plotting.",
             p_type="int",

@@ -1139,13 +1139,14 @@ class Viewer(Show, Figure, HelpDescription):
                 ax.xaxis.set_major_locator(plt.MaxNLocator(5))
 
                 l = len(g_p)
-                ax.yaxis.set_ticks(np.arange(self.rd_range[0], self.rd_range[1]+1, 1) * mean / 2, minor=[])
-                ax.yaxis.set_ticklabels([str(i) for i in range(self.rd_range[0], self.rd_range[1]+1)])
+                ax.yaxis.set_ticks(np.arange(int(self.rd_range[0]), int(self.rd_range[1]+1), 1) * mean / 2, minor=[])
+                ax.yaxis.set_ticklabels([str(i) for i in range(int(self.rd_range[0]), int(self.rd_range[1]+1))])
 
-                ax.set_ylim([0, max(3. * mean, mean + 5. * stdev)])
+                ax.set_ylim([self.rd_range[0]*mean, self.rd_range[1]*mean/2])
+
                 ax.set_xlim([-l * 0.0, (l - 1) * 1.0])
 
-                ax.set_ylabel("RD")
+                ax.set_ylabel("Read depth")
                 ax.yaxis.grid()
                 ax.xaxis.grid()
 
@@ -1163,7 +1164,7 @@ class Viewer(Show, Figure, HelpDescription):
                 for i in borders[:-1]:
                     ax.axvline(i, color="g", lw=1)
                 if self.legend:
-                    ax.legend()
+                    ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.05), shadow=True, ncol=2)
                 self.fig.add_subplot(ax)
 
             elif panels[i] == "snp":
@@ -1191,8 +1192,9 @@ class Viewer(Show, Figure, HelpDescription):
                     borders.append(start_pos)
 
                 ax.xaxis.set_ticklabels([])
-                ax.yaxis.set_ticklabels([])
                 ax.yaxis.set_ticks([0, 0.25, 0.5, 0.75, 1.0], [])
+                ax.yaxis.set_ticklabels(["0","1/4","1/2","3/4","1"])
+                ax.set_ylabel("Allele frequency")
                 l = max(hpos)
                 ax.set_ylim([0., 1.])
                 ax.set_xlim([0, borders[-1]])
@@ -1236,6 +1238,8 @@ class Viewer(Show, Figure, HelpDescription):
                 ax.xaxis.set_ticklabels([])
                 ax.yaxis.set_ticklabels([])
                 ax.yaxis.set_ticks([0, 0.25, 0.5, 0.75, 1.0], minor=[])
+                ax.yaxis.set_ticklabels(["0","1/4","1/2","3/4","1"])
+                ax.set_ylabel("Allele frequency")
                 ax.set_ylim([0., 1.])
                 ax.set_xlim([0, borders[-1]])
                 ax.yaxis.grid()
@@ -1289,6 +1293,9 @@ class Viewer(Show, Figure, HelpDescription):
                 ax.yaxis.set_ticklabels([])
                 l = len(g_baf)
                 ax.yaxis.set_ticks([0, 0.25, 0.5, 0.75, 1.0], minor=[])
+                ax.yaxis.set_ticklabels(["0","1/4","1/2","3/4","1"])
+                ax.set_ylabel("Allele frequency")
+
                 ax.set_ylim([0, 1])
                 ax.set_xlim([-l * 0.0, l * 1.0])
 
@@ -1362,7 +1369,9 @@ class Viewer(Show, Figure, HelpDescription):
                 img = np.array(gl).transpose()
                 ax.imshow(img, aspect='auto')
                 ax.xaxis.set_ticklabels([])
-                ax.yaxis.set_ticklabels([])
+                ax.yaxis.set_ticks([0, img.shape[0]/4, img.shape[0]/2, 3*img.shape[0]/4, img.shape[0]-1], minor=[])
+                ax.yaxis.set_ticklabels(["1", "3/4", "1/2", "1/4", "0"])
+                ax.set_ylabel("Allele frequency")
                 ax.xaxis.set_ticks(np.arange(0, len(gl), 50), minor=[])
                 ax.set_xlim([-0.5, img.shape[1] - 0.5])
                 if self.snp_call:
