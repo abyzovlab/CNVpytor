@@ -663,7 +663,7 @@ class HelpDescription(object):
             p_desc="Set plot layout subgrid. Automatic if 'auto'.",
             p_type="two integers, 'auto', 'vertical' or 'horizontal'",
             p_default=str(default["subgrid"]),
-            p_affects="all plots",
+            p_affects="plots with multiple panels",
             p_example="set subgrid 5 4\nset subgrid horizontal\nunset subgrid",
             p_see="grid, xkcd, chrom, output_filename"
         ),

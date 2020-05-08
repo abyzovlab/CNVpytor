@@ -990,7 +990,7 @@ class Viewer(Show, Figure, HelpDescription):
                 for c, (l, t) in self.reference_genome["chromosomes"].items():
                     snp_chr = io.snp_chromosome_name(c)
                     if len(self.chrom) == 0 or (snp_chr in self.chrom) or (c in self.chrom):
-                        if io.signal_exists(snp_chr, bin_size, "2d call", flag) and \
+                        if io.signal_exists(snp_chr, bin_size, "calls combined", flag) and \
                                 (Genome.is_autosome(c) or Genome.is_sex_chrom(c)):
                             chroms.append((snp_chr, l))
 
@@ -1000,21 +1000,21 @@ class Viewer(Show, Figure, HelpDescription):
                 cix = 0
                 cmap = list(map(colors.to_rgba, plt.rcParams['axes.prop_cycle'].by_key()['color']))
                 for c, l in chroms:
-                    calls = io.get_signal(c, bin_size, "2d call", flag)
+                    calls = io.read_calls(c, bin_size, "calls combined", flag)
                     call_pos = []
                     call_conc = []
                     call_c = []
                     for call in calls:
-                        if call[11] > self.min_segment_size:
-                            alpha = -np.log(call[5] + 1e-40) / self.contrast
+                        if call["bins"] > self.min_segment_size:
+                            alpha = -np.log(call["p_val"] + 1e-40) / self.contrast
                             if alpha > 1:
                                 alpha = 1
-                            for pos in range(int(call[1]) // bin_size, int(call[2]) // bin_size + 1):
+                            for pos in range(int(call["start"]) // bin_size, int(call["end"]) // bin_size + 1):
                                 call_pos.append(apos + pos)
-                                call_conc.append(call[19])
-                                if call[0] == 1:
+                                call_conc.append(call["models"][0][4])
+                                if call["type"] == 1:
                                     call_c.append((0, 1, 0, alpha))
-                                elif call[0] == -1:
+                                elif call["type"] == -1:
                                     call_c.append((1, 0, 0, alpha))
                                 else:
                                     call_c.append((0, 0, 1, alpha))

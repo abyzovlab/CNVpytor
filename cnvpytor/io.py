@@ -86,7 +86,10 @@ class Signals(object):
         "SNP i2 call": "snp_i2_%(chr)s_%(bin_size)d%(snp_flag)s_call",
         "SNP i3 call": "snp_i3_%(chr)s_%(bin_size)d%(snp_flag)s_call",
         "SNP i4 call": "snp_i4_%(chr)s_%(bin_size)d%(snp_flag)s_call",
-        "2d call" : "2d_call_%(chr)s_%(bin_size)d%(snp_flag)s%(rd_flag)s",
+        "calls": "calls_%(chr)s_%(bin_size)d%(rd_flag)s",
+        "calls rd": "calls_rd_%(chr)s_%(bin_size)d%(rd_flag)s",
+        "calls baf": "calls_baf_%(chr)s_%(bin_size)d%(snp_flag)s",
+        "calls combined": "calls_2d_%(chr)s_%(bin_size)d%(snp_flag)s%(rd_flag)s",
         "somatic SNP pos": "somatic_%(name)s_%(chr)s_snp_pos",
         "somatic SNP desc": "somatic_%(name)s_%(chr)s_snp_desc",
         "somatic SNP counts": "somatic_%(name)s_%(chr)s_snp_counts",
@@ -591,19 +594,19 @@ class IO(Signals):
         """
         _logger.info("Adding RD data for chromosome '%s'." % chr_name)
         ord_p, ord_u = self.read_rd(chr_name)
-        if rd_p.size>ord_p.size:
+        if rd_p.size > ord_p.size:
             _logger.warning("Different lengths (%d, %d). Using larger." % (rd_p.size, ord_p.size))
-            ord_p.resize(rd_p.size,refcheck=False)
-            ord_u.resize(rd_p.size,refcheck=False)
-        elif rd_p.size<ord_p.size:
+            ord_p.resize(rd_p.size, refcheck=False)
+            ord_u.resize(rd_p.size, refcheck=False)
+        elif rd_p.size < ord_p.size:
             _logger.warning("Different lengths (%d, %d). Using larger." % (rd_p.size, ord_p.size))
-            rd_p.resize(od_p.size,refcheck=False)
-            rd_u.resize(od_p.size,refcheck=False)
+            rd_p.resize(od_p.size, refcheck=False)
+            rd_u.resize(od_p.size, refcheck=False)
 
-        rd_p+=ord_p
-        rd_u+=ord_u
+        rd_p += ord_p
+        rd_u += ord_u
 
-        data_type = "uint32" if Genome.is_mt_chrom(chr_name) or (np.max(rd_p)>65535) else "uint16"
+        data_type = "uint32" if Genome.is_mt_chrom(chr_name) or (np.max(rd_p) > 65535) else "uint16"
         crd_p, crd_u = rd_compress(rd_p, rd_u, data_type)
         ds_p = self.create_signal(chr_name, None, "RD p", crd_p)
         ds_u = self.create_signal(chr_name, None, "RD u", crd_u)
@@ -635,7 +638,7 @@ class IO(Signals):
 
         """
         _logger.info("Saving chromosome RD data for chromosome '%s'." % chr_name)
-        data_type = "uint32" if Genome.is_mt_chrom(chr_name) or (np.max(rd_p)>65535) else "uint16"
+        data_type = "uint32" if Genome.is_mt_chrom(chr_name) or (np.max(rd_p) > 65535) else "uint16"
         crd_p, crd_u = rd_compress(rd_p, rd_u, data_type)
         snp_name = self.snp_chromosome_name(chr_name)
         if not (snp_name is None):
@@ -948,7 +951,7 @@ class IO(Signals):
         chr_len = dict(zip(chr_len[::2], chr_len[1::2]))
         return chromosome in chr_len
 
-    def rd_normal_level(self, bin_size, flag = 0):
+    def rd_normal_level(self, bin_size, flag=0):
         """
         Returns normal rd level for CN2 and standard deviation
 
@@ -971,6 +974,39 @@ class IO(Signals):
             return 0, 0
 
         return stat[4], stat[5]
+
+    def save_calls(self, chr_name, bin_size, signal, calls, flags):
+        keys = ["type", "start", "end", "size", "cnv", "p_val", "p_val_2", "p_val_3", "p_val_4", "Q0"]
+        if signal == "calls combined":
+            keys = ["type", "start", "end", "size", "cnv", "p_val", "lh_del", "lh_loh", "lh_dup", "Q0", "bins", "baf",
+                    "rd_p_val", "baf_p_val"]
+        data = []
+        for call in calls:
+            item = [len(keys)] + [call[key] for key in keys]
+            if "models" in call:
+                for model in call["models"]:
+                    item.extend(model)
+            data.append(item)
+        data = np.array(data, dtype=np.double)
+        self.create_signal(chr_name, bin_size, signal, data, flags=flags)
+
+    def read_calls(self, chr_name, bin_size, signal, flags):
+        data = self.get_signal(chr_name, bin_size, signal, flags=flags)
+        keys = ["type", "start", "end", "size", "cnv", "p_val", "p_val_2", "p_val_3", "p_val_4", "Q0"]
+        if signal == "calls combined":
+            keys = ["type", "start", "end", "size", "cnv", "p_val", "lh_del", "lh_loh", "lh_dup", "Q0", "bins", "baf",
+                    "rd_p_val", "baf_p_val"]
+        calls = []
+        for item in data:
+            call = {}
+            for ix in range(1, len(keys) + 1):
+                call[keys[ix-1]] = item[ix]
+            if len(item) > (len(keys) + 1):
+                call["models"] = []
+                for i in range((len(item) - len(keys) - 1) // 5):
+                    call["models"].append(list(item)[len(keys) + 1 + 5 * i:len(keys) + 1 + 5 * (i + 1)])
+                    calls.append(call)
+        return calls
 
     def add_meta_attribute(self, attribute, value):
         self.file.attrs[attribute] = str(value)

@@ -1724,7 +1724,7 @@ class Root:
                                           data=np.array(likelihood, dtype="float32"), flags=snp_flag)
 
     def call_2d(self, bin_sizes, chroms=[], print_calls=False, use_gc_corr=True, rd_use_mask=False, snp_use_mask=True,
-                snp_use_id=False, omin=None, mcount=None, max_distance=0.1, anim=""):
+                snp_use_id=False, max_copy_number=10, omin=None, mcount=None, max_distance=0.1, anim=""):
         """
         CNV caller using combined RD and BAF sigal based on likelihood merger.
 
@@ -1939,7 +1939,7 @@ class Root:
                                     if baf_mean == 0:
                                         gstat_rd0.append(rd[bin])
                                     srdp += qrd_p[bin]
-                                    q0 += qrd_p[bin] - qrd_u[bin]
+                                    q0 += (qrd_p[bin] - qrd_u[bin])
                                 q0 /= srdp
                                 gstat_rd.append(level[i])
                                 gstat_error.append(error[i])
@@ -2006,7 +2006,7 @@ class Root:
             master_lh = {}
             for ei in range(len(gstat_rd)):
                 master_lh[ei] = []
-            for cn in range(10, -1, -1):
+            for cn in range(max_copy_number, -1, -1):
                 for h1 in range(cn // 2 + 1):
                     h2 = cn - h1
                     mrd = 1 - x + x * cn / 2
@@ -2066,7 +2066,7 @@ class Root:
                     else:
                         lh_loh += master_lh[ei][mi][3]
 
-                if gstat_baf[ei]==0 and cnv<1.01 and cnv>0.99:
+                if gstat_baf[ei] == 0 and cnv < 1.01 and cnv > 0.99:
                     continue
 
                 ret[bin_size].append([etype, gstat_event[ei]["c"], gstat_event[ei]["start"], gstat_event[ei]["end"],
@@ -2080,21 +2080,31 @@ class Root:
                 if gstat_event[ei]["c"] not in chrcalls:
                     chrcalls[gstat_event[ei]["c"]] = []
 
-                chrcalls[gstat_event[ei]["c"]].append([netype, gstat_event[ei]["start"], gstat_event[ei]["end"],
-                                                       gstat_event[ei]["size"], cnv, pval, lh_del, lh_loh, lh_dup,
-                                                       gstat_event[ei]["Q0"], bin_size, gstat_n[ei], gstat_baf[ei],
-                                                       pval,
-                                                       gstat_event[ei]["baf_pval"], master_lh[ei][0][0],
-                                                       master_lh[ei][0][1], master_lh[ei][0][2], master_lh[ei][0][3],
-                                                       master_lh[ei][0][4], master_lh[ei][1][0], master_lh[ei][1][1],
-                                                       master_lh[ei][1][2], master_lh[ei][1][3], master_lh[ei][1][4]])
+
+                chrcalls[gstat_event[ei]["c"]].append({
+                    "type": netype,
+                    "start": gstat_event[ei]["start"],
+                    "end": gstat_event[ei]["end"],
+                    "size": gstat_event[ei]["size"],
+                    "cnv": cnv,
+                    "p_val": pval,
+                    "lh_del": lh_del,
+                    "lh_loh": lh_loh,
+                    "lh_dup": lh_dup,
+                    "Q0": gstat_event[ei]["Q0"],
+                    "bins": gstat_n[ei],
+                    "baf": gstat_baf[ei],
+                    "rd_p_val": pval,
+                    "baf_p_val": gstat_event[ei]["baf_pval"],
+                    "models": master_lh[ei]
+                })
 
                 if print_calls:
                     print(("%s\t%s:%d-%d\t%d\t%.4f\t%e\t%e\t%e\t%e\t%.4f\t" +
-                           "%d\t%d\t%.4f\t%e\t%e\t%d\tCN%d/CN%d\t%e\t%.4f\t%d\tCN%d/CN%d\t%e\t%.4f") % tuple(ret[bin_size][-1]))
-            for c in chrcalls:
-                self.io.create_signal(c, bin_size, "2d call",
-                                      data=np.array(chrcalls[c]), flags=(snp_flag | flag_rd))
+                           "%d\t%d\t%.4f\t%e\t%e\t%d\tCN%d/CN%d\t%e\t%.4f\t%d\tCN%d/CN%d\t%e\t%.4f") % tuple(
+                        ret[bin_size][-1]))
+                for c in chrcalls:
+                    self.io.save_calls(c, bin_size, "calls combined", chrcalls[c], flags=(snp_flag | flag_rd))
 
         return ret
 

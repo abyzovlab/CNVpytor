@@ -178,7 +178,6 @@ def rd_decompress(crd_p, crd_u):
     """
     return np.array(crd_p), np.array(crd_p) - np.array(crd_u)
 
-
 def segments_code(segments):
     """
     Convert segments to numpy array e.g. [[1,2],[3]] -> [1,2,MAX,3,MAX]
