@@ -1039,7 +1039,7 @@ class Viewer(Show, Figure, HelpDescription):
         self.fig_show(suffix="manhattan" if plot_type == "rd" else "snp_calls", bottom=0.02, top=(1.0 - 0.15 / n),
                       wspace=0, hspace=0.2, left=0.02, right=0.98)
 
-    def callmap(self, pixel_size=1700000, max_p_val=1e-20):
+    def callmap(self, pixel_size=1700000, max_p_val=1e-20, min_freq=0.01):
         bin_size = self.bin_size
         if self.reference_genome is None:
             _logger.warning("Missing reference genome required for callmap.")
@@ -1051,15 +1051,18 @@ class Viewer(Show, Figure, HelpDescription):
 
         chroms = []
         starts = []
+        ends = []
         pixels = 0
         for c, (l, t) in self.reference_genome["chromosomes"].items():
             if l > 10 * bin_size:
-                if len(self.chrom) == 0 or (c in self.chrom):
+                if len(self.chrom) == 0 or (c in self.chrom) or (self.io[0].snp_chromosome_name(c) in self.chrom):
                     chroms.append(c)
                     starts.append(pixels)
                     pixels += l // pixel_size + 1
+                    ends.append(pixels-1)
 
         cmap = np.zeros((n, pixels, 3))
+        cmap[:,ends,:]=1
 
         for i in range(n):
             io = self.io[ix[i]]
@@ -1076,7 +1079,7 @@ class Viewer(Show, Figure, HelpDescription):
                     segments = segments_decode(segments)
 
                     for call in calls:
-                        if call["bins"] > self.min_segment_size and call["p_val"] < max_p_val and "segment" in call:
+                        if call["bins"] > self.min_segment_size and call["p_val"] < max_p_val and "segment" in call and call["models"][0][4]>min_freq:
                             cix = int(call["type"]) + 1
                             if cix > 0:
                                 cix = 3 - cix
