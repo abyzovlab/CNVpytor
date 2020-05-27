@@ -1063,6 +1063,7 @@ class Viewer(Show, Figure, HelpDescription):
 
         for i in range(n):
             io = self.io[ix[i]]
+            print(io.filename)
             flag = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0) | (
                 FLAG_USEHAP if self.snp_use_phase else 0) | (FLAG_USEMASK if self.rd_use_mask else 0) | FLAG_GC_CORR
             flag_rd = FLAG_GC_CORR | (FLAG_USEMASK if self.rd_use_mask else 0)
@@ -1071,11 +1072,10 @@ class Viewer(Show, Figure, HelpDescription):
                 if io.signal_exists(snp_chr, bin_size, "calls combined", flag):
 
                     calls = io.read_calls(snp_chr, bin_size, "calls combined", flag)
-                    segments = self.io[i].get_signal(snp_chr, bin_size, "RD mosaic segments 2d", flag_rd)
+                    segments = io.get_signal(snp_chr, bin_size, "RD mosaic segments 2d", flag_rd)
                     segments = segments_decode(segments)
 
                     for call in calls:
-                        print(c, call["bins"], call["p_val"], int(call["segment"]), len(segments) )
                         if call["bins"] > self.min_segment_size and call["p_val"] < max_p_val and "segment" in call:
                             cix = int(call["type"]) + 1
                             if cix > 0:
