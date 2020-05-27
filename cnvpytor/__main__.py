@@ -59,6 +59,7 @@ def main():
     parser.add_argument('-dp', '--dp_tag', type=str, help="read depth tag (default: DP)", default="DP")
     parser.add_argument('-callset', '--callset', type=str, help="name for somatic VCF signal", default="default")
     parser.add_argument('-maxcn', '--max_copy_number', type=int, help="maximal copy number", default=10)
+    parser.add_argument('-mincf', '--min_cell_fraction', type=float, help="minimal cell fraction", default=0.0)
 
     parser.add_argument('-pileup', '--pileup_bam', nargs="+", type=str, help="calculate SNP counts from bam files")
     parser.add_argument('-snp2rd', '--rd_from_snp', action='store_true', help="calculate RD from SNP counts")
@@ -305,9 +306,11 @@ def main():
                                 use_gc_corr=not args.no_gc_corr,
                                 use_mask=args.use_mask_with_rd, anim=args.animation)
             elif args.call[0] == "combined":
-                app.call_2d(list(map(binsize_type, args.call[1:])), chroms=args.chrom, print_calls=True, use_gc_corr=not args.no_gc_corr,
+                app.call_2d(list(map(binsize_type, args.call[1:])), chroms=args.chrom, print_calls=True,
+                            use_gc_corr=not args.no_gc_corr,
                             rd_use_mask=args.use_mask_with_rd, snp_use_mask=not args.no_mask, snp_use_id=args.use_id,
-                            mcount=args.min_count, max_copy_number=args.max_copy_number, anim=args.animation)
+                            mcount=args.min_count, max_copy_number=args.max_copy_number,
+                            min_cell_fraction=args.min_cell_fraction, anim=args.animation)
             else:
                 app.call(list(map(binsize_type, args.call)), chroms=args.chrom, print_calls=True,
                          use_gc_corr=not args.no_gc_corr, use_mask=args.use_mask_with_rd)

@@ -979,7 +979,7 @@ class IO(Signals):
         keys = ["type", "start", "end", "size", "cnv", "p_val", "p_val_2", "p_val_3", "p_val_4", "Q0"]
         if signal == "calls combined":
             keys = ["type", "start", "end", "size", "cnv", "p_val", "lh_del", "lh_loh", "lh_dup", "Q0", "bins", "baf",
-                    "rd_p_val", "baf_p_val"]
+                    "rd_p_val", "baf_p_val", "segment"]
         data = []
         for call in calls:
             item = [len(keys)] + [call[key] for key in keys]
@@ -988,24 +988,26 @@ class IO(Signals):
                     item.extend(model)
             data.append(item)
         data = np.array(data, dtype=np.double)
-        self.create_signal(chr_name, bin_size, signal, data, flags=flags)
+        x=self.create_signal(chr_name, bin_size, signal, data, flags=flags)
 
     def read_calls(self, chr_name, bin_size, signal, flags):
         data = self.get_signal(chr_name, bin_size, signal, flags=flags)
         keys = ["type", "start", "end", "size", "cnv", "p_val", "p_val_2", "p_val_3", "p_val_4", "Q0"]
         if signal == "calls combined":
             keys = ["type", "start", "end", "size", "cnv", "p_val", "lh_del", "lh_loh", "lh_dup", "Q0", "bins", "baf",
-                    "rd_p_val", "baf_p_val"]
+                    "rd_p_val", "baf_p_val", "segment"]
         calls = []
         for item in data:
             call = {}
-            for ix in range(1, len(keys) + 1):
+            nkeys = int(item[0])
+            for ix in range(1, nkeys + 1):
                 call[keys[ix-1]] = item[ix]
-            if len(item) > (len(keys) + 1):
+
+            if len(item) > (nkeys + 1):
                 call["models"] = []
-                for i in range((len(item) - len(keys) - 1) // 5):
-                    call["models"].append(list(item)[len(keys) + 1 + 5 * i:len(keys) + 1 + 5 * (i + 1)])
-                    calls.append(call)
+                for i in range((len(item) - nkeys - 1) // 5):
+                    call["models"].append(list(item)[nkeys + 1 + 5 * i:nkeys + 1 + 5 * (i + 1)])
+            calls.append(call)
         return calls
 
     def add_meta_attribute(self, attribute, value):

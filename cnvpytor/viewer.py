@@ -855,7 +855,7 @@ class Viewer(Show, Figure, HelpDescription):
     def manhattan(self, plot_type="rd"):
         bin_size = self.bin_size
         if self.reference_genome is None:
-            _logger.warning("Missing reference genome required for gview.")
+            _logger.warning("Missing reference genome required for manhattan.")
             return
         n = len(self.plot_files)
         ix = self.plot_files
@@ -1039,8 +1039,59 @@ class Viewer(Show, Figure, HelpDescription):
         self.fig_show(suffix="manhattan" if plot_type == "rd" else "snp_calls", bottom=0.02, top=(1.0 - 0.15 / n),
                       wspace=0, hspace=0.2, left=0.02, right=0.98)
 
-    def multiple_regions(self, regions):
+    def callmap(self, pixel_size=1700000, max_p_val=1e-20):
         bin_size = self.bin_size
+        if self.reference_genome is None:
+            _logger.warning("Missing reference genome required for callmap.")
+            return
+        n = len(self.plot_files)
+        ix = self.plot_files
+
+        self.new_figure(panel_count=n, grid=(1, 1), panel_size=(24, 2 * n), hspace=0.2, wspace=0.2)
+
+        chroms = []
+        starts = []
+        pixels = 0
+        for c, (l, t) in self.reference_genome["chromosomes"].items():
+            if l > 10 * bin_size:
+                if len(self.chrom) == 0 or (c in self.chrom):
+                    chroms.append(c)
+                    starts.append(pixels)
+                    pixels += l // pixel_size + 1
+
+        cmap = np.zeros((n, pixels, 3))
+
+        for i in range(n):
+            io = self.io[ix[i]]
+            flag = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0) | (
+                FLAG_USEHAP if self.snp_use_phase else 0) | (FLAG_USEMASK if self.rd_use_mask else 0) | FLAG_GC_CORR
+            flag_rd = FLAG_GC_CORR | (FLAG_USEMASK if self.rd_use_mask else 0)
+            for c, start in zip(chroms, starts):
+                snp_chr = io.snp_chromosome_name(c)
+                if io.signal_exists(snp_chr, bin_size, "calls combined", flag):
+
+                    calls = io.read_calls(snp_chr, bin_size, "calls combined", flag)
+                    segments = self.io[self.plot_file].get_signal(snp_chr, bin_size, "RD mosaic segments 2d", flag_rd)
+                    segments = segments_decode(segments)
+
+                    print(calls)
+
+                    for call in calls:
+                        print(call["bins"], call["p_val"])
+                        if call["bins"] > self.min_segment_size and call["p_val"] < max_p_val and "segment" in call:
+                            cix = int(call["type"]) + 1
+                            if cix > 0:
+                                cix = 3 - cix
+                            for b in segments[int(call["segment"])]:
+                                print(start + b * bin_size // pixel_size)
+                                cmap[i, start + b * bin_size // pixel_size, cix] += bin_size / pixel_size
+
+        print(cmap)
+        plt.imshow(cmap, aspect='auto')
+        self.fig_show(suffix="callmap", bottom=0.02, top=(1.0 - 0.15 / n),
+                      wspace=0, hspace=0.2, left=0.02, right=0.98)
+
+    def multiple_regions(self, regions):
         n = len(self.plot_files) * len(regions)
         ix = self.plot_files
 
@@ -1139,10 +1190,10 @@ class Viewer(Show, Figure, HelpDescription):
                 ax.xaxis.set_major_locator(plt.MaxNLocator(5))
 
                 l = len(g_p)
-                ax.yaxis.set_ticks(np.arange(int(self.rd_range[0]), int(self.rd_range[1]+1), 1) * mean / 2, minor=[])
-                ax.yaxis.set_ticklabels([str(i) for i in range(int(self.rd_range[0]), int(self.rd_range[1]+1))])
+                ax.yaxis.set_ticks(np.arange(int(self.rd_range[0]), int(self.rd_range[1] + 1), 1) * mean / 2, minor=[])
+                ax.yaxis.set_ticklabels([str(i) for i in range(int(self.rd_range[0]), int(self.rd_range[1] + 1))])
 
-                ax.set_ylim([self.rd_range[0]*mean, self.rd_range[1]*mean/2])
+                ax.set_ylim([self.rd_range[0] * mean, self.rd_range[1] * mean / 2])
 
                 ax.set_xlim([-l * 0.0, (l - 1) * 1.0])
 
@@ -1193,7 +1244,7 @@ class Viewer(Show, Figure, HelpDescription):
 
                 ax.xaxis.set_ticklabels([])
                 ax.yaxis.set_ticks([0, 0.25, 0.5, 0.75, 1.0], [])
-                ax.yaxis.set_ticklabels(["0","1/4","1/2","3/4","1"])
+                ax.yaxis.set_ticklabels(["0", "1/4", "1/2", "3/4", "1"])
                 ax.set_ylabel("Allele frequency")
                 l = max(hpos)
                 ax.set_ylim([0., 1.])
@@ -1238,7 +1289,7 @@ class Viewer(Show, Figure, HelpDescription):
                 ax.xaxis.set_ticklabels([])
                 ax.yaxis.set_ticklabels([])
                 ax.yaxis.set_ticks([0, 0.25, 0.5, 0.75, 1.0], minor=[])
-                ax.yaxis.set_ticklabels(["0","1/4","1/2","3/4","1"])
+                ax.yaxis.set_ticklabels(["0", "1/4", "1/2", "3/4", "1"])
                 ax.set_ylabel("Allele frequency")
                 ax.set_ylim([0., 1.])
                 ax.set_xlim([0, borders[-1]])
@@ -1293,7 +1344,7 @@ class Viewer(Show, Figure, HelpDescription):
                 ax.yaxis.set_ticklabels([])
                 l = len(g_baf)
                 ax.yaxis.set_ticks([0, 0.25, 0.5, 0.75, 1.0], minor=[])
-                ax.yaxis.set_ticklabels(["0","1/4","1/2","3/4","1"])
+                ax.yaxis.set_ticklabels(["0", "1/4", "1/2", "3/4", "1"])
                 ax.set_ylabel("Allele frequency")
 
                 ax.set_ylim([0, 1])
@@ -1369,7 +1420,8 @@ class Viewer(Show, Figure, HelpDescription):
                 img = np.array(gl).transpose()
                 ax.imshow(img, aspect='auto')
                 ax.xaxis.set_ticklabels([])
-                ax.yaxis.set_ticks([0, img.shape[0]/4, img.shape[0]/2, 3*img.shape[0]/4, img.shape[0]-1], minor=[])
+                ax.yaxis.set_ticks([0, img.shape[0] / 4, img.shape[0] / 2, 3 * img.shape[0] / 4, img.shape[0] - 1],
+                                   minor=[])
                 ax.yaxis.set_ticklabels(["1", "3/4", "1/2", "1/4", "0"])
                 ax.set_ylabel("Allele frequency")
                 ax.xaxis.set_ticks(np.arange(0, len(gl), 50), minor=[])
@@ -1945,5 +1997,70 @@ def anim_plot_rd(level, error, segments, n, iter, prefix, maxp, minp, mean):
         xx = np.linspace(0, 3 * mean, 300)
         yy = normal(xx, 1, level[i], error[i])
         plt.plot(xx, yy)
+    plt.savefig(prefix + "_" + str(iter).zfill(4), dpi=150)
+    plt.close(fig)
+
+
+def anim_plot_rd_likelihood(level, error, likelihood, segments, n, res, iter, prefix, maxp, mean):
+    rd = [np.nan] * n
+    for i in range(len(segments)):
+        for b in segments[i]:
+            rd[b] = level[i]
+
+    mm = [[0] * res] * n
+    for i in range(len(segments)):
+        for b in segments[i]:
+            mm[b] = list(likelihood[i])
+
+    fig, ax = plt.subplots(2, 2, figsize=(16, 9), dpi=120, facecolor='w', edgecolor='k',
+                           gridspec_kw={
+                               'width_ratios': [2, 1],
+                               'height_ratios': [1, 1]})
+    fig.suptitle(
+        "Iter: " + str(iter) + "   /   Segments: " + str(len(segments)) + "   /   Maximal overlap: " + (
+                '%.4f' % maxp), fontsize='large')
+    ax[0][0].set_ylabel("RD")
+    ax[0][0].step(range(n), rd, "k")
+    ax[0][0].set_xlim([0, n])
+    ax[0][0].tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
+    ax[0][0].set_yticks(np.arange(0, 3, 0.5) * mean)
+    ax[0][0].set_yticklabels([])
+
+    ax[0][0].set_ylim([0, 3 * mean])
+    ax[0][0].grid(True, color="grey")
+
+    ax[0][1].set_ylabel("")
+    ax[0][1].set_xlabel("")
+    ax[0][1].set_yticks(np.arange(0, 3, 0.5) * mean)
+    ax[0][1].set_yticklabels([])
+    ax[0][1].set_xticklabels([])
+
+    ax[0][1].set_ylim([0, 3 * mean])
+    ax[0][1].grid(True, color="grey")
+    for i in range(len(level)):
+        xx = np.linspace(0, 3 * mean, 300)
+        yy = normal(xx, 1, level[i], error[i])
+        ax[0][1].plot(yy, xx)
+
+    ax[1][0].set_ylabel("BAF")
+    ax[1][0].imshow(np.transpose(np.array(mm)), aspect='auto')
+    ax[1][0].tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
+    ax[1][0].set_yticks([0, 50.5, 101, 151.5, 201])
+    ax[1][0].set_yticklabels(["1.00", "0.75", "0.50", "0.25", "0.00"])
+
+    # plt.grid(True,color="w")
+
+    ax[1][1].set_ylabel("")
+    ax[1][1].set_xlabel("Likelihood")
+    ax[1][1].set_yticks([0, 0.25, 0.50, 0.75, 1.0])
+    ax[1][1].set_yticklabels([])
+    ax[1][1].set_xticklabels([])
+
+    ax[1][1].grid(True, color="b")
+    for i in range(len(likelihood)):
+        ax[1][1].plot(likelihood[i], np.linspace(1. / (res + 1), 1. - 1. / (res + 1), res))
+
+    plt.subplots_adjust(bottom=0.1, left=0.1, wspace=0., hspace=0.)
+
     plt.savefig(prefix + "_" + str(iter).zfill(4), dpi=150)
     plt.close(fig)

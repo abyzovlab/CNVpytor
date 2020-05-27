@@ -9,7 +9,7 @@ from .bam import Bam
 from .vcf import Vcf
 from .fasta import Fasta
 from .genome import Genome
-from .viewer import anim_plot_likelihood, anim_plot_rd
+from .viewer import anim_plot_likelihood, anim_plot_rd, anim_plot_rd_likelihood
 import numpy as np
 import logging
 import os.path
@@ -1724,7 +1724,8 @@ class Root:
                                           data=np.array(likelihood, dtype="float32"), flags=snp_flag)
 
     def call_2d(self, bin_sizes, chroms=[], print_calls=False, use_gc_corr=True, rd_use_mask=False, snp_use_mask=True,
-                snp_use_id=False, max_copy_number=10, omin=None, mcount=None, max_distance=0.1, anim=""):
+                snp_use_id=False, max_copy_number=10, min_cell_fraction=0.0, omin=None, mcount=None, max_distance=0.1,
+                anim=""):
         """
         CNV caller using combined RD and BAF sigal based on likelihood merger.
 
@@ -1813,10 +1814,13 @@ class Root:
                         segments = [[i] for i in range(bins) if
                                     snp_hets[i] >= min_count and np.sum(snp_likelihood[i]) > 0.0 and np.isfinite(rd[i])]
 
+                        # Skip chromosome if less then 5 bins with signal:
+                        if len(segments) < 5:
+                            continue
+
                         level = [rd[i] for i in range(bins) if
                                  snp_hets[i] >= min_count and np.sum(snp_likelihood[i]) > 0.0 and np.isfinite(rd[i])]
                         level = np.array(level)
-                        ilevel = level.copy()
                         error = np.sqrt(level) ** 2 + std ** 2
                         loc_fl = np.min(list(zip(np.abs(np.diff(level))[:-1], np.abs(np.diff(level))[1:])), axis=1)
                         loc_fl = np.concatenate(([0], loc_fl, [0]))
@@ -1834,8 +1838,8 @@ class Root:
 
                         iter = 0
                         if anim != "":
-                            anim_plot_rd(level, error, segments, bins, iter, anim + c + "_0_" + str(bin_size), 0,
-                                         0, mean)
+                            anim_plot_rd_likelihood(level, error, likelihood, segments, bins, res, iter,
+                                                    anim + c + "_0_" + str(bin_size), 1, mean)
 
                         while len(overlaps) > 0:
                             maxo = max(overlaps)
@@ -1862,9 +1866,9 @@ class Root:
                                                                  error[i]) * likelihood_overlap(likelihood[i - 1],
                                                                                                 likelihood[i])
                             iter = iter + 1
-                            if anim != "" and (iter % 100) == 0:
-                                anim_plot_rd(level, error, segments, bins, iter, anim + c + "_0_" + str(bin_size), maxo,
-                                             mino, mean)
+                            if anim != "" and (iter % 5) == 0:
+                                anim_plot_rd_likelihood(level, error, likelihood, segments, bins, res, iter, anim + c + "_0_" + str(bin_size), maxo,
+                                             mean)
 
                         iter = 0
                         ons = -1
@@ -1912,21 +1916,14 @@ class Root:
                                         i += 1
                                         j = i + 1
                             iter = iter + 1
-                            if anim != "" and (iter % 100) == 0:
-                                anim_plot_rd(level, error, segments, bins, iter, anim + c + "_1_" + str(bin_size), maxo,
-                                             mino, mean)
+                            if anim != "":# and (iter % 50) == 0:
+                                anim_plot_rd_likelihood(level, error, likelihood, segments, bins, res, iter, anim + c + "_1_" + str(bin_size), maxo,
+                                             mean)
+
                             _logger.debug("Iteration: %d. Number of segments: %d." % (iter, len(level)))
                             if ons == len(segments):
                                 break
                             ons = len(segments)
-
-                        # rd = [np.nan] * bins
-                        # for i in range(len(segments)):
-                        #     for b in segments[i]:
-                        #         rd[b] = level[i]
-                        # plt.plot(rd)
-                        # plt.show()
-                        # return
 
                         for i in range(len(segments)):
 
@@ -1952,14 +1949,12 @@ class Root:
                                     "size": (segments[i][-1] - segments[i][0] + 1) * bin_size,
                                     "baf": baf_mean,
                                     "baf_pval": baf_p,
-                                    "Q0": q0
+                                    "Q0": q0,
+                                    "segment": i
                                 })
 
                                 gstat_n.append(len(segments[i]))
-                            # print(c + ":" + str(segments[i][0] * bin_size + 1) + "-" + str(
-                            #     segments[i][-1] * bin_size + bin_size),
-                            #       (segments[i][-1] - segments[i][0] + 1) * bin_size, bin_size, len(segments[i]),
-                            #       rd_mean, rd_p, baf_mean, baf_p)
+
 
                         self.io.create_signal(c, bin_size, "RD mosaic segments 2d",
                                               data=segments_code(segments), flags=flag_rd)
@@ -1995,14 +1990,12 @@ class Root:
             _logger.info("    * rd_mean  = %.4f" % mean)
             _logger.info("    * rd_std   = %.4f" % std)
 
-            # x = np.linspace(bins[0], bins[-1], 1001)
-            # plt.plot(x, normal(x, fitn, fitm, fits), "g-")
-            # plt.plot(bins[:-1], hist, "b*")
-            # plt.show()
-
             _logger.info("Detecting event type for %d events!" % len(gstat_event))
 
-            x = np.linspace(0, 1, 1000)
+            points = int(1000 * (1-min_cell_fraction))
+            if points == 0:
+                  points = 1
+            x = np.linspace(min_cell_fraction, 1, points)
             master_lh = {}
             for ei in range(len(gstat_rd)):
                 master_lh[ei] = []
@@ -2012,7 +2005,6 @@ class Root:
                     mrd = 1 - x + x * cn / 2
                     np.seterr(divide='ignore')
                     mbaf = 0.5 - (1 - x + x * h1) / (2 - 2 * x + (h1 + h2) * x)
-                    # plt.plot(mbaf, mrd, "-", label="%d: %d/%d" % (cn, h1, h2), zorder=6 - cn)
                     for ei in range(len(gstat_rd)):
                         slh = 0
                         max_lh = 0
@@ -2032,14 +2024,6 @@ class Root:
 
             for ei in range(len(gstat_rd)):
                 master_lh[ei] = sorted(master_lh[ei], key=lambda x: -x[3])
-
-            # plt.legend()
-            # plt.xlabel("|delta BAF|")
-            # plt.ylabel("Relative RD level")
-            #
-            # plt.scatter(gstat_baf, np.array(gstat_rd) / fitm, s=10 * np.log(np.array(gstat_n) + 1) + 1, alpha=0.8,
-            #             zorder=10)
-            # plt.show()
 
             chrcalls = {}
             for ei in range(len(gstat_rd)):
@@ -2080,7 +2064,6 @@ class Root:
                 if gstat_event[ei]["c"] not in chrcalls:
                     chrcalls[gstat_event[ei]["c"]] = []
 
-
                 chrcalls[gstat_event[ei]["c"]].append({
                     "type": netype,
                     "start": gstat_event[ei]["start"],
@@ -2096,15 +2079,16 @@ class Root:
                     "baf": gstat_baf[ei],
                     "rd_p_val": pval,
                     "baf_p_val": gstat_event[ei]["baf_pval"],
-                    "models": master_lh[ei]
+                    "segment": gstat_event[ei]["segment"],
+                    "models": master_lh[ei][:10]
                 })
 
                 if print_calls:
                     print(("%s\t%s:%d-%d\t%d\t%.4f\t%e\t%e\t%e\t%e\t%.4f\t" +
                            "%d\t%d\t%.4f\t%e\t%e\t%d\tCN%d/CN%d\t%e\t%.4f\t%d\tCN%d/CN%d\t%e\t%.4f") % tuple(
                         ret[bin_size][-1]))
-                for c in chrcalls:
-                    self.io.save_calls(c, bin_size, "calls combined", chrcalls[c], flags=(snp_flag | flag_rd))
+            for c in chrcalls:
+                self.io.save_calls(c, bin_size, "calls combined", chrcalls[c], flags=(snp_flag | flag_rd))
 
         return ret
 
