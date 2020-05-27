@@ -1071,22 +1071,18 @@ class Viewer(Show, Figure, HelpDescription):
                 if io.signal_exists(snp_chr, bin_size, "calls combined", flag):
 
                     calls = io.read_calls(snp_chr, bin_size, "calls combined", flag)
-                    segments = self.io[self.plot_file].get_signal(snp_chr, bin_size, "RD mosaic segments 2d", flag_rd)
+                    segments = self.io[i].get_signal(snp_chr, bin_size, "RD mosaic segments 2d", flag_rd)
                     segments = segments_decode(segments)
 
-                    print(calls)
-
                     for call in calls:
-                        print(call["bins"], call["p_val"])
+                        print(c, call["bins"], call["p_val"], int(call["segment"]), len(segments) )
                         if call["bins"] > self.min_segment_size and call["p_val"] < max_p_val and "segment" in call:
                             cix = int(call["type"]) + 1
                             if cix > 0:
                                 cix = 3 - cix
                             for b in segments[int(call["segment"])]:
-                                print(start + b * bin_size // pixel_size)
                                 cmap[i, start + b * bin_size // pixel_size, cix] += bin_size / pixel_size
 
-        print(cmap)
         plt.imshow(cmap, aspect='auto')
         self.fig_show(suffix="callmap", bottom=0.02, top=(1.0 - 0.15 / n),
                       wspace=0, hspace=0.2, left=0.02, right=0.98)
