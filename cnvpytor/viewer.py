@@ -1039,7 +1039,7 @@ class Viewer(Show, Figure, HelpDescription):
         self.fig_show(suffix="manhattan" if plot_type == "rd" else "snp_calls", bottom=0.02, top=(1.0 - 0.15 / n),
                       wspace=0, hspace=0.2, left=0.02, right=0.98)
 
-    def callmap(self, color="frequency", background="white", pixel_size=1700000, max_p_val=1e-20, min_freq=0.01):
+    def callmap(self, color="frequency", background="white", pixel_size=1700000, max_p_val=1e-20, min_freq=0.01, plot=True):
         bin_size = self.bin_size
         if self.reference_genome is None:
             _logger.warning("Missing reference genome required for callmap.")
@@ -1047,7 +1047,8 @@ class Viewer(Show, Figure, HelpDescription):
         n = len(self.plot_files)
         ix = self.plot_files
 
-        self.new_figure(panel_count=n, grid=(1, 1), panel_size=(24, 0.24 * n), hspace=0.2, wspace=0.2)
+        if plot:
+            self.new_figure(panel_count=n, grid=(1, 1), panel_size=(24, 0.24 * n), hspace=0.2, wspace=0.2)
 
         chroms = []
         starts = []
@@ -1126,14 +1127,16 @@ class Viewer(Show, Figure, HelpDescription):
             cmap = cmap.reshape(n, pixels, 3)
 
         cmap = (255 * cmap).astype("int")
-        plt.imshow(cmap, aspect='auto')
-        ax = plt.gca()
-        ax.set_yticks([])
-        ax.set_yticklabels([])
-        ax.set_xticks((np.array(starts)+np.array(ends))/2)
-        ax.set_xticklabels(chroms)
-        self.fig_show(suffix="callmap", bottom=1/(1+n), top=0.98,
+        if plot:
+            plt.imshow(cmap, aspect='auto')
+            ax = plt.gca()
+            ax.set_yticks([])
+            ax.set_yticklabels([])
+            ax.set_xticks((np.array(starts)+np.array(ends))/2)
+            ax.set_xticklabels(chroms)
+            self.fig_show(suffix="callmap", bottom=1/(1+n), top=0.98,
                       wspace=0, hspace=0.2, left=0.02, right=0.98)
+        return cmap
 
     def multiple_regions(self, regions):
         n = len(self.plot_files) * len(regions)
