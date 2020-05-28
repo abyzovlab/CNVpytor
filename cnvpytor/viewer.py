@@ -1039,7 +1039,7 @@ class Viewer(Show, Figure, HelpDescription):
         self.fig_show(suffix="manhattan" if plot_type == "rd" else "snp_calls", bottom=0.02, top=(1.0 - 0.15 / n),
                       wspace=0, hspace=0.2, left=0.02, right=0.98)
 
-    def callmap(self, pixel_size=1700000, max_p_val=1e-20, min_freq=0.01):
+    def callmap(self, color="frequency", background="white", pixel_size=1700000, max_p_val=1e-20, min_freq=0.01):
         bin_size = self.bin_size
         if self.reference_genome is None:
             _logger.warning("Missing reference genome required for callmap.")
@@ -1047,7 +1047,7 @@ class Viewer(Show, Figure, HelpDescription):
         n = len(self.plot_files)
         ix = self.plot_files
 
-        self.new_figure(panel_count=n, grid=(1, 1), panel_size=(24, 2 * n), hspace=0.2, wspace=0.2)
+        self.new_figure(panel_count=n, grid=(1, 1), panel_size=(24, 0.24 * n), hspace=0.2, wspace=0.2)
 
         chroms = []
         starts = []
@@ -1059,10 +1059,10 @@ class Viewer(Show, Figure, HelpDescription):
                     chroms.append(c)
                     starts.append(pixels)
                     pixels += l // pixel_size + 1
-                    ends.append(pixels-1)
+                    ends.append(pixels - 1)
 
         cmap = np.zeros((n, pixels, 3))
-        cmap[:,ends,:]=1
+        cmap[:, ends, :] = 1
 
         for i in range(n):
             io = self.io[ix[i]]
@@ -1079,15 +1079,60 @@ class Viewer(Show, Figure, HelpDescription):
                     segments = segments_decode(segments)
 
                     for call in calls:
-                        if call["bins"] > self.min_segment_size and call["p_val"] < max_p_val and "segment" in call and call["models"][0][4]>min_freq:
+                        if call["bins"] > self.min_segment_size and call["p_val"] < max_p_val and "segment" in call and \
+                                call["models"][0][4] > min_freq:
                             cix = int(call["type"]) + 1
                             if cix > 0:
                                 cix = 3 - cix
                             for b in segments[int(call["segment"])]:
-                                cmap[i, start + b * bin_size // pixel_size, cix] += bin_size / pixel_size
+                                if color == "frequency":
+                                    cmap[i, start + b * bin_size // pixel_size, cix] = max(
+                                        cmap[i, start + b * bin_size // pixel_size, cix], call["models"][0][4])
+                                elif color == "coverage":
+                                    cmap[i, start + b * bin_size // pixel_size, cix] += bin_size / pixel_size
+                                else: # model copy number
+                                    if call["models"][0][0] == 0:
+                                        cmap[i, start + b * bin_size // pixel_size, 0] = 1
+                                    elif call["models"][0][0] == 1:
+                                        cmap[i, start + b * bin_size // pixel_size, 0] = 1
+                                        cmap[i, start + b * bin_size // pixel_size, 1] = 1
+                                    elif call["models"][0][0] == 2:
+                                        cmap[i, start + b * bin_size // pixel_size, 2] = 1
+                                    else:
+                                        cn = call["models"][0][0]
+                                        if cn > 6:
+                                            cn = 6
+                                        cmap[i, start + b * bin_size // pixel_size, 1] = (2+cn)/8
 
+
+
+        def b2w(pixel):
+            if np.all(pixel == 1):
+                pixel[:]=0
+            elif pixel[0] > pixel[1] and pixel[0] > pixel[2]:
+                pixel[1] = pixel[2] = 1 - pixel[0]
+                pixel[0] = 1
+            elif pixel[1] > pixel[2]:
+                pixel[0] = pixel[2] = 1 - pixel[1]
+                pixel[1] = 1
+            else:
+                pixel[0] = pixel[1] = 1 - pixel[2]
+                pixel[2] = 1
+            return pixel
+
+        if background=="white":
+            cmap = cmap.reshape(n * pixels, 3)
+            np.apply_along_axis(b2w, 1, cmap)
+            cmap = cmap.reshape(n, pixels, 3)
+
+        cmap = (255 * cmap).astype("int")
         plt.imshow(cmap, aspect='auto')
-        self.fig_show(suffix="callmap", bottom=0.02, top=(1.0 - 0.15 / n),
+        ax = plt.gca()
+        ax.set_yticks([])
+        ax.set_yticklabels([])
+        ax.set_xticks((np.array(starts)+np.array(ends))/2)
+        ax.set_xticklabels(chroms)
+        self.fig_show(suffix="callmap", bottom=1/(1+n), top=0.98,
                       wspace=0, hspace=0.2, left=0.02, right=0.98)
 
     def multiple_regions(self, regions):
@@ -1101,7 +1146,8 @@ class Viewer(Show, Figure, HelpDescription):
             for r in regions:
                 self.regions(ix[i], r)
                 j += 1
-        self.fig_show(suffix="regions", bottom=0.05, top=0.95, wspace=0, hspace=0, left=0.05, right=0.95)
+        self.fig_show(suffix="regions", bottom=1/(1+n), top=0.98,
+                      wspace=0, hspace=0.2, left=0.02, right=0.98)
 
     def regions(self, ix, region):
         panels = self.panels
