@@ -1997,15 +1997,29 @@ class Root:
                   points = 1
             x = np.linspace(min_cell_fraction, 1, points)
             master_lh = {}
+            germline_lh = {}
             for ei in range(len(gstat_rd)):
                 master_lh[ei] = []
+                germline_lh[ei] = []
             for cn in range(max_copy_number, -1, -1):
                 for h1 in range(cn // 2 + 1):
                     h2 = cn - h1
                     mrd = 1 - x + x * cn / 2
+                    g_mrd = cn / 2
                     np.seterr(divide='ignore')
-                    mbaf = 0.5 - (1 - x + x * h1) / (2 - 2 * x + (h1 + h2) * x)
+                    if cn>0:
+                        g_mbaf = 0.5 - (h1 / (h1 + h2))
+                        mbaf = 0.5 - (1 - x + x * h1) / (2 - 2 * x + (h1 + h2) * x)
+                    else:
+                        g_mbaf = 0.
+                        mbaf = 0. * x
+
                     for ei in range(len(gstat_rd)):
+                        g_max_lh = normal(gstat_rd[ei], 1., gstat_rd[ei], gstat_error[ei]) * np.amax(gstat_lh[ei])
+                        g_lh = normal(g_mrd * fitm, 1., gstat_rd[ei], gstat_error[ei]) * \
+                               likelihood_of_baf(gstat_lh[ei], 0.5 + g_mbaf)
+                        germline_lh[ei].append([cn, h1, h2, g_lh/g_max_lh, 1.0])
+
                         slh = 0
                         max_lh = 0
                         max_x = 0
@@ -2024,6 +2038,9 @@ class Root:
 
             for ei in range(len(gstat_rd)):
                 master_lh[ei] = sorted(master_lh[ei], key=lambda x: -x[3])
+                germline_lh[ei] = sorted(germline_lh[ei], key=lambda x: -x[3])
+                if germline_lh[ei][0][3]>0.01:
+                    master_lh[ei]=[germline_lh[ei][0]]+master_lh[ei]
 
             chrcalls = {}
             for ei in range(len(gstat_rd)):

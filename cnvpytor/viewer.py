@@ -1039,7 +1039,8 @@ class Viewer(Show, Figure, HelpDescription):
         self.fig_show(suffix="manhattan" if plot_type == "rd" else "snp_calls", bottom=0.02, top=(1.0 - 0.15 / n),
                       wspace=0, hspace=0.2, left=0.02, right=0.98)
 
-    def callmap(self, color="frequency", background="white", pixel_size=1700000, max_p_val=1e-20, min_freq=0.01, plot=True):
+    def callmap(self, color="frequency", background="white", pixel_size=1700000, max_p_val=1e-20, min_freq=0.01,
+                plot=True):
         bin_size = self.bin_size
         if self.reference_genome is None:
             _logger.warning("Missing reference genome required for callmap.")
@@ -1091,7 +1092,7 @@ class Viewer(Show, Figure, HelpDescription):
                                         cmap[i, start + b * bin_size // pixel_size, cix], call["models"][0][4])
                                 elif color == "coverage":
                                     cmap[i, start + b * bin_size // pixel_size, cix] += bin_size / pixel_size
-                                else: # model copy number
+                                else:  # model copy number
                                     if call["models"][0][0] == 0:
                                         cmap[i, start + b * bin_size // pixel_size, 0] = 1
                                     elif call["models"][0][0] == 1:
@@ -1103,13 +1104,11 @@ class Viewer(Show, Figure, HelpDescription):
                                         cn = call["models"][0][0]
                                         if cn > 6:
                                             cn = 6
-                                        cmap[i, start + b * bin_size // pixel_size, 1] = (2+cn)/8
-
-
+                                        cmap[i, start + b * bin_size // pixel_size, 1] = (2 + cn) / 8
 
         def b2w(pixel):
             if np.all(pixel == 1):
-                pixel[:]=0
+                pixel[:] = 0
             elif pixel[0] > pixel[1] and pixel[0] > pixel[2]:
                 pixel[1] = pixel[2] = 1 - pixel[0]
                 pixel[0] = 1
@@ -1121,7 +1120,7 @@ class Viewer(Show, Figure, HelpDescription):
                 pixel[2] = 1
             return pixel
 
-        if background=="white":
+        if background == "white":
             cmap = cmap.reshape(n * pixels, 3)
             np.apply_along_axis(b2w, 1, cmap)
             cmap = cmap.reshape(n, pixels, 3)
@@ -1132,10 +1131,10 @@ class Viewer(Show, Figure, HelpDescription):
             ax = plt.gca()
             ax.set_yticks([])
             ax.set_yticklabels([])
-            ax.set_xticks((np.array(starts)+np.array(ends))/2)
+            ax.set_xticks((np.array(starts) + np.array(ends)) / 2)
             ax.set_xticklabels(chroms)
-            self.fig_show(suffix="callmap", bottom=1/(1+n), top=0.98,
-                      wspace=0, hspace=0.2, left=0.02, right=0.98)
+            self.fig_show(suffix="callmap", bottom=1 / (1 + n), top=0.98,
+                          wspace=0, hspace=0.2, left=0.02, right=0.98)
         return cmap
 
     def multiple_regions(self, regions):
@@ -1149,7 +1148,7 @@ class Viewer(Show, Figure, HelpDescription):
             for r in regions:
                 self.regions(ix[i], r)
                 j += 1
-        self.fig_show(suffix="regions", bottom=1/(1+n), top=0.98,
+        self.fig_show(suffix="regions", bottom=1 / (1 + n), top=0.98,
                       wspace=0, hspace=0.2, left=0.02, right=0.98)
 
     def regions(self, ix, region):
