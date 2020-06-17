@@ -11,6 +11,7 @@ from .viewparams import ViewParams, HelpDescription
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.colors as colors
+from scipy.cluster import hierarchy
 
 import numpy as np
 import logging
@@ -1040,7 +1041,7 @@ class Viewer(Show, Figure, HelpDescription):
                       wspace=0, hspace=0.2, left=0.02, right=0.98)
 
     def callmap(self, color="frequency", background="white", pixel_size=1700000, max_p_val=1e-20, min_freq=0.01,
-                plot=True):
+                plot="cmap"):
         bin_size = self.bin_size
         if self.reference_genome is None:
             _logger.warning("Missing reference genome required for callmap.")
@@ -1126,13 +1127,54 @@ class Viewer(Show, Figure, HelpDescription):
             cmap = cmap.reshape(n, pixels, 3)
 
         cmap = (255 * cmap).astype("int")
-        if plot:
+        if plot=="cmap":
+            self.new_figure(panel_count=1, grid=(1, 1), panel_size=(24, 0.24 * n), hspace=0.2, wspace=0.2)
+            ax = self.next_panel()
             plt.imshow(cmap, aspect='auto')
-            ax = plt.gca()
+            for i in ends[:-1]:
+                plt.axvline(x=i-0.5, color='red', linewidth=0.5)
             ax.set_yticks([])
             ax.set_yticklabels([])
             ax.set_xticks((np.array(starts) + np.array(ends)) / 2)
+            chroms = list(map(Genome.canonical_chrom_name,chroms))
             ax.set_xticklabels(chroms)
+            self.fig_show(suffix="callmap", bottom=1 / (1 + n), top=0.98,
+                          wspace=0, hspace=0.2, left=0.02, right=0.98)
+        elif plot=="regions":
+            self.new_figure(panel_count=1, grid=(1, 1), panel_size=(24, 24))
+            ax = self.next_panel()
+            corr=np.corrcoef(np.concatenate((cmap[:,:,0].transpose(),cmap[:,:,1].transpose(),cmap[:,:,2].transpose()),axis=0))
+            plt.imshow(corr, aspect='auto', vmin=-1, vmax=1)
+            plt.colorbar()
+            starts3=np.concatenate((np.array(starts),np.array(starts)+ends[-1],np.array(starts)+2*ends[-1]))
+            ends3=np.concatenate((np.array(ends),np.array(ends)+ends[-1],np.array(ends)+2*ends[-1]))
+            for i in ends3[:-1]:
+                plt.axvline(x=i-0.5, color='red', linewidth=0.5)
+                plt.axhline(y=i-0.5, color='red', linewidth=0.5)
+
+            ax.set_xticks((starts3 + ends3) / 2)
+            ax.set_yticks((starts3 + ends3) / 2)
+            chroms = list(map(Genome.canonical_chrom_name,chroms))
+            ax.set_xticklabels(chroms+chroms+chroms)
+            ax.set_yticklabels(chroms+chroms+chroms)
+            self.fig_show(suffix="callmap", bottom=1 / (1 + n), top=0.98,
+                          wspace=0, hspace=0.2, left=0.02, right=0.98)
+        else:
+            self.new_figure(panel_count=2, panel_size=(12, 12))
+            ax = self.next_panel()
+            x=np.concatenate((cmap[:, :, 0], cmap[:, :, 1], cmap[:, :, 2]),
+                               axis=1)
+            corr = np.corrcoef(x)
+            plt.imshow(corr, aspect='auto', vmin=-1, vmax=1)
+            plt.colorbar()
+            ax = plt.gca()
+
+            ax.set_xticks(range(n))
+            ax.set_yticks(range(n))
+            ax = self.next_panel()
+            Z = hierarchy.linkage(x, 'average', 'correlation')
+            dn = hierarchy.dendrogram(Z)
+
             self.fig_show(suffix="callmap", bottom=1 / (1 + n), top=0.98,
                           wspace=0, hspace=0.2, left=0.02, right=0.98)
         return cmap

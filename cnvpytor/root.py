@@ -1573,6 +1573,11 @@ class Root:
                             likelihood[bs][i][-1] = 0.5 * (count11[bs][i] + count00[bs][i])
                             s = np.sum(likelihood[bs][i])
                             likelihood[bs][i] /= s
+                            max_lh = np.amax(likelihood[bs][i])
+                            ix = np.where(likelihood[bs][i] == max_lh)[0][0]
+                            i1[bs][i] = 1.0 * (res // 2 - 1 - ix) / res if ix <= (res // 2 - 1) else 1.0 * (
+                                    ix - res // 2 + 1) / res
+                            i2[bs][i] = likelihood[bs][i][res // 2 - 1] / max_lh
 
                     _logger.info("Saving BAF histograms with bin size %d for chromosome '%s'." % (bs, c))
                     self.io.create_signal(c, bs, "SNP bin count 0|0", count00[bs].astype("uint16"), snp_flag)
@@ -2018,7 +2023,7 @@ class Root:
                         g_max_lh = normal(gstat_rd[ei], 1., gstat_rd[ei], gstat_error[ei]) * np.amax(gstat_lh[ei])
                         g_lh = normal(g_mrd * fitm, 1., gstat_rd[ei], gstat_error[ei]) * \
                                likelihood_of_baf(gstat_lh[ei], 0.5 + g_mbaf)
-                        germline_lh[ei].append([cn, h1, h2, g_lh/g_max_lh, 1.0])
+                        germline_lh[ei].append([cn, h1, h2, g_lh, 1.0])
 
                         slh = 0
                         max_lh = 0
@@ -2039,7 +2044,7 @@ class Root:
             for ei in range(len(gstat_rd)):
                 master_lh[ei] = sorted(master_lh[ei], key=lambda x: -x[3])
                 germline_lh[ei] = sorted(germline_lh[ei], key=lambda x: -x[3])
-                if germline_lh[ei][0][3]>0.01:
+                if germline_lh[ei][0][3]*10>master_lh[ei][0][3]:
                     master_lh[ei]=[germline_lh[ei][0]]+master_lh[ei]
 
             chrcalls = {}

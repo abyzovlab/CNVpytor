@@ -549,7 +549,11 @@ def likelihood_of_baf(likelihood,baf):
     """
     res = likelihood.size
     bin = int(baf * (res-1))
-    return likelihood[bin]
+    fr = baf * (res-1) - bin
+    if bin<res-1:
+        return  likelihood[bin]*(1-fr)+likelihood[bin+1]*fr
+    else:
+        return likelihood[bin]
 
 def likelihood_pixels_pval(likelihood):
     """
