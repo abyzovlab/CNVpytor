@@ -1190,8 +1190,8 @@ class Viewer(Show, Figure, HelpDescription):
             for r in regions:
                 self.regions(ix[i], r)
                 j += 1
-        self.fig_show(suffix="regions", bottom=1 / (1 + n), top=0.98,
-                      wspace=0, hspace=0.2, left=0.02, right=0.98)
+        self.fig_show(suffix="regions", bottom=0.05, top=0.98,
+                      wspace=0, hspace=0.2, left=0.05, right=0.98)
 
     def regions(self, ix, region):
         panels = self.panels
