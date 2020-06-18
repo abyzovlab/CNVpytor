@@ -310,7 +310,7 @@ def main():
                             use_gc_corr=not args.no_gc_corr,
                             rd_use_mask=args.use_mask_with_rd, snp_use_mask=not args.no_mask, snp_use_id=args.use_id,
                             mcount=args.min_count, max_copy_number=args.max_copy_number,
-                            min_cell_fraction=args.min_cell_fraction, anim=args.animation)
+                            min_cell_fraction=args.min_cell_fraction, use_hom=args.use_hom, anim=args.animation)
             else:
                 app.call(list(map(binsize_type, args.call)), chroms=args.chrom, print_calls=True,
                          use_gc_corr=not args.no_gc_corr, use_mask=args.use_mask_with_rd)

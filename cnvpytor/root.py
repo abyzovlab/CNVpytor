@@ -1730,7 +1730,7 @@ class Root:
 
     def call_2d(self, bin_sizes, chroms=[], print_calls=False, use_gc_corr=True, rd_use_mask=False, snp_use_mask=True,
                 snp_use_id=False, max_copy_number=10, min_cell_fraction=0.0, omin=None, mcount=None, max_distance=0.1,
-                anim=""):
+                use_hom=False, anim=""):
         """
         CNV caller using combined RD and BAF sigal based on likelihood merger.
 
@@ -1811,20 +1811,25 @@ class Root:
                             self.io.get_signal(c, bin_size, "SNP likelihood", snp_flag).astype("float64"))
                         snp_hets = self.io.get_signal(c, bin_size, "SNP bin count 0|1", snp_flag)
                         snp_hets += self.io.get_signal(c, bin_size, "SNP bin count 1|0", snp_flag)
+                        snp_homs = self.io.get_signal(c, bin_size, "SNP bin count 1|1", snp_flag)
+                        snp_count = np.copy(snp_hets)
+                        if use_hom:
+                            snp_count += snp_homs
 
                         snp_bins = len(snp_likelihood)
                         res = snp_likelihood[0].size
                         bins = min(rd_bins, snp_bins)
 
                         segments = [[i] for i in range(bins) if
-                                    snp_hets[i] >= min_count and np.sum(snp_likelihood[i]) > 0.0 and np.isfinite(rd[i])]
+                                    snp_count[i] >= min_count and np.sum(snp_likelihood[i]) > 0.0 and np.isfinite(
+                                        rd[i])]
 
                         # Skip chromosome if less then 5 bins with signal:
                         if len(segments) < 5:
                             continue
 
                         level = [rd[i] for i in range(bins) if
-                                 snp_hets[i] >= min_count and np.sum(snp_likelihood[i]) > 0.0 and np.isfinite(rd[i])]
+                                 snp_count[i] >= min_count and np.sum(snp_likelihood[i]) > 0.0 and np.isfinite(rd[i])]
                         level = np.array(level)
                         error = np.sqrt(level) ** 2 + std ** 2
                         loc_fl = np.min(list(zip(np.abs(np.diff(level))[:-1], np.abs(np.diff(level))[1:])), axis=1)
@@ -1835,7 +1840,7 @@ class Root:
                         error = list(error)
 
                         likelihood = [snp_likelihood[i] for i in range(bins) if
-                                      snp_hets[i] >= min_count and np.sum(snp_likelihood[i]) > 0.0 and np.isfinite(
+                                      snp_count[i] >= min_count and np.sum(snp_likelihood[i]) > 0.0 and np.isfinite(
                                           rd[i])]
 
                         overlaps = [normal_overlap(level[i], error[i], level[i + 1], error[i + 1]) * likelihood_overlap(
@@ -1872,8 +1877,9 @@ class Root:
                                                                                                 likelihood[i])
                             iter = iter + 1
                             if anim != "" and (iter % 5) == 0:
-                                anim_plot_rd_likelihood(level, error, likelihood, segments, bins, res, iter, anim + c + "_0_" + str(bin_size), maxo,
-                                             mean)
+                                anim_plot_rd_likelihood(level, error, likelihood, segments, bins, res, iter,
+                                                        anim + c + "_0_" + str(bin_size), maxo,
+                                                        mean)
 
                         iter = 0
                         ons = -1
@@ -1921,9 +1927,10 @@ class Root:
                                         i += 1
                                         j = i + 1
                             iter = iter + 1
-                            if anim != "":# and (iter % 50) == 0:
-                                anim_plot_rd_likelihood(level, error, likelihood, segments, bins, res, iter, anim + c + "_1_" + str(bin_size), maxo,
-                                             mean)
+                            if anim != "":  # and (iter % 50) == 0:
+                                anim_plot_rd_likelihood(level, error, likelihood, segments, bins, res, iter,
+                                                        anim + c + "_1_" + str(bin_size), maxo,
+                                                        mean)
 
                             _logger.debug("Iteration: %d. Number of segments: %d." % (iter, len(level)))
                             if ons == len(segments):
@@ -1937,11 +1944,15 @@ class Root:
                             if Genome.is_autosome(c) and len(segments[i]) > 1:
                                 q0 = 0
                                 srdp = 0
+                                homs = 0
+                                hets = 0
                                 for bin in segments[i]:
                                     if baf_mean == 0:
                                         gstat_rd0.append(rd[bin])
                                     srdp += qrd_p[bin]
                                     q0 += (qrd_p[bin] - qrd_u[bin])
+                                    homs += snp_homs[bin]
+                                    hets += snp_hets[bin]
                                 q0 /= srdp
                                 gstat_rd.append(level[i])
                                 gstat_error.append(error[i])
@@ -1955,11 +1966,12 @@ class Root:
                                     "baf": baf_mean,
                                     "baf_pval": baf_p,
                                     "Q0": q0,
+                                    "hets": hets,
+                                    "homs": homs,
                                     "segment": i
                                 })
 
                                 gstat_n.append(len(segments[i]))
-
 
                         self.io.create_signal(c, bin_size, "RD mosaic segments 2d",
                                               data=segments_code(segments), flags=flag_rd)
@@ -1997,9 +2009,9 @@ class Root:
 
             _logger.info("Detecting event type for %d events!" % len(gstat_event))
 
-            points = int(1000 * (1-min_cell_fraction))
+            points = int(1000 * (1 - min_cell_fraction))
             if points == 0:
-                  points = 1
+                points = 1
             x = np.linspace(min_cell_fraction, 1, points)
             master_lh = {}
             germline_lh = {}
@@ -2012,7 +2024,7 @@ class Root:
                     mrd = 1 - x + x * cn / 2
                     g_mrd = cn / 2
                     np.seterr(divide='ignore')
-                    if cn>0:
+                    if cn > 0:
                         g_mbaf = 0.5 - (h1 / (h1 + h2))
                         mbaf = 0.5 - (1 - x + x * h1) / (2 - 2 * x + (h1 + h2) * x)
                     else:
@@ -2039,13 +2051,17 @@ class Root:
                                     max_lh = tmpl
                                     max_x = x[mi]
 
-                        master_lh[ei].append([cn, h1, h2, slh / len(x), max_x])
+                        # master_lh[ei].append([cn, h1, h2, slh / len(x), max_x])
+                        master_lh[ei].append([cn, h1, h2, max_lh, max_x])
 
             for ei in range(len(gstat_rd)):
                 master_lh[ei] = sorted(master_lh[ei], key=lambda x: -x[3])
                 germline_lh[ei] = sorted(germline_lh[ei], key=lambda x: -x[3])
-                if germline_lh[ei][0][3]*10>master_lh[ei][0][3]:
-                    master_lh[ei]=[germline_lh[ei][0]]+master_lh[ei]
+                if germline_lh[ei][0][3] * 10 > master_lh[ei][0][3]:
+                    master_lh[ei] = [germline_lh[ei][0]] + \
+                                    list(filter(
+                                        lambda x: x[0] != germline_lh[ei][0][0] and x[1] != germline_lh[ei][0][1],
+                                        master_lh[ei]))
 
             chrcalls = {}
             for ei in range(len(gstat_rd)):
@@ -2078,7 +2094,8 @@ class Root:
                 ret[bin_size].append([etype, gstat_event[ei]["c"], gstat_event[ei]["start"], gstat_event[ei]["end"],
                                       gstat_event[ei]["size"], cnv, pval, lh_del, lh_loh, lh_dup,
                                       gstat_event[ei]["Q0"], bin_size, gstat_n[ei], gstat_baf[ei], pval,
-                                      gstat_event[ei]["baf_pval"], master_lh[ei][0][0], master_lh[ei][0][1],
+                                      gstat_event[ei]["baf_pval"], gstat_event[ei]["hets"], gstat_event[ei]["homs"],
+                                      master_lh[ei][0][0], master_lh[ei][0][1],
                                       master_lh[ei][0][2], master_lh[ei][0][3], master_lh[ei][0][4],
                                       master_lh[ei][1][0], master_lh[ei][1][1], master_lh[ei][1][2],
                                       master_lh[ei][1][3], master_lh[ei][1][4]])
@@ -2102,12 +2119,14 @@ class Root:
                     "rd_p_val": pval,
                     "baf_p_val": gstat_event[ei]["baf_pval"],
                     "segment": gstat_event[ei]["segment"],
+                    "hets": gstat_event[ei]["hets"],
+                    "homs": gstat_event[ei]["homs"],
                     "models": master_lh[ei][:10]
                 })
 
                 if print_calls:
                     print(("%s\t%s:%d-%d\t%d\t%.4f\t%e\t%e\t%e\t%e\t%.4f\t" +
-                           "%d\t%d\t%.4f\t%e\t%e\t%d\tCN%d/CN%d\t%e\t%.4f\t%d\tCN%d/CN%d\t%e\t%.4f") % tuple(
+                           "%d\t%d\t%.4f\t%e\t%e\t%d\t%d\t%d\tCN%d/CN%d\t%e\t%.4f\t%d\tCN%d/CN%d\t%e\t%.4f") % tuple(
                         ret[bin_size][-1]))
             for c in chrcalls:
                 self.io.save_calls(c, bin_size, "calls combined", chrcalls[c], flags=(snp_flag | flag_rd))
