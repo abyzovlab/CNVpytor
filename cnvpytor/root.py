@@ -2020,6 +2020,8 @@ class Root:
                 germline_lh[ei] = []
             for cn in range(max_copy_number, -1, -1):
                 for h1 in range(cn // 2 + 1):
+                    if h1==1 and h2==1:
+                        continue
                     h2 = cn - h1
                     mrd = 1 - x + x * cn / 2
                     g_mrd = cn / 2
@@ -2032,7 +2034,6 @@ class Root:
                         mbaf = 0. * x
 
                     for ei in range(len(gstat_rd)):
-                        g_max_lh = normal(gstat_rd[ei], 1., gstat_rd[ei], gstat_error[ei]) * np.amax(gstat_lh[ei])
                         g_lh = normal(g_mrd * fitm, 1., gstat_rd[ei], gstat_error[ei]) * \
                                likelihood_of_baf(gstat_lh[ei], 0.5 + g_mbaf)
                         germline_lh[ei].append([cn, h1, h2, g_lh, 1.0])
