@@ -979,7 +979,7 @@ class IO(Signals):
         keys = ["type", "start", "end", "size", "cnv", "p_val", "p_val_2", "p_val_3", "p_val_4", "Q0"]
         if signal == "calls combined":
             keys = ["type", "start", "end", "size", "cnv", "p_val", "lh_del", "lh_loh", "lh_dup", "Q0", "bins", "baf",
-                    "rd_p_val", "baf_p_val", "segment"]
+                    "rd_p_val", "baf_p_val", "segment", "hats", "homs"]
         data = []
         for call in calls:
             item = [len(keys)] + [call[key] for key in keys]
@@ -995,7 +995,7 @@ class IO(Signals):
         keys = ["type", "start", "end", "size", "cnv", "p_val", "p_val_2", "p_val_3", "p_val_4", "Q0"]
         if signal == "calls combined":
             keys = ["type", "start", "end", "size", "cnv", "p_val", "lh_del", "lh_loh", "lh_dup", "Q0", "bins", "baf",
-                    "rd_p_val", "baf_p_val", "segment"]
+                    "rd_p_val", "baf_p_val", "segment", "hats", "homs"]
         calls = []
         for item in data:
             call = {}
