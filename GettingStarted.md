@@ -120,17 +120,15 @@ Finally we can call CNV regions using commands:
 
 Result is stored in tab separated files with following columns:
 * CNV type: "deletion" or "duplication",
-* chromosome name,
-* start position,
-* end position,
+* CNV region (chr:start-end),
 * CNV size,
 * CNV level - read depth normalized to 1,
 * e-val1 -- p value calculated using t-test statistics between RD statistics in the region and global,
 * e-val2 -- p value from the probability of RD values within the region to be in the tails of a gaussian distribution of binned RD,
 * e-val3 -- same as e-val1 but for the middle of CNV,
 * e-val4 -- same as e-val2 but for the middle of CNV,
-* q0 -- fraction of reads mapped with q0 quality.
-
+* q0 -- fraction of reads mapped with q0 quality in call region,
+* pN -- fraction of reference genome gaps (Ns) in call region.
 
 ## Import SNP data
 

@@ -276,8 +276,6 @@ class IO(Signals):
 
     def __del__(self):
         _logger.debug("Closing h5 file '%s'" % self.filename)
-        if self.file:
-            self.file.close()
 
     def chromosomes_with_signal(self, bin_size, signal, flags=0, name=''):
         """
@@ -976,10 +974,10 @@ class IO(Signals):
         return stat[4], stat[5]
 
     def save_calls(self, chr_name, bin_size, signal, calls, flags):
-        keys = ["type", "start", "end", "size", "cnv", "p_val", "p_val_2", "p_val_3", "p_val_4", "Q0"]
+        keys = ["type", "start", "end", "size", "cnv", "p_val", "p_val_2", "p_val_3", "p_val_4", "Q0", "pN"]
         if signal == "calls combined":
             keys = ["type", "start", "end", "size", "cnv", "p_val", "lh_del", "lh_loh", "lh_dup", "Q0", "bins", "baf",
-                    "rd_p_val", "baf_p_val", "segment", "hets", "homs"]
+                    "rd_p_val", "baf_p_val", "segment", "hets", "homs", "pN", "pNS", "pP"]
         data = []
         for call in calls:
             item = [len(keys)] + [call[key] for key in keys]
@@ -992,10 +990,10 @@ class IO(Signals):
 
     def read_calls(self, chr_name, bin_size, signal, flags):
         data = self.get_signal(chr_name, bin_size, signal, flags=flags)
-        keys = ["type", "start", "end", "size", "cnv", "p_val", "p_val_2", "p_val_3", "p_val_4", "Q0"]
+        keys = ["type", "start", "end", "size", "cnv", "p_val", "p_val_2", "p_val_3", "p_val_4", "Q0", "pN"]
         if signal == "calls combined":
             keys = ["type", "start", "end", "size", "cnv", "p_val", "lh_del", "lh_loh", "lh_dup", "Q0", "bins", "baf",
-                    "rd_p_val", "baf_p_val", "segment", "hets", "homs"]
+                    "rd_p_val", "baf_p_val", "segment", "hets", "homs", "pN", "pNS", "pP"]
         calls = []
         for item in data:
             call = {}

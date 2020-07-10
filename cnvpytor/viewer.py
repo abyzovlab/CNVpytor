@@ -621,7 +621,8 @@ class Viewer(Show, Figure, HelpDescription):
             ax.grid()
             if self.rd_raw:
                 plt.step(his_p, self.rd_colors[0])
-            plt.step(his_p_corr, self.rd_colors[1])
+            if self.rd_corrected:
+                plt.step(his_p_corr, self.rd_colors[1])
             if his_p_seg is not None and len(his_p_seg) > 0 and self.rd_partition:
                 plt.step(his_p_seg, self.rd_colors[2])
             if his_p_call is not None and len(his_p_call) > 0 and self.rd_call:
@@ -1085,8 +1086,6 @@ class Viewer(Show, Figure, HelpDescription):
                         if call["bins"] > self.min_segment_size and call["p_val"] < max_p_val and "segment" in call and \
                                 call["models"][0][4] > min_freq:
                             cix = int(call["type"]) + 1
-                            if cix > 0:
-                                cix = 3 - cix
                             for b in segments[int(call["segment"])]:
                                 if color == "frequency":
                                     cmap[i, start + b * bin_size // pixel_size, cix] = max(
@@ -1292,7 +1291,8 @@ class Viewer(Show, Figure, HelpDescription):
 
                 if self.rd_raw:
                     ax.step(g_p, self.rd_colors[0], label="raw")
-                ax.step(g_p_corr, self.rd_colors[1], label="GC corrected")
+                if self.rd_corrected:
+                    ax.step(g_p_corr, self.rd_colors[1], label="GC corrected")
                 if len(g_p_seg) > 1:
                     plt.step(g_p_seg, self.rd_colors[2], label="partitioning")
                 if len(g_p_call) > 1:

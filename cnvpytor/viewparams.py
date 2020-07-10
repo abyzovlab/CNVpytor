@@ -16,6 +16,7 @@ class ViewParams(object):
         "bin_size": None,
         "panels": ["rd"],
         "rd_raw": True,
+        "rd_corrected": True,
         "rd_partition": False,
         "rd_call": True,
         "rd_call_mosaic": True,
@@ -454,8 +455,17 @@ class HelpDescription(object):
             p_type="bool",
             p_default=str(default["rd_raw"]),
             p_affects="region plot, rd",
-            p_example="set rd_call_mosaic\nunset rd_call_mosaic",
-            p_see="rd_partition, rd_call, rd_call_mosaic"
+            p_example="set rd_raw\nunset rd_raw",
+            p_see="rd_corrected, rd_partition, rd_call, rd_call_mosaic"
+        ),
+        "rd_corrected": help_format(
+            topic="rd_corrected",
+            p_desc="Enables plotting raw signal in rd plots",
+            p_type="bool",
+            p_default=str(default["rd_corrected"]),
+            p_affects="region plot, rd",
+            p_example="set rd_corrected\nunset rd_corrected",
+            p_see="rd_raw, rd_partition, rd_call, rd_call_mosaic"
         ),
         "rd_use_mask": help_format(
             topic="rd_use_mask",

@@ -1121,6 +1121,10 @@ class Root:
                         std = stat[5]
                         rd = self.io.get_signal(c, bin_size, "RD", flag_rd)
                         rd = np.nan_to_num(rd)
+                        gc, at = False, False
+                        if c in rd_gc_chromosomes and self.io_gc.signal_exists(rd_gc_chromosomes[c], None, "GC/AT"):
+                            gcat = self.io_gc.get_signal(rd_gc_chromosomes[c], None, "GC/AT")
+                            gc, at = gc_at_decompress(gcat)
                         levels = self.io.get_signal(c, bin_size, "RD partition", flag_rd)
                         delta = 0.25
                         if Genome.is_sex_chrom(c) and self.io.signal_exists(c, bin_size, "RD stat", flag_auto):
@@ -1250,10 +1254,13 @@ class Root:
                             q0 = -1
                             if sum(rd_p[bs:b]) > 0:
                                 q0 = (sum(rd_p[bs:b]) - sum(rd_u[bs:b])) / sum(rd_p[bs:b])
+                            pN = -1
+                            if gc:
+                                pN = (size - sum(gc[start // 100:end // 100]) - sum(at[start // 100:end // 100])) / size
                             if print_calls:
-                                print("%s\t%s:%d-%d\t%d\t%.4f\t%e\t%e\t%e\t%e\t%.4f\t" % (
-                                    etype, c, start, end, size, cnv, e1, e2, e3, e4, q0))
-                            ret[bin_size].append([etype, c, start, end, size, cnv, e1, e2, e3, e4, q0])
+                                print("%s\t%s:%d-%d\t%d\t%.4f\t%e\t%e\t%e\t%e\t%.4f\t%.4f\t" % (
+                                    etype, c, start, end, size, cnv, e1, e2, e3, e4, q0, pN))
+                            ret[bin_size].append([etype, c, start, end, size, cnv, e1, e2, e3, e4, q0, pN])
         return ret
 
     def call_mosaic(self, bin_sizes, chroms=[], use_gc_corr=True, use_mask=False, omin=None,
@@ -1806,6 +1813,28 @@ class Root:
                         qrd_p = self.io.get_signal(c, bin_size, "RD")
                         qrd_u = self.io.get_signal(c, bin_size, "RD unique")
                         rd_bins = len(rd)
+                        gc, at = False, False
+                        if c in rd_gc_chromosomes and self.io_gc.signal_exists(rd_gc_chromosomes[c], None, "GC/AT"):
+                            gcat = self.io_gc.get_signal(rd_gc_chromosomes[c], None, "GC/AT")
+                            gc, at = gc_at_decompress(gcat)
+                        P_per_bin = None
+                        if c in rd_mask_chromosomes and self.io_mask.signal_exists(rd_mask_chromosomes[c], None, "mask"):
+                            P_per_bin = np.zeros(rd_bins)
+                            mask = mask_decompress(self.io_mask.get_signal(rd_mask_chromosomes[c], None, "mask"))
+                            for m in mask:
+                                p1 = m[0] / bin_size
+                                p2 = m[1] / bin_size
+                                p1i = int(p1)
+                                p2i = int(p2)
+                                p1f = p1 - int(p1)
+                                p2f = p2 - int(p2)
+                                if p2i > p1i:
+                                    P_per_bin[p1i] += 1 - p1f
+                                    P_per_bin[p2i] += p2f
+                                    for pix in range(p1i + 1, p2i):
+                                        P_per_bin[pix] = 1
+                                else:
+                                    P_per_bin[p1i] += p2f - p1f
 
                         snp_likelihood = list(
                             self.io.get_signal(c, bin_size, "SNP likelihood", snp_flag).astype("float64"))
@@ -1954,6 +1983,29 @@ class Root:
                                     homs += snp_homs[bin]
                                     hets += snp_hets[bin]
                                 q0 /= srdp
+                                pN = -1
+                                pNS = -1
+                                if gc:
+                                    start = segments[i][0] * bin_size // 100
+                                    end = (segments[i][-1] + 1) * bin_size // 100
+                                    size = 100 * (end - start)
+                                    pN = (size - sum(gc[start:end]) - sum(at[start:end])) / size
+                                    size = 0
+                                    pNS = 0
+                                    for bin in segments[i]:
+                                        size += bin_size
+                                        pNS += sum(gc[bin * bin_size // 100:(bin + 1) * bin_size // 100]) + sum(
+                                            at[bin * bin_size // 100:(bin + 1) * bin_size // 100])
+                                    pNS = (size - pNS) / size
+                                pP = -1
+                                if P_per_bin is not None:
+                                    size = 0
+                                    pP = 0
+                                    for bin in segments[i]:
+                                        size += 1
+                                        pP += P_per_bin[bin]
+                                    pP /= size
+
                                 gstat_rd.append(level[i])
                                 gstat_error.append(error[i])
                                 gstat_baf.append(baf_mean)
@@ -1966,6 +2018,9 @@ class Root:
                                     "baf": baf_mean,
                                     "baf_pval": baf_p,
                                     "Q0": q0,
+                                    "pN": pN,
+                                    "pNS": pNS,
+                                    "pP": pP,
                                     "hets": hets,
                                     "homs": homs,
                                     "segment": i
@@ -2020,7 +2075,7 @@ class Root:
                 germline_lh[ei] = []
             for cn in range(max_copy_number, -1, -1):
                 for h1 in range(cn // 2 + 1):
-                    if h1==1 and h2==1:
+                    if h1 == 1 and h2 == 1:
                         continue
                     h2 = cn - h1
                     mrd = 1 - x + x * cn / 2
@@ -2094,7 +2149,8 @@ class Root:
 
                 ret[bin_size].append([etype, gstat_event[ei]["c"], gstat_event[ei]["start"], gstat_event[ei]["end"],
                                       gstat_event[ei]["size"], cnv, pval, lh_del, lh_loh, lh_dup,
-                                      gstat_event[ei]["Q0"], bin_size, gstat_n[ei], gstat_baf[ei], pval,
+                                      gstat_event[ei]["Q0"], gstat_event[ei]["pN"], gstat_event[ei]["pNS"],
+                                      gstat_event[ei]["pP"], bin_size, gstat_n[ei], gstat_baf[ei], pval,
                                       gstat_event[ei]["baf_pval"], gstat_event[ei]["hets"], gstat_event[ei]["homs"],
                                       master_lh[ei][0][0], master_lh[ei][0][1],
                                       master_lh[ei][0][2], master_lh[ei][0][3], master_lh[ei][0][4],
@@ -2115,6 +2171,9 @@ class Root:
                     "lh_loh": lh_loh,
                     "lh_dup": lh_dup,
                     "Q0": gstat_event[ei]["Q0"],
+                    "pN": gstat_event[ei]["pN"],
+                    "pNS": gstat_event[ei]["pNS"],
+                    "pP": gstat_event[ei]["pP"],
                     "bins": gstat_n[ei],
                     "baf": gstat_baf[ei],
                     "rd_p_val": pval,
@@ -2126,7 +2185,7 @@ class Root:
                 })
 
                 if print_calls:
-                    print(("%s\t%s:%d-%d\t%d\t%.4f\t%e\t%e\t%e\t%e\t%.4f\t" +
+                    print(("%s\t%s:%d-%d\t%d\t%.4f\t%e\t%e\t%e\t%e\t%.4f\t%.4f\t%.4f\t%.4f\t" +
                            "%d\t%d\t%.4f\t%e\t%e\t%d\t%d\t%d\tCN%d/CN%d\t%e\t%.4f\t%d\tCN%d/CN%d\t%e\t%.4f") % tuple(
                         ret[bin_size][-1]))
             for c in chrcalls:
