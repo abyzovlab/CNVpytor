@@ -147,7 +147,7 @@ def main():
         return 0
 
     if args.version:
-        print('pyCNVnator {}'.format(__version__))
+        print('CNVpytor {}'.format(__version__))
         return 0
 
     if args.reference_genomes_conf:

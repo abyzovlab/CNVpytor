@@ -1126,42 +1126,44 @@ class Viewer(Show, Figure, HelpDescription):
             cmap = cmap.reshape(n, pixels, 3)
 
         cmap = (255 * cmap).astype("int")
-        if plot=="cmap":
+        if plot == "cmap":
             self.new_figure(panel_count=1, grid=(1, 1), panel_size=(24, 0.24 * n), hspace=0.2, wspace=0.2)
             ax = self.next_panel()
             plt.imshow(cmap, aspect='auto')
             for i in ends[:-1]:
-                plt.axvline(x=i-0.5, color='red', linewidth=0.5)
+                plt.axvline(x=i - 0.5, color='red', linewidth=0.5)
             ax.set_yticks([])
             ax.set_yticklabels([])
             ax.set_xticks((np.array(starts) + np.array(ends)) / 2)
-            chroms = list(map(Genome.canonical_chrom_name,chroms))
+            chroms = list(map(Genome.canonical_chrom_name, chroms))
             ax.set_xticklabels(chroms)
             self.fig_show(suffix="callmap", bottom=1 / (1 + n), top=0.98,
                           wspace=0, hspace=0.2, left=0.02, right=0.98)
-        elif plot=="regions":
+        elif plot == "regions":
             self.new_figure(panel_count=1, grid=(1, 1), panel_size=(24, 24))
             ax = self.next_panel()
-            corr=np.corrcoef(np.concatenate((cmap[:,:,0].transpose(),cmap[:,:,1].transpose(),cmap[:,:,2].transpose()),axis=0))
+            corr = np.corrcoef(
+                np.concatenate((cmap[:, :, 0].transpose(), cmap[:, :, 1].transpose(), cmap[:, :, 2].transpose()),
+                               axis=0))
             plt.imshow(corr, aspect='auto', vmin=-1, vmax=1)
             plt.colorbar()
-            starts3=np.concatenate((np.array(starts),np.array(starts)+ends[-1],np.array(starts)+2*ends[-1]))
-            ends3=np.concatenate((np.array(ends),np.array(ends)+ends[-1],np.array(ends)+2*ends[-1]))
+            starts3 = np.concatenate((np.array(starts), np.array(starts) + ends[-1], np.array(starts) + 2 * ends[-1]))
+            ends3 = np.concatenate((np.array(ends), np.array(ends) + ends[-1], np.array(ends) + 2 * ends[-1]))
             for i in ends3[:-1]:
-                plt.axvline(x=i-0.5, color='red', linewidth=0.5)
-                plt.axhline(y=i-0.5, color='red', linewidth=0.5)
+                plt.axvline(x=i - 0.5, color='red', linewidth=0.5)
+                plt.axhline(y=i - 0.5, color='red', linewidth=0.5)
 
             ax.set_xticks((starts3 + ends3) / 2)
             ax.set_yticks((starts3 + ends3) / 2)
-            chroms = list(map(Genome.canonical_chrom_name,chroms))
-            ax.set_xticklabels(chroms+chroms+chroms)
-            ax.set_yticklabels(chroms+chroms+chroms)
+            chroms = list(map(Genome.canonical_chrom_name, chroms))
+            ax.set_xticklabels(chroms + chroms + chroms)
+            ax.set_yticklabels(chroms + chroms + chroms)
             self.fig_show(suffix="callmap", bottom=1 / (1 + n), top=0.98,
                           wspace=0, hspace=0.2, left=0.02, right=0.98)
         else:
             self.new_figure(panel_count=2, panel_size=(12, 12))
             ax = self.next_panel()
-            x=np.concatenate((cmap[:, :, 0], cmap[:, :, 1], cmap[:, :, 2]),
+            x = np.concatenate((cmap[:, :, 0], cmap[:, :, 1], cmap[:, :, 2]),
                                axis=1)
             corr = np.corrcoef(x)
             plt.imshow(corr, aspect='auto', vmin=-1, vmax=1)
@@ -1863,7 +1865,7 @@ class Viewer(Show, Figure, HelpDescription):
             else:
                 plt.show()
 
-    def snp_dist(self, regions, callset=None, n_bins=100, titles=None):
+    def snp_dist(self, regions, callset=None, n_bins=100, gt_plot=[0, 1, 2, 3], titles=None):
         regions = regions.split(" ")
         n = len(regions)
         self.new_figure(panel_count=n, hspace=0.2, wspace=0.2)
@@ -1877,19 +1879,26 @@ class Viewer(Show, Figure, HelpDescription):
                              fontdict={'verticalalignment': 'top', 'horizontalalignment': 'left'})
             regs = decode_region(regions[i])
             baf = []
+            bafP = []
             for c, (pos1, pos2) in regs:
                 pos, ref, alt, nref, nalt, gt, flag, qual = self.io[self.plot_file].read_snp(c, callset=callset)
                 ix = 0
                 while ix < len(pos) and pos[ix] <= pos2:
-                    if pos[ix] >= pos1 and (nref[ix] + nalt[ix]) != 0:
+                    if pos[ix] >= pos1 and (nref[ix] + nalt[ix]) != 0 and ((gt[ix] % 4) in gt_plot):
                         if gt[ix] % 4 != 2:
                             baf.append(1.0 * nalt[ix] / (nref[ix] + nalt[ix]))
+                            if flag[ix] & 2:
+                                bafP.append(1.0 * nalt[ix] / (nref[ix] + nalt[ix]))
                         else:
                             baf.append(1.0 * nref[ix] / (nref[ix] + nalt[ix]))
+                            if flag[ix] & 2:
+                                bafP.append(1.0 * nalt[ix] / (nref[ix] + nalt[ix]))
                     ix += 1
-            ax.hist(baf, bins=np.arange(0, 1.0 + 1. / (n_bins + 1), 1. / (n_bins + 1)))
+            ax.hist(baf, bins=np.arange(0, 1.0 + 1. / (n_bins + 1), 1. / (n_bins + 1)),label="All heterozygous variants")
+            ax.hist(bafP, bins=np.arange(0, 1.0 + 1. / (n_bins + 1), 1. / (n_bins + 1)),label="P bases only")
+            ax.legend()
             ax.set_xlabel("VAF")
-            ax.set_ylabel("distribution")
+            ax.set_ylabel("Distribution")
 
         self.fig_show(suffix="snp_dist", top=0.9, bottom=0.1, left=0.125, right=0.9)
 
