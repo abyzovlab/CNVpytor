@@ -114,7 +114,7 @@ class Vcf:
         try:
             for rec in self.file.fetch(chr_name):
                 if len(rec.filter.keys())==0:
-                    if "." in filter_stat:
+                    if "No filter (.)" in filter_stat:
                         filter_stat["No filter (.)"] += 1
                     else:
                         filter_stat["No filter (.)"] = 1
@@ -355,7 +355,7 @@ class Vcf:
                     filter_stat = {}
                     count += 1
 
-                if "." in filter_stat:
+                if "No filter (.)" in filter_stat:
                     filter_stat["No filter (.)"] += 1
                 else:
                     filter_stat["No filter (.)"] = 1
