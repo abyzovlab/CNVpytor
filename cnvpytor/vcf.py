@@ -314,6 +314,7 @@ class Vcf:
         gt = []
         flag = []
         qual = []
+        filter_stat= {}
         last_chrom = None
         count = 0
         alphabet = ['A', 'T', 'G', 'C', '.']
@@ -323,6 +324,10 @@ class Vcf:
                 if last_chrom is None:
                     last_chrom = rec.chrom
                 if last_chrom != rec.chrom:
+                    _logger.info("Chromosome '%s' read. Number of variants to store: %d." % (last_chrom, len(pos)))
+                    _logger.debug("Variants filter field statistics:")
+                    for f in filter_stat:
+                        _logger.debug("    * '%s' : %d" % (f, filter_stat[f]))
                     callback(last_chrom, pos, ref, alt, nref, nalt, gt, flag, qual)
                     pos = []
                     ref = []
@@ -332,7 +337,14 @@ class Vcf:
                     gt = []
                     flag = []
                     qual = []
+                    filter_stat = {}
                     count += 1
+
+                for f in rec.filter.keys():
+                    if f in filter_stat:
+                        filter_stat[f] += 1
+                    else:
+                        filter_stat[f] = 1
 
                 if "PASS" in rec.filter.keys() and rec.alts and len(rec.alts) == 1 and (
                         gt_tag in rec.samples[sample].keys()) and (
@@ -372,9 +384,12 @@ class Vcf:
                                 gt[-1] += 4
 
                 last_chrom = rec.chrom
-            if len(pos) > 0:
-                callback(last_chrom, pos, ref, alt, nref, nalt, gt, flag, qual)
-                count += 1
+            _logger.info("Chromosome '%s' read. Number of variants to store: %d." % (last_chrom, len(pos)))
+            _logger.debug("Variants filter field statistics:")
+            for f in filter_stat:
+                _logger.info(" * '%s' : %d" % (f, filter_stat[f]))
+            callback(last_chrom, pos, ref, alt, nref, nalt, gt, flag, qual)
+            count += 1
             return count
         except ValueError:
             _logger.error("Variant file reading problem.")

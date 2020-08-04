@@ -1776,9 +1776,11 @@ class Viewer(Show, Figure, HelpDescription):
             else:
                 plt.show()
 
-    def compare(self, region1, region2, n_bins=21, plot=False, legend=True):
+    def compare(self, region1, region2, n_bins=21, plot=False, stdout=True, legend=True):
         n = len(self.plot_files)
         ix = self.plot_files
+        ret = []
+
         if plot:
             plt.clf()
             plt.rcParams["font.size"] = 8
@@ -1842,9 +1844,12 @@ class Viewer(Show, Figure, HelpDescription):
 
             pval = t_test_2_samples(fitm1, fits1, sum(hist1), fitm2, fits2, sum(hist2))
 
-            print("%s\t%s\t%s\t%.4f\t%.4f\t%.4f\t%.4f\t%e\t%.4f\t%.4f" % (
-                io.filename, region1, region2, fitm1, fits1, fitm2, fits2, pval, fitm1 / fitm2,
-                fitm1 / fitm2 * (fits1 / fitm1 / np.sqrt(sum(hist1)) + fits2 / fitm2 / np.sqrt(sum(hist2)))))
+            if stdout:
+                print("%s\t%s\t%s\t%.4f\t%.4f\t%.4f\t%.4f\t%e\t%.4f\t%.4f" % (
+                    io.filename, region1, region2, fitm1, fits1, fitm2, fits2, pval, fitm1 / fitm2,
+                    fitm1 / fitm2 * (fits1 / fitm1 / np.sqrt(sum(hist1)) + fits2 / fitm2 / np.sqrt(sum(hist2)))))
+            ret.append([io.filename, region1, region2, fitm1, fits1, fitm2, fits2, pval, fitm1 / fitm2,
+                fitm1 / fitm2 * (fits1 / fitm1 / np.sqrt(sum(hist1)) + fits2 / fitm2 / np.sqrt(sum(hist2)))])
 
             if plot:
                 x = np.linspace(bins[0], bins[-1], 1001)
@@ -1864,6 +1869,9 @@ class Viewer(Show, Figure, HelpDescription):
                 plt.draw()
             else:
                 plt.show()
+
+        return ret
+
 
     def snp_dist(self, regions, callset=None, n_bins=100, gt_plot=[0, 1, 2, 3], titles=None):
         regions = regions.split(" ")
