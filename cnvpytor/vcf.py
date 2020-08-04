@@ -155,7 +155,7 @@ class Vcf:
         except ValueError:
             _logger.error("Variant file reading problem. Probably index file is missing or corrupted.")
             exit(0)
-        _logger.info("Chromosome '%s' read. Number of variants to store: %d." % (last_chrom, len(pos)))
+        _logger.info("Chromosome '%s' read. Number of variants to store: %d." % (chr_name, len(pos)))
         _logger.debug("Variants filter field statistics:")
         for f in filter_stat:
             _logger.info(" * '%s' : %d" % (f, filter_stat[f]))
