@@ -113,6 +113,11 @@ class Vcf:
         alphabet = ['A', 'T', 'G', 'C', '.']
         try:
             for rec in self.file.fetch(chr_name):
+                if len(rec.filter.keys())==0:
+                    if "." in filter_stat:
+                        filter_stat["No filter (.)"] += 1
+                    else:
+                        filter_stat["No filter (.)"] = 1
                 for f in rec.filter.keys():
                     if f in filter_stat:
                         filter_stat[f] += 1
@@ -350,6 +355,10 @@ class Vcf:
                     filter_stat = {}
                     count += 1
 
+                if "." in filter_stat:
+                    filter_stat["No filter (.)"] += 1
+                else:
+                    filter_stat["No filter (.)"] = 1
                 for f in rec.filter.keys():
                     if f in filter_stat:
                         filter_stat[f] += 1
