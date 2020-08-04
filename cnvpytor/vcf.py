@@ -109,9 +109,15 @@ class Vcf:
         gt = []
         flag = []
         qual = []
+        filter_stat = {}
         alphabet = ['A', 'T', 'G', 'C', '.']
         try:
             for rec in self.file.fetch(chr_name):
+                for f in rec.filter.keys():
+                    if f in filter_stat:
+                        filter_stat[f] += 1
+                    else:
+                        filter_stat[f] = 1
                 if "PASS" in rec.filter.keys() and rec.alts and len(rec.alts) == 1 and (
                         gt_tag in rec.samples[sample].keys()) and (
                         ad_tag in rec.samples[sample].keys()) and len(rec.samples[sample][gt_tag]) > 1 and len(
@@ -149,6 +155,10 @@ class Vcf:
         except ValueError:
             _logger.error("Variant file reading problem. Probably index file is missing or corrupted.")
             exit(0)
+        _logger.info("Chromosome '%s' read. Number of variants to store: %d." % (last_chrom, len(pos)))
+        _logger.debug("Variants filter field statistics:")
+        for f in filter_stat:
+            _logger.info(" * '%s' : %d" % (f, filter_stat[f]))
         return pos, ref, alt, nref, nalt, gt, flag, qual
 
     def read_chromosome_snp_no_counts(self, chr_name, sample='', gt_tag='GT'):
