@@ -2075,9 +2075,9 @@ class Root:
                 germline_lh[ei] = []
             for cn in range(max_copy_number, -1, -1):
                 for h1 in range(cn // 2 + 1):
+                    h2 = cn - h1
                     if h1 == 1 and h2 == 1:
                         continue
-                    h2 = cn - h1
                     mrd = 1 - x + x * cn / 2
                     g_mrd = cn / 2
                     np.seterr(divide='ignore')

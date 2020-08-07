@@ -163,7 +163,7 @@ class Vcf:
         _logger.info("Chromosome '%s' read. Number of variants to store: %d." % (chr_name, len(pos)))
         _logger.debug("Variants filter field statistics:")
         for f in filter_stat:
-            _logger.info(" * '%s' : %d" % (f, filter_stat[f]))
+            _logger.debug(" * '%s' : %d" % (f, filter_stat[f]))
         return pos, ref, alt, nref, nalt, gt, flag, qual
 
     def read_chromosome_snp_no_counts(self, chr_name, sample='', gt_tag='GT'):
@@ -406,7 +406,7 @@ class Vcf:
             _logger.info("Chromosome '%s' read. Number of variants to store: %d." % (last_chrom, len(pos)))
             _logger.debug("Variants filter field statistics:")
             for f in filter_stat:
-                _logger.info(" * '%s' : %d" % (f, filter_stat[f]))
+                _logger.debug(" * '%s' : %d" % (f, filter_stat[f]))
             callback(last_chrom, pos, ref, alt, nref, nalt, gt, flag, qual)
             count += 1
             return count
