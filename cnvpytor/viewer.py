@@ -1872,6 +1872,86 @@ class Viewer(Show, Figure, HelpDescription):
 
         return ret
 
+    def compare_baf(self, region1, region2, plot=False, stdout=True, legend=True):
+        n = len(self.plot_files)
+        ix = self.plot_files
+        ret = []
+
+        if plot:
+            plt.clf()
+            plt.rcParams["font.size"] = 8
+            if self.grid == "auto":
+                sx, sy = self._panels_shape(n)
+            else:
+                sx, sy = tuple(self.grid)
+            self.fig = plt.figure(1, dpi=200, facecolor='w', edgecolor='k')
+            if self.output_filename != "":
+                self.fig.set_figheight(3 * sy)
+                self.fig.set_figwidth(4 * sx)
+            grid = gridspec.GridSpec(sy, sx, wspace=0.2, hspace=0.2)
+        for i in range(n):
+            io = self.io[ix[i]]
+            if plot:
+                ax = self.fig.add_subplot(grid[i])
+                ax.set_title(self.file_title(ix[i]), position=(0.01, 1.07),
+                             fontdict={'verticalalignment': 'top', 'horizontalalignment': 'left'})
+            regs1 = decode_region(region1)
+            regs2 = decode_region(region2)
+            data1 = []
+            data2 = []
+            for c, (pos1, pos2) in regs1:
+                flag = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0)
+                his_p = io.get_signal(c, self.bin_size, "SNP likelihood", flag)
+                bin1 = (pos1 - 1) // self.bin_size
+                bin2 = (pos2 - 1) // self.bin_size
+                data1 += list(his_p[bin1:bin2 + 1])
+            for c, (pos1, pos2) in regs2:
+                flag = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0)
+                his_p = io.get_signal(c, self.bin_size, "SNP likelihood", flag)
+                bin1 = (pos1 - 1) // self.bin_size
+                bin2 = (pos2 - 1) // self.bin_size
+
+                data2 += list(his_p[bin1:bin2 + 1])
+
+            d1 = np.array(data1)
+            d2 = np.array(data2)
+            h1 = np.ones_like(d1[0])
+            h2 = np.ones_like(d2[0])
+            for i in range(len(d1)):
+                if sum(d1[i])!=0:
+                    h1 *= d1[i]
+                h1 /= sum(h1)
+            for i in range(len(d2)):
+                if sum(d2[i])!=0:
+                    h2 *= d2[i]
+                h2 /= sum(h2)
+
+
+            b1, p1 = likelihood_baf_pval(h1)
+            b2, p2 = likelihood_baf_pval(h2)
+
+
+            if stdout:
+                print("%s\t%s\t%s\t%.4f\t%e\t%.4f\t%e" % (
+                    io.filename, region1, region2, b1, p1, b2, p2))
+            ret.append([io.filename, region1, region2, b1, p1, b2, p2])
+
+            if plot:
+                plt.plot(h1, "g")
+                plt.plot(h2, "b")
+
+        if plot:
+            if self.output_filename != "":
+                plt.savefig(self._image_filename("comp_baf"), dpi=200)
+                plt.close(self.fig)
+            elif self.interactive:
+                plt.show(block=False)
+                plt.draw()
+            else:
+                plt.show()
+
+        return ret
+
 
     def snp_dist(self, regions, callset=None, n_bins=100, gt_plot=[0, 1, 2, 3], titles=None):
         regions = regions.split(" ")
