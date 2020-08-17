@@ -298,9 +298,11 @@ class IO(Signals):
             List of chromosome names.
 
         """
-        search_string = "^" + self.signal_name("(.[^_]*)", bin_size, signal, flags, name) + "$"
+        #search_string = "^" + self.signal_name("(.[^_]*)", bin_size, signal, flags, name) + "$"
+        search_string = "^" + self.signal_name("(.*)", bin_size, signal, flags, name) + "$"
         chrs = []
         for key in self.file.keys():
+            res = re.findall(search_string, key)
             res = re.findall(search_string, key)
             if len(res) > 0:
                 chrs.append(res[0])
@@ -327,7 +329,8 @@ class IO(Signals):
             List of tuples (chromosome name, bin size).
 
         """
-        search_string = "^" + self.signal_name("(.[^_]*)", 17110806, signal, flags, name) + "$"
+        #search_string = "^" + self.signal_name("(.[^_]*)", 17110806, signal, flags, name) + "$"
+        search_string = "^" + self.signal_name("(.*)", 17110806, signal, flags, name) + "$"
         search_string = search_string.replace("17110806", "(.[0-9]*)")
         chrs_bss = []
         for key in self.file.keys():
