@@ -248,6 +248,10 @@ def main():
             app.vcf(args.vcf, chroms=args.chrom, sample=args.vcf_sample, no_counts=args.no_snp_counts,
                     ad_tag=args.ad_tag, gt_tag=args.gt_tag)
 
+        if args.idvar:
+            app = Root(args.root[0], create=True, max_cores=args.max_cores)
+            app.variant_id(args.idvar, chroms=args.chrom)
+
         if args.somatic_snv:
             app = Root(args.root[0], create=True, max_cores=args.max_cores)
             app.vcf(args.somatic_snv, chroms=args.chrom, sample=args.vcf_sample, no_counts=args.no_snp_counts,
@@ -306,7 +310,13 @@ def main():
                                 use_gc_corr=not args.no_gc_corr,
                                 use_mask=args.use_mask_with_rd, anim=args.animation)
             elif args.call[0] == "combined":
-                app.call_2d(list(map(binsize_type, args.call[1:])), chroms=args.chrom, print_calls=True,
+                if args.call[1] in ["mosaic","germline"]:
+                    event_type = args.call[1]
+                    bins = list(map(binsize_type, args.call[2:]))
+                else:
+                    event_type = "both"
+                    bins = list(map(binsize_type, args.call[1:]))
+                app.call_2d(bins, chroms=args.chrom, event_type=event_type, print_calls=True,
                             use_gc_corr=not args.no_gc_corr,
                             rd_use_mask=args.use_mask_with_rd, snp_use_mask=not args.no_mask, snp_use_id=args.use_id,
                             mcount=args.min_count, max_copy_number=args.max_copy_number,

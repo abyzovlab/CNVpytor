@@ -951,58 +951,32 @@ class Root:
                                         count = 0
                                 else:
                                     count += 1
+                            mask_borders=mask_borders[1:]
 
                             kk = np.arange(3 * bin_band + 1)
                             exp_kk = kk * np.exp(-0.5 * kk ** 2 / bin_band ** 2)
                             for step in range(repeats):
+
                                 isig = np.ones_like(nm_levels) * 4. / std ** 2
                                 isig[nm_levels >= (mean / 4)] = mean / std ** 2 / nm_levels[nm_levels >= (mean / 4)]
 
                                 def calc_grad(k):
                                     if k < len(nm_levels):
-                                        return exp_kk[k] * np.exp(
-                                            np.concatenate(
-                                                (-0.5 * ((nm_levels - np.roll(nm_levels, -k)) ** 2 * isig)[:-k],
-                                                 [0] * k))) - np.concatenate(([0] * k, exp_kk[
-                                            k] * np.exp(-0.5 * ((nm_levels - np.roll(nm_levels, k)) ** 2 * isig)[k:])))
+                                        t1 = np.concatenate((
+                                                np.exp(-0.5 * (nm_levels - np.roll(nm_levels, -k)) ** 2 * isig)[:-k],
+                                                [0] * k))
+                                        t2 = np.concatenate(([0] * k,
+                                                np.exp(-0.5 * (nm_levels - np.roll(nm_levels, k)) ** 2 * isig)[k:]))
+                                        return exp_kk[k] * (t1-t2)
                                     else:
                                         return np.zeros_like(nm_levels)
 
-                                if True:
-                                    grad = np.sum([calc_grad(k) for k in range(1, 3 * bin_band + 1)], axis=0)
-                                else:
-                                    import multiprocessing
-                                    from multiprocessing import sharedctypes
-                                    grad = np.ctypeslib.as_ctypes(np.zeros(len(nm_levels)))
-                                    shared_array = sharedctypes.RawArray(grad._type_, grad)
-
-                                    def calc_grad_par(ks):
-                                        tmp = np.ctypeslib.as_array(shared_array)
-                                        for k in ks:
-                                            if k < len(nm_levels):
-                                                tmp += exp_kk[k] * np.exp(
-                                                    np.concatenate(
-                                                        (-0.5 * ((nm_levels - np.roll(nm_levels, -k)) ** 2 * isig)[:-k],
-                                                         [0] * k))) - np.concatenate(([0] * k, exp_kk[
-                                                    k] * np.exp(
-                                                    -0.5 * ((nm_levels - np.roll(nm_levels, k)) ** 2 * isig)[k:])))
-
-                                    jobs = []
-                                    nj = self.max_cores
-
-                                    for i in range(nj):
-                                        ks = [k for k in range(1, 3 * bin_band + 1) if k % nj == i]
-                                        if len(ks) > 0:
-                                            process = multiprocessing.Process(target=calc_grad_par, args=(ks,))
-                                            jobs.append(process)
-                                            process.start()
-                                    for j in jobs:
-                                        j.join()
-                                    grad = np.ctypeslib.as_array(shared_array)
+                                grad = np.sum([calc_grad(k) for k in range(1, 3 * bin_band + 1)], axis=0)
 
                                 border = [i for i in range(grad.size - 1) if grad[i] < 0 and grad[i + 1] >= 0]
                                 border.append(grad.size - 1)
                                 border = sorted(list(set(border + mask_borders)))
+                                # border = sorted(list(set([0]+border+[len(nm_levels)-1])))
                                 pb = 0
                                 for b in border:
                                     nm_levels[pb:b + 1] = np.mean(nm_levels[pb:b + 1])
@@ -1452,6 +1426,35 @@ class Root:
                 if len(pos) > 0:
                     self.io.save_snp(c, pos, ref, alt, nref, nalt, gt, flag, qual, update=True, callset=callset)
 
+    def variant_id(self, vcf_file, chroms, callset=None):
+        vcff = Vcf(vcf_file)
+        chrs = [c for c in vcff.get_chromosomes() if len(chroms) == 0 or c in chroms]
+
+        def set_id_flag(chr, id_pos, id_ref, id_alt):
+            snp_chr_name = self.io.snp_chromosome_name(chr)
+            if snp_chr_name is not None:
+                pos, ref, alt, nref, nalt, gt, flag, qual = self.io.read_snp(snp_chr_name, callset=callset)
+                id_ix = 0
+                f0 = 0
+                f1 = 0
+                for snp_ix in range(len(pos)):
+                    while id_ix < len(id_pos) and id_pos[id_ix] < pos[snp_ix]:
+                        id_ix += 1
+                    if id_ix < len(id_pos):
+                        if id_pos[id_ix] == pos[snp_ix] and id_ref[id_ix] == ref[snp_ix] and id_alt[id_ix] == alt[
+                            snp_ix]:
+                            flag[snp_ix] = flag[snp_ix] | 1
+                            f1 += 1
+                        else:
+                            flag[snp_ix] = flag[snp_ix] & 2
+                            f0 += 1
+                _logger.info("%d of %d variants found in '%s'." % (f1, f0 + f1, vcf_file))
+                if len(pos) > 0:
+                    self.io.save_snp(snp_chr_name, pos, ref, alt, nref, nalt, gt, flag, qual, update=True,
+                                     callset=callset)
+
+        return vcff.read_all_snp_positions(set_id_flag)
+
     def calculate_baf(self, bin_sizes, chroms=[], use_mask=True, use_id=False, use_phase=False, res=200,
                       reduce_noise=False, blw=0.8, use_hom=False):
         """
@@ -1735,7 +1738,8 @@ class Root:
                     self.io.create_signal(c, bin_size, "SNP likelihood call",
                                           data=np.array(likelihood, dtype="float32"), flags=snp_flag)
 
-    def call_2d(self, bin_sizes, chroms=[], print_calls=False, use_gc_corr=True, rd_use_mask=False, snp_use_mask=True,
+    def call_2d(self, bin_sizes, chroms=[], event_type="both", print_calls=False, use_gc_corr=True, rd_use_mask=False,
+                snp_use_mask=True,
                 snp_use_id=False, max_copy_number=10, min_cell_fraction=0.0, omin=None, mcount=None, max_distance=0.1,
                 use_hom=False, anim=""):
         """
@@ -1818,7 +1822,8 @@ class Root:
                             gcat = self.io_gc.get_signal(rd_gc_chromosomes[c], None, "GC/AT")
                             gc, at = gc_at_decompress(gcat)
                         P_per_bin = None
-                        if c in rd_mask_chromosomes and self.io_mask.signal_exists(rd_mask_chromosomes[c], None, "mask"):
+                        if c in rd_mask_chromosomes and self.io_mask.signal_exists(rd_mask_chromosomes[c], None,
+                                                                                   "mask"):
                             P_per_bin = np.zeros(rd_bins)
                             mask = mask_decompress(self.io_mask.get_signal(rd_mask_chromosomes[c], None, "mask"))
                             for m in mask:
@@ -2062,6 +2067,9 @@ class Root:
             _logger.info("    * rd_mean  = %.4f" % mean)
             _logger.info("    * rd_std   = %.4f" % std)
 
+            _logger.info("Updating RD normal levels!")
+            self.io.set_rd_normal_level(bin_size, fitm, fits, flags=flag_rd)
+
             _logger.info("Detecting event type for %d events!" % len(gstat_event))
 
             points = int(1000 * (1 - min_cell_fraction))
@@ -2111,13 +2119,18 @@ class Root:
                         master_lh[ei].append([cn, h1, h2, max_lh, max_x])
 
             for ei in range(len(gstat_rd)):
-                master_lh[ei] = sorted(master_lh[ei], key=lambda x: -x[3])
-                germline_lh[ei] = sorted(germline_lh[ei], key=lambda x: -x[3])
-                if germline_lh[ei][0][3] * 10 > master_lh[ei][0][3]:
-                    master_lh[ei] = [germline_lh[ei][0]] + \
-                                    list(filter(
-                                        lambda x: x[0] != germline_lh[ei][0][0] and x[1] != germline_lh[ei][0][1],
-                                        master_lh[ei]))
+                if event_type == "germline":
+                    master_lh[ei] = sorted(germline_lh[ei], key=lambda x: -x[3])
+                else:
+                    master_lh[ei] = sorted(master_lh[ei], key=lambda x: -x[3])
+                    if event_type == "both":
+                        germline_lh[ei] = sorted(germline_lh[ei], key=lambda x: -x[3])
+                        if germline_lh[ei][0][3] * 10 > master_lh[ei][0][3]:
+                            master_lh[ei] = [germline_lh[ei][0]] + \
+                                            list(filter(
+                                                lambda x: x[0] != germline_lh[ei][0][0] and x[1] != germline_lh[ei][0][
+                                                    1],
+                                                master_lh[ei]))
 
             chrcalls = {}
             for ei in range(len(gstat_rd)):

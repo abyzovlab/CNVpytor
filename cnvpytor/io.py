@@ -691,9 +691,15 @@ class IO(Signals):
             None
         """
         if callset is None:
-            _logger.info("Saving SNP data for chromosome '%s'." % chr_name)
+            if update:
+                _logger.info("Updating SNP data for chromosome '%s'." % chr_name)
+            else:
+                _logger.info("Saving SNP data for chromosome '%s'." % chr_name)
         else:
-            _logger.info("Saving somatic '%s' SNV data for chromosome '%s'." % (callset, chr_name))
+            if update:
+                _logger.info("Updating somatic '%s' SNV data for chromosome '%s'." % (callset, chr_name))
+            else:
+                _logger.info("Saving somatic '%s' SNV data for chromosome '%s'." % (callset, chr_name))
         snp_pos, snp_desc, snp_counts, snp_qual = snp_compress(pos, ref, alt, nref, nalt, gt, flag, qual)
         rd_name = self.rd_chromosome_name(chr_name)
         if not update and not (rd_name is None):
@@ -952,12 +958,15 @@ class IO(Signals):
         chr_len = dict(zip(chr_len[::2], chr_len[1::2]))
         return chromosome in chr_len
 
-    def rd_normal_level(self, bin_size, flag=0):
+    def rd_normal_level(self, bin_size, flags=0):
         """
         Returns normal rd level for CN2 and standard deviation
 
         Parameters
         ----------
+        bin_size : int
+            Bin size
+
         flag : int
             RD flag
 
@@ -967,14 +976,34 @@ class IO(Signals):
         std : float
 
         """
-        if self.signal_exists(None, bin_size, "RD stat", FLAG_AUTO | flag):
-            stat = self.get_signal(None, bin_size, "RD stat", FLAG_AUTO | flag)
-        elif self.signal_exists(None, bin_size, "RD stat", FLAG_SEX | flag):
-            stat = self.get_signal(None, bin_size, "RD stat", FLAG_SEX | flag)
+        if self.signal_exists(None, bin_size, "RD level", flags):
+            return tuple(self.get_signal(None, bin_size, "RD level", flags))
+        if self.signal_exists(None, bin_size, "RD stat", FLAG_AUTO | flags):
+            stat = self.get_signal(None, bin_size, "RD stat", FLAG_AUTO | flags)
+        elif self.signal_exists(None, bin_size, "RD stat", FLAG_SEX | flags):
+            stat = self.get_signal(None, bin_size, "RD stat", FLAG_SEX | flags)
         else:
             return 0, 0
 
         return stat[4], stat[5]
+
+    def set_rd_normal_level(self, bin_size, mean, stdev, flags=0):
+        """
+        Set normal rd level for CN2 and standard deviation
+
+        Parameters
+        ----------
+        bin_size : int
+            Bin size
+        mean : float
+            Mean RD in normal region
+        stdev : float
+            Standard deviation of RD signal
+        flag : int
+            RD flag
+
+        """
+        self.create_signal(None, bin_size, "RD level", np.array([mean, stdev]), flags=flags)
 
     def save_calls(self, chr_name, bin_size, signal, calls, flags):
         keys = ["type", "start", "end", "size", "cnv", "p_val", "p_val_2", "p_val_3", "p_val_4", "Q0", "pN"]

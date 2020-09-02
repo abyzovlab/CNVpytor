@@ -497,6 +497,57 @@ class Vcf:
             _logger.error("Variant file reading problem.")
             exit(0)
 
+    def read_all_snp_positions(self, callback):
+        """
+        Read SNP/indel data positions.
+
+        Parameters
+        ----------
+        callback : callable
+            Function to call after read a chromosome:
+            callback(chrom, pos, ref, alt)
+
+        sample : str
+            Name of the sample (first one if empty - default)
+
+        Returns
+        -------
+        count : int
+            Number of read chromosomes
+
+        """
+        pos = []
+        ref = []
+        alt = []
+        last_chrom = None
+        count = 0
+        alphabet = ['A', 'T', 'G', 'C', '.']
+
+        try:
+            for rec in self.file.fetch():
+                if last_chrom is None:
+                    last_chrom = rec.chrom
+                if last_chrom != rec.chrom:
+                    callback(last_chrom, pos, ref, alt)
+                    pos = []
+                    ref = []
+                    alt = []
+                    count += 1
+                if "PASS" in rec.filter.keys() and rec.alts and len(rec.alts) == 1:
+                    if (rec.ref in alphabet) and (rec.alts[0] in alphabet):
+                        pos.append(rec.pos)
+                        ref.append(rec.ref)
+                        alt.append(rec.alts[0])
+                last_chrom = rec.chrom
+            if len(pos) > 0:
+                callback(last_chrom, pos, ref, alt)
+                count += 1
+            return count
+        except ValueError:
+            _logger.error("Variant file reading problem.")
+            exit(0)
+
+
     def read_all_rd(self, callback, sample='', ad_tag='AD', dp_tag='DP'):
         """
         Read RD data for given chromosome and sample.

@@ -882,12 +882,8 @@ class Viewer(Show, Figure, HelpDescription):
                 apos = 0
                 xticks = [0]
 
-                max_m = 0
+                max_m, stdev = io.rd_normal_level(bin_size, FLAG_GC_CORR)
                 for c, l in chroms:
-                    flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
-                    stat = io.get_signal(None, bin_size, "RD stat", flag)
-                    if stat[4] > max_m:
-                        max_m = stat[4]
                     flag_rd = (FLAG_USEMASK if self.rd_use_mask else 0)
                     his_p = io.get_signal(c, bin_size, "RD", flag_rd)
                     his_p_corr = io.get_signal(c, bin_size, "RD", flag_rd | FLAG_GC_CORR)
@@ -915,7 +911,7 @@ class Viewer(Show, Figure, HelpDescription):
                                 for segi in seg:
                                     his_p_mosaic_2d[segi] = lev
                     pos = range(apos, apos + len(his_p))
-                    ax.text(apos + len(his_p) // 2, stat[4] // 10, Genome.canonical_chrom_name(c),
+                    ax.text(apos + len(his_p) // 2, max_m // 10, Genome.canonical_chrom_name(c),
                             fontsize=8, verticalalignment='bottom', horizontalalignment='center', )
                     if self.markersize == "auto":
                         plt.plot(pos, his_p_corr, ls='', marker='.')
@@ -1223,7 +1219,7 @@ class Viewer(Show, Figure, HelpDescription):
                     flag_rd = 0
                     if self.rd_use_mask:
                         flag_rd = FLAG_USEMASK
-                    mean, stdev = io.rd_normal_level(bin_size, flag_rd)
+                    mean, stdev = io.rd_normal_level(bin_size, flag_rd | FLAG_GC_CORR)
                     his_p = io.get_signal(c, bin_size, "RD", flag_rd)
                     his_p_corr = io.get_signal(c, bin_size, "RD", flag_rd | FLAG_GC_CORR)
                     his_p_seg = io.get_signal(c, bin_size, "RD partition", flag_rd | FLAG_GC_CORR)
@@ -1556,7 +1552,7 @@ class Viewer(Show, Figure, HelpDescription):
                     rd_chr, bin_size, "RD", rd_flag):
                     plot_chroms.append((rd_chr, l))
                     plot_len += l // bin_size + 1
-            rd_mean = io.get_signal(None, bin_size, "RD stat", FLAG_AUTO)[4]
+            rd_mean, stdev = io.rd_normal_level(bin_size, rd_flag)
             tl = 0
             dt = 2.0 * np.pi / plot_len
             theta = np.arange(0, 2.0 * np.pi, dt)
