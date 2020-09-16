@@ -178,6 +178,7 @@ def rd_decompress(crd_p, crd_u):
     """
     return np.array(crd_p), np.array(crd_p) - np.array(crd_u)
 
+
 def segments_code(segments):
     """
     Convert segments to numpy array e.g. [[1,2],[3]] -> [1,2,MAX,3,MAX]
@@ -271,6 +272,10 @@ def normal(x, a, x0, sigma):
     return a * np.exp(-(x - x0) ** 2 / (2 * sigma ** 2)) / np.sqrt(2 * np.pi) / sigma
 
 
+def bimodal(x, a1, x01, sigma1, a2, x02, sigma2):
+    return normal(x, a1, x01, sigma1) + normal(x, a2, x02, sigma2)
+
+
 def fit_normal(x, y):
     """ Fit Gaussian
     """
@@ -301,6 +306,33 @@ def fit_normal(x, y):
     except RuntimeError:
         _logger.warning("Problem with fit: Runtime Error. Using mean and std instead fitting parameters!")
         return [area, mean, sigma], None
+
+def fit_bimodal(x, y):
+    """ Fit double Gaussian
+    """
+    if sum(y) == 0:
+        _logger.debug("Problem with fit: all data points have zero value. Return None!")
+        return None
+    mean = sum(x * y) / sum(y)
+    sigma = np.sqrt(sum(y * (x - mean) ** 2) / sum(y))
+    area = sum(y[:-1] * (x[1:] - x[:-1]))
+    _logger.debug("%f %f %f %d" % (area, mean, sigma, len(x)))
+    if sigma == 0:
+        _logger.debug("Problem with fit: sigma equals zero. Return None!")
+        return None
+
+    if len(x) < 3:
+        _logger.warning("Problem with fit: insufficient data points. Return None!")
+        return None
+    try:
+        popt, pcov = curve_fit(bimodal, x, y, p0=[area/2, mean*0.66, sigma/2, area/2, mean*1.33, sigma/2])
+        return popt, pcov
+    except ValueError:
+        _logger.warning("Problem with fit: Value Error. Return None!")
+        return None
+    except RuntimeError:
+        _logger.warning("Problem with fit: Runtime Error. Return None!")
+        return None
 
 
 def t_test_1_sample(mean, m, s, n):
@@ -529,11 +561,12 @@ def likelihood_baf_pval(likelihood):
     ix1 = (res // 2 + ix) // 2
     ix2 = res - 1 - ix1
     p = np.sum(likelihood[ix1:ix2]) / np.sum(likelihood)
-    if ix==res//2:
+    if ix == res // 2:
         p = 1.0
     return b, p
 
-def likelihood_of_baf(likelihood,baf):
+
+def likelihood_of_baf(likelihood, baf):
     """
     Calculates likelihood for given baf
     Parameters
@@ -548,12 +581,13 @@ def likelihood_of_baf(likelihood,baf):
 
     """
     res = likelihood.size
-    bin = int(baf * (res-1))
-    fr = baf * (res-1) - bin
-    if bin<res-1:
-        return  likelihood[bin]*(1-fr)+likelihood[bin+1]*fr
+    bin = int(baf * (res - 1))
+    fr = baf * (res - 1) - bin
+    if bin < res - 1:
+        return likelihood[bin] * (1 - fr) + likelihood[bin + 1] * fr
     else:
         return likelihood[bin]
+
 
 def likelihood_pixels_pval(likelihood):
     """
@@ -579,6 +613,7 @@ def likelihood_pixels_pval(likelihood):
     ix2 = res - 1 - ix1
     p = np.sum(likelihood[ix1:ix2]) / np.sum(likelihood)
     return ix, res - 1 - ix, p
+
 
 def is_downloadable(url):
     """

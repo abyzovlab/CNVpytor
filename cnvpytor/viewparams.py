@@ -67,7 +67,7 @@ class ViewParams(object):
         for c in self.param_help:
             self.command_tree["help"][c] = None
         self.command_tree["set"]["panels"] = {}
-        for panel1 in ["rd", "likelihood", "snp", "baf", "snv"]:
+        for panel1 in ["rd", "likelihood", "snp", "baf", "snv", "CN"]:
             self.command_tree["set"]["panels"][panel1] = self.command_tree["set"]["panels"]
         self.command_tree["set"]["grid"] = {"auto": None, "horizontal": None, "vertical": None}
         self.command_tree["set"]["subgrid"] = {"auto": None, "horizontal": None, "vertical": None}

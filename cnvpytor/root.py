@@ -431,13 +431,17 @@ class Root:
             _logger.info("Saving SNP data for chromosome '%s' in file '%s'." % (c, self.io.filename))
             self.io.save_snp(c, pos[c], ref[c], alt[c], nref[c], nalt[c], gt[c], flag[c], qual[c])
 
-    def rd_from_snp(self, chroms=[], callset=None):
+    def rd_from_snp(self, chroms=[], use_mask=True, use_id=False, callset=None):
         """ Create RD signal from already imported SNP signal
 
         Parameters
         ----------
         chroms : list of str
             List of chromosomes. Calculates for all available if empty.
+        use_mask : bool
+            Use P-mask filter if True. Default: True.
+        use_id : bool
+            Use id flag filter if True. Default: False.
         callset : str or None
             It will assume SNP data if None. Otherwise it will assume SNV data
             stored under the name provided by callset variable.
@@ -463,9 +467,10 @@ class Root:
             ncg = self.io.get_chromosome_length(c) // 10000 + 1
             rdcg = np.zeros(ncg)
             rdc = np.zeros(ncg)
-            for p, c1, c2 in zip(pos, nref, nalt):
-                rdcg[(p - 1) // 10000] += c1 + c2
-                rdc[(p - 1) // 10000] += 1
+            for p, c1, c2, f in zip(pos, nref, nalt, flag):
+                if (c1 + c2) > 0 and (not use_id or (f & 1)) and (not use_mask or (f & 2)):
+                    rdcg[(p - 1) // 10000] += c1 + c2
+                    rdc[(p - 1) // 10000] += 1
             rdcg = rdcg / rdc
             for i in range(n):
                 rd[i] = rdcg[i // 100]
@@ -951,7 +956,7 @@ class Root:
                                         count = 0
                                 else:
                                     count += 1
-                            mask_borders=mask_borders[1:]
+                            mask_borders = mask_borders[1:]
 
                             kk = np.arange(3 * bin_band + 1)
                             exp_kk = kk * np.exp(-0.5 * kk ** 2 / bin_band ** 2)
@@ -963,11 +968,12 @@ class Root:
                                 def calc_grad(k):
                                     if k < len(nm_levels):
                                         t1 = np.concatenate((
-                                                np.exp(-0.5 * (nm_levels - np.roll(nm_levels, -k)) ** 2 * isig)[:-k],
-                                                [0] * k))
+                                            np.exp(-0.5 * (nm_levels - np.roll(nm_levels, -k)) ** 2 * isig)[:-k],
+                                            [0] * k))
                                         t2 = np.concatenate(([0] * k,
-                                                np.exp(-0.5 * (nm_levels - np.roll(nm_levels, k)) ** 2 * isig)[k:]))
-                                        return exp_kk[k] * (t1-t2)
+                                                             np.exp(-0.5 * (nm_levels - np.roll(nm_levels,
+                                                                                                k)) ** 2 * isig)[k:]))
+                                        return exp_kk[k] * (t1 - t2)
                                     else:
                                         return np.zeros_like(nm_levels)
 
@@ -2051,11 +2057,12 @@ class Root:
             data = data[data < p99]
             mean = np.mean(data)
             std = np.std(data)
-            n_bins = 51
+            n_bins = 101
             rd_min = mean - 5 * std
             rd_max = mean + 5 * std
             bins = np.linspace(rd_min, rd_max, n_bins)
             hist, binsr = np.histogram(data, bins=bins)
+
             fitn, fitm, fits = fit_normal(bins[:-1], hist)[0]
             _logger.info("Estimating normal RD level:")
             _logger.info("    * fit_mean = %.4f" % fitm)
@@ -2067,7 +2074,42 @@ class Root:
             _logger.info("    * rd_mean  = %.4f" % mean)
             _logger.info("    * rd_std   = %.4f" % std)
 
-            _logger.info("Updating RD normal levels!")
+            # _logger.info("Checking bimodal hypothesis...")
+            # bim = fit_bimodal(bins[:-1], hist)
+            # if False and bim is not None:
+            #         #and bim[0][0] > 0 and bim[0][1] > 0 and bim[0][3] > 0 and bim[0][4] > 0:
+            #         #and np.sum(np.sqrt(np.diag(bim[1])) / np.array(bim[0])) < 10:
+            #     _logger.info("Fit successful:")
+            #     _logger.info("    * a1   = %.4f" % bim[0][0])
+            #     _logger.info("    * mean1   = %.4f" % bim[0][1])
+            #     _logger.info("    * std1   = %.4f" % bim[0][2])
+            #     _logger.info("    * a2   = %.4f" % bim[0][3])
+            #     _logger.info("    * mean2   = %.4f" % bim[0][4])
+            #     _logger.info("    * std2   = %.4f" % bim[0][5])
+            #     _logger.info("    * mean2/mean1   = %.4f" % (bim[0][4] / bim[0][1]))
+            #     if bim[0][4] / bim[0][1] > 1.75:
+            #         if bim[0][4] / bim[0][1] < 2.5:
+            #             _logger.info("Using both peaks to estimate normal levels")
+            #             fitm = (bim[0][0] * bim[0][1] + bim[0][3] * bim[0][4] / 2) / (bim[0][0] + bim[0][3])
+            #             fits = (bim[0][0] * bim[0][2] + bim[0][3] * bim[0][5] / 2) / (bim[0][0] + bim[0][3])
+            #         else:
+            #             _logger.info("Using first peak to estimate normal levels")
+            #             fitm = bim[0][1]
+            #             fits = bim[0][2]
+            #     else:
+            #         _logger.info("Ratio mean2/mean1 is smaller than expected. Using single peak fit values.")
+            #     # plt.hist(data, bins=bins, alpha=.5, label='RD in bins with BAF=1/2', edgecolor='blue', linewidth=1)
+            #     # plt.plot(np.linspace(0, rd_max, 400), bimodal(np.linspace(0, rd_max, 400), *bim[0]), color='red', lw=3,
+            #     #          label='Bimodal fit')
+            #     # plt.xlabel("RD")
+            #     # plt.ylabel("Number of bins")
+            #     # plt.legend()
+            #     # plt.show()
+            # else:
+            #     _logger.info("Fit was not successful. Rejecting hypothesis.")
+
+
+            _logger.info("Updating RD normal levels: mean = %.4f, stdev = %.4f !" % (fitm, fits))
             self.io.set_rd_normal_level(bin_size, fitm, fits, flags=flag_rd)
 
             _logger.info("Detecting event type for %d events!" % len(gstat_event))
@@ -2084,8 +2126,8 @@ class Root:
             for cn in range(max_copy_number, -1, -1):
                 for h1 in range(cn // 2 + 1):
                     h2 = cn - h1
-                    if h1 == 1 and h2 == 1:
-                        continue
+                    # if h1 == 1 and h2 == 1:
+                    #     continue
                     mrd = 1 - x + x * cn / 2
                     g_mrd = cn / 2
                     np.seterr(divide='ignore')
@@ -2158,6 +2200,8 @@ class Root:
                         lh_loh += master_lh[ei][mi][3]
 
                 if gstat_baf[ei] == 0 and cnv < 1.01 and cnv > 0.99:
+                    continue
+                if master_lh[ei][0][1] == 1 and master_lh[ei][0][2] == 1:
                     continue
 
                 ret[bin_size].append([etype, gstat_event[ei]["c"], gstat_event[ei]["start"], gstat_event[ei]["end"],

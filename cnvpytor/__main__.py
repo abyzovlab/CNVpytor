@@ -268,7 +268,7 @@ def main():
 
         if args.rd_from_snp:
             app = Root(args.root[0], max_cores=args.max_cores)
-            app.rd_from_snp(chroms=args.chrom)
+            app.rd_from_snp(chroms=args.chrom, use_mask=not args.no_mask, use_id=args.use_id)
 
         if args.mask:
             app = Root(args.root[0], create=True, max_cores=args.max_cores)
@@ -292,7 +292,7 @@ def main():
 
         if args.baf:
             app = Root(args.root[0], max_cores=args.max_cores)
-            app.calculate_baf(args.baf, chroms=args.chrom, use_id=args.use_id, use_mask=not args.no_mask,
+            app.calculate_baf(args.baf, chroms=args.chrom, use_mask=not args.no_mask, use_id=args.use_id,
                               use_phase=args.use_phase, reduce_noise=args.reduce_noise, blw=args.baf_likelihood_width,
                               use_hom=args.use_hom)
         if args.partition:

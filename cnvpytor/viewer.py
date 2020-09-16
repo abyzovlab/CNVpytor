@@ -132,7 +132,7 @@ class Figure(ViewParams):
         self.current = -1
         self.sg_current = -1
 
-    def new_figure(self, panel_count, grid="auto", panel_size=(8, 6), hspace=0, wspace=0):
+    def new_figure(self, panel_count, grid="auto", panel_size=(8, 6), hspace=0, wspace=0, title=None):
         """ Clear figure and create new plot layout.
 
         Parameters
@@ -151,7 +151,8 @@ class Figure(ViewParams):
         plt.clf()
         plt.rcParams["font.size"] = 8
         self.fig = plt.figure(1, dpi=self.dpi, facecolor='w', edgecolor='k')
-
+        if title is not None:
+            self.fig.suptitle(title, fontsize=16)
         sx, sy = self._get_grid(grid, panel_count)
         if self.output_filename != "":
             self.fig.set_figheight(panel_size[1] * sy)
@@ -1316,7 +1317,7 @@ class Viewer(Show, Figure, HelpDescription):
                     ix = 0
                     mdp = 0
                     while ix < len(pos) and pos[ix] <= pos2:
-                        if pos[ix] >= pos1 and (nref[ix] + nalt[ix]) != 0:
+                        if pos[ix] >= pos1 and (nref[ix] + nalt[ix]) != 0 and ((not self.snp_use_id) or (flag[ix] & 1)):
                             hpos.append(start_pos + pos[ix] - pos1)
                             if pos[ix] - pos1 > mdp:
                                 mdp = pos[ix] - pos1
@@ -1528,6 +1529,49 @@ class Viewer(Show, Figure, HelpDescription):
                     ax.axvline(i + 0.5, color="g", lw=1)
                 self.fig.add_subplot(ax)
 
+            elif panels[i] == "CN":
+                borders = []
+                gh1 = []
+                gh2 = []
+                tlen = 0
+                tlen_2d = 0
+                for c, (pos1, pos2) in r:
+                    his_p = io.get_signal(c, bin_size, "RD", flag_rd)
+                    start_bin = (pos1 - 1) // bin_size
+                    end_bin = pos2 // bin_size
+                    if end_bin > len(his_p):
+                        end_bin = len(his_p)
+                    h1 = np.array([0] * (end_bin - start_bin))
+                    h2 = np.array([0] * (end_bin - start_bin))
+                    h1[his_p != 0] = 1
+                    h2[his_p != 0] = 1
+
+                    flag = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0) | (
+                        FLAG_USEHAP if self.snp_use_phase else 0) | (
+                               FLAG_USEMASK if self.rd_use_mask else 0) | FLAG_GC_CORR
+                    flag_rd = FLAG_GC_CORR | (FLAG_USEMASK if self.rd_use_mask else 0)
+                    if io.signal_exists(c, bin_size, "calls combined", flag):
+                        calls = io.read_calls(c, bin_size, "calls combined", flag)
+                        segments = io.get_signal(c, bin_size, "RD mosaic segments 2d", flag_rd)
+                        segments = segments_decode(segments)
+
+                        for call in calls:
+                            for b in segments[int(call["segment"])]:
+                                if b < end_bin and b >= start_bin:
+                                    h1[b - start_bin] = call["models"][0][1]
+                                    h2[b - start_bin] = call["models"][0][2]
+                    gh1.extend(list(h1))
+                    gh2.extend(list(h2))
+                    borders.append(len(gh1) - 1)
+                x = range(len(gh1))
+                plt.gca().get_xaxis().get_major_formatter().set_useOffset(False)
+                plt.stackplot(x, gh1, gh2, baseline='sym')
+                ax.set_xlim([0, len(gh1)])
+
+                for i in borders[:-1]:
+                    ax.axvline(i + 0.5, color="g", lw=1)
+                self.fig.add_subplot(ax)
+
     def circular(self):
         chroms = self.chrom
         bin_size = self.bin_size
@@ -1564,10 +1608,15 @@ class Viewer(Show, Figure, HelpDescription):
                 snp_color = self.snp_circular_colors[j % len(self.snp_circular_colors)]
                 rd = io.get_signal(c, bin_size, "RD", rd_flag)
                 maf = io.get_signal(c, bin_size, "SNP maf", snp_flag)
+                c01 = io.get_signal(c, bin_size, "SNP bin count 0|1", snp_flag)
+                c10 = io.get_signal(c, bin_size, "SNP bin count 1|0", snp_flag)
+                hets = c01 + c10
+                maf[hets < (bin_size / 10000)] = 0
                 plt.polar(theta[tl:tl + maf.size], 1 - maf, color=snp_color, linewidth=0.3)
                 plt.fill_between(theta[tl:tl + maf.size], 1 - maf, np.ones_like(maf), color=snp_color, alpha=0.8)
-                plt.polar(theta[tl:tl + rd.size], rd / (3. * rd_mean), color=rd_color, linewidth=0.3)
-                plt.fill_between(theta[tl:tl + rd.size], np.ones_like(rd) / 10., rd / (3. * rd_mean), color=rd_color,
+                plt.polar(theta[tl:tl + rd.size], rd / (self.rd_range[1] * rd_mean / 2), color=rd_color, linewidth=0.3)
+                plt.fill_between(theta[tl:tl + rd.size], np.ones_like(rd) / 10., rd / (self.rd_range[1] * rd_mean / 2),
+                                 color=rd_color,
                                  alpha=0.8)
                 # ax.text(theta[tl + maf.size // 3], 0.8, c, fontsize=8)
                 labels.append(Genome.canonical_chrom_name(c))
@@ -1845,7 +1894,7 @@ class Viewer(Show, Figure, HelpDescription):
                     io.filename, region1, region2, fitm1, fits1, fitm2, fits2, pval, fitm1 / fitm2,
                     fitm1 / fitm2 * (fits1 / fitm1 / np.sqrt(sum(hist1)) + fits2 / fitm2 / np.sqrt(sum(hist2)))))
             ret.append([io.filename, region1, region2, fitm1, fits1, fitm2, fits2, pval, fitm1 / fitm2,
-                fitm1 / fitm2 * (fits1 / fitm1 / np.sqrt(sum(hist1)) + fits2 / fitm2 / np.sqrt(sum(hist2)))])
+                        fitm1 / fitm2 * (fits1 / fitm1 / np.sqrt(sum(hist1)) + fits2 / fitm2 / np.sqrt(sum(hist2)))])
 
             if plot:
                 x = np.linspace(bins[0], bins[-1], 1001)
@@ -1914,18 +1963,16 @@ class Viewer(Show, Figure, HelpDescription):
             h1 = np.ones_like(d1[0])
             h2 = np.ones_like(d2[0])
             for i in range(len(d1)):
-                if sum(d1[i])!=0:
+                if sum(d1[i]) != 0:
                     h1 *= d1[i]
                 h1 /= sum(h1)
             for i in range(len(d2)):
-                if sum(d2[i])!=0:
+                if sum(d2[i]) != 0:
                     h2 *= d2[i]
                 h2 /= sum(h2)
 
-
             b1, p1 = likelihood_baf_pval(h1)
             b2, p2 = likelihood_baf_pval(h2)
-
 
             if stdout:
                 print("%s\t%s\t%s\t%.4f\t%e\t%.4f\t%e" % (
@@ -1947,6 +1994,145 @@ class Viewer(Show, Figure, HelpDescription):
                 plt.show()
 
         return ret
+
+    def single_cell_allelic_dropout(self, callset=None, res=1000, n_bins=100, threshold=0.1, snp_threshold=0.01,
+                                    neigh=False, plot=False, stdout=True, title=None):
+        """
+        Function used to identify regions without allelic dropout in the case of single cell amplification.
+        It requires baf data for bin size. It will filter out all bins with at least one SNP bellow snp_threshold and
+        all bins with collective maximum baf likelihood bellow threshold parameter.
+
+        Parameters
+        ----------
+        callset : str or None
+            Name of callset if not default.
+        res : int
+            Resolution in bins used to calculate percentage of dropouts in region.
+        n_bins : int
+            Number of bins in histograms.
+        threshold : float
+            Collective threshold of AF for allelic dropout
+        snp_threshold : float
+            Single SNP threshold of AF for allelic dropout
+        neigh : bool
+            Remove neighbouring bins also.
+        plot : bool
+            Make plots.
+        stdout : bool
+            Print out good regions
+
+        """
+
+        if plot:
+            self.new_figure(panel_count=2, panel_size=(16, 6), hspace=0.2, wspace=0.2, title=title)
+            ax = self.next_panel()
+            bafG = []
+            baf = []
+            cpos = 0
+            sizeG = []
+            sizeB = []
+        for c in self.io[self.plot_file].snp_chromosomes():
+            if len(self.chrom) == 0 or (c in self.chrom):
+                snp_flag = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0) | (
+                    FLAG_USEHAP if self.snp_use_phase else 0)
+                i1 = self.io[self.plot_file].get_signal(c, self.bin_size, "SNP i1", snp_flag)
+                pos, ref, alt, nref, nalt, gt, flag, qual = self.io[self.plot_file].read_snp(c, callset=callset)
+                c00 = self.io[self.plot_file].get_signal(c, self.bin_size, "SNP bin count 0|0", snp_flag)
+                c11 = self.io[self.plot_file].get_signal(c, self.bin_size, "SNP bin count 1|1", snp_flag)
+                homs = c00 + c11
+                c01 = self.io[self.plot_file].get_signal(c, self.bin_size, "SNP bin count 0|1", snp_flag)
+                c10 = self.io[self.plot_file].get_signal(c, self.bin_size, "SNP bin count 1|0", snp_flag)
+                hets = c01 + c10
+                count = c01 + c10 + c00 + c11
+                mask = np.zeros_like(i1)
+                density = np.zeros(len(mask) // res)
+                # mask[hets == 0] = 1
+                mask[hets == 0] = 2
+                mask[i1 > (0.5 - threshold)] = 1
+                for ix in range(len(pos)):
+                    if (nref[ix] + nalt[ix]) != 0 and ((gt[ix] % 4) in [1, 2]):
+                        b = 1.0 * nalt[ix] / (nref[ix] + nalt[ix])
+                        if (b < snp_threshold) or (b > (1 - snp_threshold)):
+                            mask[(pos[ix] - 1) // self.bin_size] = 1
+
+                if neigh:
+                    ada = mask == 1
+                    ada1 = np.roll(ada, 1)
+                    ada2 = np.roll(ada, -1)
+                    ada1[0] = False
+                    ada2[-1] = False
+                    mask[ada1] = 1
+                    mask[ada2] = 1
+                ix = 0
+                while ix < len(mask):
+                    if mask[ix] == 2:
+                        adan = 0
+                        if ix > 0 and mask[ix - 1] == 1:
+                            adan = 1
+                        jx = ix
+                        while jx < len(mask) and mask[jx] == 2:
+                            jx += 1
+                        if jx < len(mask) and mask[jx] == 1:
+                            adan = 1
+                        mask[ix:jx] = adan
+                        ix = jx
+                    else:
+                        ix += 1
+                ix = 0
+                ojx = 0
+                while ix < len(mask):
+                    if mask[ix] == 0:
+                        jx = ix
+                        while jx < len(mask) and mask[jx] == 0:
+                            jx += 1
+                        if stdout:
+                            print("%s\t%d\t%d" % (c, ix * self.bin_size + 1, jx * self.bin_size))
+                        sizeG.append((jx-ix)*self.bin_size)
+                        if ix>ojx:
+                            sizeB.append((ix-ojx)*self.bin_size)
+                        ojx = jx
+                        ix = jx
+                    else:
+                        ix += 1
+                if plot:
+                    for ix in range(len(density)):
+                        density[ix] = np.mean(mask[res * ix:res * (ix + 1)])
+                    ax.plot(np.arange(cpos, cpos + len(density))*res, density)
+                    cpos += len(density)
+                    for ix in range(len(pos)):
+                        if (nref[ix] + nalt[ix]) != 0 and ((gt[ix] % 4) in [1, 2]):
+                            baf.append(1.0 * nalt[ix] / (nref[ix] + nalt[ix]))
+                            if mask[(pos[ix] - 1) // self.bin_size] == 0:
+                                bafG.append(1.0 * nalt[ix] / (nref[ix] + nalt[ix]))
+        ax.set_xlabel("Position in genome [bins]")
+        ax.set_ylabel("Percentage of allelic dropout")
+        ax.grid(True)
+        if plot:
+            self.new_subgrid(2, grid="horizontal", hspace=0.05, wspace=0.2)
+            ax = self.next_subpanel()
+            ms = 5*max(np.mean(sizeG),np.mean(sizeB))
+            ax.hist(sizeB, bins=np.arange(1,ms,self.bin_size), histtype="step", log=True,
+                    label="Allelic dropout regions", linewidth=3)
+            ax.hist(sizeG, bins=np.arange(1,ms,self.bin_size), histtype="step", log=True,
+                    label="Region with both alleles", linewidth=3)
+            ax.legend()
+            ax.grid(True)
+            ax.set_xlabel("Size [bp]")
+            ax.set_ylabel("Number of regions")
+            self.fig.add_subplot(ax)
+
+            ax = self.next_subpanel()
+            ax.hist(baf, bins=np.arange(0, 1.0 + 1. / (n_bins + 1), 1. / (n_bins + 1)),
+                    label="All heterozygous variants")
+            ax.hist(bafG, bins=np.arange(0, 1.0 + 1. / (n_bins + 1), 1. / (n_bins + 1)),
+                    label="Region with both alleles")
+            ax.legend()
+            ax.grid(True)
+            ax.set_xlabel("VAF")
+            ax.set_ylabel("Distribution")
+            self.fig.add_subplot(ax)
+
+            self.fig_show(suffix="allelic_dropout", top=0.95, bottom=0.05, left=0.1, right=0.95)
 
 
     def snp_dist(self, regions, callset=None, n_bins=100, gt_plot=[0, 1, 2, 3], titles=None):
@@ -1978,8 +2164,9 @@ class Viewer(Show, Figure, HelpDescription):
                             if flag[ix] & 2:
                                 bafP.append(1.0 * nalt[ix] / (nref[ix] + nalt[ix]))
                     ix += 1
-            ax.hist(baf, bins=np.arange(0, 1.0 + 1. / (n_bins + 1), 1. / (n_bins + 1)),label="All heterozygous variants")
-            ax.hist(bafP, bins=np.arange(0, 1.0 + 1. / (n_bins + 1), 1. / (n_bins + 1)),label="P bases only")
+            ax.hist(baf, bins=np.arange(0, 1.0 + 1. / (n_bins + 1), 1. / (n_bins + 1)),
+                    label="All heterozygous variants")
+            ax.hist(bafP, bins=np.arange(0, 1.0 + 1. / (n_bins + 1), 1. / (n_bins + 1)), label="P bases only")
             ax.legend()
             ax.set_xlabel("VAF")
             ax.set_ylabel("Distribution")
