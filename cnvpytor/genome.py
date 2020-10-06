@@ -10,7 +10,6 @@ import logging
 import pkg_resources
 import os
 
-
 _logger = logging.getLogger("cnvpytor.genome")
 
 
@@ -29,8 +28,8 @@ class Genome:
                  ("chr19", (59128983, "A")), ("chr20", (63025520, "A")), ("chr21", (48129895, "A")),
                  ("chr22", (51304566, "A")), ("chrX", (155270560, "S")), ("chrY", (59373566, "S")),
                  ("chrM", (16571, "M"))]),
-            "gc_file": pkg_resources.resource_filename('cnvpytor', 'data')+"/gc_hg19.pytor",
-            "mask_file": pkg_resources.resource_filename('cnvpytor', 'data')+"/mask_hg19.pytor"
+            "gc_file": pkg_resources.resource_filename('cnvpytor', 'data') + "/gc_hg19.pytor",
+            "mask_file": pkg_resources.resource_filename('cnvpytor', 'data') + "/mask_hg19.pytor"
         },
         "hg38": {
             "name": "GRCh38",
@@ -91,7 +90,6 @@ class Genome:
         """
         return "chr" + Genome.canonical_chrom_name(name)
 
-
     @classmethod
     def check_resources(cls):
         """
@@ -123,11 +121,11 @@ class Genome:
                 _logger.info("Detecting missing GC resource file for reference genome '%s'" % i)
                 res = cls.reference_genomes[i]["gc_file"]
                 fn = res.split("/")[-1]
-                url = "https://github.com/abyzovlab/CNVpytor/raw/master/cnvpytor/data/"+fn
+                url = "https://github.com/abyzovlab/CNVpytor/raw/master/cnvpytor/data/" + fn
                 if is_downloadable(url):
-                    _logger.info("Downloading GC resource file: %s",fn)
+                    _logger.info("Downloading GC resource file: %s", fn)
                     try:
-                        download(url,res)
+                        download(url, res)
                         _logger.info("File downlaoded.")
                     except Exception as e:
                         _logger.error("Problem with downloading/saving resource files.")
@@ -139,11 +137,11 @@ class Genome:
                 _logger.info("Detecting missing MASK resource file for reference genome '%s'" % i)
                 res = cls.reference_genomes[i]["mask_file"]
                 fn = res.split("/")[-1]
-                url = "https://github.com/abyzovlab/CNVpytor/raw/master/cnvpytor/data/"+fn
+                url = "https://github.com/abyzovlab/CNVpytor/raw/master/cnvpytor/data/" + fn
                 if is_downloadable(url):
-                    _logger.info("Downloading MASK resource file: %s",fn)
+                    _logger.info("Downloading MASK resource file: %s", fn)
                     try:
-                        download(url,res)
+                        download(url, res)
                         _logger.info("File downlaoded.")
                     except Exception as e:
                         _logger.error("Problem with downloading/saving resource files.")
@@ -240,7 +238,9 @@ class Genome:
             found = True
             checked = False
             for c, l in zip(names, lengths):
-                if (cls.extended_chrom_name(c) in cls.reference_genomes[g]["chromosomes"]) and (not cls.is_mt_chrom(c)):
+                if ((c in cls.reference_genomes[g]["chromosomes"]) or (
+                        cls.extended_chrom_name(c) in cls.reference_genomes[g]["chromosomes"])) and (
+                not cls.is_mt_chrom(c)):
                     checked = True
                     found = found and (cls.reference_genomes[g]["chromosomes"][cls.extended_chrom_name(c)][0] == l)
             if checked and found:
@@ -282,7 +282,7 @@ class Genome:
 
         """
         _logger.info("Reading configuration file '%s'." % filename)
-        exec(open(filename).read(),globals())
+        exec (open(filename).read(), globals())
         for g in import_reference_genomes:
             _logger.info("Importing reference genome data: '%s'." % g)
             cls.reference_genomes[g] = import_reference_genomes[g]

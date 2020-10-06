@@ -1612,17 +1612,22 @@ class Viewer(Show, Figure, HelpDescription):
                 c10 = io.get_signal(c, bin_size, "SNP bin count 1|0", snp_flag)
                 hets = c01 + c10
                 maf[hets < (bin_size / 10000)] = 0
-                plt.polar(theta[tl:tl + maf.size], 1 - maf, color=snp_color, linewidth=0.3)
-                plt.fill_between(theta[tl:tl + maf.size], 1 - maf, np.ones_like(maf), color=snp_color, alpha=0.8)
-                plt.polar(theta[tl:tl + rd.size], rd / (self.rd_range[1] * rd_mean / 2), color=rd_color, linewidth=0.3)
-                plt.fill_between(theta[tl:tl + rd.size], np.ones_like(rd) / 10., rd / (self.rd_range[1] * rd_mean / 2),
+                plt.polar(theta[tl:tl + maf.size], 1 - maf/2, color=snp_color, linewidth=0.3)
+                plt.fill_between(theta[tl:tl + maf.size], 1 - maf/2, np.ones_like(maf), color=snp_color, alpha=0.8)
+                plt.polar(theta[tl:tl + rd.size], np.ones_like(rd) / 10. + 0.7 * rd / (self.rd_range[1] * rd_mean / 2),
+                          color=rd_color, linewidth=0.3)
+                plt.fill_between(theta[tl:tl + rd.size], np.ones_like(rd) / 10.,
+                                 np.ones_like(rd) / 10. + 0.7 * rd / (self.rd_range[1] * rd_mean / 2),
                                  color=rd_color,
                                  alpha=0.8)
+
                 # ax.text(theta[tl + maf.size // 3], 0.8, c, fontsize=8)
                 labels.append(Genome.canonical_chrom_name(c))
                 angles.append(180 * theta[tl + rd.size // 2] / np.pi)
                 tl += l // bin_size + 1
-            ax.set_rmax(0.9)
+            for cn in range(int(self.rd_range[1])):
+                plt.polar(theta, np.ones_like(theta) * (0.1 + 0.7*(cn / self.rd_range[1])),color="k", linewidth=0.1)
+            ax.set_rmax(1.0)
             ax.set_rticks([])
             ax.set_thetagrids(angles, labels=labels, fontsize=10, weight="bold", color="black")
             ax.set_title(self.file_title(ix[i]), loc="left", fontsize=10, weight="bold", color="black")
@@ -2087,9 +2092,9 @@ class Viewer(Show, Figure, HelpDescription):
                             jx += 1
                         if stdout:
                             print("%s\t%d\t%d" % (c, ix * self.bin_size + 1, jx * self.bin_size))
-                        sizeG.append((jx-ix)*self.bin_size)
-                        if ix>ojx:
-                            sizeB.append((ix-ojx)*self.bin_size)
+                        sizeG.append((jx - ix) * self.bin_size)
+                        if ix > ojx:
+                            sizeB.append((ix - ojx) * self.bin_size)
                         ojx = jx
                         ix = jx
                     else:
@@ -2097,7 +2102,7 @@ class Viewer(Show, Figure, HelpDescription):
                 if plot:
                     for ix in range(len(density)):
                         density[ix] = np.mean(mask[res * ix:res * (ix + 1)])
-                    ax.plot(np.arange(cpos, cpos + len(density))*res, density)
+                    ax.plot(np.arange(cpos, cpos + len(density)) * res, density)
                     cpos += len(density)
                     for ix in range(len(pos)):
                         if (nref[ix] + nalt[ix]) != 0 and ((gt[ix] % 4) in [1, 2]):
@@ -2110,10 +2115,10 @@ class Viewer(Show, Figure, HelpDescription):
         if plot:
             self.new_subgrid(2, grid="horizontal", hspace=0.05, wspace=0.2)
             ax = self.next_subpanel()
-            ms = 5*max(np.mean(sizeG),np.mean(sizeB))
-            ax.hist(sizeB, bins=np.arange(1,ms,self.bin_size), histtype="step", log=True,
+            ms = 5 * max(np.mean(sizeG), np.mean(sizeB))
+            ax.hist(sizeB, bins=np.arange(1, ms, self.bin_size), histtype="step", log=True,
                     label="Allelic dropout regions", linewidth=3)
-            ax.hist(sizeG, bins=np.arange(1,ms,self.bin_size), histtype="step", log=True,
+            ax.hist(sizeG, bins=np.arange(1, ms, self.bin_size), histtype="step", log=True,
                     label="Region with both alleles", linewidth=3)
             ax.legend()
             ax.grid(True)
@@ -2133,7 +2138,6 @@ class Viewer(Show, Figure, HelpDescription):
             self.fig.add_subplot(ax)
 
             self.fig_show(suffix="allelic_dropout", top=0.95, bottom=0.05, left=0.1, right=0.95)
-
 
     def snp_dist(self, regions, callset=None, n_bins=100, gt_plot=[0, 1, 2, 3], titles=None):
         regions = regions.split(" ")

@@ -303,7 +303,6 @@ class IO(Signals):
         chrs = []
         for key in self.file.keys():
             res = re.findall(search_string, key)
-            res = re.findall(search_string, key)
             if len(res) > 0:
                 chrs.append(res[0])
         return chrs
