@@ -298,7 +298,7 @@ class IO(Signals):
             List of chromosome names.
 
         """
-        #search_string = "^" + self.signal_name("(.[^_]*)", bin_size, signal, flags, name) + "$"
+        # search_string = "^" + self.signal_name("(.[^_]*)", bin_size, signal, flags, name) + "$"
         search_string = "^" + self.signal_name("(.*)", bin_size, signal, flags, name) + "$"
         chrs = []
         for key in self.file.keys():
@@ -328,7 +328,7 @@ class IO(Signals):
             List of tuples (chromosome name, bin size).
 
         """
-        #search_string = "^" + self.signal_name("(.[^_]*)", 17110806, signal, flags, name) + "$"
+        # search_string = "^" + self.signal_name("(.[^_]*)", 17110806, signal, flags, name) + "$"
         search_string = "^" + self.signal_name("(.*)", 17110806, signal, flags, name) + "$"
         search_string = search_string.replace("17110806", "(.[0-9]*)")
         chrs_bss = []
@@ -691,14 +691,16 @@ class IO(Signals):
         """
         if callset is None:
             if update:
-                _logger.info("Updating SNP data for chromosome '%s'." % chr_name)
+                _logger.info("Updating SNP data for chromosome '%s'. Number of variants: %d." % (chr_name, len(pos)))
             else:
-                _logger.info("Saving SNP data for chromosome '%s'." % chr_name)
+                _logger.info("Saving SNP data for chromosome '%s'. Number of variants: %d." % (chr_name, len(pos)))
         else:
             if update:
-                _logger.info("Updating somatic '%s' SNV data for chromosome '%s'." % (callset, chr_name))
+                _logger.info("Updating somatic '%s' SNV data for chromosome '%s'. Number of variants: %d." % (
+                callset, chr_name, len(pos)))
             else:
-                _logger.info("Saving somatic '%s' SNV data for chromosome '%s'." % (callset, chr_name))
+                _logger.info("Saving somatic '%s' SNV data for chromosome '%s'. Number of variants: %d." % (
+                callset, chr_name, len(pos)))
         snp_pos, snp_desc, snp_counts, snp_qual = snp_compress(pos, ref, alt, nref, nalt, gt, flag, qual)
         rd_name = self.rd_chromosome_name(chr_name)
         if not update and not (rd_name is None):
@@ -1017,7 +1019,7 @@ class IO(Signals):
                     item.extend(model)
             data.append(item)
         data = np.array(data, dtype=np.double)
-        x=self.create_signal(chr_name, bin_size, signal, data, flags=flags)
+        x = self.create_signal(chr_name, bin_size, signal, data, flags=flags)
 
     def read_calls(self, chr_name, bin_size, signal, flags):
         data = self.get_signal(chr_name, bin_size, signal, flags=flags)
@@ -1030,7 +1032,7 @@ class IO(Signals):
             call = {}
             nkeys = int(item[0])
             for ix in range(1, nkeys + 1):
-                call[keys[ix-1]] = item[ix]
+                call[keys[ix - 1]] = item[ix]
 
             if len(item) > (nkeys + 1):
                 call["models"] = []

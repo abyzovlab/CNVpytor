@@ -237,7 +237,8 @@ class Root:
             self.io.create_signal(None, 100, "GC corr", gc_corr_mt, flags=FLAG_MT)
 
     def _read_vcf(self, vcf_file, chroms, sample='', use_index=False, no_counts=False, ad_tag="AD", gt_tag="GT",
-                  callset=None):
+                  filter=True, callset=None):
+
         vcff = Vcf(vcf_file)
         chrs = [c for c in vcff.get_chromosomes() if len(chroms) == 0 or c in chroms]
 
@@ -259,11 +260,12 @@ class Root:
             for c in chrs:
                 _logger.info("Reading variant data for chromosome %s" % c)
                 if no_counts:
-                    pos, ref, alt, gt, flag, qual = vcff.read_chromosome_snp_no_counts(c, sample, gt_tag=gt_tag)
+                    pos, ref, alt, gt, flag, qual = vcff.read_chromosome_snp_no_counts(c, sample, gt_tag=gt_tag,
+                                                                                       filter=filter)
                     nref, nalt = np.zeros_like(pos), np.zeros_like(pos)
                 else:
                     pos, ref, alt, nref, nalt, gt, flag, qual = vcff.read_chromosome_snp(c, sample, ad_tag=ad_tag,
-                                                                                         gt_tag=gt_tag)
+                                                                                         gt_tag=gt_tag, filter=filter)
 
                 if not pos is None and len(pos) > 0:
                     self.io.save_snp(c, pos, ref, alt, nref, nalt, gt, flag, qual, callset=callset,
@@ -272,9 +274,9 @@ class Root:
             return count
         else:
             if no_counts:
-                return vcff.read_all_snp_no_counts(save_data_no_counts, sample, gt_tag=gt_tag)
+                return vcff.read_all_snp_no_counts(save_data_no_counts, sample, gt_tag=gt_tag, filter=filter)
             else:
-                return vcff.read_all_snp(save_data, sample, ad_tag=ad_tag, gt_tag=gt_tag)
+                return vcff.read_all_snp(save_data, sample, ad_tag=ad_tag, gt_tag=gt_tag, filter=filter)
 
     def rd(self, bamfiles, chroms=[], reference_filename=False, overwrite=False):
         """ Read chromosomes from bam/sam/cram file(s) and store in cnvpytor file.
@@ -303,8 +305,8 @@ class Root:
                 self.io_gc = IO(Genome.reference_genomes[rg_name]["gc_file"])
                 self.rd_stat()
 
-    def vcf(self, vcf_files, chroms=[], sample='', no_counts=False, ad_tag="AD", gt_tag="GT", callset=None,
-            use_index=True):
+    def vcf(self, vcf_files, chroms=[], sample='', no_counts=False, ad_tag="AD", gt_tag="GT", filter=True,
+            callset=None, use_index=True):
         """ Read SNP data from variant file(s) and store in .cnvpytor file
 
         Parameters
@@ -321,6 +323,8 @@ class Root:
             AD tag (default 'AD').
         gt_tag : str
             GT tag (default 'GT').
+        filter : bool
+            If True it will read only variants with PASS filter, otherwise all
         callset : str or None
             It will assume SNP data if None. Otherwise it will assume SNV data and
             store under the name provided by callset variable.
@@ -329,7 +333,7 @@ class Root:
 
         """
         for vcf_file in vcf_files:
-            self._read_vcf(vcf_file, chroms, sample, no_counts=no_counts, ad_tag=ad_tag, gt_tag=gt_tag,
+            self._read_vcf(vcf_file, chroms, sample, no_counts=no_counts, ad_tag=ad_tag, gt_tag=gt_tag, filter=filter,
                            callset=callset, use_index=use_index)
             self.io.add_meta_attribute("VCF", vcf_file)
 
@@ -2107,7 +2111,6 @@ class Root:
             #     # plt.show()
             # else:
             #     _logger.info("Fit was not successful. Rejecting hypothesis.")
-
 
             _logger.info("Updating RD normal levels: mean = %.4f, stdev = %.4f !" % (fitm, fits))
             self.io.set_rd_normal_level(bin_size, fitm, fits, flags=flag_rd)
