@@ -828,6 +828,7 @@ class Viewer(Show, Figure, HelpDescription):
             hpos = []
             baf = []
             color = []
+            qlpha = 0.7
             for i in range(len(pos)):
                 if (nref[i] + nalt[i]) != 0:
                     if (gt[i] % 4 in plot_gt) and ((flag[i] >> 1) in plot_pmask):
@@ -836,7 +837,11 @@ class Viewer(Show, Figure, HelpDescription):
                             baf.append(1.0 * nalt[i] / (nref[i] + nalt[i]))
                         else:
                             baf.append(1.0 * nref[i] / (nref[i] + nalt[i]))
-                        color.append(self.snp_colors[(gt[i] % 4) * 2 + (flag[i] >> 1)])
+                        if self.snp_alpha_P:
+                            alpha = None
+                            color.append(colors.to_rgba(self.snp_colors[(gt[i] % 4) * 2 + 1], (flag[i] >> 1) * 0.4))
+                        else:
+                            color.append(self.snp_colors[(gt[i] % 4) * 2 + (flag[i] >> 1)])
 
             ax = self.next_panel()
             ax.set_title(c, position=(0.01, 0.9), fontdict={'verticalalignment': 'top', 'horizontalalignment': 'left'},
@@ -1311,6 +1316,7 @@ class Viewer(Show, Figure, HelpDescription):
                 hpos = []
                 baf = []
                 color = []
+                alpha = 0.7
                 start_pos = 0
                 for c, (pos1, pos2) in r:
                     pos, ref, alt, nref, nalt, gt, flag, qual = io.read_snp(c)
@@ -1325,7 +1331,11 @@ class Viewer(Show, Figure, HelpDescription):
                                 baf.append(1.0 * nalt[ix] / (nref[ix] + nalt[ix]))
                             else:
                                 baf.append(1.0 * nref[ix] / (nref[ix] + nalt[ix]))
-                            color.append(self.snp_colors[(gt[ix] % 4) * 2 + (flag[ix] >> 1)])
+                            if self.snp_alpha_P:
+                                alpha = None
+                                color.append(colors.to_rgba(self.snp_colors[(gt[ix] % 4) * 2 + 1],(flag[ix] >> 1)*0.4))
+                            else:
+                                color.append(self.snp_colors[(gt[ix] % 4) * 2 + (flag[ix] >> 1)])
                         ix += 1
                     start_pos += mdp
                     borders.append(start_pos)
@@ -1335,13 +1345,13 @@ class Viewer(Show, Figure, HelpDescription):
                 ax.yaxis.set_ticklabels(["0", "1/4", "1/2", "3/4", "1"])
                 ax.set_ylabel("Allele frequency")
                 l = max(hpos)
-                ax.set_ylim([0., 1.])
+                ax.set_ylim([-0.05, 1.05])
                 ax.set_xlim([0, borders[-1]])
                 ax.yaxis.grid()
                 if self.markersize == "auto":
-                    ax.scatter(hpos, baf, marker='.', edgecolor=color, c=color, s=10, alpha=0.7)
+                    ax.scatter(hpos, baf, marker='.', edgecolor=color, c=color, s=10, alpha=alpha)
                 else:
-                    ax.scatter(hpos, baf, marker='.', edgecolor=color, c=color, s=self.markersize, alpha=0.7)
+                    ax.scatter(hpos, baf, marker='.', edgecolor=color, c=color, s=self.markersize, alpha=alpha)
 
                 for i in borders[:-1]:
                     ax.axvline(i, color="g", lw=1)
@@ -1355,6 +1365,7 @@ class Viewer(Show, Figure, HelpDescription):
                 hpos = []
                 baf = []
                 color = []
+                alpha = 0.7
                 start_pos = 0
                 for c, (pos1, pos2) in r:
                     pos, ref, alt, nref, nalt, gt, flag, qual = io.read_snp(c, callset=callset)
@@ -1369,7 +1380,11 @@ class Viewer(Show, Figure, HelpDescription):
                                 baf.append(1.0 * nalt[ix] / (nref[ix] + nalt[ix]))
                             else:
                                 baf.append(1.0 * nref[ix] / (nref[ix] + nalt[ix]))
-                            color.append(self.snp_colors[(gt[ix] % 4) * 2 + (flag[ix] >> 1)])
+                            if self.snp_alpha_P:
+                                alpha = None
+                                color.append(colors.to_rgba(self.snp_colors[(gt[ix] % 4) * 2 + 1],(flag[ix] >> 1)*0.4))
+                            else:
+                                color.append(self.snp_colors[(gt[ix] % 4) * 2 + (flag[ix] >> 1)])
                         ix += 1
                     start_pos += mdp
                     borders.append(start_pos)
@@ -1383,9 +1398,9 @@ class Viewer(Show, Figure, HelpDescription):
                 ax.set_xlim([0, borders[-1]])
                 ax.yaxis.grid()
                 if self.markersize == "auto":
-                    ax.scatter(hpos, baf, marker='.', edgecolor=color, c=color, s=10, alpha=0.7)
+                    ax.scatter(hpos, baf, marker='.', edgecolor=color, c=color, s=10, alpha=alpha)
                 else:
-                    ax.scatter(hpos, baf, marker='.', edgecolor=color, c=color, s=self.markersize, alpha=0.7)
+                    ax.scatter(hpos, baf, marker='.', edgecolor=color, c=color, s=self.markersize, alpha=alpha)
 
                 for i in borders[:-1]:
                     ax.axvline(i, color="g", lw=1)
@@ -2166,7 +2181,7 @@ class Viewer(Show, Figure, HelpDescription):
                         else:
                             baf.append(1.0 * nref[ix] / (nref[ix] + nalt[ix]))
                             if flag[ix] & 2:
-                                bafP.append(1.0 * nalt[ix] / (nref[ix] + nalt[ix]))
+                                bafP.append(1.0 * nref[ix] / (nref[ix] + nalt[ix]))
                     ix += 1
             ax.hist(baf, bins=np.arange(0, 1.0 + 1. / (n_bins + 1), 1. / (n_bins + 1)),
                     label="All heterozygous variants")
@@ -2176,6 +2191,43 @@ class Viewer(Show, Figure, HelpDescription):
             ax.set_ylabel("Distribution")
 
         self.fig_show(suffix="snp_dist", top=0.9, bottom=0.1, left=0.125, right=0.9)
+
+    def phased_baf(self, regions, callset=None, print=False):
+        regions = regions.split(" ")
+        n = len(regions)
+        ret = []
+        for i in range(n):
+            regs = decode_region(regions[i])
+            talt = 0
+            tref = 0
+            taltP = 0
+            trefP = 0
+            for c, (pos1, pos2) in regs:
+                pos, ref, alt, nref, nalt, gt, flag, qual = self.io[self.plot_file].read_snp(c, callset=callset)
+                ix = 0
+                while ix < len(pos) and pos[ix] <= pos2:
+                    if pos[ix] >= pos1 and (nref[ix] + nalt[ix]) != 0:
+                        if gt[ix] == 5:
+                            talt += nalt[ix]
+                            tref += nref[ix]
+                            if flag[ix] & 2:
+                                taltP += nalt[ix]
+                                trefP += nref[ix]
+                        elif gt[ix] == 6:
+                            tref += nalt[ix]
+                            talt += nref[ix]
+                            if flag[ix] & 2:
+                                trefP += nalt[ix]
+                                taltP += nref[ix]
+                    ix += 1
+            baf = talt / (tref + talt)
+            bafP = taltP / (trefP + taltP)
+            ret.append([baf,bafP])
+            if print:
+                print("%s\t%f\t%f" % (regions[i], baf, bafP))
+        return ret
+
+
 
     def snp_compare(self, regions, ix1, ix2, callset=None, n_bins=100, titles=None, test_loh=False):
         regions = regions.split(" ")

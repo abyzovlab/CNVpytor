@@ -36,7 +36,8 @@ class ViewParams(object):
         "lh_marker": "_",
         "rd_colors": ["grey", "black", "red", "green", "blue", "cyan"],
         "legend": False,
-        "snp_colors": ["yellow", "orange", "cyan", "blue", "lime", "green", "yellow", "orange"],
+        "snp_colors": ["orange", "brown", "green", "blue", "yellow", "red", "orange", "brown"],
+        "snp_alpha_P": False,
         "rd_circular_colors": ["#555555", "#aaaaaa"],
         "snp_circular_colors": ["#00ff00", "#0000ff"],
         "baf_colors": ["gray", "black", "red", "green", "blue"],
@@ -584,12 +585,22 @@ class HelpDescription(object):
                    "    " + TerminalColor.CYAN + "0|1 out of P region, " + TerminalColor.BLUE + "0|1 inside P region,\n" +
                    "    " + TerminalColor.GREEN2 + "1|0 out of P region, " + TerminalColor.GREEN + "1|0 inside P region,\n" +
                    "    " + TerminalColor.YELLOW + "1|1 out of P region, " + TerminalColor.YELLOW2 + "1|1 inside P region.\n" +
-                   TerminalColor.DARKCYAN + "P region refers to 1kG project strict mask.",
+                   TerminalColor.DARKCYAN + "P region refers to 1kG project strict mask.\n" +
+                   "If snp_alpha_P is set, transparency will be used instead colors for out of P region SNPs.\n",
             p_type="list of strings",
             p_default=str(default["snp_colors"]),
             p_affects="snp, region plot with snp panel",
             p_example="set snp_colors red grey green black blue yellow orange cyan\nunset snp_colors\nset snp_colors.7 red",
             p_see="markersize, rd_colors, baf_colors, lh_colors"
+        ),
+        "snp_alpha_P": help_format(
+            topic="snp_alpha_P",
+            p_desc="If set, alpha color value will be used for non-P region SNPs.",
+            p_type="bool",
+            p_default=str(default["snp_alpha_P"]),
+            p_affects="region plot, snp",
+            p_example="set snp_alpha_P\nunset snp_alpha_P",
+            p_see="snp_colors, snp_use_mask, snp_use_id"
         ),
         "baf_colors": help_format(
             topic="baf_colors",
