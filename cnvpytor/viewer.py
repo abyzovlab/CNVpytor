@@ -839,7 +839,7 @@ class Viewer(Show, Figure, HelpDescription):
                             baf.append(1.0 * nref[i] / (nref[i] + nalt[i]))
                         if self.snp_alpha_P:
                             alpha = None
-                            color.append(colors.to_rgba(self.snp_colors[(gt[i] % 4) * 2 + 1], (flag[i] >> 1) * 0.4))
+                            color.append(colors.to_rgba(self.snp_colors[(gt[i] % 4) * 2 + 1], 0.4 + (flag[i] >> 1) * 0.4))
                         else:
                             color.append(self.snp_colors[(gt[i] % 4) * 2 + (flag[i] >> 1)])
 
@@ -1333,7 +1333,7 @@ class Viewer(Show, Figure, HelpDescription):
                                 baf.append(1.0 * nref[ix] / (nref[ix] + nalt[ix]))
                             if self.snp_alpha_P:
                                 alpha = None
-                                color.append(colors.to_rgba(self.snp_colors[(gt[ix] % 4) * 2 + 1],(flag[ix] >> 1)*0.4))
+                                color.append(colors.to_rgba(self.snp_colors[(gt[ix] % 4) * 2 + 1],0.4+(flag[ix] >> 1)*0.4))
                             else:
                                 color.append(self.snp_colors[(gt[ix] % 4) * 2 + (flag[ix] >> 1)])
                         ix += 1
@@ -1382,7 +1382,7 @@ class Viewer(Show, Figure, HelpDescription):
                                 baf.append(1.0 * nref[ix] / (nref[ix] + nalt[ix]))
                             if self.snp_alpha_P:
                                 alpha = None
-                                color.append(colors.to_rgba(self.snp_colors[(gt[ix] % 4) * 2 + 1],(flag[ix] >> 1)*0.4))
+                                color.append(colors.to_rgba(self.snp_colors[(gt[ix] % 4) * 2 + 1],0.4 + (flag[ix] >> 1)*0.4))
                             else:
                                 color.append(self.snp_colors[(gt[ix] % 4) * 2 + (flag[ix] >> 1)])
                         ix += 1
