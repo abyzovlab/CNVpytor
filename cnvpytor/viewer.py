@@ -132,7 +132,7 @@ class Figure(ViewParams):
         self.current = -1
         self.sg_current = -1
 
-    def new_figure(self, panel_count, grid="auto", panel_size=(8, 6), hspace=0, wspace=0, title=None):
+    def new_figure(self, panel_count, grid="auto", panel_size=None, hspace=0, wspace=0, title=None):
         """ Clear figure and create new plot layout.
 
         Parameters
@@ -145,7 +145,8 @@ class Figure(ViewParams):
             size of a single panel (only when plots in file)
 
         """
-
+        if panel_size is None:
+            panel_size=self.panel_size
         if grid == "auto":
             grid = self.grid
         plt.clf()
@@ -269,9 +270,9 @@ class Figure(ViewParams):
             _logger.warning("File extension should be: .jpg, .png, .svg, .eps or .pdf")
             return None
         if suffix == "":
-            suffix = str(self.count)
+            suffix = str(self.count).zfill(4)
         else:
-            suffix += "." + str(self.count)
+            suffix += "." + str(self.count).zfill(4)
         self.count += 1
         parts[-1] = suffix + "." + parts[-1]
         return ".".join(parts)
@@ -828,6 +829,7 @@ class Viewer(Show, Figure, HelpDescription):
             hpos = []
             baf = []
             color = []
+            qlpha = 0.7
             for i in range(len(pos)):
                 if (nref[i] + nalt[i]) != 0:
                     if (gt[i] % 4 in plot_gt) and ((flag[i] >> 1) in plot_pmask):
@@ -836,7 +838,11 @@ class Viewer(Show, Figure, HelpDescription):
                             baf.append(1.0 * nalt[i] / (nref[i] + nalt[i]))
                         else:
                             baf.append(1.0 * nref[i] / (nref[i] + nalt[i]))
-                        color.append(self.snp_colors[(gt[i] % 4) * 2 + (flag[i] >> 1)])
+                        if self.snp_alpha_P:
+                            alpha = None
+                            color.append(colors.to_rgba(self.snp_colors[(gt[i] % 4) * 2 + 1], (flag[i] >> 1) * 0.4))
+                        else:
+                            color.append(self.snp_colors[(gt[i] % 4) * 2 + (flag[i] >> 1)])
 
             ax = self.next_panel()
             ax.set_title(c, position=(0.01, 0.9), fontdict={'verticalalignment': 'top', 'horizontalalignment': 'left'},
@@ -854,6 +860,76 @@ class Viewer(Show, Figure, HelpDescription):
             else:
                 ax.scatter(hpos, baf, marker='.', edgecolor=color, c=color, s=self.markersize, alpha=0.7)
         self.fig_show(suffix="rd")
+
+    def print_calls(self, call_type="ms", plot=False):
+        bin_size = self.bin_size
+        n = len(self.plot_files)
+        ix = self.plot_files
+        for i in range(n):
+            io = self.io[ix[i]]
+            if call_type == "ms":
+                chroms = io.rd_chromosomes()
+                for c in chroms:
+                    if (c in self.chrom) or len(self.chrom) == 0:
+                        flag = (FLAG_USEMASK if self.rd_use_mask else 0) | FLAG_GC_CORR
+                        if io.signal_exists(c, bin_size, "calls", flag):
+                            calls = io.read_calls(c, bin_size, "calls", flag)
+                            for call in calls:
+                                if in_interval(call["size"], self.size_range) \
+                                        and in_interval(call["p_val"], self.p_range) \
+                                        and in_interval(call["pN"], self.pN_range) \
+                                        and in_interval(call["Q0"], self.Q0_range):
+                                    type = "duplication" if call["type"] == 1 else "deletion"
+                                    if n > 1:
+                                        print("%s\t" % self.file_title(i), end="")
+                                    print("%s\t%s:%d-%d\t%d\t%.4f\t%e\t%e\t%e\t%e\t%.4f\t%.4f\t" % (
+                                        type, c, call["start"], call["end"], call["size"], call["cnv"], call["p_val"],
+                                        call["p_val_2"], call["p_val_3"], call["p_val_4"], call["Q0"], call["pN"]))
+                                    if plot:
+                                        plot_start = call["start"]-call["size"]
+                                        if plot_start<0:
+                                            plot_start=0
+                                        plot_end = call["end"]+call["size"]
+                                        self.multiple_regions(["%s:%d-%d" % (c, plot_start, plot_end)])
+
+    def print_joint_calls(self, call_type="ms", plot=False):
+        bin_size = self.bin_size
+        n = len(self.plot_files)
+        ix = self.plot_files
+        for c in self.chrom:
+            flag = (FLAG_USEMASK if self.rd_use_mask else 0) | FLAG_GC_CORR
+            calls = [list(filter(lambda call:in_interval(call["size"], self.size_range) \
+                                        and in_interval(call["p_val"], self.p_range) \
+                                        and in_interval(call["pN"], self.pN_range) \
+                                        and in_interval(call["Q0"], self.Q0_range), self.io[ix[i]].read_calls(c, bin_size, "calls", flag))) for i in range(n)]
+            pointers = [0] * n
+            while any([pointers[i]<len(calls[i]) for i in range(n)]):
+                starts = [calls[i][pointers[i]]["start"] if pointers[i]<len(calls[i]) else np.inf for i in range(n)]
+                mini = starts.index(min(starts))
+                maxend = 0
+                toupdate = []
+                for i in range(n):
+                    if (pointers[i] < len(calls[i])) and ((min(calls[i][pointers[i]]["end"],calls[mini][pointers[mini]]["end"])-calls[i][pointers[i]]["start"])>(0.5*calls[mini][pointers[mini]]["size"])):
+                        toupdate.append(i)
+                        call = calls[i][pointers[i]]
+                        if call["end"]>maxend:
+                            maxend = call["end"]
+                        type = "duplication" if call["type"] == 1 else "deletion"
+                        print("%s\t%s:%d-%d\t%d\t%.4f\t%e\t%e\t%e\t%e\t%.4f\t%.4f\t" % (
+                            type, c, call["start"], call["end"], call["size"], call["cnv"], call["p_val"],
+                            call["p_val_2"], call["p_val_3"], call["p_val_4"], call["Q0"], call["pN"]),end="")
+                    else:
+                        print("/\t/\t/\t/\t/\t/\t/\t/\t/\t/\t",end="")
+                print()
+                if plot:
+                    plot_start = calls[mini][pointers[mini]]["start"] - calls[mini][pointers[mini]]["size"]
+                    if plot_start < 0:
+                        plot_start = 0
+                    plot_end = calls[mini][pointers[mini]]["end"] + calls[mini][pointers[mini]]["size"]
+                    self.multiple_regions(["%s:%d-%d" % (c, plot_start, plot_end)])
+                for i in toupdate:
+                    pointers[i] += 1
+
 
     def manhattan(self, plot_type="rd"):
         bin_size = self.bin_size
@@ -981,16 +1057,14 @@ class Viewer(Show, Figure, HelpDescription):
                 ax.yaxis.set_ticks(np.arange(0, 0.5, 0.1), minor=[])
                 ax.xaxis.set_ticks(xticks, minor=[])
                 ax.set_ylim([0, 0.5])
-            else:
+            elif plot_type == "calls_ms":
                 chroms = []
-                flag = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0) | (
-                    FLAG_USEHAP if self.snp_use_phase else 0) | (FLAG_USEMASK if self.rd_use_mask else 0) | FLAG_GC_CORR
+                flag = (FLAG_USEMASK if self.rd_use_mask else 0) | FLAG_GC_CORR
 
                 for c, (l, t) in self.reference_genome["chromosomes"].items():
                     snp_chr = io.snp_chromosome_name(c)
                     if len(self.chrom) == 0 or (snp_chr in self.chrom) or (c in self.chrom):
-                        if io.signal_exists(snp_chr, bin_size, "calls combined", flag) and \
-                                (Genome.is_autosome(c) or Genome.is_sex_chrom(c)):
+                        if (Genome.is_autosome(c) or Genome.is_sex_chrom(c)):
                             chroms.append((snp_chr, l))
 
                 apos = 0
@@ -999,24 +1073,83 @@ class Viewer(Show, Figure, HelpDescription):
                 cix = 0
                 cmap = list(map(colors.to_rgba, plt.rcParams['axes.prop_cycle'].by_key()['color']))
                 for c, l in chroms:
-                    calls = io.read_calls(c, bin_size, "calls combined", flag)
                     call_pos = []
                     call_conc = []
                     call_c = []
-                    for call in calls:
-                        if call["bins"] > self.min_segment_size:
-                            alpha = -np.log(call["p_val"] + 1e-40) / self.contrast
-                            if alpha > 1:
-                                alpha = 1
-                            for pos in range(int(call["start"]) // bin_size, int(call["end"]) // bin_size + 1):
-                                call_pos.append(apos + pos)
-                                call_conc.append(call["models"][0][4])
-                                if call["type"] == 1:
-                                    call_c.append((0, 1, 0, alpha))
-                                elif call["type"] == -1:
-                                    call_c.append((1, 0, 0, alpha))
-                                else:
-                                    call_c.append((0, 0, 1, alpha))
+                    if io.signal_exists(c, bin_size, "calls", flag):
+                        calls = io.read_calls(c, bin_size, "calls", flag)
+
+                        for call in calls:
+                            if in_interval(call["size"], self.size_range) and in_interval(call["p_val"], self.p_range) \
+                                    and in_interval(call["pN"], self.pN_range) \
+                                    and in_interval(call["Q0"], self.Q0_range):
+                                alpha = - np.log(call["p_val"] + 1e-40) / self.contrast
+                                if alpha > 1:
+                                    alpha = 1
+                                if alpha < 0:
+                                    alpha = 0
+                                for pos in range(int(call["start"]) // bin_size, int(call["end"]) // bin_size + 1):
+                                    call_pos.append(apos + pos)
+                                    level = call["cnv"] * 2
+                                    if level > 4:
+                                        level = 4
+                                    call_conc.append(level)
+                                    if call["type"] == 1:
+                                        call_c.append((0, 1, 0, alpha))
+                                    elif call["type"] == -1:
+                                        call_c.append((1, 0, 0, alpha))
+                                    else:
+                                        call_c.append((0, 0, 1, alpha))
+                    ax.text(apos + l // bin_size // 2, 0.4, Genome.canonical_chrom_name(c),
+                            fontsize=8, verticalalignment='bottom', horizontalalignment='center', )
+                    plt.scatter(call_pos, call_conc, s=20, color=np.array(call_c), edgecolors='face', marker='|')
+                    apos += l // bin_size
+                    xticks.append(apos)
+                    cix += 1
+
+                ax.xaxis.set_ticklabels([])
+                ax.yaxis.set_ticklabels([])
+                ax.yaxis.set_ticks(np.arange(0, 4.0, 1.0), minor=[])
+                ax.xaxis.set_ticks(xticks, minor=[])
+                ax.set_ylim([0, 4.0])
+
+            else:
+                chroms = []
+                flag = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0) | (
+                    FLAG_USEHAP if self.snp_use_phase else 0) | (FLAG_USEMASK if self.rd_use_mask else 0) | FLAG_GC_CORR
+
+                for c, (l, t) in self.reference_genome["chromosomes"].items():
+                    snp_chr = io.snp_chromosome_name(c)
+                    if len(self.chrom) == 0 or (snp_chr in self.chrom) or (c in self.chrom):
+                        if (Genome.is_autosome(c) or Genome.is_sex_chrom(c)):
+                            chroms.append((snp_chr, l))
+
+                apos = 0
+                xticks = [0]
+
+                cix = 0
+                cmap = list(map(colors.to_rgba, plt.rcParams['axes.prop_cycle'].by_key()['color']))
+                for c, l in chroms:
+                    call_pos = []
+                    call_conc = []
+                    call_c = []
+                    if io.signal_exists(c, bin_size, "calls combined", flag):
+                        calls = io.read_calls(c, bin_size, "calls combined", flag)
+
+                        for call in calls:
+                            if call["bins"] > self.min_segment_size:
+                                alpha = -np.log(call["p_val"] + 1e-40) / self.contrast
+                                if alpha > 1:
+                                    alpha = 1
+                                for pos in range(int(call["start"]) // bin_size, int(call["end"]) // bin_size + 1):
+                                    call_pos.append(apos + pos)
+                                    call_conc.append(call["models"][0][4])
+                                    if call["type"] == 1:
+                                        call_c.append((0, 1, 0, alpha))
+                                    elif call["type"] == -1:
+                                        call_c.append((1, 0, 0, alpha))
+                                    else:
+                                        call_c.append((0, 0, 1, alpha))
 
                     ax.text(apos + l // bin_size // 2, 0.4, Genome.canonical_chrom_name(c),
                             fontsize=8, verticalalignment='bottom', horizontalalignment='center', )
@@ -1277,8 +1410,9 @@ class Viewer(Show, Figure, HelpDescription):
                 ax.xaxis.set_major_locator(plt.MaxNLocator(5))
 
                 l = len(g_p)
-                ax.yaxis.set_ticks(np.arange(int(self.rd_range[0]), int(self.rd_range[1] + 1), 1) * mean / 2, minor=[])
-                ax.yaxis.set_ticklabels([str(i) for i in range(int(self.rd_range[0]), int(self.rd_range[1] + 1))])
+                if (self.rd_range[1]-self.rd_range[0])<30:
+                    ax.yaxis.set_ticks(np.arange(int(self.rd_range[0]), int(self.rd_range[1] + 1), 1) * mean / 2, minor=[])
+                    ax.yaxis.set_ticklabels([str(i) for i in range(int(self.rd_range[0]), int(self.rd_range[1] + 1))])
 
                 ax.set_ylim([self.rd_range[0] * mean, self.rd_range[1] * mean / 2])
 
@@ -1311,6 +1445,7 @@ class Viewer(Show, Figure, HelpDescription):
                 hpos = []
                 baf = []
                 color = []
+                alpha = 0.7
                 start_pos = 0
                 for c, (pos1, pos2) in r:
                     pos, ref, alt, nref, nalt, gt, flag, qual = io.read_snp(c)
@@ -1325,7 +1460,12 @@ class Viewer(Show, Figure, HelpDescription):
                                 baf.append(1.0 * nalt[ix] / (nref[ix] + nalt[ix]))
                             else:
                                 baf.append(1.0 * nref[ix] / (nref[ix] + nalt[ix]))
-                            color.append(self.snp_colors[(gt[ix] % 4) * 2 + (flag[ix] >> 1)])
+                            if self.snp_alpha_P:
+                                alpha = None
+                                color.append(
+                                    colors.to_rgba(self.snp_colors[(gt[ix] % 4) * 2 + 1], (flag[ix] >> 1) * 0.4))
+                            else:
+                                color.append(self.snp_colors[(gt[ix] % 4) * 2 + (flag[ix] >> 1)])
                         ix += 1
                     start_pos += mdp
                     borders.append(start_pos)
@@ -1335,13 +1475,13 @@ class Viewer(Show, Figure, HelpDescription):
                 ax.yaxis.set_ticklabels(["0", "1/4", "1/2", "3/4", "1"])
                 ax.set_ylabel("Allele frequency")
                 l = max(hpos)
-                ax.set_ylim([0., 1.])
+                ax.set_ylim([-0.05, 1.05])
                 ax.set_xlim([0, borders[-1]])
                 ax.yaxis.grid()
                 if self.markersize == "auto":
-                    ax.scatter(hpos, baf, marker='.', edgecolor=color, c=color, s=10, alpha=0.7)
+                    ax.scatter(hpos, baf, marker='.', edgecolor=color, c=color, s=10, alpha=alpha)
                 else:
-                    ax.scatter(hpos, baf, marker='.', edgecolor=color, c=color, s=self.markersize, alpha=0.7)
+                    ax.scatter(hpos, baf, marker='.', edgecolor=color, c=color, s=self.markersize, alpha=alpha)
 
                 for i in borders[:-1]:
                     ax.axvline(i, color="g", lw=1)
@@ -1355,6 +1495,7 @@ class Viewer(Show, Figure, HelpDescription):
                 hpos = []
                 baf = []
                 color = []
+                alpha = 0.7
                 start_pos = 0
                 for c, (pos1, pos2) in r:
                     pos, ref, alt, nref, nalt, gt, flag, qual = io.read_snp(c, callset=callset)
@@ -1369,7 +1510,12 @@ class Viewer(Show, Figure, HelpDescription):
                                 baf.append(1.0 * nalt[ix] / (nref[ix] + nalt[ix]))
                             else:
                                 baf.append(1.0 * nref[ix] / (nref[ix] + nalt[ix]))
-                            color.append(self.snp_colors[(gt[ix] % 4) * 2 + (flag[ix] >> 1)])
+                            if self.snp_alpha_P:
+                                alpha = None
+                                color.append(
+                                    colors.to_rgba(self.snp_colors[(gt[ix] % 4) * 2 + 1], (flag[ix] >> 1) * 0.4))
+                            else:
+                                color.append(self.snp_colors[(gt[ix] % 4) * 2 + (flag[ix] >> 1)])
                         ix += 1
                     start_pos += mdp
                     borders.append(start_pos)
@@ -1383,9 +1529,9 @@ class Viewer(Show, Figure, HelpDescription):
                 ax.set_xlim([0, borders[-1]])
                 ax.yaxis.grid()
                 if self.markersize == "auto":
-                    ax.scatter(hpos, baf, marker='.', edgecolor=color, c=color, s=10, alpha=0.7)
+                    ax.scatter(hpos, baf, marker='.', edgecolor=color, c=color, s=10, alpha=alpha)
                 else:
-                    ax.scatter(hpos, baf, marker='.', edgecolor=color, c=color, s=self.markersize, alpha=0.7)
+                    ax.scatter(hpos, baf, marker='.', edgecolor=color, c=color, s=self.markersize, alpha=alpha)
 
                 for i in borders[:-1]:
                     ax.axvline(i, color="g", lw=1)
@@ -1612,8 +1758,10 @@ class Viewer(Show, Figure, HelpDescription):
                 c10 = io.get_signal(c, bin_size, "SNP bin count 1|0", snp_flag)
                 hets = c01 + c10
                 maf[hets < (bin_size / 10000)] = 0
-                plt.polar(theta[tl:tl + maf.size], 1 - maf/2, color=snp_color, linewidth=0.3)
-                plt.fill_between(theta[tl:tl + maf.size], 1 - maf/2, np.ones_like(maf), color=snp_color, alpha=0.8)
+                #plt.polar(theta[tl:tl + maf.size], 1 - maf / 2, color=snp_color, linewidth=0.3)
+                #plt.fill_between(theta[tl:tl + maf.size], 1 - maf / 2, np.ones_like(maf), color=snp_color, alpha=0.8)
+                plt.polar(theta[tl:tl + maf.size], 1 - maf / 2, linewidth=0.3)
+                plt.fill_between(theta[tl:tl + maf.size], 1 - maf / 2, np.ones_like(maf), alpha=0.8)
                 plt.polar(theta[tl:tl + rd.size], np.ones_like(rd) / 10. + 0.7 * rd / (self.rd_range[1] * rd_mean / 2),
                           color=rd_color, linewidth=0.3)
                 plt.fill_between(theta[tl:tl + rd.size], np.ones_like(rd) / 10.,
@@ -1626,7 +1774,7 @@ class Viewer(Show, Figure, HelpDescription):
                 angles.append(180 * theta[tl + rd.size // 2] / np.pi)
                 tl += l // bin_size + 1
             for cn in range(int(self.rd_range[1])):
-                plt.polar(theta, np.ones_like(theta) * (0.1 + 0.7*(cn / self.rd_range[1])),color="k", linewidth=0.1)
+                plt.polar(theta, np.ones_like(theta) * (0.1 + 0.7 * (cn / self.rd_range[1])), color="k", linewidth=0.1)
             ax.set_rmax(1.0)
             ax.set_rticks([])
             ax.set_thetagrids(angles, labels=labels, fontsize=10, weight="bold", color="black")
@@ -2166,7 +2314,7 @@ class Viewer(Show, Figure, HelpDescription):
                         else:
                             baf.append(1.0 * nref[ix] / (nref[ix] + nalt[ix]))
                             if flag[ix] & 2:
-                                bafP.append(1.0 * nalt[ix] / (nref[ix] + nalt[ix]))
+                                bafP.append(1.0 * nref[ix] / (nref[ix] + nalt[ix]))
                     ix += 1
             ax.hist(baf, bins=np.arange(0, 1.0 + 1. / (n_bins + 1), 1. / (n_bins + 1)),
                     label="All heterozygous variants")
@@ -2176,6 +2324,41 @@ class Viewer(Show, Figure, HelpDescription):
             ax.set_ylabel("Distribution")
 
         self.fig_show(suffix="snp_dist", top=0.9, bottom=0.1, left=0.125, right=0.9)
+
+    def phased_baf(self, regions, callset=None, print=False):
+        regions = regions.split(" ")
+        n = len(regions)
+        ret = []
+        for i in range(n):
+            regs = decode_region(regions[i])
+            talt = 0
+            tref = 0
+            taltP = 0
+            trefP = 0
+            for c, (pos1, pos2) in regs:
+                pos, ref, alt, nref, nalt, gt, flag, qual = self.io[self.plot_file].read_snp(c, callset=callset)
+                ix = 0
+                while ix < len(pos) and pos[ix] <= pos2:
+                    if pos[ix] >= pos1 and (nref[ix] + nalt[ix]) != 0:
+                        if gt[ix] == 5:
+                            talt += nalt[ix]
+                            tref += nref[ix]
+                            if flag[ix] & 2:
+                                taltP += nalt[ix]
+                                trefP += nref[ix]
+                        elif gt[ix] == 6:
+                            tref += nalt[ix]
+                            talt += nref[ix]
+                            if flag[ix] & 2:
+                                trefP += nalt[ix]
+                                taltP += nref[ix]
+                    ix += 1
+            baf = talt / (tref + talt)
+            bafP = taltP / (trefP + taltP)
+            ret.append([baf, bafP])
+            if print:
+                print("%s\t%f\t%f" % (regions[i], baf, bafP))
+        return ret
 
     def snp_compare(self, regions, ix1, ix2, callset=None, n_bins=100, titles=None, test_loh=False):
         regions = regions.split(" ")
@@ -2257,7 +2440,40 @@ class Viewer(Show, Figure, HelpDescription):
 
         self.fig_show(suffix="snp_dist", top=0.9, bottom=0.1, left=0.125, right=0.9)
 
-    def genotype(self, bin_sizes, region, interactive=False):
+    def denovo_calls(self, sample, reference, call_type="mosaic"):
+        bin_size = self.bin_size
+        io = self.io[sample]
+        if call_type == "mosaic":
+            chroms = io.rd_chromosomes()
+            for c in chroms:
+                if (c in self.chrom) or len(self.chrom) == 0:
+                    flag = (FLAG_USEMASK if self.rd_use_mask else 0) | FLAG_GC_CORR
+                    if io.signal_exists(c, bin_size, "calls", flag):
+                        calls = io.read_calls(c, bin_size, "calls", flag)
+                        for call in calls:
+                            if in_interval(call["size"], self.size_range) \
+                                    and in_interval(call["p_val"], self.p_range) \
+                                    and in_interval(call["pN"], self.pN_range) \
+                                    and in_interval(call["Q0"], self.Q0_range):
+                                type = "duplication" if call["type"] == 1 else "deletion"
+                                region = "%s:%d-%d" % (c, call["start"], call["end"])
+
+                                cn0 = self.genotype([bin_size],region,plot_file=sample)[0][3]
+                                cref = list(map(lambda x:self.genotype([bin_size],region,plot_file=x)[0][3],reference))
+                                if (((sum(map(lambda x:0 if (cn0-x)>0.5 else 1, cref))==0) and cn0>2.5) \
+                                        or ((sum(map(lambda x:0 if (x-cn0)>0.5 else 1, cref))==0) and cn0<1.5))\
+                                        and (sum(map(lambda x:0 if np.abs(x-2.)<0.5 else 1, cref))==0):
+                                    print(type,region,call["cnv"],cn0,cref)
+
+                                # if n > 1:
+                                #     print("%s\t" % self.file_title(i), end="")
+                                # print("%s\t%s:%d-%d\t%d\t%.4f\t%e\t%e\t%e\t%e\t%.4f\t%.4f\t" % (
+                                #     type, c, call["start"], call["end"], call["size"], call["cnv"], call["p_val"],
+                                #     call["p_val_2"], call["p_val_3"], call["p_val_4"], call["Q0"], call["pN"]))
+
+    def genotype(self, bin_sizes, region, interactive=False, plot_file=None):
+        if plot_file is None:
+            plot_file = self.plot_file
         ret = []
         regs = decode_region(region)
         for c, (pos1, pos2) in regs:
@@ -2266,10 +2482,10 @@ class Viewer(Show, Figure, HelpDescription):
             ret.append([c, pos1, pos2])
             for bs in bin_sizes:
                 flag_rd = (FLAG_GC_CORR if self.rd_use_gc_corr else 0) | (FLAG_USEMASK if self.rd_use_mask else 0)
-                stat = self.io[self.plot_file].get_signal(c, bs, "RD stat", flag_rd | FLAG_AUTO)
+                stat = self.io[plot_file].get_signal(c, bs, "RD stat", flag_rd | FLAG_AUTO)
                 if stat is None or len(stat) == 0:
-                    stat = self.io[self.plot_file].get_signal(c, bs, "RD stat", flag_rd | FLAG_SEX)
-                his_p = self.io[self.plot_file].get_signal(c, bs, "RD", flag_rd)
+                    stat = self.io[plot_file].get_signal(c, bs, "RD stat", flag_rd | FLAG_SEX)
+                his_p = self.io[plot_file].get_signal(c, bs, "RD", flag_rd)
                 bin1 = (pos1 - 1) // bs
                 bin2 = (pos2 - 1) // bs
                 rc = 0

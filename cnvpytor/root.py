@@ -1100,6 +1100,7 @@ class Root:
                             self.io.signal_exists(c, bin_size, "RD", flag_rd) and \
                             self.io.signal_exists(c, bin_size, "RD partition", flag_rd):
                         _logger.debug("Calculating CNV calls using bin size %d for chromosome '%s'." % (bin_size, c))
+                        calls_list=[]
                         stat = self.io.get_signal(c, bin_size, "RD stat", flag_stat)
                         mean = stat[4]
                         std = stat[5]
@@ -1221,8 +1222,10 @@ class Root:
                             cnv = np.mean(rd[bs:b]) / mean
                             if cf.upper() == "D":
                                 etype = "deletion"
+                                netype = -1
                             else:
                                 etype = "duplication"
+                                netype = 1
                             start = bin_size * bs + 1
                             end = bin_size * b
                             size = end - start + 1
@@ -1245,6 +1248,20 @@ class Root:
                                 print("%s\t%s:%d-%d\t%d\t%.4f\t%e\t%e\t%e\t%e\t%.4f\t%.4f\t" % (
                                     etype, c, start, end, size, cnv, e1, e2, e3, e4, q0, pN))
                             ret[bin_size].append([etype, c, start, end, size, cnv, e1, e2, e3, e4, q0, pN])
+                            calls_list.append({
+                                "type": netype,
+                                "start": start,
+                                "end": end,
+                                "size": size,
+                                "cnv": cnv,
+                                "p_val": e1,
+                                "p_val_2": e2,
+                                "p_val_3": e3,
+                                "p_val_4": e4,
+                                "Q0": q0,
+                                "pN": pN
+                            })
+                        self.io.save_calls(c, bin_size, "calls", calls_list, flags=flag_rd)
         return ret
 
     def call_mosaic(self, bin_sizes, chroms=[], use_gc_corr=True, use_mask=False, omin=None,

@@ -23,6 +23,10 @@ class ViewParams(object):
         "rd_call_mosaic_2d": True,
         "rd_use_mask": False,
         "rd_use_gc_corr": True,
+        "Q0_range": [0,1],
+        "pN_range": [0,1],
+        "size_range":[0,np.inf],
+        "p_range":[0,np.inf],
         "rd_range": [0, 6],
         "rd_manhattan_range": [0, 2],
         "rd_manhattan_call": False,
@@ -36,7 +40,8 @@ class ViewParams(object):
         "lh_marker": "_",
         "rd_colors": ["grey", "black", "red", "green", "blue", "cyan"],
         "legend": False,
-        "snp_colors": ["yellow", "orange", "cyan", "blue", "lime", "green", "yellow", "orange"],
+        "snp_colors": ["orange", "brown", "green", "blue", "yellow", "red", "orange", "brown"],
+        "snp_alpha_P": False,
         "rd_circular_colors": ["#555555", "#aaaaaa"],
         "snp_circular_colors": ["#00ff00", "#0000ff"],
         "baf_colors": ["gray", "black", "red", "green", "blue"],
@@ -48,6 +53,7 @@ class ViewParams(object):
         "style": None,
         "grid": "auto",
         "subgrid": "vertical",
+        "panel_size": [8,6],
         "xkcd": False,
         "dpi": 200,
         "output_filename": "",
@@ -113,9 +119,24 @@ class ViewParams(object):
                         self.__setattr__(param, args[0])
                     else:
                         self.__setattr__(param, list(map(int, args[:2])))
+            elif param == "panel_size":
+                if len(args) > 0:
+                        self.__setattr__(param, list(map(float, args[:2])))
             elif param == "dpi":
                 if len(args) > 0:
                     self.__setattr__(param, int(args[0]))
+            elif param == "Q0_range":
+                    if len(args) > 1:
+                        self.__setattr__(param, list(map(float, args[:2])))
+            elif param == "pN_range":
+                    if len(args) > 1:
+                        self.__setattr__(param, list(map(float, args[:2])))
+            elif param == "size_range":
+                    if len(args) > 1:
+                        self.__setattr__(param, list(map(float, args[:2])))
+            elif param == "p_range":
+                    if len(args) > 1:
+                        self.__setattr__(param, list(map(float, args[:2])))
             elif param == "rd_range":
                 if len(args) > 1:
                     self.__setattr__(param, list(map(float, args[:2])))
@@ -584,12 +605,22 @@ class HelpDescription(object):
                    "    " + TerminalColor.CYAN + "0|1 out of P region, " + TerminalColor.BLUE + "0|1 inside P region,\n" +
                    "    " + TerminalColor.GREEN2 + "1|0 out of P region, " + TerminalColor.GREEN + "1|0 inside P region,\n" +
                    "    " + TerminalColor.YELLOW + "1|1 out of P region, " + TerminalColor.YELLOW2 + "1|1 inside P region.\n" +
-                   TerminalColor.DARKCYAN + "P region refers to 1kG project strict mask.",
+                   TerminalColor.DARKCYAN + "P region refers to 1kG project strict mask.\n" +
+                   "If snp_alpha_P is set, transparency will be used instead colors for out of P region SNPs.\n",
             p_type="list of strings",
             p_default=str(default["snp_colors"]),
             p_affects="snp, region plot with snp panel",
             p_example="set snp_colors red grey green black blue yellow orange cyan\nunset snp_colors\nset snp_colors.7 red",
             p_see="markersize, rd_colors, baf_colors, lh_colors"
+        ),
+        "snp_alpha_P": help_format(
+            topic="snp_alpha_P",
+            p_desc="If set, alpha color value will be used for non-P region SNPs.",
+            p_type="bool",
+            p_default=str(default["snp_alpha_P"]),
+            p_affects="region plot, snp",
+            p_example="set snp_alpha_P\nunset snp_alpha_P",
+            p_see="snp_colors, snp_use_mask, snp_use_id"
         ),
         "baf_colors": help_format(
             topic="baf_colors",
@@ -677,6 +708,15 @@ class HelpDescription(object):
             p_example="set subgrid 5 4\nset subgrid horizontal\nunset subgrid",
             p_see="grid, xkcd, chrom, output_filename"
         ),
+        "panel_size": help_format(
+            topic="panel_size",
+            p_desc="Set plot panel size.",
+            p_type="two floats",
+            p_default=str(default["panel_size"]),
+            p_affects="plots with multiple panels",
+            p_example="set panel_size 8 1\nunset panel_size",
+            p_see="grid, subgrid, output_filename"
+        ),
         "xkcd": help_format(
             topic="xkcd",
             p_desc="Use xkcd comic plot style (see http://xkcd.com).",
@@ -745,6 +785,43 @@ class HelpDescription(object):
             p_example="set min_segment_size 10\nunset min_segment_size",
             p_see="contrast"
         ),
+        "Q0_range": help_format(
+            topic="Q0_range",
+            p_desc="Range used to filter Q0 for calls",
+            p_type="two floats",
+            p_default=str(default["Q0_range"]),
+            p_affects="calls plot",
+            p_example="set Q0_range 0 0.5\nunset Q0_range",
+            p_see="pN_range, size_range, p_range"
+        ),
+        "pN_range": help_format(
+            topic="pN_range",
+            p_desc="Range used to filter percentage of reference genome gaps for calls",
+            p_type="two floats",
+            p_default=str(default["pN_range"]),
+            p_affects="calls plot",
+            p_example="set pN_range 0 0.5\nunset pN_range",
+            p_see="Q0_range, size_range, p_range"
+        ),
+        "size_range": help_format(
+            topic="size_range",
+            p_desc="Range used to filter size of calls",
+            p_type="two floats",
+            p_default=str(default["size_range"]),
+            p_affects="calls plot",
+            p_example="set size_range 100000 10000000\nunset size_range",
+            p_see="Q0_range, pN_range, p_range"
+        ),
+        "p_range": help_format(
+            topic="p_range",
+            p_desc="Range used to filter size of calls",
+            p_type="two floats",
+            p_default=str(default["p_range"]),
+            p_affects="calls plot",
+            p_example="set p_range 0 0.000001\nunset p_range",
+            p_see="Q0_range, pN_range, size_range"
+        ),
+
         "dpi": help_format(
             topic="dpi",
             p_desc="Resolution (dots per inch) used for plotting.",

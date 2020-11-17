@@ -740,3 +740,6 @@ def help_format(topic="", p_desc="", p_usage="", p_type="", p_default="", p_affe
         ret_str += TerminalColor.BOLD + "SEE ALSO\n" + TerminalColor.END
         ret_str += TerminalColor.DARKCYAN + add_tabs(p_see) + TerminalColor.END + "\n\n"
     return ret_str[:-1]
+
+def in_interval(x,interval):
+    return x>=interval[0] and x<=interval[1]
