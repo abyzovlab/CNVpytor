@@ -146,7 +146,7 @@ class Figure(ViewParams):
 
         """
         if panel_size is None:
-            panel_size=self.panel_size
+            panel_size = self.panel_size
         if grid == "auto":
             grid = self.grid
         plt.clf()
@@ -886,10 +886,10 @@ class Viewer(Show, Figure, HelpDescription):
                                         type, c, call["start"], call["end"], call["size"], call["cnv"], call["p_val"],
                                         call["p_val_2"], call["p_val_3"], call["p_val_4"], call["Q0"], call["pN"]))
                                     if plot:
-                                        plot_start = call["start"]-call["size"]
-                                        if plot_start<0:
-                                            plot_start=0
-                                        plot_end = call["end"]+call["size"]
+                                        plot_start = call["start"] - call["size"]
+                                        if plot_start < 0:
+                                            plot_start = 0
+                                        plot_end = call["end"] + call["size"]
                                         self.multiple_regions(["%s:%d-%d" % (c, plot_start, plot_end)])
 
     def print_joint_calls(self, call_type="ms", plot=False):
@@ -898,28 +898,32 @@ class Viewer(Show, Figure, HelpDescription):
         ix = self.plot_files
         for c in self.chrom:
             flag = (FLAG_USEMASK if self.rd_use_mask else 0) | FLAG_GC_CORR
-            calls = [list(filter(lambda call:in_interval(call["size"], self.size_range) \
-                                        and in_interval(call["p_val"], self.p_range) \
-                                        and in_interval(call["pN"], self.pN_range) \
-                                        and in_interval(call["Q0"], self.Q0_range), self.io[ix[i]].read_calls(c, bin_size, "calls", flag))) for i in range(n)]
+            calls = [list(filter(lambda call: in_interval(call["size"], self.size_range) \
+                                              and in_interval(call["p_val"], self.p_range) \
+                                              and in_interval(call["pN"], self.pN_range) \
+                                              and in_interval(call["Q0"], self.Q0_range),
+                                 self.io[ix[i]].read_calls(c, bin_size, "calls", flag))) for i in range(n)]
             pointers = [0] * n
-            while any([pointers[i]<len(calls[i]) for i in range(n)]):
-                starts = [calls[i][pointers[i]]["start"] if pointers[i]<len(calls[i]) else np.inf for i in range(n)]
+            while any([pointers[i] < len(calls[i]) for i in range(n)]):
+                starts = [calls[i][pointers[i]]["start"] if pointers[i] < len(calls[i]) else np.inf for i in range(n)]
                 mini = starts.index(min(starts))
                 maxend = 0
                 toupdate = []
                 for i in range(n):
-                    if (pointers[i] < len(calls[i])) and ((min(calls[i][pointers[i]]["end"],calls[mini][pointers[mini]]["end"])-calls[i][pointers[i]]["start"])>(0.5*calls[mini][pointers[mini]]["size"])):
+                    if (pointers[i] < len(calls[i])) and ((min(calls[i][pointers[i]]["end"],
+                                                               calls[mini][pointers[mini]]["end"]) -
+                                                           calls[i][pointers[i]]["start"]) > (
+                                                                  0.5 * calls[mini][pointers[mini]]["size"])):
                         toupdate.append(i)
                         call = calls[i][pointers[i]]
-                        if call["end"]>maxend:
+                        if call["end"] > maxend:
                             maxend = call["end"]
                         type = "duplication" if call["type"] == 1 else "deletion"
                         print("%s\t%s:%d-%d\t%d\t%.4f\t%e\t%e\t%e\t%e\t%.4f\t%.4f\t" % (
                             type, c, call["start"], call["end"], call["size"], call["cnv"], call["p_val"],
-                            call["p_val_2"], call["p_val_3"], call["p_val_4"], call["Q0"], call["pN"]),end="")
+                            call["p_val_2"], call["p_val_3"], call["p_val_4"], call["Q0"], call["pN"]), end="")
                     else:
-                        print("/\t/\t/\t/\t/\t/\t/\t/\t/\t/\t",end="")
+                        print("/\t/\t/\t/\t/\t/\t/\t/\t/\t/\t", end="")
                 print()
                 if plot:
                     plot_start = calls[mini][pointers[mini]]["start"] - calls[mini][pointers[mini]]["size"]
@@ -929,7 +933,6 @@ class Viewer(Show, Figure, HelpDescription):
                     self.multiple_regions(["%s:%d-%d" % (c, plot_start, plot_end)])
                 for i in toupdate:
                     pointers[i] += 1
-
 
     def manhattan(self, plot_type="rd"):
         bin_size = self.bin_size
@@ -1410,8 +1413,9 @@ class Viewer(Show, Figure, HelpDescription):
                 ax.xaxis.set_major_locator(plt.MaxNLocator(5))
 
                 l = len(g_p)
-                if (self.rd_range[1]-self.rd_range[0])<30:
-                    ax.yaxis.set_ticks(np.arange(int(self.rd_range[0]), int(self.rd_range[1] + 1), 1) * mean / 2, minor=[])
+                if (self.rd_range[1] - self.rd_range[0]) < 30:
+                    ax.yaxis.set_ticks(np.arange(int(self.rd_range[0]), int(self.rd_range[1] + 1), 1) * mean / 2,
+                                       minor=[])
                     ax.yaxis.set_ticklabels([str(i) for i in range(int(self.rd_range[0]), int(self.rd_range[1] + 1))])
 
                 ax.set_ylim([self.rd_range[0] * mean, self.rd_range[1] * mean / 2])
@@ -1758,10 +1762,10 @@ class Viewer(Show, Figure, HelpDescription):
                 c10 = io.get_signal(c, bin_size, "SNP bin count 1|0", snp_flag)
                 hets = c01 + c10
                 maf[hets < (bin_size / 10000)] = 0
-                #plt.polar(theta[tl:tl + maf.size], 1 - maf / 2, color=snp_color, linewidth=0.3)
-                #plt.fill_between(theta[tl:tl + maf.size], 1 - maf / 2, np.ones_like(maf), color=snp_color, alpha=0.8)
-                plt.polar(theta[tl:tl + maf.size], 1 - maf / 2, linewidth=0.3)
-                plt.fill_between(theta[tl:tl + maf.size], 1 - maf / 2, np.ones_like(maf), alpha=0.8)
+                plt.polar(theta[tl:tl + maf.size], 1 - maf / 2, color=snp_color, linewidth=0.3)
+                plt.fill_between(theta[tl:tl + maf.size], 1 - maf / 2, np.ones_like(maf), color=snp_color, alpha=0.8)
+                # plt.polar(theta[tl:tl + maf.size], 1 - maf / 2, linewidth=0.3)
+                # plt.fill_between(theta[tl:tl + maf.size], 1 - maf / 2, np.ones_like(maf), alpha=0.8)
                 plt.polar(theta[tl:tl + rd.size], np.ones_like(rd) / 10. + 0.7 * rd / (self.rd_range[1] * rd_mean / 2),
                           color=rd_color, linewidth=0.3)
                 plt.fill_between(theta[tl:tl + rd.size], np.ones_like(rd) / 10.,
@@ -2458,12 +2462,13 @@ class Viewer(Show, Figure, HelpDescription):
                                 type = "duplication" if call["type"] == 1 else "deletion"
                                 region = "%s:%d-%d" % (c, call["start"], call["end"])
 
-                                cn0 = self.genotype([bin_size],region,plot_file=sample)[0][3]
-                                cref = list(map(lambda x:self.genotype([bin_size],region,plot_file=x)[0][3],reference))
-                                if (((sum(map(lambda x:0 if (cn0-x)>0.5 else 1, cref))==0) and cn0>2.5) \
-                                        or ((sum(map(lambda x:0 if (x-cn0)>0.5 else 1, cref))==0) and cn0<1.5))\
-                                        and (sum(map(lambda x:0 if np.abs(x-2.)<0.5 else 1, cref))==0):
-                                    print(type,region,call["cnv"],cn0,cref)
+                                cn0 = self.genotype([bin_size], region, plot_file=sample)[0][3]
+                                cref = list(
+                                    map(lambda x: self.genotype([bin_size], region, plot_file=x)[0][3], reference))
+                                if (((sum(map(lambda x: 0 if (cn0 - x) > 0.5 else 1, cref)) == 0) and cn0 > 2.5) \
+                                    or ((sum(map(lambda x: 0 if (x - cn0) > 0.5 else 1, cref)) == 0) and cn0 < 1.5)) \
+                                        and (sum(map(lambda x: 0 if np.abs(x - 2.) < 0.5 else 1, cref)) == 0):
+                                    print(type, region, call["cnv"], cn0, cref)
 
                                 # if n > 1:
                                 #     print("%s\t" % self.file_title(i), end="")
