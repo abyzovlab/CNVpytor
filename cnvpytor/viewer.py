@@ -454,6 +454,12 @@ class Viewer(Show, Figure, HelpDescription):
                 elif f[0] == "info":
                     if n > 1:
                         self.info(list(map(binsize_type, f[1:])))
+                elif f[0] == "print":
+                    if f[1] == "calls":
+                        self.print_calls()
+                    elif f[1] == "joint_calls":
+                        self.print_joint_calls()
+
                 else:
                     try:
                         if f[0] not in ["rdstat", "snp"]:
@@ -1735,6 +1741,7 @@ class Viewer(Show, Figure, HelpDescription):
             ax = self.next_polar_panel()
             ax.set_theta_zero_location("N")
             ax.set_theta_direction(-1)
+            rainbow = ax._get_lines
             io = self.io[ix[i]]
             plot_len = 0
             plot_chroms = []
@@ -1754,6 +1761,7 @@ class Viewer(Show, Figure, HelpDescription):
             labels = []
             for j in range(len(plot_chroms)):
                 c, l = plot_chroms[j]
+                next_color=rainbow.get_next_color()
                 rd_color = self.rd_circular_colors[j % len(self.rd_circular_colors)]
                 snp_color = self.snp_circular_colors[j % len(self.snp_circular_colors)]
                 rd = io.get_signal(c, bin_size, "RD", rd_flag)
@@ -1761,17 +1769,25 @@ class Viewer(Show, Figure, HelpDescription):
                 c01 = io.get_signal(c, bin_size, "SNP bin count 0|1", snp_flag)
                 c10 = io.get_signal(c, bin_size, "SNP bin count 1|0", snp_flag)
                 hets = c01 + c10
+                np.warnings.filterwarnings('ignore')
                 maf[hets < (bin_size / 10000)] = 0
-                plt.polar(theta[tl:tl + maf.size], 1 - maf / 2, color=snp_color, linewidth=0.3)
-                plt.fill_between(theta[tl:tl + maf.size], 1 - maf / 2, np.ones_like(maf), color=snp_color, alpha=0.8)
-                # plt.polar(theta[tl:tl + maf.size], 1 - maf / 2, linewidth=0.3)
-                # plt.fill_between(theta[tl:tl + maf.size], 1 - maf / 2, np.ones_like(maf), alpha=0.8)
-                plt.polar(theta[tl:tl + rd.size], np.ones_like(rd) / 10. + 0.7 * rd / (self.rd_range[1] * rd_mean / 2),
-                          color=rd_color, linewidth=0.3)
-                plt.fill_between(theta[tl:tl + rd.size], np.ones_like(rd) / 10.,
-                                 np.ones_like(rd) / 10. + 0.7 * rd / (self.rd_range[1] * rd_mean / 2),
-                                 color=rd_color,
-                                 alpha=0.8)
+                #plt.polar(theta[tl:tl + maf.size], 1 - maf / 2, color=snp_color, linewidth=0.3)
+                #plt.fill_between(theta[tl:tl + maf.size], 1 - maf / 2, np.ones_like(maf), color=snp_color, alpha=0.8)
+                plt.polar(theta[tl:tl + maf.size], 1 - maf / 2, linewidth=0.3,color=next_color)
+                plt.fill_between(theta[tl:tl + maf.size], 1 - maf / 2, np.ones_like(maf), alpha=1,color=next_color)
+                markersize = 5
+                if self.markersize!="auto":
+                    markersize = self.markersize
+                ax.scatter(theta[tl:tl + rd.size], np.ones_like(rd) / 10. + 0.7 * rd / (self.rd_range[1] * rd_mean / 2),
+                           s=markersize,alpha=0.7,color=next_color)
+
+
+                #plt.polar(theta[tl:tl + rd.size], np.ones_like(rd) / 10. + 0.7 * rd / (self.rd_range[1] * rd_mean / 2),
+                #          color=rd_color, linewidth=0.3)
+                #plt.fill_between(theta[tl:tl + rd.size], np.ones_like(rd) / 10.,
+                #                 np.ones_like(rd) / 10. + 0.7 * rd / (self.rd_range[1] * rd_mean / 2),
+                #                 color=rd_color,
+                #                 alpha=0.8)
 
                 # ax.text(theta[tl + maf.size // 3], 0.8, c, fontsize=8)
                 labels.append(Genome.canonical_chrom_name(c))
@@ -2533,6 +2549,78 @@ class Viewer(Show, Figure, HelpDescription):
                 done = True
             else:
                 self.genotype(bin_sizes, line, interactive=True)
+
+    def rd_baf_call_models(self,maxcn=10):
+
+        bin_size = self.bin_size
+        n = len(self.plot_files)
+        ix = self.plot_files
+        self.new_figure(panel_count=n, wspace=0.1, hspace=0.1)
+
+
+        self.fig_show(suffix="regions", bottom=0.05, top=0.98,
+                      wspace=0.2, hspace=0.2, left=0.05, right=0.98)
+
+        for i in range(n):
+            ax = self.next_panel()
+            io = self.io[ix[i]]
+            ax.set_title(self.file_title(ix[i]), position=(0.1, 0.1),
+                         fontdict={'verticalalignment': 'bottom', 'horizontalalignment': 'left'})
+
+            chroms = []
+            flag = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0) | (
+                FLAG_USEHAP if self.snp_use_phase else 0) | (FLAG_USEMASK if self.rd_use_mask else 0) | FLAG_GC_CORR
+
+            for c, (l, t) in self.reference_genome["chromosomes"].items():
+                snp_chr = io.snp_chromosome_name(c)
+                if len(self.chrom) == 0 or (snp_chr in self.chrom) or (c in self.chrom):
+                    if (Genome.is_autosome(c) or Genome.is_sex_chrom(c)):
+                        chroms.append((snp_chr, l))
+
+            x = np.linspace(0, 1, 1000)
+            master_lh = {}
+            for cn in range(maxcn, -1, -1):
+                for h1 in range(cn // 2 + 1):
+                    h2 = cn - h1
+                    mrd = 2 - 2 * x + x * cn
+                    np.seterr(divide='ignore')
+                    mbaf = 0.5 - (1 - x + x * h1) / (2 - 2 * x + (h1 + h2) * x)
+                    plt.plot(mbaf, mrd, "-", label="%d: %d/%d" % (cn, h1, h2), zorder=6 - cn)
+
+            cix = 0
+            cmap = list(map(colors.to_rgba, plt.rcParams['axes.prop_cycle'].by_key()['color']))
+            for c, l in chroms:
+                call_rd = []
+                call_baf = []
+                call_label = []
+                if io.signal_exists(c, bin_size, "calls combined", flag):
+                    calls = io.read_calls(c, bin_size, "calls combined", flag)
+
+                    for call in calls:
+                        if call["bins"] > self.min_segment_size:
+                            call_rd.append(call["cnv"]*2)
+                            call_baf.append(call["baf"])
+                            call_label.append(c+":"+str(call["start"])+"-"+str(call["end"]))
+
+                plt.scatter(call_baf, call_rd, s=20, edgecolors='face', marker='.')
+                cix += 1
+
+
+
+
+
+            ax.set_xlabel("|ΔBAF|")
+            ax.set_ylabel("Relative RD level")
+
+            ax.legend()
+
+            ax.set_ylim([0, maxcn])
+            ax.set_xlim([-0.02, 0.5])
+            ax.grid()
+
+        self.fig_show(suffix="models", bottom=0.05, top=0.98,
+                      wspace=0, hspace=0.2, left=0.05, right=0.98)
+
 
 
 def anim_plot_likelihood(likelihood, segments, n, res, iter, prefix, maxp, minp):

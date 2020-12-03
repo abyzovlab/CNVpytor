@@ -57,6 +57,7 @@ class ViewParams(object):
         "xkcd": False,
         "dpi": 200,
         "output_filename": "",
+        "call_format": "tsv",
         "contrast": 20,
         "min_segment_size": 0
     }
@@ -77,6 +78,7 @@ class ViewParams(object):
             self.command_tree["set"]["panels"][panel1] = self.command_tree["set"]["panels"]
         self.command_tree["set"]["grid"] = {"auto": None, "horizontal": None, "vertical": None}
         self.command_tree["set"]["subgrid"] = {"auto": None, "horizontal": None, "vertical": None}
+        self.command_tree["set"]["call_format"] = {"tsv": None, "vcf": None}
         self.interactive = True
 
     def set(self, param, args):
@@ -245,6 +247,7 @@ class HelpDescription(object):
         "circular": None,
         "manhattan": None,
         "calls": None,
+        "print": {"calls", "joint_calls"},
         "ls": None,
         "compare": None
     }
@@ -748,6 +751,18 @@ class HelpDescription(object):
             p_affects="all plots",
             p_example="set output_filename filename.png\nunset output_filename",
             p_see="save, dpi, style, xkcd"
+        ),
+        "call_format": help_format(
+            topic="call_format",
+            p_desc="Format for printing calls." +
+                   "Use one of following values:\n" +
+                   "    * tsv - tab separated\n" +
+                   "    * vcf - VCF file format",
+            p_type="str",
+            p_default=str(default["call_format"]),
+            p_affects="printing calls",
+            p_example="set call_format vcf\nunset call_format",
+            p_see="print"
         ),
         "rd_circular_colors": help_format(
             topic="rd_circular_colors",

@@ -2157,7 +2157,6 @@ class Root:
                     else:
                         g_mbaf = 0.
                         mbaf = 0. * x
-
                     for ei in range(len(gstat_rd)):
                         g_lh = normal(g_mrd * fitm, 1., gstat_rd[ei], gstat_error[ei]) * \
                                likelihood_of_baf(gstat_lh[ei], 0.5 + g_mbaf)
@@ -2177,8 +2176,8 @@ class Root:
                                     max_lh = tmpl
                                     max_x = x[mi]
 
-                        # master_lh[ei].append([cn, h1, h2, slh / len(x), max_x])
-                        master_lh[ei].append([cn, h1, h2, max_lh, max_x])
+                        master_lh[ei].append([cn, h1, h2, slh / len(x), max_x])
+                        # master_lh[ei].append([cn, h1, h2, max_lh, max_x])
 
             for ei in range(len(gstat_rd)):
                 if event_type == "germline":
@@ -2187,7 +2186,7 @@ class Root:
                     master_lh[ei] = sorted(master_lh[ei], key=lambda x: -x[3])
                     if event_type == "both":
                         germline_lh[ei] = sorted(germline_lh[ei], key=lambda x: -x[3])
-                        if germline_lh[ei][0][3] * 10 > master_lh[ei][0][3]:
+                        if germline_lh[ei][0][3] > master_lh[ei][0][3]:
                             master_lh[ei] = [germline_lh[ei][0]] + \
                                             list(filter(
                                                 lambda x: x[0] != germline_lh[ei][0][0] and x[1] != germline_lh[ei][0][
