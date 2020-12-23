@@ -19,14 +19,14 @@ class ViewParams(object):
         "rd_corrected": True,
         "rd_partition": False,
         "rd_call": True,
-        "rd_call_mosaic": True,
-        "rd_call_mosaic_2d": True,
         "rd_use_mask": False,
         "rd_use_gc_corr": True,
+        "callers": ["rd_mean_shift"],
         "Q0_range": [0,1],
         "pN_range": [0,1],
-        "size_range":[0,np.inf],
-        "p_range":[0,np.inf],
+        "size_range": [0,np.inf],
+        "p_range": [0,np.inf],
+        "annotate": False,
         "rd_range": [0, 6],
         "rd_manhattan_range": [0, 2],
         "rd_manhattan_call": False,
@@ -34,7 +34,6 @@ class ViewParams(object):
         "snp_use_id": False,
         "snp_use_phase": False,
         "snp_call": True,
-        "snp_call_2d": True,
         "markersize": "auto",
         "lh_markersize": 20,
         "lh_marker": "_",
@@ -48,6 +47,7 @@ class ViewParams(object):
         "lh_colors": ["yellow", "red"],
         "plot_files": [],
         "plot_file": 0,
+        "plot": False,
         "file_titles": [],
         "chrom": [],
         "style": None,
@@ -76,9 +76,12 @@ class ViewParams(object):
         self.command_tree["set"]["panels"] = {}
         for panel1 in ["rd", "likelihood", "snp", "baf", "snv", "CN"]:
             self.command_tree["set"]["panels"][panel1] = self.command_tree["set"]["panels"]
+        self.command_tree["set"]["callers"] = {}
+        for caller in ["rd_mean_shift","rd_mosaic","baf_mosaic","combined_mosaic"]:
+            self.command_tree["set"]["callers"][caller] = self.command_tree["set"]["callers"]
         self.command_tree["set"]["grid"] = {"auto": None, "horizontal": None, "vertical": None}
         self.command_tree["set"]["subgrid"] = {"auto": None, "horizontal": None, "vertical": None}
-        self.command_tree["set"]["call_format"] = {"tsv": None, "vcf": None}
+        self.command_tree["set"]["call_format"] = {"tsv": None, "vcf": None, "xls": None}
         self.interactive = True
 
     def set(self, param, args):
@@ -246,6 +249,7 @@ class HelpDescription(object):
         "rdstat": None,
         "circular": None,
         "manhattan": None,
+        "genotype":None,
         "calls": None,
         "print": {"calls", "joint_calls"},
         "ls": None,
@@ -453,7 +457,7 @@ class HelpDescription(object):
             p_default=str(default["rd_partition"]),
             p_affects="region plot, rd",
             p_example="set rd_partition\nunset rd_partition",
-            p_see="rd_call, rd_call_mosaic"
+            p_see="rd_call"
         ),
         "rd_call": help_format(
             topic="rd_call",
@@ -462,16 +466,7 @@ class HelpDescription(object):
             p_default=str(default["rd_call"]),
             p_affects="region plot, rd",
             p_example="set rd_call\nunset rd_call",
-            p_see="rd_partition, rd_call_mosaic"
-        ),
-        "rd_call_mosaic": help_format(
-            topic="rd_call_mosaic",
-            p_desc="Enables plotting mosaic call signal in rd plots (calculated using -call mosaic option)",
-            p_type="bool",
-            p_default=str(default["rd_call_mosaic"]),
-            p_affects="region plot, rd",
-            p_example="set rd_call_mosaic\nunset rd_call_mosaic",
-            p_see="rd_partition, rd_call"
+            p_see="rd_partition"
         ),
         "rd_raw": help_format(
             topic="rd_raw",
@@ -729,6 +724,15 @@ class HelpDescription(object):
             p_example="set xkcd\nunset xkcd",
             p_see="style, chrom, output_filename"
         ),
+        "plot": help_format(
+            topic="plot",
+            p_desc="Plots when true (works with compare and print).",
+            p_type="bool",
+            p_default=str(default["plot"]),
+            p_affects="all plots",
+            p_example="set plot\nunset plot",
+            p_see="compare, print calls, print join_calls"
+        ),
         "output_filename": help_format(
             topic="output_filename",
             p_desc="If not empty plots will be store into file without plotting on the screen." +
@@ -752,17 +756,38 @@ class HelpDescription(object):
             p_example="set output_filename filename.png\nunset output_filename",
             p_see="save, dpi, style, xkcd"
         ),
+        "callers": help_format(
+            topic="callers",
+            p_desc="List of callers to use for plotting and printing. Possible options are:\n" +
+                   "    rd_mean_shift    - read depth mean shift caller,\n" +
+                   "    rd_mosaic    - read depth mosaic caller (under development),\n" +
+                   "    baf_mosaic    - baf mosaic caller (under development),\n" +
+                   "    combined_mosaic  - read depth and baf mosaic caller (under development).",
+            p_type="list of strings",
+            p_default=str(default["callers"]),
+            p_affects="region plot, manhattan",
+            p_example="set callers rd_mean_shift\nunset callers",
+            p_see="call_format, plotting, print"
+        ),
         "call_format": help_format(
             topic="call_format",
             p_desc="Format for printing calls." +
                    "Use one of following values:\n" +
                    "    * tsv - tab separated\n" +
-                   "    * vcf - VCF file format",
+                   "    * xls - Excel format (under development)\n" +
+                   "    * vcf - VCF file format (under development)",
             p_type="str",
             p_default=str(default["call_format"]),
             p_affects="printing calls",
             p_example="set call_format vcf\nunset call_format",
             p_see="print"
+        ),
+        "print": help_format(
+            topic="print",
+            p_desc="Print filtered calls.",
+            p_usage="print [calls, joint_calls]",
+            p_example="print calls\nprint joint_calls",
+            p_see="Q0_range, p_range, pN_range, size_range, call_format, callers"
         ),
         "rd_circular_colors": help_format(
             topic="rd_circular_colors",

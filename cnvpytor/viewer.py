@@ -8,10 +8,12 @@ from .io import *
 from .utils import *
 from .genome import *
 from .viewparams import ViewParams, HelpDescription
+from .annotator import *
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.colors as colors
 from scipy.cluster import hierarchy
+from scipy.stats import beta
 
 import numpy as np
 import logging
@@ -348,7 +350,8 @@ class Viewer(Show, Figure, HelpDescription):
                 elif current == "manhattan":
                     self.manhattan()
                 elif current == "calls":
-                    self.manhattan(plot_type="calls")
+                    if len(self.callers) > 0:
+                        self.manhattan(plot_type=self.callers[0])
                 elif current == "stat":
                     self.stat(int(p))
                 elif current == "circular":
@@ -398,6 +401,9 @@ class Viewer(Show, Figure, HelpDescription):
                 except NameError:
                     line = input(prompt_str)
 
+                if line[0] == "#":
+                    continue
+
                 pre = line.split(">")
                 f = pre[0].strip().split(" ")
                 n = len(f)
@@ -440,7 +446,7 @@ class Viewer(Show, Figure, HelpDescription):
                 elif f[0] == "genotype":
                     if n > 1:
                         for ni in range(1, n):
-                            self.genotype([self.bin_size], f[ni])
+                            self.genotype([self.bin_size], f[ni], interactive=True)
                 elif f[0] == "snv":
                     if n == 2:
                         self.snp(callset=f[1])
@@ -448,17 +454,17 @@ class Viewer(Show, Figure, HelpDescription):
                         self.snp(callset="default")
                 elif f[0] == "compare":
                     if n == 3:
-                        self.compare(f[1], f[2], plot=True)
+                        self.compare(f[1], f[2], plot=self.plot)
                     elif n == 4:
-                        self.compare(f[1], f[2], n_bins=int(f[3]), plot=True)
+                        self.compare(f[1], f[2], n_bins=int(f[3]), plot=self.plot)
                 elif f[0] == "info":
                     if n > 1:
                         self.info(list(map(binsize_type, f[1:])))
                 elif f[0] == "print":
                     if f[1] == "calls":
-                        self.print_calls()
+                        self.print_calls(plot=self.plot)
                     elif f[1] == "joint_calls":
-                        self.print_joint_calls()
+                        self.print_simple_joint_calls(plot=self.plot)
 
                 else:
                     try:
@@ -585,13 +591,8 @@ class Viewer(Show, Figure, HelpDescription):
                 chroms.append((rd_chr, l))
         self.new_figure(panel_count=len(chroms))
         for c, l in chroms:
-            flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
-            stat = self.io[self.plot_file].get_signal(None, bin_size, "RD stat", flag)
-            if stat is None:
-                _logger.error(
-                    "Data for bin size %d is missing in file '%s'!" % (bin_size, self.io[self.plot_file].filename))
-                exit(0)
-            flag_rd = (FLAG_USEMASK if self.rd_use_mask else 0)
+            flag_rd = FLAG_USEMASK if self.rd_use_mask else 0
+            mean, stdev = self.io[self.plot_file].rd_normal_level(bin_size, flag_rd | FLAG_GC_CORR)
             his_p = self.io[self.plot_file].get_signal(c, bin_size, "RD", flag_rd)
             his_p_corr = self.io[self.plot_file].get_signal(c, bin_size, "RD", flag_rd | FLAG_GC_CORR)
             his_p_seg = self.io[self.plot_file].get_signal(c, bin_size, "RD partition", flag_rd | FLAG_GC_CORR)
@@ -607,12 +608,14 @@ class Viewer(Show, Figure, HelpDescription):
             his_p_mosaic_call_2d = self.io[self.plot_file].get_signal(c, bin_size, "RD mosaic call 2d",
                                                                       flag_rd | FLAG_GC_CORR)
             his_p_mosaic = np.zeros_like(his_p) * np.nan
-            if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and self.rd_call_mosaic:
+            if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and self.rd_call and (
+                    "rd_mosaic" in self.callers):
                 for seg, lev in zip(list(his_p_mosaic_seg), list(his_p_mosaic_call[0])):
                     for segi in seg:
                         his_p_mosaic[segi] = lev
             his_p_mosaic_2d = np.zeros_like(his_p) * np.nan
-            if his_p_mosaic_call_2d is not None and len(his_p_mosaic_call_2d) > 0 and self.rd_call_mosaic_2d:
+            if his_p_mosaic_call_2d is not None and len(his_p_mosaic_call_2d) > 0 and self.rd_call and (
+                    "combined_mosaic" in self.callers):
                 for seg, lev in zip(list(his_p_mosaic_seg_2d), list(his_p_mosaic_call_2d[0])):
                     for segi in seg:
                         his_p_mosaic_2d[segi] = lev
@@ -621,9 +624,11 @@ class Viewer(Show, Figure, HelpDescription):
                          color='C0')
             ax.xaxis.set_ticklabels([])
             ax.yaxis.set_ticklabels([])
-            ax.yaxis.set_ticks(np.arange(0, 3, 0.5) * stat[4], minor=[])
             ax.xaxis.set_ticks(np.arange(0, (l + 10e6) // bin_size, 10e6 // bin_size), minor=[])
-            ax.set_ylim([0, max(3. * stat[4], stat[4] + 5. * stat[5])])
+            if (self.rd_range[1] - self.rd_range[0]) < 30:
+                ax.yaxis.set_ticks(np.arange(int(self.rd_range[0]), int(self.rd_range[1] + 1), 1) * mean / 2,
+                                   minor=[])
+            ax.set_ylim([self.rd_range[0] * mean / 2, self.rd_range[1] * mean / 2])
             n_bins = l // bin_size
             ax.set_xlim([-n_bins * 0.05, n_bins * 1.05])
             ax.grid()
@@ -635,9 +640,11 @@ class Viewer(Show, Figure, HelpDescription):
                 plt.step(his_p_seg, self.rd_colors[2])
             if his_p_call is not None and len(his_p_call) > 0 and self.rd_call:
                 plt.step(his_p_call, self.rd_colors[3])
-            if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and self.rd_call_mosaic:
+            if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and self.rd_call and (
+                    "rd_mosaic" in self.callers):
                 plt.step(his_p_mosaic, self.rd_colors[4])
-            if his_p_mosaic_call_2d is not None and len(his_p_mosaic_call_2d) > 0 and self.rd_call_mosaic_2d:
+            if his_p_mosaic_call_2d is not None and len(his_p_mosaic_call_2d) > 0 and self.rd_call and (
+                    "combined_mosaic" in self.callers):
                 plt.step(his_p_mosaic_2d, self.rd_colors[5])
         self.fig_show(suffix="rd")
 
@@ -674,6 +681,9 @@ class Viewer(Show, Figure, HelpDescription):
                          color='C0')
             ax.xaxis.set_ticklabels([])
             ax.yaxis.set_ticklabels([])
+            if (self.rd_range[1] - self.rd_range[0]) < 30:
+                ax.yaxis.set_ticks(np.arange(int(self.rd_range[0]), int(self.rd_range[1] + 1), 1) * mean / 2,
+                                   minor=[])
             ax.yaxis.set_ticks(np.arange(0, 2, 0.25), minor=[])
             ax.xaxis.set_ticks(np.arange(0, (l + 10e6) // bin_size, 10e6 // bin_size), minor=[])
             ax.set_ylim([0, 1])
@@ -682,7 +692,7 @@ class Viewer(Show, Figure, HelpDescription):
             ax.grid()
 
             plt.step(np.abs(his_p_corr1 / stat1[4] - his_p_corr2 / stat2[4]), "k")
-        self.fig_show(suffix="rd")
+        self.fig_show(suffix="rd_diff")
 
     def likelihood(self):
         bin_size = self.bin_size
@@ -712,7 +722,7 @@ class Viewer(Show, Figure, HelpDescription):
             ax.yaxis.set_ticklabels([])
             ax.xaxis.set_ticks(np.arange(0, likelihood.shape[0], 50), minor=[])
             ax.set_xlim([0, likelihood.shape[0]])
-            if self.snp_call:
+            if self.snp_call and ("baf_mosaic" in self.callers):
                 likelihood = self.io[self.plot_file].get_signal(c, bin_size, "SNP likelihood call", snp_flag)
                 segments = segments_decode(
                     self.io[self.plot_file].get_signal(c, bin_size, "SNP likelihood segments", snp_flag))
@@ -736,7 +746,7 @@ class Viewer(Show, Figure, HelpDescription):
                             marker=self.lh_marker)
                 plt.scatter(call_pos, call_i2, s=self.lh_markersize, color=np.array(call_c), edgecolors='face',
                             marker=self.lh_marker)
-            if self.snp_call_2d:
+            if self.snp_call and ("combined_mosaic" in self.callers):
                 likelihood = self.io[self.plot_file].get_signal(c, bin_size, "SNP likelihood call 2d", snp_flag)
                 segments = segments_decode(
                     self.io[self.plot_file].get_signal(c, bin_size, "SNP likelihood segments 2d", snp_flag))
@@ -760,7 +770,7 @@ class Viewer(Show, Figure, HelpDescription):
                             marker=self.lh_marker)
                 plt.scatter(call_pos, call_i2, s=self.lh_markersize, color=np.array(call_c), edgecolors='face',
                             marker=self.lh_marker)
-        self.fig_show(suffix="rd")
+        self.fig_show(suffix="likelihood")
 
     def baf(self):
         if self.reference_genome is None:
@@ -865,43 +875,99 @@ class Viewer(Show, Figure, HelpDescription):
                 ax.scatter(hpos, baf, marker='.', edgecolor=color, c=color, s=10, alpha=0.7)
             else:
                 ax.scatter(hpos, baf, marker='.', edgecolor=color, c=color, s=self.markersize, alpha=0.7)
-        self.fig_show(suffix="rd")
+        self.fig_show(suffix="snp")
 
-    def print_calls(self, call_type="ms", plot=False):
+    def print_calls(self, plot=False):
         bin_size = self.bin_size
         n = len(self.plot_files)
         ix = self.plot_files
-        for i in range(n):
-            io = self.io[ix[i]]
-            if call_type == "ms":
-                chroms = io.rd_chromosomes()
-                for c in chroms:
-                    if (c in self.chrom) or len(self.chrom) == 0:
-                        flag = (FLAG_USEMASK if self.rd_use_mask else 0) | FLAG_GC_CORR
-                        if io.signal_exists(c, bin_size, "calls", flag):
-                            calls = io.read_calls(c, bin_size, "calls", flag)
-                            for call in calls:
-                                if in_interval(call["size"], self.size_range) \
-                                        and in_interval(call["p_val"], self.p_range) \
-                                        and in_interval(call["pN"], self.pN_range) \
-                                        and in_interval(call["Q0"], self.Q0_range):
-                                    type = "duplication" if call["type"] == 1 else "deletion"
-                                    if n > 1:
-                                        print("%s\t" % self.file_title(i), end="")
-                                    print("%s\t%s:%d-%d\t%d\t%.4f\t%e\t%e\t%e\t%e\t%.4f\t%.4f\t" % (
-                                        type, c, call["start"], call["end"], call["size"], call["cnv"], call["p_val"],
-                                        call["p_val_2"], call["p_val_3"], call["p_val_4"], call["Q0"], call["pN"]))
-                                    if plot:
-                                        plot_start = call["start"] - call["size"]
-                                        if plot_start < 0:
-                                            plot_start = 0
-                                        plot_end = call["end"] + call["size"]
-                                        self.multiple_regions(["%s:%d-%d" % (c, plot_start, plot_end)])
+        if self.annotate:
+            annotator = Annotator(self.reference_genome)
+        for caller in self.callers:
+            if caller == "rd_mean_shift":
+                for i in range(n):
+                    io = self.io[ix[i]]
+                    chroms = io.rd_chromosomes()
+                    for c in chroms:
+                        if (c in self.chrom) or len(self.chrom) == 0:
+                            flag = (FLAG_USEMASK if self.rd_use_mask else 0) | FLAG_GC_CORR
+                            if io.signal_exists(c, bin_size, "calls", flag):
+                                calls = io.read_calls(c, bin_size, "calls", flag)
+                                for call in calls:
+                                    if in_interval(call["size"], self.size_range) \
+                                            and in_interval(call["p_val"], self.p_range) \
+                                            and in_interval(call["pN"], self.pN_range) \
+                                            and in_interval(call["Q0"], self.Q0_range):
+                                        type = "duplication" if call["type"] == 1 else "deletion"
+                                        if n > 1:
+                                            print("%s\t" % self.file_title(i), end="")
+                                        if len(self.callers) > 1:
+                                            print("%s\t" % caller, end="")
+                                        print("%s\t%s:%d-%d\t%d\t%.4f\t%e\t%e\t%e\t%e\t%.4f\t%.4f\t" % (
+                                            type, c, call["start"], call["end"], call["size"], call["cnv"],
+                                            call["p_val"],
+                                            call["p_val_2"], call["p_val_3"], call["p_val_4"], call["Q0"], call["pN"]),
+                                              end="")
+                                        if self.annotate:
+                                            print("\t%s" % annotator.get_info(
+                                                "%s:%d-%d" % (c, call["start"], call["end"])))
+                                        else:
+                                            print()
+                                        if plot:
+                                            plot_start = call["start"] - call["size"]
+                                            if plot_start < 0:
+                                                plot_start = 0
+                                            plot_end = call["end"] + call["size"]
+                                            self.multiple_regions(["%s:%d-%d" % (c, plot_start, plot_end)])
+            elif caller == "combined_mosaic":
+                for i in range(n):
+                    io = self.io[ix[i]]
+                    chroms = io.rd_chromosomes()
+                    for c in chroms:
+                        if (c in self.chrom) or len(self.chrom) == 0:
+                            flag = (FLAG_USEMASK if self.rd_use_mask else 0) | FLAG_GC_CORR | \
+                                   (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0)
+                            if io.signal_exists(c, bin_size, "calls combined", flag):
+                                calls = io.read_calls(c, bin_size, "calls combined", flag)
+                                for call in calls:
+                                    if in_interval(call["size"], self.size_range) \
+                                            and in_interval(call["p_val"], self.p_range) \
+                                            and in_interval(call["pN"], self.pN_range) \
+                                            and in_interval(call["Q0"], self.Q0_range):
+                                        type = "duplication" if call["type"] == 1 else "deletion"
+                                        if n > 1:
+                                            print("%s\t" % self.file_title(i), end="")
+                                        if len(self.callers) > 1:
+                                            print("%s\t" % caller, end="")
+                                        keys = ["start", "end", "size", "cnv", "p_val", "lh_del", "lh_loh",
+                                                "lh_dup", "Q0", "pN", "pNS", "pP", "bins", "baf",
+                                                "rd_p_val", "baf_p_val", "segment", "hets", "homs"]
+                                        type = {-1: "deletion", 0: "cnnloh", 1: "duplication"}[call["type"]]
+                                        data = [type, c] + [call[k] for k in keys]
+                                        for m in range(2):
+                                            data += call["models"][m]
+                                        len(data)
 
-    def print_joint_calls(self, call_type="ms", plot=False):
+                                        print(("%s\t%s:%d-%d\t%d\t%.4f\t%e\t%e\t%e\t%e" + \
+                                               "\t%.4f\t%.4f\t%.4f\t%.4f\t" + "%d\t%d\t%.4f\t%e\t%e\t%d\t%d\t%d\t" + \
+                                               "CN%d/CN%d\t%e\t%.4f\t%d\tCN%d/CN%d\t%e\t%.4f") % tuple(data), end="")
+                                        if self.annotate:
+                                            print("\t%s" % annotator.get_info("%s:%d-%d" % (data[1], data[2], data[3])))
+                                        else:
+                                            print()
+                                        if plot:
+                                            plot_start = call["start"] - call["size"]
+                                            if plot_start < 0:
+                                                plot_start = 0
+                                            plot_end = call["end"] + call["size"]
+                                            self.multiple_regions(["%s:%d-%d" % (c, plot_start, plot_end)])
+
+    def print_joint_calls(self, plot=False):
         bin_size = self.bin_size
         n = len(self.plot_files)
         ix = self.plot_files
+        if self.annotate:
+            annotator = Annotator(self.reference_genome)
         for c in self.chrom:
             flag = (FLAG_USEMASK if self.rd_use_mask else 0) | FLAG_GC_CORR
             calls = [list(filter(lambda call: in_interval(call["size"], self.size_range) \
@@ -930,7 +996,10 @@ class Viewer(Show, Figure, HelpDescription):
                             call["p_val_2"], call["p_val_3"], call["p_val_4"], call["Q0"], call["pN"]), end="")
                     else:
                         print("/\t/\t/\t/\t/\t/\t/\t/\t/\t/\t", end="")
-                print()
+                if self.annotate:
+                    print("\t%s" % annotator.get_info("%s:%d-%d" % (c, calls[mini][pointers[mini]]["start"], maxend)))
+                else:
+                    print()
                 if plot:
                     plot_start = calls[mini][pointers[mini]]["start"] - calls[mini][pointers[mini]]["size"]
                     if plot_start < 0:
@@ -939,6 +1008,80 @@ class Viewer(Show, Figure, HelpDescription):
                     self.multiple_regions(["%s:%d-%d" % (c, plot_start, plot_end)])
                 for i in toupdate:
                     pointers[i] += 1
+
+    def print_simple_joint_calls(self, plot=False):
+        bin_size = self.bin_size
+        n = len(self.plot_files)
+        if n==0:
+            return
+        ix = self.plot_files
+        if self.annotate:
+            annotator = Annotator(self.reference_genome)
+        chroms = self.io[ix[0]].rd_chromosomes()
+        for c in chroms:
+            if (c in self.chrom) or len(self.chrom) == 0:
+                flag = (FLAG_USEMASK if self.rd_use_mask else 0) | FLAG_GC_CORR
+                calls = [list(filter(lambda call: in_interval(call["size"], self.size_range) \
+                                                  and in_interval(call["p_val"], self.p_range) \
+                                                  and in_interval(call["pN"], self.pN_range) \
+                                                  and in_interval(call["Q0"], self.Q0_range),
+                                     self.io[ix[i]].read_calls(c, bin_size, "calls", flag))) for i in range(n)]
+                pointers = [0] * n
+                while any([pointers[i] < len(calls[i]) for i in range(n)]):
+                    starts = [calls[i][pointers[i]]["start"] if pointers[i] < len(calls[i]) else np.inf for i in
+                              range(n)]
+                    mini = starts.index(min(starts))
+                    maxend = 0
+                    toupdate = []
+                    minend = calls[mini][pointers[mini]]["end"]
+                    maxstart = 0
+                    files = []
+                    types = []
+                    cns = []
+                    for i in range(n):
+                        if (pointers[i] < len(calls[i])) and ((min(calls[i][pointers[i]]["end"],
+                                                                   calls[mini][pointers[mini]]["end"]) -
+                                                               calls[i][pointers[i]]["start"]) > (
+                                                                      0.5 * calls[mini][pointers[mini]]["size"])) \
+                                and ((min(calls[i][pointers[i]]["end"],
+                                          calls[mini][pointers[mini]]["end"]) -
+                                      calls[i][pointers[i]]["start"]) > (
+                                             0.5 * (calls[i][pointers[i]]["end"] - calls[i][pointers[i]]["start"]))):
+                            toupdate.append(i)
+                            call = calls[i][pointers[i]]
+                            if call["end"] > maxend:
+                                maxend = call["end"]
+                            if call["end"] < minend:
+                                minend = call["end"]
+                            if call["start"] > maxstart:
+                                maxstart = call["start"]
+                            type = "duplication" if call["type"] == 1 else "deletion"
+                            types.append(type)
+                            files.append(i)
+                            cns.append(int(call["cnv"] * 2))
+                    type = max(set(types), key=types.count)
+                    data = [type, c, maxstart, minend, minend - maxstart + 1]
+                    genotypes = [
+                        self.genotype([bin_size], "%s:%d-%d" % (c, maxstart, minend), file_index=ix[i], p_val=True)[0]
+                        for i
+                        in range(n)]
+                    copynumbers = [c[3] for c in genotypes]
+                    if np.all([np.abs(c - np.round(c)) < 0.25 for c in copynumbers]) or True:
+                        print(("%s\t%s:%d-%d\t%d" + n * "\t%.2f") % tuple(data + copynumbers), end="")
+                        print("\t%s" % str(files), end="")
+
+                        if self.annotate:
+                            print("\t%s" % annotator.get_info("%s:%d-%d" % (c, maxstart, minend)))
+                        else:
+                            print()
+                        if plot:
+                            plot_start = maxstart - (minend - maxstart)
+                            if plot_start < 0:
+                                plot_start = 0
+                            plot_end = minend + (minend - maxstart)
+                            self.multiple_regions(["%s:%d-%d" % (c, plot_start, plot_end)])
+                    for i in toupdate:
+                        pointers[i] += 1
 
     def manhattan(self, plot_type="rd"):
         bin_size = self.bin_size
@@ -986,13 +1129,14 @@ class Viewer(Show, Figure, HelpDescription):
                         his_p_mosaic_call_2d = io.get_signal(c, bin_size, "RD mosaic call 2d",
                                                              flag_rd | FLAG_GC_CORR)
                         his_p_mosaic = np.zeros_like(his_p) * np.nan
-                        if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and self.rd_call_mosaic:
+                        if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and (
+                                "rd_mosaic" in self.callers):
                             for seg, lev in zip(list(his_p_mosaic_seg), list(his_p_mosaic_call[0])):
                                 for segi in seg:
                                     his_p_mosaic[segi] = lev
                         his_p_mosaic_2d = np.zeros_like(his_p) * np.nan
                         if his_p_mosaic_call_2d is not None and len(
-                                his_p_mosaic_call_2d) > 0 and self.rd_call_mosaic_2d:
+                                his_p_mosaic_call_2d) > 0 and ("combined_mosaic" in self.callers):
                             for seg, lev in zip(list(his_p_mosaic_seg_2d), list(his_p_mosaic_call_2d[0])):
                                 for segi in seg:
                                     his_p_mosaic_2d[segi] = lev
@@ -1004,12 +1148,13 @@ class Viewer(Show, Figure, HelpDescription):
                     else:
                         plt.plot(pos, his_p_corr, ls='', marker='.', markersize=self.markersize)
                     if self.rd_manhattan_call:
-                        if his_p_call is not None and len(his_p_call) > 0 and self.rd_call:
+                        if his_p_call is not None and len(his_p_call) > 0 and ("rd_mean_shift" in self.callers):
                             plt.step(pos, his_p_call, "r")
-                        if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and self.rd_call_mosaic:
+                        if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and (
+                                "rd_mosaic" in self.callers):
                             plt.plot(pos, his_p_mosaic, "k")
                         if his_p_mosaic_call_2d is not None and len(
-                                his_p_mosaic_call_2d) > 0 and self.rd_call_mosaic_2d:
+                                his_p_mosaic_call_2d) > 0 and ("combined_mosaic" in self.callers):
                             plt.plot(pos, his_p_mosaic_2d, "k")
                     apos += len(his_p)
                     xticks.append(apos)
@@ -1018,7 +1163,11 @@ class Viewer(Show, Figure, HelpDescription):
                 ax.yaxis.set_ticks(np.arange(0, 15, 0.5) * max_m, minor=[])
                 ax.xaxis.set_ticks(xticks, minor=[])
                 ax.set_ylim([self.rd_manhattan_range[0] * max_m, self.rd_manhattan_range[1] * max_m])
-            elif plot_type == "calls_baf":
+                n_bins = apos
+                ax.set_xlim([0, n_bins])
+                ax.grid()
+
+            elif plot_type == "baf_mosaic":
                 chroms = []
                 snp_flag = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0) | (
                     FLAG_USEHAP if self.snp_use_phase else 0)
@@ -1066,15 +1215,19 @@ class Viewer(Show, Figure, HelpDescription):
                 ax.yaxis.set_ticks(np.arange(0, 0.5, 0.1), minor=[])
                 ax.xaxis.set_ticks(xticks, minor=[])
                 ax.set_ylim([0, 0.5])
-            elif plot_type == "calls_ms":
+                n_bins = apos
+                ax.set_xlim([0, n_bins])
+                ax.grid()
+
+            elif plot_type == "rd_mean_shift":
                 chroms = []
                 flag = (FLAG_USEMASK if self.rd_use_mask else 0) | FLAG_GC_CORR
 
                 for c, (l, t) in self.reference_genome["chromosomes"].items():
-                    snp_chr = io.snp_chromosome_name(c)
-                    if len(self.chrom) == 0 or (snp_chr in self.chrom) or (c in self.chrom):
+                    rd_chr = io.rd_chromosome_name(c)
+                    if rd_chr is not None and len(self.chrom) == 0 or (rd_chr in self.chrom) or (c in self.chrom):
                         if (Genome.is_autosome(c) or Genome.is_sex_chrom(c)):
-                            chroms.append((snp_chr, l))
+                            chroms.append((rd_chr, l))
 
                 apos = 0
                 xticks = [0]
@@ -1109,27 +1262,30 @@ class Viewer(Show, Figure, HelpDescription):
                                         call_c.append((1, 0, 0, alpha))
                                     else:
                                         call_c.append((0, 0, 1, alpha))
-                    ax.text(apos + l // bin_size // 2, 0.4, Genome.canonical_chrom_name(c),
-                            fontsize=8, verticalalignment='bottom', horizontalalignment='center', )
-                    plt.scatter(call_pos, call_conc, s=20, color=np.array(call_c), edgecolors='face', marker='|')
-                    apos += l // bin_size
-                    xticks.append(apos)
-                    cix += 1
+                        ax.text(apos + l // bin_size // 2, 0.4, Genome.canonical_chrom_name(c),
+                                fontsize=8, verticalalignment='bottom', horizontalalignment='center', )
+                        plt.scatter(call_pos, call_conc, s=20, color=np.array(call_c), edgecolors='face', marker='|')
+                        apos += l // bin_size
+                        xticks.append(apos)
+                        cix += 1
 
                 ax.xaxis.set_ticklabels([])
                 ax.yaxis.set_ticklabels([])
                 ax.yaxis.set_ticks(np.arange(0, 4.0, 1.0), minor=[])
                 ax.xaxis.set_ticks(xticks, minor=[])
                 ax.set_ylim([0, 4.0])
+                n_bins = apos
+                ax.set_xlim([0, n_bins])
+                ax.grid()
 
-            else:
+            elif plot_type == "combined_mosaic":
                 chroms = []
                 flag = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0) | (
                     FLAG_USEHAP if self.snp_use_phase else 0) | (FLAG_USEMASK if self.rd_use_mask else 0) | FLAG_GC_CORR
 
                 for c, (l, t) in self.reference_genome["chromosomes"].items():
                     snp_chr = io.snp_chromosome_name(c)
-                    if len(self.chrom) == 0 or (snp_chr in self.chrom) or (c in self.chrom):
+                    if snp_chr is not None and len(self.chrom) == 0 or (snp_chr in self.chrom) or (c in self.chrom):
                         if (Genome.is_autosome(c) or Genome.is_sex_chrom(c)):
                             chroms.append((snp_chr, l))
 
@@ -1160,12 +1316,12 @@ class Viewer(Show, Figure, HelpDescription):
                                     else:
                                         call_c.append((0, 0, 1, alpha))
 
-                    ax.text(apos + l // bin_size // 2, 0.4, Genome.canonical_chrom_name(c),
-                            fontsize=8, verticalalignment='bottom', horizontalalignment='center', )
-                    plt.scatter(call_pos, call_conc, s=20, color=np.array(call_c), edgecolors='face', marker='|')
-                    apos += l // bin_size
-                    xticks.append(apos)
-                    cix += 1
+                        ax.text(apos + l // bin_size // 2, 0.4, Genome.canonical_chrom_name(c),
+                                fontsize=8, verticalalignment='bottom', horizontalalignment='center', )
+                        plt.scatter(call_pos, call_conc, s=20, color=np.array(call_c), edgecolors='face', marker='|')
+                        apos += l // bin_size
+                        xticks.append(apos)
+                        cix += 1
 
                 ax.xaxis.set_ticklabels([])
                 ax.yaxis.set_ticklabels([])
@@ -1173,9 +1329,9 @@ class Viewer(Show, Figure, HelpDescription):
                 ax.xaxis.set_ticks(xticks, minor=[])
                 ax.set_ylim([0, 1.0])
 
-            n_bins = apos
-            ax.set_xlim([0, n_bins])
-            ax.grid()
+                n_bins = apos
+                ax.set_xlim([0, n_bins])
+                ax.grid()
 
         self.fig_show(suffix="manhattan" if plot_type == "rd" else "snp_calls", bottom=0.02, top=(1.0 - 0.15 / n),
                       wspace=0, hspace=0.2, left=0.02, right=0.98)
@@ -1378,12 +1534,13 @@ class Viewer(Show, Figure, HelpDescription):
                     his_p_mosaic_call_2d = io.get_signal(c, bin_size, "RD mosaic call 2d",
                                                          flag_rd | FLAG_GC_CORR)
                     his_p_mosaic = np.zeros_like(his_p) * np.nan
-                    if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and self.rd_call_mosaic:
+                    if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and ("rd_mosaic" in self.callers):
                         for seg, lev in zip(list(his_p_mosaic_seg), list(his_p_mosaic_call[0])):
                             for segi in seg:
                                 his_p_mosaic[segi] = lev
                     his_p_mosaic_2d = np.zeros_like(his_p) * np.nan
-                    if his_p_mosaic_call_2d is not None and len(his_p_mosaic_call_2d) > 0 and self.rd_call_mosaic_2d:
+                    if his_p_mosaic_call_2d is not None and len(his_p_mosaic_call_2d) > 0 and (
+                            "combined_mosaic" in self.callers):
                         for seg, lev in zip(list(his_p_mosaic_seg_2d), list(his_p_mosaic_call_2d[0])):
                             for segi in seg:
                                 his_p_mosaic_2d[segi] = lev
@@ -1396,11 +1553,14 @@ class Viewer(Show, Figure, HelpDescription):
                     g_p_corr.extend(list(his_p_corr[start_bin:end_bin]))
                     if his_p_seg is not None and len(his_p_seg) > 0 and self.rd_partition:
                         g_p_seg.extend(list(his_p_seg[start_bin:end_bin]))
-                    if his_p_call is not None and len(his_p_call) > 0 and self.rd_call:
+                    if his_p_call is not None and len(his_p_call) > 0 and self.rd_call and (
+                            "rd_mean_shift" in self.callers):
                         g_p_call.extend(list(his_p_call[start_bin:end_bin]))
-                    if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and self.rd_call_mosaic:
+                    if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and self.rd_call and (
+                            "rd_mosaic" in self.callers):
                         g_p_call_mosaic.extend(list(his_p_mosaic[start_bin:end_bin]))
-                    if his_p_mosaic_call_2d is not None and len(his_p_mosaic_call_2d) > 0 and self.rd_call_mosaic_2d:
+                    if his_p_mosaic_call_2d is not None and len(his_p_mosaic_call_2d) > 0 and self.rd_call and (
+                            "combined_mosaic" in self.callers):
                         g_p_call_mosaic_2d.extend(list(his_p_mosaic_2d[start_bin:end_bin]))
                     borders.append(len(g_p) - 1)
 
@@ -1424,7 +1584,7 @@ class Viewer(Show, Figure, HelpDescription):
                                        minor=[])
                     ax.yaxis.set_ticklabels([str(i) for i in range(int(self.rd_range[0]), int(self.rd_range[1] + 1))])
 
-                ax.set_ylim([self.rd_range[0] * mean, self.rd_range[1] * mean / 2])
+                ax.set_ylim([self.rd_range[0] * mean / 2, self.rd_range[1] * mean / 2])
 
                 ax.set_xlim([-l * 0.0, (l - 1) * 1.0])
 
@@ -1624,7 +1784,7 @@ class Viewer(Show, Figure, HelpDescription):
                     end_bin = pos2 // bin_size
                     gl.extend(list(likelihood[start_bin:end_bin]))
                     borders.append(len(gl) - 1)
-                    if self.snp_call:
+                    if self.snp_call and ("baf_mosaic" in self.callers):
                         likelihood_call = io.get_signal(c, bin_size, "SNP likelihood call", snp_flag)
                         segments = segments_decode(io.get_signal(c, bin_size, "SNP likelihood segments", snp_flag))
 
@@ -1642,7 +1802,7 @@ class Viewer(Show, Figure, HelpDescription):
                                         color = colors.to_rgb(self.lh_colors[0]) + (alpha,)
                                         call_c.append(color)
                         tlen += end_bin - start_bin
-                    if self.snp_call_2d:
+                    if self.snp_call and ("combined_mosaic" in self.callers):
                         likelihood_call = io.get_signal(c, bin_size, "SNP likelihood call 2d", snp_flag)
                         segments = segments_decode(io.get_signal(c, bin_size, "SNP likelihood segments 2d", snp_flag))
 
@@ -1670,12 +1830,12 @@ class Viewer(Show, Figure, HelpDescription):
                 ax.set_ylabel("Allele frequency")
                 ax.xaxis.set_ticks(np.arange(0, len(gl), 50), minor=[])
                 ax.set_xlim([-0.5, img.shape[1] - 0.5])
-                if self.snp_call:
+                if self.snp_call and ("baf_mosaic" in self.callers):
                     plt.scatter(call_pos, call_i1, s=self.lh_markersize, color=np.array(call_c), edgecolors='face',
                                 marker=self.lh_marker)
                     plt.scatter(call_pos, call_i2, s=self.lh_markersize, color=np.array(call_c), edgecolors='face',
                                 marker=self.lh_marker)
-                if self.snp_call_2d:
+                if self.snp_call and ("combined_mosaic" in self.callers):
                     plt.scatter(call_pos_2d, call_i1_2d, s=self.lh_markersize, color=np.array(call_c_2d),
                                 edgecolors='face', marker=self.lh_marker)
                     plt.scatter(call_pos_2d, call_i2_2d, s=self.lh_markersize, color=np.array(call_c_2d),
@@ -1761,7 +1921,7 @@ class Viewer(Show, Figure, HelpDescription):
             labels = []
             for j in range(len(plot_chroms)):
                 c, l = plot_chroms[j]
-                next_color=rainbow.get_next_color()
+                next_color = rainbow.get_next_color()
                 rd_color = self.rd_circular_colors[j % len(self.rd_circular_colors)]
                 snp_color = self.snp_circular_colors[j % len(self.snp_circular_colors)]
                 rd = io.get_signal(c, bin_size, "RD", rd_flag)
@@ -1771,20 +1931,19 @@ class Viewer(Show, Figure, HelpDescription):
                 hets = c01 + c10
                 np.warnings.filterwarnings('ignore')
                 maf[hets < (bin_size / 10000)] = 0
-                #plt.polar(theta[tl:tl + maf.size], 1 - maf / 2, color=snp_color, linewidth=0.3)
-                #plt.fill_between(theta[tl:tl + maf.size], 1 - maf / 2, np.ones_like(maf), color=snp_color, alpha=0.8)
-                plt.polar(theta[tl:tl + maf.size], 1 - maf / 2, linewidth=0.3,color=next_color)
-                plt.fill_between(theta[tl:tl + maf.size], 1 - maf / 2, np.ones_like(maf), alpha=1,color=next_color)
+                # plt.polar(theta[tl:tl + maf.size], 1 - maf / 2, color=snp_color, linewidth=0.3)
+                # plt.fill_between(theta[tl:tl + maf.size], 1 - maf / 2, np.ones_like(maf), color=snp_color, alpha=0.8)
+                plt.polar(theta[tl:tl + maf.size], 1 - maf / 2, linewidth=0.3, color=next_color)
+                plt.fill_between(theta[tl:tl + maf.size], 1 - maf / 2, np.ones_like(maf), alpha=1, color=next_color)
                 markersize = 5
-                if self.markersize!="auto":
+                if self.markersize != "auto":
                     markersize = self.markersize
                 ax.scatter(theta[tl:tl + rd.size], np.ones_like(rd) / 10. + 0.7 * rd / (self.rd_range[1] * rd_mean / 2),
-                           s=markersize,alpha=0.7,color=next_color)
+                           s=markersize, alpha=0.7, color=next_color)
 
-
-                #plt.polar(theta[tl:tl + rd.size], np.ones_like(rd) / 10. + 0.7 * rd / (self.rd_range[1] * rd_mean / 2),
+                # plt.polar(theta[tl:tl + rd.size], np.ones_like(rd) / 10. + 0.7 * rd / (self.rd_range[1] * rd_mean / 2),
                 #          color=rd_color, linewidth=0.3)
-                #plt.fill_between(theta[tl:tl + rd.size], np.ones_like(rd) / 10.,
+                # plt.fill_between(theta[tl:tl + rd.size], np.ones_like(rd) / 10.,
                 #                 np.ones_like(rd) / 10. + 0.7 * rd / (self.rd_range[1] * rd_mean / 2),
                 #                 color=rd_color,
                 #                 alpha=0.8)
@@ -2307,7 +2466,7 @@ class Viewer(Show, Figure, HelpDescription):
 
             self.fig_show(suffix="allelic_dropout", top=0.95, bottom=0.05, left=0.1, right=0.95)
 
-    def snp_dist(self, regions, callset=None, n_bins=100, gt_plot=[0, 1, 2, 3], titles=None):
+    def snp_dist(self, regions, callset=None, n_bins=100, gt_plot=[0, 1, 2, 3], titles=None, beta_distribution=False):
         regions = regions.split(" ")
         n = len(regions)
         self.new_figure(panel_count=n, hspace=0.2, wspace=0.2)
@@ -2322,6 +2481,7 @@ class Viewer(Show, Figure, HelpDescription):
             regs = decode_region(regions[i])
             baf = []
             bafP = []
+            mean_rd = 0
             for c, (pos1, pos2) in regs:
                 pos, ref, alt, nref, nalt, gt, flag, qual = self.io[self.plot_file].read_snp(c, callset=callset)
                 ix = 0
@@ -2331,14 +2491,21 @@ class Viewer(Show, Figure, HelpDescription):
                             baf.append(1.0 * nalt[ix] / (nref[ix] + nalt[ix]))
                             if flag[ix] & 2:
                                 bafP.append(1.0 * nalt[ix] / (nref[ix] + nalt[ix]))
+                                mean_rd += nref[ix] + nalt[ix]
                         else:
                             baf.append(1.0 * nref[ix] / (nref[ix] + nalt[ix]))
                             if flag[ix] & 2:
                                 bafP.append(1.0 * nref[ix] / (nref[ix] + nalt[ix]))
+                                mean_rd += nref[ix] + nalt[ix]
                     ix += 1
-            ax.hist(baf, bins=np.arange(0, 1.0 + 1. / (n_bins + 1), 1. / (n_bins + 1)),
-                    label="All heterozygous variants")
-            ax.hist(bafP, bins=np.arange(0, 1.0 + 1. / (n_bins + 1), 1. / (n_bins + 1)), label="P bases only")
+            mean_rd /= len(bafP)
+            x_bins = np.arange(0, 1.0 + 1. / (n_bins + 1), 1. / (n_bins + 1))
+            ax.hist(baf, bins=x_bins, label="All heterozygous variants")
+            ax.hist(bafP, bins=x_bins, label="P bases only")
+            if beta_distribution:
+                xx = np.linspace(0, 1.0, 200)
+                ax.plot(xx, beta.pdf(xx, mean_rd / 2, mean_rd / 2) * len(bafP) / n_bins, c="black",
+                        label="Beta distribution")
             ax.legend()
             ax.set_xlabel("VAF")
             ax.set_ylabel("Distribution")
@@ -2478,9 +2645,9 @@ class Viewer(Show, Figure, HelpDescription):
                                 type = "duplication" if call["type"] == 1 else "deletion"
                                 region = "%s:%d-%d" % (c, call["start"], call["end"])
 
-                                cn0 = self.genotype([bin_size], region, plot_file=sample)[0][3]
+                                cn0 = self.genotype([bin_size], region, file_index=sample)[0][3]
                                 cref = list(
-                                    map(lambda x: self.genotype([bin_size], region, plot_file=x)[0][3], reference))
+                                    map(lambda x: self.genotype([bin_size], region, file_index=x)[0][3], reference))
                                 if (((sum(map(lambda x: 0 if (cn0 - x) > 0.5 else 1, cref)) == 0) and cn0 > 2.5) \
                                     or ((sum(map(lambda x: 0 if (x - cn0) > 0.5 else 1, cref)) == 0) and cn0 < 1.5)) \
                                         and (sum(map(lambda x: 0 if np.abs(x - 2.) < 0.5 else 1, cref)) == 0):
@@ -2492,50 +2659,202 @@ class Viewer(Show, Figure, HelpDescription):
                                 #     type, c, call["start"], call["end"], call["size"], call["cnv"], call["p_val"],
                                 #     call["p_val_2"], call["p_val_3"], call["p_val_4"], call["Q0"], call["pN"]))
 
-    def genotype(self, bin_sizes, region, interactive=False, plot_file=None):
-        if plot_file is None:
-            plot_file = self.plot_file
+    def genotype(self, bin_sizes, region, p_val=False, interactive=False, file_index=None):
+        if file_index is None:
+            file_index = self.plot_file
         ret = []
-        regs = decode_region(region)
+        regs = decode_region(region, max_size=1000000000)
         for c, (pos1, pos2) in regs:
+            chr_len = self.io[file_index].get_chromosome_length(c)
+            if chr_len is not None and pos2 == 1000000000:
+                pos2 = chr_len
             if interactive:
                 print(c + ":" + str(pos1) + "-" + str(pos2), end="")
             ret.append([c, pos1, pos2])
             for bs in bin_sizes:
                 flag_rd = (FLAG_GC_CORR if self.rd_use_gc_corr else 0) | (FLAG_USEMASK if self.rd_use_mask else 0)
-                stat = self.io[plot_file].get_signal(c, bs, "RD stat", flag_rd | FLAG_AUTO)
+                stat = self.io[file_index].get_signal(c, bs, "RD stat", flag_rd | FLAG_AUTO)
                 if stat is None or len(stat) == 0:
-                    stat = self.io[plot_file].get_signal(c, bs, "RD stat", flag_rd | FLAG_SEX)
-                his_p = self.io[plot_file].get_signal(c, bs, "RD", flag_rd)
+                    stat = self.io[file_index].get_signal(c, bs, "RD stat", flag_rd | FLAG_SEX)
+                his_p = self.io[file_index].get_signal(c, bs, "RD", flag_rd)
                 bin1 = (pos1 - 1) // bs
                 bin2 = (pos2 - 1) // bs
                 rc = 0
+                rc2 = 0
                 if bin1 == bin2:
                     try:
                         rc = (pos2 - pos1 + 1) * his_p[bin1] / bs
+                        rc2 = (pos2 - pos1 + 1) * his_p[bin1] * his_p[bin1] / bs
                     except IndexError:
                         pass
                 else:
                     try:
                         rc += (bin1 * bs - pos1 + 1 + bs) * his_p[bin1] / bs
                         rc += (pos2 - bin2 * bs) * his_p[bin2] / bs
+                        rc2 += (bin1 * bs - pos1 + 1 + bs) * his_p[bin1] * his_p[bin1] / bs
+                        rc2 += (pos2 - bin2 * bs) * his_p[bin2] * his_p[bin2] / bs
                     except IndexError:
                         pass
                     for ix in range(bin1 + 1, bin2):
                         try:
                             rc += his_p[ix]
+                            rc2 += his_p[ix] * his_p[ix]
                         except IndexError:
                             pass
+                e2 = 0
+                if p_val:
+                    e1 = getEValue(stat[4], stat[5], his_p, bin1, bin2 + 1) * 2.9e9 / bs
+                    e2 = gaussianEValue(stat[4], stat[5], his_p, bin1, bin2 + 1) * 2.9e9
                 if interactive:
                     print("\t%f" % (2. * rc / (stat[4] * (pos2 - pos1 + 1) / bs)), end="")
+                    if p_val:
+                        print("\t%e\t%e" % (e1, e2), end="")
 
                 ret[-1].append(2. * rc / (stat[4] * (pos2 - pos1 + 1) / bs))
+                if p_val:
+                    ret[-1].append(e2)
             if interactive:
                 print()
 
         return ret
 
-    def genotype_prompt(self, bin_sizes=[]):
+    def genotype_all(self, bin_sizes, regions, interactive=False, file_index=None):
+        if file_index is None:
+            file_index = self.plot_file
+        rd_gc_chromosomes = {}
+        for c in self.io_gc.gc_chromosomes():
+            rd_name = self.io[file_index].rd_chromosome_name(c)
+            if not rd_name is None:
+                rd_gc_chromosomes[rd_name] = c
+        ret = {}
+        for bs in bin_sizes:
+            oc = ""
+            ret[bs] = []
+            for region in regions:
+                regs = decode_region(region, max_size=1000000000)
+                c, (pos1, pos2) = regs[0]
+                if oc != c:
+                    chr_len = self.io[file_index].get_chromosome_length(c)
+                    if chr_len is not None and pos2 == 1000000000:
+                        pos2 = chr_len
+                    flag_rd = (FLAG_GC_CORR if self.rd_use_gc_corr else 0) | (FLAG_USEMASK if self.rd_use_mask else 0)
+                    stat = self.io[file_index].get_signal(c, bs, "RD stat", flag_rd | FLAG_AUTO)
+                    if stat is None or len(stat) == 0:
+                        stat = self.io[file_index].get_signal(c, bs, "RD stat", flag_rd | FLAG_SEX)
+                    his_p = self.io[file_index].get_signal(c, bs, "RD", flag_rd)
+                    qrd_p = self.io[file_index].get_signal(c, bs, "RD")
+                    qrd_u = self.io[file_index].get_signal(c, bs, "RD unique")
+                    gc, at = False, False
+                    if c in rd_gc_chromosomes and self.io_gc.signal_exists(rd_gc_chromosomes[c], None, "GC/AT"):
+                        gcat = self.io_gc.get_signal(rd_gc_chromosomes[c], None, "GC/AT")
+                        gc, at = gc_at_decompress(gcat)
+                    snp = c in self.io[file_index].snp_chromosomes()
+                    snp_flag = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0) | (
+                        FLAG_USEHAP if self.snp_use_phase else 0)
+                    if snp:
+                        snp_likelihood = list(
+                            self.io[file_index].get_signal(c, bs, "SNP likelihood", snp_flag).astype("float64"))
+                        snp_hets = self.io[file_index].get_signal(c, bs, "SNP bin count 0|1", snp_flag)
+                        snp_hets += self.io[file_index].get_signal(c, bs, "SNP bin count 1|0", snp_flag)
+                        snp_homs = self.io[file_index].get_signal(c, bs, "SNP bin count 1|1", snp_flag)
+                oc = c
+                ret[bs].append([c, pos1, pos2])
+
+                bin1 = (pos1 - 1) // bs
+                bin2 = (pos2 - 1) // bs
+                rc = 0
+                rc2 = 0
+                sp = 0
+                su = 0
+                if bin1 == bin2:
+                    try:
+                        rc = (pos2 - pos1 + 1) * his_p[bin1] / bs
+                        rc2 = (pos2 - pos1 + 1) * his_p[bin1] * his_p[bin1] / bs
+                        sp = (pos2 - pos1 + 1) * qrd_p[bin1] / bs
+                        su = (pos2 - pos1 + 1) * qrd_u[bin1] / bs
+                    except IndexError:
+                        pass
+                else:
+                    try:
+                        rc += (bin1 * bs - pos1 + 1 + bs) * his_p[bin1] / bs
+                        rc += (pos2 - bin2 * bs) * his_p[bin2] / bs
+                        rc2 += (bin1 * bs - pos1 + 1 + bs) * his_p[bin1] * his_p[bin1] / bs
+                        rc2 += (pos2 - bin2 * bs) * his_p[bin2] * his_p[bin2] / bs
+                        sp += (bin1 * bs - pos1 + 1 + bs) * qrd_p[bin1] / bs
+                        sp += (pos2 - bin2 * bs) * qrd_p[bin2] / bs
+                        su += (bin1 * bs - pos1 + 1 + bs) * qrd_u[bin1] / bs
+                        su += (pos2 - bin2 * bs) * qrd_u[bin2] / bs
+
+                    except IndexError:
+                        pass
+                    for ix in range(bin1 + 1, bin2):
+                        try:
+                            rc += his_p[ix]
+                            rc2 += his_p[ix] * his_p[ix]
+                            sp += qrd_p[ix]
+                            su += qrd_u[ix]
+                        except IndexError:
+                            pass
+                if gc:
+                    sbin1 = (pos1 - 1) // 100
+                    sbin2 = (pos2 - 1) // 100
+                    pN = 0
+                    if bin1 == bin2:
+                        try:
+                            pN = (pos2 - pos1 + 1) * (gc[sbin1] + at[sbin1]) / 100
+                        except IndexError:
+                            pass
+                    else:
+                        try:
+                            pN += (sbin1 * 100 - pos1 + 101) * (gc[sbin1] + at[sbin1]) / 100
+                            pN += (pos2 - sbin2 * 100) * (gc[sbin2] + at[sbin2]) / 100
+
+                        except IndexError:
+                            pass
+                        for ix in range(sbin1 + 1, sbin2):
+                            try:
+                                pN += gc[ix] + at[ix]
+                            except IndexError:
+                                pass
+
+                # e1 = getEValue(stat[4], stat[5], his_p, bin1, bin2 + 1) * 2.9e9 / bs
+                e2 = gaussianEValue(stat[4], stat[5], his_p, bin1, bin2 + 1) * 2.9e9
+                if gc:
+                    pN = 1 - pN / (pos2 - pos1 + 1)
+                else:
+                    pN = -1
+                ret[bs][-1].append(2. * rc / (stat[4] * (pos2 - pos1 + 1) / bs))
+                ret[bs][-1].append(e2)
+                q0 = 0
+                if sp != 0:
+                    q0 = (sp - su) / sp
+                ret[bs][-1].append(q0)
+                ret[bs][-1].append(pN)
+                if snp:
+                    homs = np.sum(snp_homs[bin1:bin2 + 1])
+                    hets = np.sum(snp_hets[bin1:bin2 + 1])
+                    lh = np.ones_like(snp_likelihood[0])
+                    for ix in range(bin1, bin2 + 1):
+                        lh *= snp_likelihood[ix]
+                        lh /= np.sum(lh)
+                    baf, baf_p = likelihood_baf_pval(lh)
+                    ret[bs][-1] += [homs, hets, baf, baf_p]
+                else:
+                    ret[bs][-1] += [0, 0, 0, 1]
+        if interactive:
+            plist = []
+            for bs in bin_sizes:
+                if len(plist) == 0:
+                    plist = ret[bs]
+                else:
+                    for ix in range(len(ret[bs])):
+                        plist[ix] += ret[bs][ix][3:]
+            for r in plist:
+                print(("%s:%d-%d" + (len(bin_sizes) * "\t%.4f\t%e\t%.4f\t%.4f\t%d\t%d\t%.4f\t%e")) % tuple(r))
+
+        return ret
+
+    def genotype_prompt(self, bin_sizes=[], all=False):
         done = False
         while not done:
             try:
@@ -2548,15 +2867,16 @@ class Viewer(Show, Figure, HelpDescription):
             if line is None or line == "":
                 done = True
             else:
-                self.genotype(bin_sizes, line, interactive=True)
+                if all:
+                    self.genotype_all(bin_sizes, [line], interactive=True)
+                else:
+                    self.genotype(bin_sizes, line, interactive=True)
 
-    def rd_baf_call_models(self,maxcn=10):
-
+    def rd_baf_call_models(self, maxcn=10):
         bin_size = self.bin_size
         n = len(self.plot_files)
         ix = self.plot_files
         self.new_figure(panel_count=n, wspace=0.1, hspace=0.1)
-
 
         self.fig_show(suffix="regions", bottom=0.05, top=0.98,
                       wspace=0.2, hspace=0.2, left=0.05, right=0.98)
@@ -2598,16 +2918,12 @@ class Viewer(Show, Figure, HelpDescription):
 
                     for call in calls:
                         if call["bins"] > self.min_segment_size:
-                            call_rd.append(call["cnv"]*2)
+                            call_rd.append(call["cnv"] * 2)
                             call_baf.append(call["baf"])
-                            call_label.append(c+":"+str(call["start"])+"-"+str(call["end"]))
+                            call_label.append(c + ":" + str(call["start"]) + "-" + str(call["end"]))
 
                 plt.scatter(call_baf, call_rd, s=20, edgecolors='face', marker='.')
                 cix += 1
-
-
-
-
 
             ax.set_xlabel("|ΔBAF|")
             ax.set_ylabel("Relative RD level")
@@ -2620,7 +2936,6 @@ class Viewer(Show, Figure, HelpDescription):
 
         self.fig_show(suffix="models", bottom=0.05, top=0.98,
                       wspace=0, hspace=0.2, left=0.05, right=0.98)
-
 
 
 def anim_plot_likelihood(likelihood, segments, n, res, iter, prefix, maxp, minp):

@@ -111,6 +111,7 @@ def main():
     parser.add_argument('-info', '--info', type=binsize_type, nargs="*", help='print statistics for pythor file(s)')
     parser.add_argument('-comp', '--compare', type=str, nargs="*", help='compere two regions: -comp reg1 reg2 [n_bins]')
     parser.add_argument('-genotype', '--genotype', type=str, nargs="*")
+    parser.add_argument('-a', '--all', action='store_true', help='Genotype with all columns')
     parser.add_argument('-meta', '--metadata', action='store_true', help='list Metadata')
     parser.add_argument('-export', '--export', type=str, nargs="*", help='Export to jbrowse and cnvnator')
     args = parser.parse_args(sys.argv[1:])
@@ -191,7 +192,7 @@ def main():
 
         if args.genotype is not None:
             view = Viewer(args.root, {}, force_agg=args.force_agg)
-            view.genotype_prompt(list(map(binsize_type, args.genotype)))
+            view.genotype_prompt(list(map(binsize_type, args.genotype)), all=args.all)
 
         if args.compare is not None:
             params = {"bin_size": binsize_type(args.compare[-1]),

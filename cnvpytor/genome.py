@@ -29,7 +29,8 @@ class Genome:
                  ("chr22", (51304566, "A")), ("chrX", (155270560, "S")), ("chrY", (59373566, "S")),
                  ("chrM", (16571, "M"))]),
             "gc_file": pkg_resources.resource_filename('cnvpytor', 'data') + "/gc_hg19.pytor",
-            "mask_file": pkg_resources.resource_filename('cnvpytor', 'data') + "/mask_hg19.pytor"
+            "mask_file": pkg_resources.resource_filename('cnvpytor', 'data') + "/mask_hg19.pytor",
+            "ensembl_api_region": "https://grch37.rest.ensembl.org/overlap/region/human/{region}?content-type=application/json;feature=gene;"
         },
         "hg38": {
             "name": "GRCh38",
@@ -45,7 +46,8 @@ class Genome:
                  ("chr22", (50818468, "A")), ("chrX", (156040895, "S")), ("chrY", (57227415, "S")),
                  ("chrM", (16569, "M"))]),
             "gc_file": pkg_resources.resource_filename('cnvpytor', 'data') + "/gc_hg38.pytor",
-            "mask_file": pkg_resources.resource_filename('cnvpytor', 'data') + "/mask_hg38.pytor"
+            "mask_file": pkg_resources.resource_filename('cnvpytor', 'data') + "/mask_hg38.pytor",
+            "ensemble_api_region": "https://rest.ensembl.org/overlap/region/human/{region}?content-type=application/json;feature=gene;"
         }
     }
 
@@ -240,7 +242,7 @@ class Genome:
             for c, l in zip(names, lengths):
                 if ((c in cls.reference_genomes[g]["chromosomes"]) or (
                         cls.extended_chrom_name(c) in cls.reference_genomes[g]["chromosomes"])) and (
-                not cls.is_mt_chrom(c)):
+                        not cls.is_mt_chrom(c)):
                     checked = True
                     found = found and (cls.reference_genomes[g]["chromosomes"][cls.extended_chrom_name(c)][0] == l)
             if checked and found:

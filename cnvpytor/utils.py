@@ -362,7 +362,6 @@ def getEValue(mean, sigma, rd, start, end):
         s = sigma * aver / mean if sigma > 0 else 1
     return t_test_1_sample(mean, aver, s, end - start) / (end - start)
 
-
 def gaussianEValue(mean, sigma, rd, start, end):
     aver = np.mean(rd[start:end])
     max = np.max(rd[start:end])
@@ -512,7 +511,7 @@ def decode_position(s):
     return int(s.replace("K", "000").replace("k", "000").replace("M", "000000").replace("m", "000000"))
 
 
-def decode_region(s):
+def decode_region(s,max_size=1000000000):
     """
 
     Parameters
@@ -532,7 +531,7 @@ def decode_region(s):
             begin_end = chr_interval[1].split("-")
             ret.append((chr_interval[0], (decode_position(begin_end[0]), decode_position(begin_end[1]))))
         else:
-            ret.append((chr_interval[0], (1, 1000000000)))
+            ret.append((chr_interval[0], (1, max_size)))
     return ret
 
 
