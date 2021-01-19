@@ -1766,9 +1766,8 @@ class Root:
                                           data=np.array(likelihood, dtype="float32"), flags=snp_flag)
 
     def call_2d(self, bin_sizes, chroms=[], event_type="both", print_calls=False, use_gc_corr=True, rd_use_mask=False,
-                snp_use_mask=True,
-                snp_use_id=False, max_copy_number=10, min_cell_fraction=0.0, omin=None, mcount=None, max_distance=0.1,
-                use_hom=False, anim=""):
+                snp_use_mask=True, snp_use_id=False, max_copy_number=10, min_cell_fraction=0.0, baf_threshold=0,
+                omin=None, mcount=None, max_distance=0.1, use_hom=False, anim=""):
         """
         CNV caller using combined RD and BAF sigal based on likelihood merger.
 
@@ -2008,7 +2007,7 @@ class Root:
                                 homs = 0
                                 hets = 0
                                 for bin in segments[i]:
-                                    if baf_mean == 0:
+                                    if baf_mean <= baf_threshold:
                                         gstat_rd0.append(rd[bin])
                                     srdp += qrd_p[bin]
                                     q0 += (qrd_p[bin] - qrd_u[bin])
@@ -2218,7 +2217,7 @@ class Root:
                     else:
                         lh_loh += master_lh[ei][mi][3]
 
-                if gstat_baf[ei] == 0 and cnv < 1.01 and cnv > 0.99:
+                if gstat_baf[ei] <= baf_threshold and cnv < 1.01 and cnv > 0.99:
                     continue
                 if master_lh[ei][0][1] == 1 and master_lh[ei][0][2] == 1:
                     continue

@@ -62,6 +62,7 @@ def main():
     parser.add_argument('-dp', '--dp_tag', type=str, help="read depth tag (default: DP)", default="DP")
     parser.add_argument('-callset', '--callset', type=str, help="name for somatic VCF signal", default="default")
     parser.add_argument('-maxcn', '--max_copy_number', type=int, help="maximal copy number", default=10)
+    parser.add_argument('-mindbaf', '--baf_threshold', type=float, help="threshold for change in BAF level", default=0.0)
     parser.add_argument('-mincf', '--min_cell_fraction', type=float, help="minimal cell fraction", default=0.0)
 
     parser.add_argument('-pileup', '--pileup_bam', nargs="+", type=str, help="calculate SNP counts from bam files")
@@ -223,7 +224,7 @@ def main():
             if args.plot_style:
                 params["style"] = args.plot_style
             view = Viewer(args.root, params)
-            view.plot(args.plot)
+            view.plot_command(args.plot)
 
         if args.view:
             params = {"bin_size": args.view,
@@ -324,7 +325,8 @@ def main():
                             use_gc_corr=not args.no_gc_corr,
                             rd_use_mask=args.use_mask_with_rd, snp_use_mask=not args.no_mask, snp_use_id=args.use_id,
                             mcount=args.min_count, max_copy_number=args.max_copy_number,
-                            min_cell_fraction=args.min_cell_fraction, use_hom=args.use_hom, anim=args.animation)
+                            min_cell_fraction=args.min_cell_fraction, baf_threshold=args.baf_threshold,
+                            use_hom=args.use_hom, anim=args.animation)
             else:
                 app.call(list(map(binsize_type, args.call)), chroms=args.chrom, print_calls=True,
                          use_gc_corr=not args.no_gc_corr, use_mask=args.use_mask_with_rd)

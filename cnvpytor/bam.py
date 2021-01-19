@@ -33,6 +33,7 @@ class Bam:
         self.max_frg_len = max_fragment_len
         self.reference_genome = None
         self.filename = filename
+        self.reference_filename = reference_filename
         if filename[-4:] == ".bam":
             self.file = pysam.AlignmentFile(filename, "rb")
         elif filename[-4:] == ".sam":
@@ -131,13 +132,16 @@ class Bam:
         for i in pos:
             print(chr_name, i, file=f)
         f.close()
-        mpile = pysam.mpileup("-r", chr_name, "-l", tmp_file, self.filename)
+        if self.reference_filename:
+            mpile = pysam.mpileup("-r", chr_name, "-l", tmp_file, "--reference", self.reference_filename, self.filename)
+        else:
+            mpile = pysam.mpileup("-r", chr_name, "-l", tmp_file, self.filename)
         os.remove(tmp_file)
         pos_seq = dict([(int(x.split("\t")[1]), x.split("\t")[4].upper()) for x in mpile.split("\n") if x != ""])
         nref = [0] * len(pos)
         nalt = [0] * len(pos)
         for ix in range(len(pos)):
             if pos[ix] in pos_seq:
-                nref[ix] = pos_seq[pos[ix]].count(ref[ix])
+                nref[ix] = pos_seq[pos[ix]].count(ref[ix]) + pos_seq[pos[ix]].count(".") + pos_seq[pos[ix]].count(",")
                 nalt[ix] = pos_seq[pos[ix]].count(alt[ix])
         return nref, nalt

@@ -172,6 +172,7 @@ class Figure(ViewParams):
         self.fig_sub_grid = gridspec.GridSpecFromSubplotSpec(sy, sx, subplot_spec=self.fig_grid[self.current],
                                                              wspace=wspace, hspace=hspace)
         self.sg_current = -1
+        self.sg_current_ax = None
 
     def next_panel(self):
         """ Return axes of next panel
@@ -184,7 +185,7 @@ class Figure(ViewParams):
         self.current += 1
         return self.fig.add_subplot(self.fig_grid[self.current])
 
-    def next_subpanel(self):
+    def next_subpanel(self, sharex=False):
         """ Return axes of next sub panel
 
         Returns
@@ -193,7 +194,11 @@ class Figure(ViewParams):
             Axes for a given panel
         """
         self.sg_current += 1
-        return self.fig.add_subplot(self.fig_sub_grid[self.sg_current])
+        if self.sg_current == 0 or not sharex:
+            self.sg_current_ax = self.fig.add_subplot(self.fig_sub_grid[self.sg_current])
+        else:
+            self.sg_current_ax = self.fig.add_subplot(self.fig_sub_grid[self.sg_current], sharex=self.sg_current_ax)
+        return self.sg_current_ax
 
     def next_polar_panel(self):
         """ Return axes of next panel
@@ -348,7 +353,7 @@ class Viewer(Show, Figure, HelpDescription):
                 if current == "likelihood":
                     self.likelihood()
                 elif current == "manhattan":
-                    self.manhattan()
+                    self.global_plot()
                 elif current == "calls":
                     if len(self.callers) > 0:
                         self.manhattan(plot_type=self.callers[0])
@@ -370,7 +375,7 @@ class Viewer(Show, Figure, HelpDescription):
             else:
                 current = p
 
-    def plot(self, command):
+    def plot_command(self, command):
         self.interactive = False
         self.parse(command)
 
@@ -1012,7 +1017,7 @@ class Viewer(Show, Figure, HelpDescription):
     def print_simple_joint_calls(self, plot=False):
         bin_size = self.bin_size
         n = len(self.plot_files)
-        if n==0:
+        if n == 0:
             return
         ix = self.plot_files
         if self.annotate:
@@ -1477,14 +1482,11 @@ class Viewer(Show, Figure, HelpDescription):
 
     def multiple_regions(self, regions):
         n = len(self.plot_files) * len(regions)
-        ix = self.plot_files
-
         self.new_figure(panel_count=n, wspace=0.1, hspace=0.1)
-
         j = 0
         for i in range(len(self.plot_files)):
             for r in regions:
-                self.regions(ix[i], r)
+                self.regions(self.plot_files[i], r)
                 j += 1
         self.fig_show(suffix="regions", bottom=0.05, top=0.98,
                       wspace=0, hspace=0.2, left=0.05, right=0.98)
@@ -1494,11 +1496,11 @@ class Viewer(Show, Figure, HelpDescription):
         bin_size = self.bin_size
         snp_flag = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0) | (
             FLAG_USEHAP if self.snp_use_phase else 0)
-        self.new_subgrid(len(panels), hspace=0.15, wspace=0.1)
-        r = decode_region(region)
+        self.new_subgrid(len(panels), hspace=0.05, wspace=0.1)
+        r = decode_region(region, max_size=1000000000)
         io = self.io[ix]
         for i in range(len(panels)):
-            ax = self.next_subpanel()
+            ax = self.next_subpanel(sharex=True)
             if i == 0:
                 ax.set_title(self.file_title(ix) + ": " + region, position=(0.01, 0.9),
                              fontdict={'verticalalignment': 'top', 'horizontalalignment': 'left'},
@@ -1515,6 +1517,10 @@ class Viewer(Show, Figure, HelpDescription):
                 borders = []
                 pos_x = []
                 for c, (pos1, pos2) in r:
+                    if pos2 == 1000000000:
+                        pos2 = io.get_chromosome_length(c)
+                        if pos2 is None:
+                            pos2 = 1000000000
                     flag_rd = 0
                     if self.rd_use_mask:
                         flag_rd = FLAG_USEMASK
@@ -1575,22 +1581,22 @@ class Viewer(Show, Figure, HelpDescription):
                     else:
                         return ""
 
-                ax.xaxis.set_major_formatter(plt.FuncFormatter(format_func))
-                ax.xaxis.set_major_locator(plt.MaxNLocator(5))
-
                 l = len(g_p)
+                if i == len(panels) - 1:
+                    ax.xaxis.set_major_formatter(plt.FuncFormatter(format_func))
+                    ax.xaxis.set_major_locator(plt.MaxNLocator(5))
+                    ax.set_xlim([-l * 0.0, (l - 1) * 1.0])
+                    ax.xaxis.grid()
+                else:
+                    plt.setp(ax.get_xticklabels(), visible=False)
+
                 if (self.rd_range[1] - self.rd_range[0]) < 30:
                     ax.yaxis.set_ticks(np.arange(int(self.rd_range[0]), int(self.rd_range[1] + 1), 1) * mean / 2,
                                        minor=[])
                     ax.yaxis.set_ticklabels([str(i) for i in range(int(self.rd_range[0]), int(self.rd_range[1] + 1))])
-
                 ax.set_ylim([self.rd_range[0] * mean / 2, self.rd_range[1] * mean / 2])
-
-                ax.set_xlim([-l * 0.0, (l - 1) * 1.0])
-
                 ax.set_ylabel("Read depth")
                 ax.yaxis.grid()
-                ax.xaxis.grid()
 
                 if self.rd_raw:
                     ax.step(g_p, self.rd_colors[0], label="raw")
@@ -1617,13 +1623,18 @@ class Viewer(Show, Figure, HelpDescription):
                 color = []
                 alpha = 0.7
                 start_pos = 0
+                pos_x = []
                 for c, (pos1, pos2) in r:
+                    if pos2 == 1000000000:
+                        pos2 = io.get_chromosome_length(c)
+                        if pos2 is None:
+                            pos2 = 1000000000
                     pos, ref, alt, nref, nalt, gt, flag, qual = io.read_snp(c)
                     ix = 0
                     mdp = 0
                     while ix < len(pos) and pos[ix] <= pos2:
                         if pos[ix] >= pos1 and (nref[ix] + nalt[ix]) != 0 and ((not self.snp_use_id) or (flag[ix] & 1)):
-                            hpos.append(start_pos + pos[ix] - pos1)
+                            hpos.append((start_pos + pos[ix] - pos1) / bin_size)
                             if pos[ix] - pos1 > mdp:
                                 mdp = pos[ix] - pos1
                             if gt[ix] % 4 != 2:
@@ -1637,16 +1648,37 @@ class Viewer(Show, Figure, HelpDescription):
                             else:
                                 color.append(self.snp_colors[(gt[ix] % 4) * 2 + (flag[ix] >> 1)])
                         ix += 1
-                    start_pos += mdp
-                    borders.append(start_pos)
+                    start_pos += pos2 - pos1
+                    pos_x.extend(range(pos1, pos2 + bin_size, bin_size))
+                    borders.append(start_pos / bin_size)
 
-                ax.xaxis.set_ticklabels([])
-                ax.yaxis.set_ticks([0, 0.25, 0.5, 0.75, 1.0], [])
+                def format_func(value, tick_number):
+                    ix = int(value)
+                    if ix + 1 < len(pos_x):
+                        p = pos_x[ix] + (pos_x[ix + 1] - pos_x[ix]) * (value - ix)
+                        return "{0} Mbp".format(int(p / 100) / 10000)
+                    elif ix < len(pos_x):
+                        p = pos_x[ix]
+                        return "{0} Mbp".format(int(p / 100) / 10000)
+                    else:
+                        return ""
+
+                l = len(pos_x)
+                if i == len(panels) - 1:
+                    ax.xaxis.set_major_formatter(plt.FuncFormatter(format_func))
+                    ax.xaxis.set_major_locator(plt.MaxNLocator(5))
+                    ax.set_xlim([-l * 0.0, (l - 1) * 1.0])
+                    ax.xaxis.grid()
+                else:
+                    plt.setp(ax.get_xticklabels(), visible=False)
+
+                # ax.xaxis.set_ticklabels([])
+                ax.yaxis.set_ticks([0, 0.25, 0.5, 0.75, 1.0], minor=[])
                 ax.yaxis.set_ticklabels(["0", "1/4", "1/2", "3/4", "1"])
                 ax.set_ylabel("Allele frequency")
                 l = max(hpos)
                 ax.set_ylim([-0.05, 1.05])
-                ax.set_xlim([0, borders[-1]])
+                # ax.set_xlim([0, borders[-1]])
                 ax.yaxis.grid()
                 if self.markersize == "auto":
                     ax.scatter(hpos, baf, marker='.', edgecolor=color, c=color, s=10, alpha=alpha)
@@ -1667,13 +1699,18 @@ class Viewer(Show, Figure, HelpDescription):
                 color = []
                 alpha = 0.7
                 start_pos = 0
+                pos_x = []
                 for c, (pos1, pos2) in r:
+                    if pos2 == 1000000000:
+                        pos2 = io.get_chromosome_length(c)
+                        if pos2 is None:
+                            pos2 = 1000000000
                     pos, ref, alt, nref, nalt, gt, flag, qual = io.read_snp(c, callset=callset)
                     ix = 0
                     mdp = 0
                     while ix < len(pos) and pos[ix] <= pos2:
                         if pos[ix] >= pos1 and (nref[ix] + nalt[ix]) != 0:
-                            hpos.append(start_pos + pos[ix] - pos1)
+                            hpos.append((start_pos + pos[ix] - pos1) / bin_size)
                             if pos[ix] - pos1 > mdp:
                                 mdp = pos[ix] - pos1
                             if gt[ix] % 4 != 2:
@@ -1687,16 +1724,34 @@ class Viewer(Show, Figure, HelpDescription):
                             else:
                                 color.append(self.snp_colors[(gt[ix] % 4) * 2 + (flag[ix] >> 1)])
                         ix += 1
-                    start_pos += mdp
-                    borders.append(start_pos)
+                    start_pos += pos2 - pos1
+                    pos_x.extend(range(pos1, pos2 + bin_size, bin_size))
+                    borders.append(start_pos / bin_size)
 
-                ax.xaxis.set_ticklabels([])
+                def format_func(value, tick_number):
+                    ix = int(value)
+                    if ix + 1 < len(pos_x):
+                        p = pos_x[ix] + (pos_x[ix + 1] - pos_x[ix]) * (value - ix)
+                        return "{0} Mbp".format(int(p / 100) / 10000)
+                    elif ix < len(pos_x):
+                        p = pos_x[ix]
+                        return "{0} Mbp".format(int(p / 100) / 10000)
+                    else:
+                        return ""
+
+                l = len(pos_x)
+                if i == len(panels) - 1:
+                    ax.xaxis.set_major_formatter(plt.FuncFormatter(format_func))
+                    ax.xaxis.set_major_locator(plt.MaxNLocator(5))
+                    ax.set_xlim([-l * 0.0, (l - 1) * 1.0])
+                else:
+                    plt.setp(ax.get_xticklabels(), visible=False)
+                ax.xaxis.grid()
                 ax.yaxis.set_ticklabels([])
                 ax.yaxis.set_ticks([0, 0.25, 0.5, 0.75, 1.0], minor=[])
                 ax.yaxis.set_ticklabels(["0", "1/4", "1/2", "3/4", "1"])
                 ax.set_ylabel("Allele frequency")
                 ax.set_ylim([0., 1.])
-                ax.set_xlim([0, borders[-1]])
                 ax.yaxis.grid()
                 if self.markersize == "auto":
                     ax.scatter(hpos, baf, marker='.', edgecolor=color, c=color, s=10, alpha=alpha)
@@ -1713,6 +1768,11 @@ class Viewer(Show, Figure, HelpDescription):
                 pos_x = []
 
                 for c, (pos1, pos2) in r:
+                    if pos2 == 1000000000:
+                        pos2 = io.get_chromosome_length(c)
+                        if pos2 is None:
+                            pos2 = 1000000000
+
                     flag_snp = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0) | (
                         FLAG_USEHAP if self.snp_use_phase else 0)
                     baf = io.get_signal(c, bin_size, "SNP baf", flag_snp)
@@ -1742,20 +1802,23 @@ class Viewer(Show, Figure, HelpDescription):
                     else:
                         return ""
 
-                ax.xaxis.set_major_formatter(plt.FuncFormatter(format_func))
-                ax.xaxis.set_major_locator(plt.MaxNLocator(5))
+                l = len(g_baf)
+                if i == len(panels) - 1:
+                    ax.xaxis.set_major_formatter(plt.FuncFormatter(format_func))
+                    ax.xaxis.set_major_locator(plt.MaxNLocator(5))
+                    ax.set_xlim([-l * 0.0, (l - 1) * 1.0])
+                    ax.xaxis.grid()
 
                 ax.yaxis.set_ticklabels([])
-                l = len(g_baf)
                 ax.yaxis.set_ticks([0, 0.25, 0.5, 0.75, 1.0], minor=[])
                 ax.yaxis.set_ticklabels(["0", "1/4", "1/2", "3/4", "1"])
                 ax.set_ylabel("Allele frequency")
 
                 ax.set_ylim([0, 1])
-                ax.set_xlim([-l * 0.0, l * 1.0])
+                # ax.set_xlim([-l * 0.0, l * 1.0])
 
                 ax.yaxis.grid()
-                ax.xaxis.grid()
+                # ax.xaxis.grid()
                 ax.step(g_baf, self.baf_colors[0], label="BAF")
                 ax.step(g_maf, self.baf_colors[1], label="MAF")
                 ax.step(g_i1, self.baf_colors[2], label="I1")
@@ -1779,6 +1842,10 @@ class Viewer(Show, Figure, HelpDescription):
                 tlen = 0
                 tlen_2d = 0
                 for c, (pos1, pos2) in r:
+                    if pos2 == 1000000000:
+                        pos2 = io.get_chromosome_length(c)
+                        if pos2 is None:
+                            pos2 = 1000000000
                     likelihood = io.get_signal(c, bin_size, "SNP likelihood", snp_flag)
                     start_bin = (pos1 - 1) // bin_size
                     end_bin = pos2 // bin_size
@@ -1821,15 +1888,35 @@ class Viewer(Show, Figure, HelpDescription):
                                         call_c_2d.append(color)
                         tlen_2d += end_bin - start_bin
 
+                def format_func(value, tick_number):
+                    ix = int(value)
+                    if ix + 1 < len(pos_x):
+                        p = pos_x[ix] + (pos_x[ix + 1] - pos_x[ix]) * (value - ix)
+                        return "{0} Mbp".format(int(p / 100) / 10000)
+                    elif ix < len(pos_x):
+                        p = pos_x[ix]
+                        return "{0} Mbp".format(int(p / 100) / 10000)
+                    else:
+                        return ""
+
                 img = np.array(gl).transpose()
+                l = img.shape[1]
+                if i == len(panels) - 1:
+                    ax.xaxis.set_major_formatter(plt.FuncFormatter(format_func))
+                    ax.xaxis.set_major_locator(plt.MaxNLocator(5))
+                    ax.set_xlim([-l * 0.0, (l - 1) * 1.0])
+                    # ax.xaxis.grid()
+                else:
+                    plt.setp(ax.get_xticklabels(), visible=False)
+
                 ax.imshow(img, aspect='auto')
-                ax.xaxis.set_ticklabels([])
+                # ax.xaxis.set_ticklabels([])
                 ax.yaxis.set_ticks([0, img.shape[0] / 4, img.shape[0] / 2, 3 * img.shape[0] / 4, img.shape[0] - 1],
                                    minor=[])
                 ax.yaxis.set_ticklabels(["1", "3/4", "1/2", "1/4", "0"])
                 ax.set_ylabel("Allele frequency")
-                ax.xaxis.set_ticks(np.arange(0, len(gl), 50), minor=[])
-                ax.set_xlim([-0.5, img.shape[1] - 0.5])
+                # ax.xaxis.set_ticks(np.arange(0, len(gl), 50), minor=[])
+                # ax.set_xlim([-0.5, img.shape[1] - 0.5])
                 if self.snp_call and ("baf_mosaic" in self.callers):
                     plt.scatter(call_pos, call_i1, s=self.lh_markersize, color=np.array(call_c), edgecolors='face',
                                 marker=self.lh_marker)
@@ -1852,6 +1939,11 @@ class Viewer(Show, Figure, HelpDescription):
                 tlen = 0
                 tlen_2d = 0
                 for c, (pos1, pos2) in r:
+                    if pos2 == 1000000000:
+                        pos2 = io.get_chromosome_length(c)
+                        if pos2 is None:
+                            pos2 = 1000000000
+
                     his_p = io.get_signal(c, bin_size, "RD", flag_rd)
                     start_bin = (pos1 - 1) // bin_size
                     end_bin = pos2 // bin_size
@@ -1882,11 +1974,227 @@ class Viewer(Show, Figure, HelpDescription):
                 x = range(len(gh1))
                 plt.gca().get_xaxis().get_major_formatter().set_useOffset(False)
                 plt.stackplot(x, gh1, gh2, baseline='sym')
-                ax.set_xlim([0, len(gh1)])
+
+                def format_func(value, tick_number):
+                    ix = int(value)
+                    if ix + 1 < len(pos_x):
+                        p = pos_x[ix] + (pos_x[ix + 1] - pos_x[ix]) * (value - ix)
+                        return "{0} Mbp".format(int(p / 100) / 10000)
+                    elif ix < len(pos_x):
+                        p = pos_x[ix]
+                        return "{0} Mbp".format(int(p / 100) / 10000)
+                    else:
+                        return ""
+
+                l = len(gh1)
+                if i == len(panels) - 1:
+                    ax.xaxis.set_major_formatter(plt.FuncFormatter(format_func))
+                    ax.xaxis.set_major_locator(plt.MaxNLocator(5))
+                    ax.set_xlim([-l * 0.0, (l - 1) * 1.0])
+                    ax.xaxis.grid()
 
                 for i in borders[:-1]:
                     ax.axvline(i + 0.5, color="g", lw=1)
                 self.fig.add_subplot(ax)
+
+    def global_plot(self):
+        chroms = []
+        for c, (l, t) in self.reference_genome["chromosomes"].items():
+            rd_chr = self.io[self.plot_files[0]].rd_chromosome_name(c)
+            if len(self.chrom) == 0 or (rd_chr in self.chrom) or (c in self.chrom):
+                if (Genome.is_autosome(c) or Genome.is_sex_chrom(c)):
+                    chroms.append((rd_chr, l))
+        panels = self.panels
+        bin_size = self.bin_size
+        snp_flag = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0) | (
+            FLAG_USEHAP if self.snp_use_phase else 0)
+        rd_flag = (FLAG_USEMASK if self.rd_use_mask else 0) | (FLAG_GC_CORR if self.rd_use_gc_corr else 0)
+        n = len(self.plot_files)
+        self.new_figure(panel_count=n, wspace=0.1, hspace=0.1)
+        for ii in range(len(self.plot_files)):
+            ix = self.plot_files[ii]
+            self.new_subgrid(len(panels), hspace=0.05, wspace=0.05)
+            io = self.io[ix]
+            for i in range(len(panels)):
+                ax = self.next_subpanel(sharex=True)
+
+                if panels[i] == "rd":
+                    start = 0
+                    xticks = [0]
+                    xticks_minor = []
+                    xticks_labels = []
+                    for c, l in chroms:
+                        mean, stdev = io.rd_normal_level(bin_size, rd_flag | FLAG_GC_CORR)
+                        his_p = io.get_signal(c, bin_size, "RD", rd_flag)
+                        pos = range(start, start + len(his_p))
+                        if self.markersize == "auto":
+                            plt.plot(pos, his_p, ls='', marker='.', markersize=1)
+                        else:
+                            plt.plot(pos, his_p, ls='', marker='.', markersize=self.markersize)
+                        xticks_minor.append(start + len(his_p) // 2)
+                        xticks_labels.append(Genome.canonical_chrom_name(c))
+                        start += l // bin_size + 1
+                        xticks.append(start)
+
+                    ax.set_xlim([0, start])
+                    ax.xaxis.set_ticks(xticks)
+                    ax.xaxis.set_ticklabels([""] * len(xticks))
+                    if i == (len(panels) - 1):
+                        ax.xaxis.set_ticks(xticks_minor, minor=True)
+                        ax.xaxis.set_ticklabels(xticks_labels, minor=True)
+                    else:
+                        plt.setp(ax.get_xticklabels(which="both"), visible=False)
+                    yticks = np.arange(self.rd_manhattan_range[0], self.rd_manhattan_range[1], 0.5)
+                    ax.yaxis.set_ticklabels([str(int(2 * t)) for t in yticks])
+                    ax.yaxis.set_ticks(yticks * mean)
+                    ax.set_ylabel("RD [CN]")
+                    ax.set_ylim([self.rd_manhattan_range[0] * mean, self.rd_manhattan_range[1] * mean])
+                    ax.grid()
+                    self.fig.add_subplot(ax)
+
+                elif panels[i] == "snp":
+                    start = 0
+                    xticks = []
+                    xticks_minor = []
+                    xticks_labels = []
+                    pos_x = []
+                    for c, l in chroms:
+                        pos, ref, alt, nref, nalt, gt, flag, qual = io.read_snp(c)
+                        ix = 0
+                        hpos = []
+                        color = []
+                        alpha = 0.7
+                        baf = []
+                        while ix < len(pos):
+                            if (nref[ix] + nalt[ix]) != 0 and ((not self.snp_use_id) or (flag[ix] & 1)):
+                                hpos.append(start + (pos[ix] / bin_size))
+                                if gt[ix] % 4 != 2:
+                                    baf.append(1.0 * nalt[ix] / (nref[ix] + nalt[ix]))
+                                else:
+                                    baf.append(1.0 * nref[ix] / (nref[ix] + nalt[ix]))
+                                if self.snp_alpha_P:
+                                    alpha = None
+                                    color.append(
+                                        colors.to_rgba(self.snp_colors[(gt[ix] % 4) * 2 + 1], (flag[ix] >> 1) * 0.4))
+                                else:
+                                    color.append(self.snp_colors[(gt[ix] % 4) * 2 + (flag[ix] >> 1)])
+                            ix += 1
+                        if self.markersize == "auto":
+                            ax.scatter(hpos, baf, marker='.', edgecolor=color, c=color, s=0.1, alpha=alpha)
+                        else:
+                            ax.scatter(hpos, baf, marker='.', edgecolor=color, c=color, s=self.markersize, alpha=alpha)
+                        xticks_minor.append(start + l // bin_size // 2)
+                        xticks_labels.append(Genome.canonical_chrom_name(c))
+                        start += l // bin_size + 1
+                        xticks.append(start)
+                    ax.set_xlim([0, start])
+                    ax.xaxis.set_ticks(xticks)
+                    ax.xaxis.set_ticklabels([""] * len(xticks))
+                    if i == (len(panels) - 1):
+                        ax.xaxis.set_ticks(xticks_minor, minor=True)
+                        ax.xaxis.set_ticklabels(xticks_labels, minor=True)
+                    else:
+                        plt.setp(ax.get_xticklabels(minor=True), visible=False)
+                    ax.grid()
+                    ax.yaxis.set_ticks([0, 0.25, 0.5, 0.75, 1.0])
+                    ax.yaxis.set_ticklabels(["0", "1/4", "1/2", "3/4", "1"])
+                    ax.set_ylabel("BAF")
+                    ax.set_ylim([-0.05, 1.05])
+                    ax.yaxis.grid()
+                    self.fig.add_subplot(ax)
+
+                elif panels[i] == "snv" or panels[i][:4] == "snv:":
+                    callset = "default"
+                    if panels[i][:4] == "snv:":
+                        callset = panels[i].split(":")[1]
+                    start = 0
+                    xticks = []
+                    xticks_minor = []
+                    xticks_labels = []
+                    pos_x = []
+                    for c, l in chroms:
+                        pos, ref, alt, nref, nalt, gt, flag, qual = io.read_snp(c, callset=callset)
+                        ix = 0
+                        hpos = []
+                        color = []
+                        alpha = 0.7
+                        baf = []
+                        while ix < len(pos):
+                            if (nref[ix] + nalt[ix]) != 0 and ((not self.snp_use_id) or (flag[ix] & 1)):
+                                hpos.append(start + (pos[ix] / bin_size))
+                                if gt[ix] % 4 != 2:
+                                    baf.append(1.0 * nalt[ix] / (nref[ix] + nalt[ix]))
+                                else:
+                                    baf.append(1.0 * nref[ix] / (nref[ix] + nalt[ix]))
+                                if self.snp_alpha_P:
+                                    alpha = None
+                                    color.append(
+                                        colors.to_rgba(self.snp_colors[(gt[ix] % 4) * 2 + 1], (flag[ix] >> 1) * 0.4))
+                                else:
+                                    color.append(self.snp_colors[(gt[ix] % 4) * 2 + (flag[ix] >> 1)])
+                            ix += 1
+                        if self.markersize == "auto":
+                            ax.scatter(hpos, baf, marker='.', edgecolor=color, c=color, s=0.1, alpha=alpha)
+                        else:
+                            ax.scatter(hpos, baf, marker='.', edgecolor=color, c=color, s=self.markersize, alpha=alpha)
+                        xticks_minor.append(start + l // bin_size // 2)
+                        xticks_labels.append(Genome.canonical_chrom_name(c))
+                        start += l // bin_size + 1
+                        xticks.append(start)
+                    ax.set_xlim([0, start])
+                    ax.xaxis.set_ticks(xticks)
+                    ax.xaxis.set_ticklabels([""] * len(xticks))
+                    if i == (len(panels) - 1):
+                        ax.xaxis.set_ticks(xticks_minor, minor=True)
+                        ax.xaxis.set_ticklabels(xticks_labels, minor=True)
+                    else:
+                        plt.setp(ax.get_xticklabels(minor=True), visible=False)
+                    ax.grid()
+                    ax.yaxis.set_ticks([0, 0.25, 0.5, 0.75, 1.0])
+                    ax.yaxis.set_ticklabels(["0", "1/4", "1/2", "3/4", "1"])
+                    ax.set_ylabel("BAF")
+                    ax.set_ylim([-0.05, 1.05])
+                    ax.yaxis.grid()
+                    self.fig.add_subplot(ax)
+
+
+                elif panels[i] == "likelihood":
+                    start = 0
+                    xticks = [0]
+                    xticks_minor = []
+                    xticks_labels = []
+                    gl = []
+                    for c, l in chroms:
+                        likelihood = io.get_signal(c, bin_size, "SNP likelihood", snp_flag)
+                        lh = list(likelihood)
+                        size = l // bin_size + 1
+                        if len(lh) < size:
+                            lh.extend([lh[-1] for jj in range(size - len(lh))])
+                        gl.extend(lh)
+                        xticks_minor.append(start + l // bin_size // 2)
+                        xticks_labels.append(Genome.canonical_chrom_name(c))
+                        start += l // bin_size + 1
+                        xticks.append(start)
+
+                    img = np.array(gl).transpose()
+                    ax.imshow(img, aspect='auto')
+                    ax.yaxis.set_ticks([0, img.shape[0] / 4, img.shape[0] / 2, 3 * img.shape[0] / 4, img.shape[0] - 1],
+                                       minor=[])
+                    ax.yaxis.set_ticklabels(["1", "3/4", "1/2", "1/4", "0"])
+                    ax.set_ylabel("BAF")
+                    ax.set_xlim([0, start])
+                    ax.xaxis.set_ticks(xticks)
+                    ax.xaxis.set_ticklabels([""] * len(xticks))
+                    if i == (len(panels) - 1):
+                        ax.xaxis.set_ticks(xticks_minor, minor=True)
+                        ax.xaxis.set_ticklabels(xticks_labels, minor=True)
+                    else:
+                        plt.setp(ax.get_xticklabels(minor=True), visible=False)
+                    ax.xaxis.grid()
+                    self.fig.add_subplot(ax)
+
+        self.fig_show(suffix="global", bottom=0.05, top=0.98,
+                      wspace=0, hspace=0.2, left=0.05, right=0.98)
 
     def circular(self):
         chroms = self.chrom
@@ -2466,49 +2774,62 @@ class Viewer(Show, Figure, HelpDescription):
 
             self.fig_show(suffix="allelic_dropout", top=0.95, bottom=0.05, left=0.1, right=0.95)
 
-    def snp_dist(self, regions, callset=None, n_bins=100, gt_plot=[0, 1, 2, 3], titles=None, beta_distribution=False):
+    def snp_dist(self, regions, callset=None, n_bins=100, gt_plot=[0, 1, 2, 3], titles=None, beta_distribution=False,
+                 log_scale=False):
+        nf = len(self.plot_files)
         regions = regions.split(" ")
-        n = len(regions)
+        nr = len(regions)
+        n = nf * nr
         self.new_figure(panel_count=n, hspace=0.2, wspace=0.2)
-        for i in range(n):
-            ax = self.next_panel()
-            if titles is None:
-                ax.set_title(regions[i], position=(0.01, 1.07),
-                             fontdict={'verticalalignment': 'top', 'horizontalalignment': 'left'})
-            else:
-                ax.set_title(titles[i], position=(0.01, 1.07),
-                             fontdict={'verticalalignment': 'top', 'horizontalalignment': 'left'})
-            regs = decode_region(regions[i])
-            baf = []
-            bafP = []
-            mean_rd = 0
-            for c, (pos1, pos2) in regs:
-                pos, ref, alt, nref, nalt, gt, flag, qual = self.io[self.plot_file].read_snp(c, callset=callset)
-                ix = 0
-                while ix < len(pos) and pos[ix] <= pos2:
-                    if pos[ix] >= pos1 and (nref[ix] + nalt[ix]) != 0 and ((gt[ix] % 4) in gt_plot):
-                        if gt[ix] % 4 != 2:
-                            baf.append(1.0 * nalt[ix] / (nref[ix] + nalt[ix]))
-                            if flag[ix] & 2:
-                                bafP.append(1.0 * nalt[ix] / (nref[ix] + nalt[ix]))
-                                mean_rd += nref[ix] + nalt[ix]
-                        else:
-                            baf.append(1.0 * nref[ix] / (nref[ix] + nalt[ix]))
-                            if flag[ix] & 2:
-                                bafP.append(1.0 * nref[ix] / (nref[ix] + nalt[ix]))
-                                mean_rd += nref[ix] + nalt[ix]
-                    ix += 1
-            mean_rd /= len(bafP)
-            x_bins = np.arange(0, 1.0 + 1. / (n_bins + 1), 1. / (n_bins + 1))
-            ax.hist(baf, bins=x_bins, label="All heterozygous variants")
-            ax.hist(bafP, bins=x_bins, label="P bases only")
-            if beta_distribution:
-                xx = np.linspace(0, 1.0, 200)
-                ax.plot(xx, beta.pdf(xx, mean_rd / 2, mean_rd / 2) * len(bafP) / n_bins, c="black",
-                        label="Beta distribution")
-            ax.legend()
-            ax.set_xlabel("VAF")
-            ax.set_ylabel("Distribution")
+        for ii in range(nf):
+            for i in range(nr):
+                ax = self.next_panel()
+                if titles is None:
+                    ax.set_title(self.file_title(self.plot_files[ii])+": "+regions[i], position=(0.01, 1.10),
+                                 fontdict={'verticalalignment': 'top', 'horizontalalignment': 'left'})
+                else:
+                    ax.set_title(titles[i], position=(0.01, 1.10),
+                                 fontdict={'verticalalignment': 'top', 'horizontalalignment': 'left'})
+                regs = decode_region(regions[i])
+                baf = []
+                bafP = []
+                bafNP = []
+                mean_rd = 0
+                for c, (pos1, pos2) in regs:
+                    pos, ref, alt, nref, nalt, gt, flag, qual = self.io[self.plot_files[ii]].read_snp(c, callset=callset)
+                    ix = 0
+                    while ix < len(pos) and pos[ix] <= pos2:
+                        if pos[ix] >= pos1 and (nref[ix] + nalt[ix]) != 0 and ((gt[ix] % 4) in gt_plot):
+                            if gt[ix] % 4 != 2:
+                                baf.append(1.0 * nalt[ix] / (nref[ix] + nalt[ix]))
+                                if flag[ix] & 2:
+                                    bafP.append(1.0 * nalt[ix] / (nref[ix] + nalt[ix]))
+                                    mean_rd += nref[ix] + nalt[ix]
+                                else:
+                                    bafNP.append(1.0 * nalt[ix] / (nref[ix] + nalt[ix]))
+                            else:
+                                baf.append(1.0 * nref[ix] / (nref[ix] + nalt[ix]))
+                                if flag[ix] & 2:
+                                    bafP.append(1.0 * nref[ix] / (nref[ix] + nalt[ix]))
+                                    mean_rd += nref[ix] + nalt[ix]
+                                else:
+                                    bafNP.append(1.0 * nref[ix] / (nref[ix] + nalt[ix]))
+                        ix += 1
+                mean_rd /= len(bafP)
+                x_bins = np.arange(0, 1.0 + 1. / (n_bins + 1), 1. / (n_bins + 1))
+                ax.hist(baf, bins=x_bins, label="All heterozygous variants")
+                ax.hist(bafP, bins=x_bins, label="P bases only")
+                # ax.hist(bafNP, bins=x_bins, label="non-P bases only", histtype=u'step')
+                if log_scale:
+                    plt.yscale('log', nonposy='clip')
+
+                if beta_distribution:
+                    xx = np.linspace(0.2, 0.8, 200)
+                    ax.plot(xx, beta.pdf(xx, mean_rd / 2, mean_rd / 2) * len(bafP) / n_bins, c="black",
+                            label="Beta distribution")
+                ax.legend(bbox_to_anchor=(0, 1.02, 1, 0.2), loc="lower left", mode="expand", borderaxespad=0, ncol=3)
+                ax.set_xlabel("VAF")
+                ax.set_ylabel("Distribution")
 
         self.fig_show(suffix="snp_dist", top=0.9, bottom=0.1, left=0.125, right=0.9)
 
