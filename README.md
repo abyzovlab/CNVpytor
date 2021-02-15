@@ -10,7 +10,8 @@ CNVpytor is a Python package and command line tool for CNV/CNA analysis from dep
 
 * [Geting started](GettingStarted.md) with command line interface
 * [Jupyter notebook](examples/CNVpytor.ipynb): How to use CNVpytor from Python
-* [Google Colab](examples/Colab.ipynb): With CEPH trio example dataset 
+* [Google Colab](examples/Colab.ipynb): With CEPH trio example dataset
+* [Video Tutorial](https://www.youtube.com/watch?v=RJMQtrD0SuE)
 
 ## Gallery
 
