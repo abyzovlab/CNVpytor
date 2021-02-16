@@ -334,7 +334,7 @@ class ExportJBrowse:
 
     @staticmethod
     def add_config_reference():
-        track_dct = {'formatVersion': 1, 'tracks': []}
+        track_dct = {'formatVersion': 1, "plugins": ["MultiBigWig", "MultiScaleBigWig"], 'tracks': []}
         track_dct['tracks'].append({
             "category": "Reference sequence",
             "chunkSize": 20000,

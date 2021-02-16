@@ -10,7 +10,8 @@ CNVpytor is a Python package and command line tool for CNV/CNA analysis from dep
 
 * [Geting started](GettingStarted.md) with command line interface
 * [Jupyter notebook](examples/CNVpytor.ipynb): How to use CNVpytor from Python
-* [Google Colab](examples/Colab.ipynb): With CEPH trio example dataset 
+* [Google Colab](examples/Colab.ipynb): With CEPH trio example dataset
+* [Video Tutorial](https://www.youtube.com/watch?v=RJMQtrD0SuE)
 
 ## Gallery
 
@@ -244,6 +245,9 @@ CNVpytor is not just command line tool but also Python package.
 For more details check [API Documentation](https://abyzovlab.github.io/CNVpytor/) or 
 see examples in [Jupyter notebook](examples/CNVpytor.ipynb).
 
+## JBrowse plugin for CNVpytor
+A JBrowse plugin is developed that does on-fly analysis of read depth from VCF file.
+https://github.com/abyzovlab/CNVpytorVCF
 
 ## Export
 ### 1. CNVpytor data visualization using JBrowse
