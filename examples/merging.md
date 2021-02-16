@@ -2,12 +2,14 @@
 
 <img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/merging.png">
 
-Import RD signal for each sample from bam/sam/cram file and calculate histograms with specified bin size. 
-It can be any positive integer divisible by 100. We use 10000 in this example
+Import RD signal for each sample from bam/sam/cram file, calculate histograms, partition and calls with specified bin size. 
+It can be any positive integer divisible by 100. We use 10000 in this example:
 
 ```
 > cnvpytor -root sample.pytor -rd sample.bam
 > cnvpytor -root sample.pytor -his 10000
+> cnvpytor -root sample.pytor -partition 10000
+> cnvpytor -root sample.pytor -call 10000
 ```
 
 Enter interactive plotting mode with all sample you want to plot listed:
