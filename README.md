@@ -6,8 +6,7 @@ CNVpytor is a Python package and command line tool for CNV/CNA analysis from dep
 
 **NEW: CNVpytor paper on BioRxiv:**
 
-**CNVpytor: a tool for CNV/CNA detection and analysis from read depth and allele imbalance in whole genome sequencing**<br>
-Milovan Suvakov, Arijit Panda, Colin Diesh, Ian Holmes, Alexej Abyzov
+* CNVpytor: a tool for CNV/CNA detection and analysis from read depth and allele imbalance in whole genome sequencing, Milovan Suvakov, Arijit Panda, Colin Diesh, Ian Holmes, Alexej Abyzov<br>
 [doi: https://doi.org/10.1101/2021.01.27.428472](https://www.biorxiv.org/content/10.1101/2021.01.27.428472v1)
 
 
