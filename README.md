@@ -4,14 +4,20 @@
 
 CNVpytor is a Python package and command line tool for CNV/CNA analysis from depth-of-coverage by mapped reads developed in Abyzov Lab, Mayo Clinic.
 
-**NEW: CNVpytor release ver 1.0 is available to install!**
+**NEW: CNVpytor paper on BioRxiv:**
+
+**CNVpytor: a tool for CNV/CNA detection and analysis from read depth and allele imbalance in whole genome sequencing**<br>
+Milovan Suvakov, Arijit Panda, Colin Diesh, Ian Holmes, Alexej Abyzov
+[doi: https://doi.org/10.1101/2021.01.27.428472](https://www.biorxiv.org/content/10.1101/2021.01.27.428472v1)
+
+
 
 ## Learn how to use CNVpytor in 10 minutes
 
 * [Geting started](GettingStarted.md) with command line interface
 * [Jupyter notebook](examples/CNVpytor.ipynb): How to use CNVpytor from Python
 * [Google Colab](examples/Colab.ipynb): With CEPH trio example dataset
-* [Video Tutorial](https://www.youtube.com/watch?v=RJMQtrD0SuE)
+* [Video Tutorial](https://www.youtube.com/watch?v=RJMQtrD0SuE): 3-minute YT demo
 
 ## Gallery
 
@@ -21,7 +27,7 @@ CNVpytor is a Python package and command line tool for CNV/CNA analysis from dep
 |<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/manhattan.png" width="512px">|<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/circular.png" width="512px">|
 | Region plot ([see example](examples/region.md))| Compare regions ([see example](examples/compare.md))|
 |<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/region.png" width="512px">|<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/compare.png" width="512px">|
-| Merging calls over multiple samples ([see example](examples/merging_cals.md))|
+| Merging and annotating calls ([see example](examples/merging.md))|
 |<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/merging.png" width="512px">|
 
 ## Install
@@ -36,6 +42,8 @@ CNVpytor is a Python package and command line tool for CNV/CNA analysis from dep
 * scipy>=1.1
 * matplotlib>=2.2
 * h5py>=2.9
+* xlsxwriter>=1.3
+* pathlib>=1.0
 
 Optional:
 

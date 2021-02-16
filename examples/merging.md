@@ -1,4 +1,4 @@
-# Merging and annotating calls
+# Annotating calls and merging over multiple samples
 
 <img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/merging.png">
 
@@ -17,7 +17,7 @@ Enter interactive plotting mode with all sample you want to plot listed:
 cnvpytor> set Q0_range -1 0.5              # filter calls with more than half not uniqly maped reads
 cnvpytor> set p_range 0 0.0001             # filter non-confident calls 
 cnvpytor> set size_range 50000 inf         # filter calls smaller than 50kbp
-cnvpytor> set dG_range 100000 inf          # filter calls close to gaps in reference genome
+cnvpytor> set dG_range 100000 inf          # filter calls close to gaps in reference genome (<100kbp)
 cnvpytor> print joint_calls                # printing calls on screen
 ...
 ...
@@ -30,8 +30,8 @@ cnvpytor> quit
 ```
 File joint.xlsx contains list Excel file with list of all calls merged over samples.
 
-Files joint.regions.0000.png to joint.regions.0047.png contain RD region plots for all 48 calls. 
-This is example:
+Files joint.regions.0000.png to joint.regions.0047.png contain RD region plots for all 48 calls.
+This could be used for manual filtering of false positive calls. This is an example of generated plot:
 
 <img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/joint.regions.0017.png">
 
