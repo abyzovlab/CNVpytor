@@ -1007,7 +1007,7 @@ class IO(Signals):
         self.create_signal(None, bin_size, "RD level", np.array([mean, stdev]), flags=flags)
 
     def save_calls(self, chr_name, bin_size, signal, calls, flags):
-        keys = ["type", "start", "end", "size", "cnv", "p_val", "p_val_2", "p_val_3", "p_val_4", "Q0", "pN"]
+        keys = ["type", "start", "end", "size", "cnv", "p_val", "p_val_2", "p_val_3", "p_val_4", "Q0", "pN", "dG"]
         if signal == "calls combined":
             keys = ["type", "start", "end", "size", "cnv", "p_val", "lh_del", "lh_loh", "lh_dup", "Q0", "bins", "baf",
                     "rd_p_val", "baf_p_val", "segment", "hets", "homs", "pN", "pNS", "pP"]
@@ -1023,7 +1023,7 @@ class IO(Signals):
 
     def read_calls(self, chr_name, bin_size, signal, flags):
         data = self.get_signal(chr_name, bin_size, signal, flags=flags)
-        keys = ["type", "start", "end", "size", "cnv", "p_val", "p_val_2", "p_val_3", "p_val_4", "Q0", "pN"]
+        keys = ["type", "start", "end", "size", "cnv", "p_val", "p_val_2", "p_val_3", "p_val_4", "Q0", "pN", "dG"]
         if signal == "calls combined":
             keys = ["type", "start", "end", "size", "cnv", "p_val", "lh_del", "lh_loh", "lh_dup", "Q0", "bins", "baf",
                     "rd_p_val", "baf_p_val", "segment", "hets", "homs", "pN", "pNS", "pP"]
@@ -1045,5 +1045,8 @@ class IO(Signals):
         self.file.attrs[attribute] = str(value)
 
     def read_meta_attribute(self):
+        print()
+        print("Filename '%s'" % self.filename)
+        print("-----------" + "-" * len(self.filename))
         for attribute, value in self.file.attrs.items():
             print("{}: {}".format(attribute, value))

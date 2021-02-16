@@ -742,3 +742,4 @@ def help_format(topic="", p_desc="", p_usage="", p_type="", p_default="", p_affe
 
 def in_interval(x,interval):
     return x>=interval[0] and x<=interval[1]
+

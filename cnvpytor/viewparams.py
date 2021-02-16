@@ -22,8 +22,9 @@ class ViewParams(object):
         "rd_use_mask": False,
         "rd_use_gc_corr": True,
         "callers": ["rd_mean_shift"],
-        "Q0_range": [0,1],
-        "pN_range": [0,1],
+        "Q0_range": [-1,1],
+        "pN_range": [-1,1],
+        "dG_range": [-1,np.inf],
         "size_range": [0,np.inf],
         "p_range": [0,np.inf],
         "annotate": False,
@@ -57,7 +58,7 @@ class ViewParams(object):
         "xkcd": False,
         "dpi": 200,
         "output_filename": "",
-        "call_format": "tsv",
+        "print_filename": "",
         "contrast": 20,
         "min_segment_size": 0
     }
@@ -81,7 +82,6 @@ class ViewParams(object):
             self.command_tree["set"]["callers"][caller] = self.command_tree["set"]["callers"]
         self.command_tree["set"]["grid"] = {"auto": None, "horizontal": None, "vertical": None}
         self.command_tree["set"]["subgrid"] = {"auto": None, "horizontal": None, "vertical": None}
-        self.command_tree["set"]["call_format"] = {"tsv": None, "vcf": None, "xls": None}
         self.interactive = True
 
     def set(self, param, args):
@@ -138,7 +138,16 @@ class ViewParams(object):
                         self.__setattr__(param, list(map(float, args[:2])))
             elif param == "size_range":
                     if len(args) > 1:
-                        self.__setattr__(param, list(map(float, args[:2])))
+                        if args[1]=="inf":
+                            self.__setattr__(param, [int(args[0]),np.inf])
+                        else:
+                            self.__setattr__(param, list(map(int, args[:2])))
+            elif param == "dG_range":
+                    if len(args) > 1:
+                        if args[1]=="inf":
+                            self.__setattr__(param, [int(args[0]),np.inf])
+                        else:
+                            self.__setattr__(param, list(map(int, args[:2])))
             elif param == "p_range":
                     if len(args) > 1:
                         self.__setattr__(param, list(map(float, args[:2])))
@@ -154,6 +163,12 @@ class ViewParams(object):
             elif param == "output_filename":
                 if len(args) > 0:
                     self.__setattr__(param, args[0])
+            elif param == "print_filename":
+                if len(args) > 0:
+                    if args[0].split(".")[-1] in ["tsv", "vcf", "xlsx"]:
+                        self.__setattr__(param, args[0])
+                    else:
+                        raise(ValueError)
             elif param == "plot_file":
                 if len(args) > 0:
                     self.__setattr__(param, int(args[0]))
@@ -253,6 +268,7 @@ class HelpDescription(object):
         "calls": None,
         "print": {"calls", "joint_calls"},
         "ls": None,
+        "meta": None,
         "compare": None
     }
 
@@ -425,6 +441,12 @@ class HelpDescription(object):
         "ls": help_format(
             topic="ls",
             p_desc="Print content of pytor files",
+            p_usage="ls",
+            p_see="show"
+        ),
+        "meta": help_format(
+            topic="ls",
+            p_desc="Print meta information",
             p_usage="ls",
             p_see="show"
         ),
@@ -729,7 +751,7 @@ class HelpDescription(object):
             p_desc="Plots when true (works with compare and print).",
             p_type="bool",
             p_default=str(default["plot"]),
-            p_affects="all plots",
+            p_affects="compare, print",
             p_example="set plot\nunset plot",
             p_see="compare, print calls, print join_calls"
         ),
@@ -756,6 +778,19 @@ class HelpDescription(object):
             p_example="set output_filename filename.png\nunset output_filename",
             p_see="save, dpi, style, xkcd"
         ),
+        "print_filename": help_format(
+            topic="output_filename",
+            p_desc="If not empty calls will be printed into specified file." +
+                   "Use one of following extensions:\n" +
+                   "    * tsv - tab separated\n" +
+                   "    * xlsx - Excel format\n" +
+                   "    * vcf - VCF file format (not working for merged calls)",
+            p_type="str",
+            p_default=str(default["output_filename"]),
+            p_affects="print",
+            p_example="set print_filename filename.tsv\nunset print_filename",
+            p_see="print, callers"
+        ),
         "callers": help_format(
             topic="callers",
             p_desc="List of callers to use for plotting and printing. Possible options are:\n" +
@@ -767,27 +802,14 @@ class HelpDescription(object):
             p_default=str(default["callers"]),
             p_affects="region plot, manhattan",
             p_example="set callers rd_mean_shift\nunset callers",
-            p_see="call_format, plotting, print"
-        ),
-        "call_format": help_format(
-            topic="call_format",
-            p_desc="Format for printing calls." +
-                   "Use one of following values:\n" +
-                   "    * tsv - tab separated\n" +
-                   "    * xls - Excel format (under development)\n" +
-                   "    * vcf - VCF file format (under development)",
-            p_type="str",
-            p_default=str(default["call_format"]),
-            p_affects="printing calls",
-            p_example="set call_format vcf\nunset call_format",
-            p_see="print"
+            p_see="plotting, print"
         ),
         "print": help_format(
             topic="print",
             p_desc="Print filtered calls.",
             p_usage="print [calls, joint_calls]",
             p_example="print calls\nprint joint_calls",
-            p_see="Q0_range, p_range, pN_range, size_range, call_format, callers"
+            p_see="Q0_range, p_range, pN_range, size_range, dG_range, callers"
         ),
         "rd_circular_colors": help_format(
             topic="rd_circular_colors",
@@ -832,7 +854,7 @@ class HelpDescription(object):
             p_default=str(default["Q0_range"]),
             p_affects="calls plot",
             p_example="set Q0_range 0 0.5\nunset Q0_range",
-            p_see="pN_range, size_range, p_range"
+            p_see="pN_range, size_range, dG_range, p_range"
         ),
         "pN_range": help_format(
             topic="pN_range",
@@ -841,16 +863,25 @@ class HelpDescription(object):
             p_default=str(default["pN_range"]),
             p_affects="calls plot",
             p_example="set pN_range 0 0.5\nunset pN_range",
-            p_see="Q0_range, size_range, p_range"
+            p_see="Q0_range, size_range, dG_range, p_range"
         ),
         "size_range": help_format(
             topic="size_range",
             p_desc="Range used to filter size of calls",
-            p_type="two floats",
+            p_type="two integers or integer and 'inf' (for unlimited upper bound)",
             p_default=str(default["size_range"]),
             p_affects="calls plot",
-            p_example="set size_range 100000 10000000\nunset size_range",
-            p_see="Q0_range, pN_range, p_range"
+            p_example="set size_range 100000 10000000\nset dG_range 100000 inf\nunset size_range",
+            p_see="Q0_range, pN_range, p_range, dG_range"
+        ),
+        "dG_range": help_format(
+            topic="size_range",
+            p_desc="Range used to filter calls on distance from closest large (>100bp) gap in reference genome",
+            p_type="two integers or integer and 'inf' (for unlimited upper bound)",
+            p_default=str(default["dG_range"]),
+            p_affects="calls plot",
+            p_example="set dG_range 100000 10000000\nset dG_range 100000 inf\nunset dG_range",
+            p_see="Q0_range, pN_range, size_range, p_range"
         ),
         "p_range": help_format(
             topic="p_range",
@@ -859,7 +890,7 @@ class HelpDescription(object):
             p_default=str(default["p_range"]),
             p_affects="calls plot",
             p_example="set p_range 0 0.000001\nunset p_range",
-            p_see="Q0_range, pN_range, size_range"
+            p_see="Q0_range, pN_range, size_range, dG_range"
         ),
 
         "dpi": help_format(

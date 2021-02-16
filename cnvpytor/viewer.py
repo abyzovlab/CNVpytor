@@ -21,6 +21,7 @@ import readline
 import traceback
 import os
 import sys
+import datetime
 
 _logger = logging.getLogger("cnvpytor.viewer")
 
@@ -435,6 +436,8 @@ class Viewer(Show, Figure, HelpDescription):
                         self.fig.canvas.draw()
                 elif f[0] == "ls":
                     self.ls()
+                elif f[0] == "meta":
+                    self.meta()
                 elif f[0] == "show":
                     if n == 1:
                         self.show()
@@ -467,9 +470,12 @@ class Viewer(Show, Figure, HelpDescription):
                         self.info(list(map(binsize_type, f[1:])))
                 elif f[0] == "print":
                     if f[1] == "calls":
-                        self.print_calls(plot=self.plot)
+                        if self.print_filename == "":
+                            self.print_calls()
+                        else:
+                            self.print_calls_file()
                     elif f[1] == "joint_calls":
-                        self.print_simple_joint_calls(plot=self.plot)
+                        self.print_simple_joint_calls()
 
                 else:
                     try:
@@ -882,7 +888,184 @@ class Viewer(Show, Figure, HelpDescription):
                 ax.scatter(hpos, baf, marker='.', edgecolor=color, c=color, s=self.markersize, alpha=0.7)
         self.fig_show(suffix="snp")
 
-    def print_calls(self, plot=False):
+    def get_calls(self):
+        bin_size = self.bin_size
+        n = len(self.plot_files)
+        ix = self.plot_files
+        if self.annotate:
+            annotator = Annotator(self.reference_genome)
+        ret = []
+        for caller in self.callers:
+            if caller == "rd_mean_shift":
+                for i in range(n):
+                    io = self.io[ix[i]]
+                    chroms = io.rd_chromosomes()
+                    for c in chroms:
+                        if (c in self.chrom) or len(self.chrom) == 0:
+                            flag = (FLAG_USEMASK if self.rd_use_mask else 0) | FLAG_GC_CORR
+                            if io.signal_exists(c, bin_size, "calls", flag):
+                                calls = io.read_calls(c, bin_size, "calls", flag)
+                                for call in calls:
+                                    if in_interval(call["size"], self.size_range) \
+                                            and in_interval(call["p_val"], self.p_range) \
+                                            and in_interval(call["pN"], self.pN_range) \
+                                            and in_interval(call["Q0"], self.Q0_range) \
+                                            and in_interval(call["dG"], self.dG_range):
+                                        type = "duplication" if call["type"] == 1 else "deletion"
+
+                                        row = [self.file_title(ix[i]), caller, type, c, call["start"], call["end"],
+                                               call["size"], call["cnv"], call["p_val"], call["p_val_2"],
+                                               call["p_val_3"], call["p_val_4"], call["Q0"], call["pN"], call["dG"]]
+                                        if self.annotate:
+                                            row.append(annotator.get_info("%s:%d-%d" % (c, call["start"], call["end"])))
+                                        ret.append(row)
+            elif caller == "combined_mosaic":
+                for i in range(n):
+                    io = self.io[ix[i]]
+                    chroms = io.rd_chromosomes()
+                    for c in chroms:
+                        if (c in self.chrom) or len(self.chrom) == 0:
+                            flag = (FLAG_USEMASK if self.rd_use_mask else 0) | FLAG_GC_CORR | \
+                                   (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0)
+                            if io.signal_exists(c, bin_size, "calls combined", flag):
+                                calls = io.read_calls(c, bin_size, "calls combined", flag)
+                                for call in calls:
+                                    if in_interval(call["size"], self.size_range) \
+                                            and in_interval(call["p_val"], self.p_range) \
+                                            and in_interval(call["pN"], self.pN_range) \
+                                            and in_interval(call["Q0"], self.Q0_range):
+
+                                        if n > 1:
+                                            print("%s\t" % self.file_title(ix[i]), end="")
+                                        if len(self.callers) > 1:
+                                            print("%s\t" % caller, end="")
+                                        keys = ["start", "end", "size", "cnv", "p_val", "lh_del", "lh_loh",
+                                                "lh_dup", "Q0", "pN", "pNS", "pP", "bins", "baf",
+                                                "rd_p_val", "baf_p_val", "segment", "hets", "homs"]
+                                        type = {-1: "deletion", 0: "cnnloh", 1: "duplication"}[call["type"]]
+                                        row = [self.file_title(i), caller, type, c] + [call[k] for k in keys]
+                                        for m in range(2):
+                                            row += call["models"][m]
+
+                                        if self.annotate:
+                                            row.append(annotator.get_info("%s:%d-%d" % (data[3], data[4], data[5])))
+                                        ret.append(row)
+        return ret
+
+    def print_calls_file(self):
+        format = self.print_filename.split(".")[-1]
+        calls = self.get_calls()
+        if self.print_filename == "":
+            for call in calls:
+                print(*call, sep="\t")
+        elif format == "tsv":
+            with open(self.print_filename, 'w') as f:
+                for call in calls:
+                    print(*call, sep="\t", file=f)
+        elif format == "xlsx":
+            import xlsxwriter
+            workbook = xlsxwriter.Workbook(self.print_filename)
+            files_callers = []
+            sheets = {}
+            rix = {}
+            for call in calls:
+                caller = call[1]
+                fc = call[0] + " (" + caller + ")"
+                sfc = call[0][:25] + " " + ({"rd_mean_shift": "ms", "combined_mosaic": "2d"}[caller])
+                if fc not in files_callers:
+                    sheets[fc] = workbook.add_worksheet(sfc)
+                    rix[fc] = 0
+                    files_callers.append(fc)
+            for call in calls:
+                caller = call[1]
+                fc = call[0] + " (" + caller + ")"
+                cix = 0
+                for f in call[2:]:
+                    sheets[fc].write(rix[fc], cix, f)
+                    cix += 1
+                rix[fc] += 1
+            workbook.close()
+        elif format == "vcf":
+            samples = []
+            for call in calls:
+                sample = call[0]
+                if sample not in samples:
+                    samples.append(sample)
+            header = """##fileformat=VCFv4.1
+##fileDate={date}
+##reference={rg}
+##source=CNVpytor
+##INFO=<ID=END,Number=1,Type=Integer,Description="End position of the variant described in this record">
+##INFO=<ID=IMPRECISE,Number=0,Type=Flag,Description="Imprecise structural variation">
+##INFO=<ID=SVLEN,Number=1,Type=Integer,Description="Difference in length between REF and ALT alleles">
+##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">
+##INFO=<ID=pytorRD,Number=1,Type=Float,Description="Normalized RD">
+##INFO=<ID=pytorP1,Number=1,Type=Float,Description="e-val by t-test">
+##INFO=<ID=pytorP2,Number=1,Type=Float,Description="e-val by Gaussian tail">
+##INFO=<ID=pytorP3,Number=1,Type=Float,Description="e-val by t-test (middle)">
+##INFO=<ID=pytorP4,Number=1,Type=Float,Description="e-val by Gaussian tail (middle)">
+##INFO=<ID=pytorQ0,Number=1,Type=Float,Description="Fraction of reads with 0 mapping quality">
+##INFO=<ID=pytorPN,Number=1,Type=Integer,Description="Fraction of N bases">
+##INFO=<ID=pytorDG,Number=1,Type=Integer,Description="Distance to nearest gap in reference genome">
+##INFO=<ID=pytorCL,Number=1,Type=Integer,Description="Caller method">
+##INFO=<ID=SAMPLES,Number=.,Type=String,Description="Sample genotyped to have the variant">
+##ALT=<ID=DEL,Description="Deletion">
+##ALT=<ID=DUP,Description="Duplication">
+##ALT=<ID=LOH,Description="Copy number neutral loss of heterozygosity">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">;
+##FORMAT=<ID=CN,Number=1,Type=Integer,Description="Copy number genotype for imprecise events">
+#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t{samples}
+"""
+            if self.reference_genome:
+                rg = self.reference_genome["name"]
+            else:
+                rg = "unknown"
+            header = header.format(date=datetime.date.today().strftime("%Y-%m-%d"), rg=rg, samples="\t".join(samples))
+            ii = 0
+            with open(self.print_filename, 'w') as f:
+                print(header, file=f)
+                for call in calls:
+                    ii += 1
+                    id = "CNVpytor_" + {"deletion": "del", "duplication": "dup", "cnnloh": "loh"}[call[2]] + str(ii)
+                    alt = {"deletion": "<DEL>", "duplication": "<DUP>", "cnnloh": "<LOH>"}[call[2]]
+                    info = "END=" + str(int(call[5])) + ";IMPRECISE;SVLEN=" + str(int(call[6])) + ";SVTYPE=" + alt[1:4]
+                    info += ";pytorRD=" + str(call[7])
+                    info += ";pytorP1=" + str(call[8])
+                    info += ";pytorP2=" + str(call[9])
+                    info += ";pytorP3=" + str(call[10])
+                    info += ";pytorP4=" + str(call[11])
+                    info += ";pytorQ0=" + str(call[12])
+                    info += ";pytorPN=" + str(call[13])
+                    info += ";pytorDG=" + str(call[14])
+                    info += ";pytorCL=" + call[1]
+                    format = "GT:CN"
+                    row = [call[3], int(call[4]), id, "N", alt, ".", "PASS", info, format]
+                    for sample in samples:
+                        if sample == call[0]:
+                            if call[2] == "deletion" and call[7] < 0.25:
+                                row.append("1/1:0")
+                            elif call[2] == "deletion" and call[7] > 0.25:
+                                row.append("0/1:0")
+                            elif call[2] == "duplication" and call[7] <= 1.75:
+                                row.append("0/1:2")
+                            elif call[2] == "duplication" and call[7] > 1.75 and call[7] <= 2.25:
+                                row.append("1/1:2")
+                            elif call[2] == "duplication" and call[7] > 2.25:
+                                row.append("./1:%.2f" % call[7])
+                            else:
+                                row.append("./.:.")
+                        else:
+                            row.append("./.:.")
+                    print(*row, sep="\t", file=f)
+        if self.plot:
+            for call in calls:
+                plot_start = call[4] - call[6]
+                if plot_start < 0:
+                    plot_start = 0
+                plot_end = call[5] + call[6]
+                self.multiple_regions(["%s:%d-%d" % (c, plot_start, plot_end)])
+
+    def print_calls(self):
         bin_size = self.bin_size
         n = len(self.plot_files)
         ix = self.plot_files
@@ -902,23 +1085,24 @@ class Viewer(Show, Figure, HelpDescription):
                                     if in_interval(call["size"], self.size_range) \
                                             and in_interval(call["p_val"], self.p_range) \
                                             and in_interval(call["pN"], self.pN_range) \
-                                            and in_interval(call["Q0"], self.Q0_range):
+                                            and in_interval(call["Q0"], self.Q0_range) \
+                                            and in_interval(call["dG"], self.dG_range):
                                         type = "duplication" if call["type"] == 1 else "deletion"
                                         if n > 1:
                                             print("%s\t" % self.file_title(i), end="")
                                         if len(self.callers) > 1:
                                             print("%s\t" % caller, end="")
-                                        print("%s\t%s:%d-%d\t%d\t%.4f\t%e\t%e\t%e\t%e\t%.4f\t%.4f\t" % (
+                                        print("%s\t%s:%d-%d\t%d\t%.4f\t%e\t%e\t%e\t%e\t%.4f\t%.4f\t%d\t" % (
                                             type, c, call["start"], call["end"], call["size"], call["cnv"],
                                             call["p_val"],
-                                            call["p_val_2"], call["p_val_3"], call["p_val_4"], call["Q0"], call["pN"]),
-                                              end="")
+                                            call["p_val_2"], call["p_val_3"], call["p_val_4"], call["Q0"], call["pN"],
+                                            call["dG"]), end="")
                                         if self.annotate:
                                             print("\t%s" % annotator.get_info(
                                                 "%s:%d-%d" % (c, call["start"], call["end"])))
                                         else:
                                             print()
-                                        if plot:
+                                        if self.plot:
                                             plot_start = call["start"] - call["size"]
                                             if plot_start < 0:
                                                 plot_start = 0
@@ -951,7 +1135,6 @@ class Viewer(Show, Figure, HelpDescription):
                                         data = [type, c] + [call[k] for k in keys]
                                         for m in range(2):
                                             data += call["models"][m]
-                                        len(data)
 
                                         print(("%s\t%s:%d-%d\t%d\t%.4f\t%e\t%e\t%e\t%e" + \
                                                "\t%.4f\t%.4f\t%.4f\t%.4f\t" + "%d\t%d\t%.4f\t%e\t%e\t%d\t%d\t%d\t" + \
@@ -960,66 +1143,62 @@ class Viewer(Show, Figure, HelpDescription):
                                             print("\t%s" % annotator.get_info("%s:%d-%d" % (data[1], data[2], data[3])))
                                         else:
                                             print()
-                                        if plot:
+                                        if self.plot:
                                             plot_start = call["start"] - call["size"]
                                             if plot_start < 0:
                                                 plot_start = 0
                                             plot_end = call["end"] + call["size"]
                                             self.multiple_regions(["%s:%d-%d" % (c, plot_start, plot_end)])
 
-    def print_joint_calls(self, plot=False):
-        bin_size = self.bin_size
-        n = len(self.plot_files)
-        ix = self.plot_files
-        if self.annotate:
-            annotator = Annotator(self.reference_genome)
-        for c in self.chrom:
-            flag = (FLAG_USEMASK if self.rd_use_mask else 0) | FLAG_GC_CORR
-            calls = [list(filter(lambda call: in_interval(call["size"], self.size_range) \
-                                              and in_interval(call["p_val"], self.p_range) \
-                                              and in_interval(call["pN"], self.pN_range) \
-                                              and in_interval(call["Q0"], self.Q0_range),
-                                 self.io[ix[i]].read_calls(c, bin_size, "calls", flag))) for i in range(n)]
-            pointers = [0] * n
-            while any([pointers[i] < len(calls[i]) for i in range(n)]):
-                starts = [calls[i][pointers[i]]["start"] if pointers[i] < len(calls[i]) else np.inf for i in range(n)]
-                mini = starts.index(min(starts))
-                maxend = 0
-                toupdate = []
-                for i in range(n):
-                    if (pointers[i] < len(calls[i])) and ((min(calls[i][pointers[i]]["end"],
-                                                               calls[mini][pointers[mini]]["end"]) -
-                                                           calls[i][pointers[i]]["start"]) > (
-                                                                  0.5 * calls[mini][pointers[mini]]["size"])):
-                        toupdate.append(i)
-                        call = calls[i][pointers[i]]
-                        if call["end"] > maxend:
-                            maxend = call["end"]
-                        type = "duplication" if call["type"] == 1 else "deletion"
-                        print("%s\t%s:%d-%d\t%d\t%.4f\t%e\t%e\t%e\t%e\t%.4f\t%.4f\t" % (
-                            type, c, call["start"], call["end"], call["size"], call["cnv"], call["p_val"],
-                            call["p_val_2"], call["p_val_3"], call["p_val_4"], call["Q0"], call["pN"]), end="")
-                    else:
-                        print("/\t/\t/\t/\t/\t/\t/\t/\t/\t/\t", end="")
-                if self.annotate:
-                    print("\t%s" % annotator.get_info("%s:%d-%d" % (c, calls[mini][pointers[mini]]["start"], maxend)))
-                else:
-                    print()
-                if plot:
-                    plot_start = calls[mini][pointers[mini]]["start"] - calls[mini][pointers[mini]]["size"]
-                    if plot_start < 0:
-                        plot_start = 0
-                    plot_end = calls[mini][pointers[mini]]["end"] + calls[mini][pointers[mini]]["size"]
-                    self.multiple_regions(["%s:%d-%d" % (c, plot_start, plot_end)])
-                for i in toupdate:
-                    pointers[i] += 1
+    def print_simple_joint_calls(self):
 
-    def print_simple_joint_calls(self, plot=False):
         bin_size = self.bin_size
         n = len(self.plot_files)
         if n == 0:
             return
         ix = self.plot_files
+        format = self.print_filename.split(".")[-1]
+        if format == "tsv":
+            f = open(self.print_filename, 'w')
+        elif format == "xlsx":
+            import xlsxwriter
+            if os.path.exists(self.print_filename):
+                os.remove(self.print_filename)
+            workbook = xlsxwriter.Workbook(self.print_filename)
+            sheet = workbook.add_worksheet("merged_calls")
+            header = ["TYPE", "REGION", "SIZE"]
+            for i in range(n):
+                header.append(self.file_title(ix[i]))
+            if self.annotate:
+                header.append("GENES")
+            styleh = workbook.add_format({'bold': True, 'font_color': 'white'})
+            styleh.set_pattern(1)  # This is optional when using a solid fill.
+            styleh.set_bg_color('#555555')
+            styleh2 = workbook.add_format({'bold': True, 'font_color': 'white'})
+            styleh2.set_pattern(1)  # This is optional when using a solid fill.
+            styleh2.set_bg_color('#555555')
+            styleh2.set_rotation(75)
+            style_r = workbook.add_format()
+            style_r.set_pattern(1)  # This is optional when using a solid fill.
+            style_r.set_bg_color('red')
+            style_g = workbook.add_format()
+            style_g.set_pattern(1)  # This is optional when using a solid fill.
+            style_g.set_bg_color('green')
+            style_size = workbook.add_format({'num_format': '#,##0'})
+            style_cn = workbook.add_format({'num_format': '0'})
+            style_cn_b = workbook.add_format({'num_format': '0', 'bold': True})
+            sheet.set_column(0, 0, 10)
+            sheet.set_column(1, 1, 22)
+            sheet.set_column(2, 2, 10)
+            if self.annotate:
+                sheet.set_column(len(header) - 1, len(header) - 1, 100)
+
+            for col, val in enumerate(header):
+                if col > 2 and col < len(header) - int(self.annotate):
+                    sheet.write(0, col, val, styleh2)
+                else:
+                    sheet.write(0, col, val, styleh)
+            ri = 0
         if self.annotate:
             annotator = Annotator(self.reference_genome)
         chroms = self.io[ix[0]].rd_chromosomes()
@@ -1029,7 +1208,8 @@ class Viewer(Show, Figure, HelpDescription):
                 calls = [list(filter(lambda call: in_interval(call["size"], self.size_range) \
                                                   and in_interval(call["p_val"], self.p_range) \
                                                   and in_interval(call["pN"], self.pN_range) \
-                                                  and in_interval(call["Q0"], self.Q0_range),
+                                                  and in_interval(call["Q0"], self.Q0_range) \
+                                                  and in_interval(call["dG"], self.dG_range),
                                      self.io[ix[i]].read_calls(c, bin_size, "calls", flag))) for i in range(n)]
                 pointers = [0] * n
                 while any([pointers[i] < len(calls[i]) for i in range(n)]):
@@ -1072,14 +1252,38 @@ class Viewer(Show, Figure, HelpDescription):
                         in range(n)]
                     copynumbers = [c[3] for c in genotypes]
                     if np.all([np.abs(c - np.round(c)) < 0.25 for c in copynumbers]) or True:
-                        print(("%s\t%s:%d-%d\t%d" + n * "\t%.2f") % tuple(data + copynumbers), end="")
-                        print("\t%s" % str(files), end="")
+                        if self.print_filename == "":
+                            print(("%s\t%s:%d-%d\t%d" + n * "\t%.2f") % tuple(data + copynumbers), end="")
+                            print("\t%s" % str(files), end="")
+                            if self.annotate:
+                                print("\t%s" % annotator.get_info("%s:%d-%d" % (c, maxstart, minend)))
+                            else:
+                                print()
+                        elif format == "tsv":
+                            print(("%s\t%s:%d-%d\t%d" + n * "\t%.2f") % tuple(data + copynumbers), end="", file=f)
+                            print("\t%s" % str(files), end="", file=f)
+                            if self.annotate:
+                                print("\t%s" % annotator.get_info("%s:%d-%d" % (c, maxstart, minend)), file=f)
+                            else:
+                                print(file=f)
+                        elif format == "xlsx":
+                            ri += 1
+                            if type == "deletion":
+                                sheet.write(ri, 0, data[0], style_r)
+                            else:
+                                sheet.write(ri, 0, data[0], style_g)
+                            sheet.write(ri, 1, "%s:%d-%d" % (c, maxstart, minend))
+                            sheet.write(ri, 2, data[4], style_size)
+                            for col, val in enumerate(copynumbers):
+                                if col in files:
+                                    sheet.write(ri, 3 + col, val, style_cn_b)
+                                else:
+                                    sheet.write(ri, 3 + col, val, style_cn)
+                            if self.annotate:
+                                sheet.write(ri, 3 + len(copynumbers),
+                                            annotator.get_info("%s:%d-%d" % (c, maxstart, minend)))
 
-                        if self.annotate:
-                            print("\t%s" % annotator.get_info("%s:%d-%d" % (c, maxstart, minend)))
-                        else:
-                            print()
-                        if plot:
+                        if self.plot:
                             plot_start = maxstart - (minend - maxstart)
                             if plot_start < 0:
                                 plot_start = 0
@@ -1087,6 +1291,21 @@ class Viewer(Show, Figure, HelpDescription):
                             self.multiple_regions(["%s:%d-%d" % (c, plot_start, plot_end)])
                     for i in toupdate:
                         pointers[i] += 1
+        if format == "tsv":
+            f.close()
+        elif format == "xlsx":
+            sheet.conditional_format(1, 3, ri, len(header)-int(self.annotate), {'type': '3_color_scale',
+                                                                'min_color': "#FF0000",
+                                                                'mid_color': "#FFFFFF",
+                                                                'max_color': "#00FF00",
+                                                                'min_type': 'num',
+                                                                'min_value': 0,
+                                                                'mid_type': 'num',
+                                                                'mid_value': 2,
+                                                                'max_type': 'num',
+                                                                'max_value': 4
+                                                                })
+            workbook.close()
 
     def manhattan(self, plot_type="rd"):
         bin_size = self.bin_size
@@ -2774,6 +2993,46 @@ class Viewer(Show, Figure, HelpDescription):
 
             self.fig_show(suffix="allelic_dropout", top=0.95, bottom=0.05, left=0.1, right=0.95)
 
+    def compare_rd_dist(self, regions):
+        self.new_figure(panel_count=1)
+        ax = self.next_panel()
+        ax.set_ylabel("Normalised distribution")
+        ax.set_xlabel("Difference in copy number")
+        regs = decode_region(regions)
+        io1 = self.io[self.plot_files[0]]
+        io2 = self.io[self.plot_files[1]]
+        bin_size = self.bin_size
+        drd = []
+        for c, (pos1, pos2) in regs:
+            flag_rd = 0
+            if self.rd_use_mask:
+                flag_rd = FLAG_USEMASK
+            mean1, stdev = io1.rd_normal_level(bin_size, flag_rd | FLAG_GC_CORR)
+            mean2, stdev = io2.rd_normal_level(bin_size, flag_rd | FLAG_GC_CORR)
+            his_p_corr1 = io1.get_signal(c, bin_size, "RD", flag_rd | FLAG_GC_CORR)
+            his_p_corr2 = io2.get_signal(c, bin_size, "RD", flag_rd | FLAG_GC_CORR)
+            for i in range(len(his_p_corr1)):
+                drd.append(his_p_corr1[i] * 2 / mean1 - his_p_corr2[i] * 2 / mean2)
+
+        # for i in range(n):
+        #     io = self.io[ix[i]]
+        #     stat = self.io[self.plot_file].get_signal(None, self.bin_size, "RD stat", FLAG_AUTO)
+        #     his_p = io.get_signal(None, self.bin_size, "RD p dist", FLAG_AUTO)
+        #     bin_size = int(stat[1])
+        #     max_rd = int(stat[0])
+        #     lim_rd = int(max(2 * stat[4], stat[4] + 3 * stat[5]))
+        #     ax.set_xlim([0, lim_rd])
+        #     bins = range(0, 2*max_rd + 5*bin_size, bin_size)
+        #     x = np.arange(0, max_rd // bin_size * bin_size, 0.1 * bin_size)
+        #     #plt.plot(x, normal(x, 1, stat[4], stat[5]), "g-")
+        #     x = np.array(bins)
+        #     plt.plot(x[1:len(his_p)], his_p[1:] / stat[3],label = io.filename)
+        ax.hist(drd, bins=np.linspace(-0.5, 0.5, 100))
+        # ax.legend()
+        ax.set_yticklabels([])
+        ax.grid()
+        self.fig_show(suffix="compare_rd", bottom=0.1, top=0.95, wspace=0, hspace=0, left=0.05, right=0.95)
+
     def snp_dist(self, regions, callset=None, n_bins=100, gt_plot=[0, 1, 2, 3], titles=None, beta_distribution=False,
                  log_scale=False):
         nf = len(self.plot_files)
@@ -2785,7 +3044,7 @@ class Viewer(Show, Figure, HelpDescription):
             for i in range(nr):
                 ax = self.next_panel()
                 if titles is None:
-                    ax.set_title(self.file_title(self.plot_files[ii])+": "+regions[i], position=(0.01, 1.10),
+                    ax.set_title(self.file_title(self.plot_files[ii]) + ": " + regions[i], position=(0.01, 1.10),
                                  fontdict={'verticalalignment': 'top', 'horizontalalignment': 'left'})
                 else:
                     ax.set_title(titles[i], position=(0.01, 1.10),
@@ -2796,7 +3055,8 @@ class Viewer(Show, Figure, HelpDescription):
                 bafNP = []
                 mean_rd = 0
                 for c, (pos1, pos2) in regs:
-                    pos, ref, alt, nref, nalt, gt, flag, qual = self.io[self.plot_files[ii]].read_snp(c, callset=callset)
+                    pos, ref, alt, nref, nalt, gt, flag, qual = self.io[self.plot_files[ii]].read_snp(c,
+                                                                                                      callset=callset)
                     ix = 0
                     while ix < len(pos) and pos[ix] <= pos2:
                         if pos[ix] >= pos1 and (nref[ix] + nalt[ix]) != 0 and ((gt[ix] % 4) in gt_plot):

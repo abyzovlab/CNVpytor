@@ -26,6 +26,8 @@ setup(
         'scipy>=1.1',
         'matplotlib>=2.2',
         'h5py>=2.9',
+        'xlsxwriter>=1.3',
+        'pathlib>=1.0',
     ],
     classifiers=[
         'Development Status :: 3 - Alpha',

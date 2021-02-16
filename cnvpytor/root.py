@@ -1100,16 +1100,35 @@ class Root:
                             self.io.signal_exists(c, bin_size, "RD", flag_rd) and \
                             self.io.signal_exists(c, bin_size, "RD partition", flag_rd):
                         _logger.debug("Calculating CNV calls using bin size %d for chromosome '%s'." % (bin_size, c))
-                        calls_list=[]
+                        calls_list = []
                         stat = self.io.get_signal(c, bin_size, "RD stat", flag_stat)
                         mean = stat[4]
                         std = stat[5]
                         rd = self.io.get_signal(c, bin_size, "RD", flag_rd)
                         rd = np.nan_to_num(rd)
-                        gc, at = False, False
+                        gc, at, NN, distN = False, False, False, False
                         if c in rd_gc_chromosomes and self.io_gc.signal_exists(rd_gc_chromosomes[c], None, "GC/AT"):
                             gcat = self.io_gc.get_signal(rd_gc_chromosomes[c], None, "GC/AT")
                             gc, at = gc_at_decompress(gcat)
+                            NN = 100 - np.array(gc) - np.array(at)
+                            distN = np.zeros_like(NN,dtype="long") - 1
+                            distN[NN == 100] = 0
+                            prev = 0
+                            for Ni in range(0, distN.size):
+                                if distN[Ni] == -1:
+                                    prev += 100
+                                    distN[Ni] = prev
+                                else:
+                                    prev = 0
+                            prev = 0
+                            for Ni in range(distN.size - 1, -1, -1):
+                                if distN[Ni] > 0:
+                                    prev += 100
+                                    if prev < distN[Ni]:
+                                        distN[Ni] = prev
+                                else:
+                                    prev = 0
+
                         levels = self.io.get_signal(c, bin_size, "RD partition", flag_rd)
                         delta = 0.25
                         if Genome.is_sex_chrom(c) and self.io.signal_exists(c, bin_size, "RD stat", flag_auto):
@@ -1242,12 +1261,15 @@ class Root:
                             if sum(rd_p[bs:b]) > 0:
                                 q0 = (sum(rd_p[bs:b]) - sum(rd_u[bs:b])) / sum(rd_p[bs:b])
                             pN = -1
+                            dG = -1
                             if gc:
                                 pN = (size - sum(gc[start // 100:end // 100]) - sum(at[start // 100:end // 100])) / size
+                                dG = np.min(distN[start // 100:end // 100])
+
                             if print_calls:
-                                print("%s\t%s:%d-%d\t%d\t%.4f\t%e\t%e\t%e\t%e\t%.4f\t%.4f\t" % (
-                                    etype, c, start, end, size, cnv, e1, e2, e3, e4, q0, pN))
-                            ret[bin_size].append([etype, c, start, end, size, cnv, e1, e2, e3, e4, q0, pN])
+                                print("%s\t%s:%d-%d\t%d\t%.4f\t%e\t%e\t%e\t%e\t%.4f\t%.4f\t%d" % (
+                                    etype, c, start, end, size, cnv, e1, e2, e3, e4, q0, pN, dG))
+                            ret[bin_size].append([etype, c, start, end, size, cnv, e1, e2, e3, e4, q0, pN, dG])
                             calls_list.append({
                                 "type": netype,
                                 "start": start,
@@ -1259,7 +1281,8 @@ class Root:
                                 "p_val_3": e3,
                                 "p_val_4": e4,
                                 "Q0": q0,
-                                "pN": pN
+                                "pN": pN,
+                                "dG": dG
                             })
                         self.io.save_calls(c, bin_size, "calls", calls_list, flags=flag_rd)
         return ret

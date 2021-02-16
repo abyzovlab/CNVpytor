@@ -20,7 +20,8 @@ CNVpytor is a Python package and command line tool for CNV/CNA analysis from dep
 |<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/manhattan.png" width="512px">|<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/circular.png" width="512px">|
 | Region plot ([see example](examples/region.md))| Compare regions ([see example](examples/compare.md))|
 |<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/region.png" width="512px">|<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/compare.png" width="512px">|
-
+| Merging calls over multiple samples ([see example](examples/merging_cals.md))|
+|<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/merging.png" width="512px">|
 
 ## Install
 
@@ -64,7 +65,7 @@ For single user (without admin privileges) use:
 
 ## Use as a command line tool
 
-![scheme](cnvpytor/imgs/CNVpytor_v1.0.svg)
+![scheme](cnvpytor/imgs/CNVpytor_v1.1.svg)
 
 _Diagram made using [Draw.io](https://github.com/jgraph/drawio)._ 
 
@@ -79,9 +80,62 @@ _Diagram made using [Draw.io](https://github.com/jgraph/drawio)._
 ### Importing and using single nucleotide polymorphism data:
 ```
 > cnvpytor -root file.pytor -snp file.vcf -sample sample_name
-> cnvpytor -root file.pytor -pileup file.bam
+> cnvpytor -root file.pytor -pileup file.bam # OPTIONAL
 > cnvpytor -root file.pytor -baf 10000 100000
 ```
+
+### Filtering calls form view mode
+```
+> cnvpytor -root file.pytor -view 100000 
+print calls
+set Q0_range 0 0.5
+set size_range 100000 inf
+print calls
+set p_range 0 0.00001
+set print_filename output.xls
+print calls
+set print_filename output.vcf
+print calls
+```
+Annotating calls:
+```
+> cnvpytor -root file.pytor -view 100000 
+set Q0_range 0 0.5
+set size_range 100000 inf
+set print_filename output.tsv
+set annotate
+print calls
+```
+
+### Merging calls form multiple samples
+```
+> cnvpytor -root file1.pytor file2.pytor ... -view 100000 
+print joint_calls
+set Q0_range 0 0.5
+set size_range 100000 inf
+set print_filename output.xls
+print joint_calls
+```
+Plotting all merged calls:
+```
+> cnvpytor -root file1.pytor file2.pytor ... -view 100000 
+set Q0_range 0 0.5
+set size_range 100000 inf
+set print_filename output.xls
+set print
+set output_filename prefix.png
+print joint_calls
+```
+Annotate calls:
+```
+> cnvpytor -root file1.pytor file2.pytor ... -view 100000 
+set Q0_range 0 0.5
+set size_range 100000 inf
+set print_filename output.xls
+set annotate
+print joint_calls
+```
+
 
 ### Plot from command line
 ```
@@ -90,7 +144,24 @@ _Diagram made using [Draw.io](https://github.com/jgraph/drawio)._
 > cnvpytor -root file.pytor -plot rdstat manhattan 100000 -o prefix.pdf
 > cnvpytor -root file.pytor -plot baf 100000 
 > cnvpytor -root file.pytor -plot regions 1:10M-20M,2:20M-43M 3:10M-20M 10000
-> cnvpytor -root file.pytor -plot circular 100000 -use_mask_rd -o prefix.png
+> cnvpytor -root file.pytor -plot circular 100000 -rd_use_mask -o prefix.png
+```
+
+### Plot from script
+```
+> echo "rdstat" | cnvpytor -root file.pytor -view 100000 -o prefix.png
+
+> cnvpytor -root file.pytor -view 100000 <<ENDL
+set rd_use_mask
+set markersize 1
+set grid vertical
+set output_filename prefix.png
+manhattan
+circular
+ENDL
+
+> cnvpytor -root file.pytor -view 100000 < script.spytor
+
 ```
 
 ### Plot from interactive mode
