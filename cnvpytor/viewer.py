@@ -3398,13 +3398,14 @@ class Viewer(Show, Figure, HelpDescription):
                             except IndexError:
                                 pass
 
-                # e1 = getEValue(stat[4], stat[5], his_p, bin1, bin2 + 1) * 2.9e9 / bs
+                e1 = getEValue(stat[4], stat[5], his_p, bin1, bin2 + 1) * 2.9e9 / bs
                 e2 = gaussianEValue(stat[4], stat[5], his_p, bin1, bin2 + 1) * 2.9e9
                 if gc:
                     pN = 1 - pN / (pos2 - pos1 + 1)
                 else:
                     pN = -1
                 ret[bs][-1].append(2. * rc / (stat[4] * (pos2 - pos1 + 1) / bs))
+                ret[bs][-1].append(e1)
                 ret[bs][-1].append(e2)
                 q0 = 0
                 if sp != 0:
@@ -3431,7 +3432,7 @@ class Viewer(Show, Figure, HelpDescription):
                     for ix in range(len(ret[bs])):
                         plist[ix] += ret[bs][ix][3:]
             for r in plist:
-                print(("%s:%d-%d" + (len(bin_sizes) * "\t%.4f\t%e\t%.4f\t%.4f\t%d\t%d\t%.4f\t%e")) % tuple(r))
+                print(("%s:%d-%d" + (len(bin_sizes) * "\t%.4f\t%e\t%e\t%.4f\t%.4f\t%d\t%d\t%.4f\t%e")) % tuple(r))
 
         return ret
 
