@@ -244,7 +244,10 @@ class Genome:
                         cls.extended_chrom_name(c) in cls.reference_genomes[g]["chromosomes"])) and (
                         not cls.is_mt_chrom(c)):
                     checked = True
-                    found = found and (cls.reference_genomes[g]["chromosomes"][cls.extended_chrom_name(c)][0] == l)
+                    if c in cls.reference_genomes[g]["chromosomes"]:
+                        found = found and (cls.reference_genomes[g]["chromosomes"][c][0] == l)
+                    else:
+                        found = found and (cls.reference_genomes[g]["chromosomes"][cls.extended_chrom_name(c)][0] == l)
             if checked and found:
                 cls.detected_genome = g
                 return g
