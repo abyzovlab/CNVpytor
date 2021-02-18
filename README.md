@@ -4,6 +4,9 @@
 
 CNVpytor is a Python package and command line tool for CNV/CNA analysis from depth-of-coverage by mapped reads developed in Abyzov Lab, Mayo Clinic.
 
+Follow [CNVpytor Twitter account](https://twitter.com/cnvpytor).
+
+
 **NEW: CNVpytor paper on BioRxiv:**
 
 * CNVpytor: a tool for CNV/CNA detection and analysis from read depth and allele imbalance in whole genome sequencing, Milovan Suvakov, Arijit Panda, Colin Diesh, Ian Holmes, Alexej Abyzov<br>
@@ -105,7 +108,7 @@ print calls
 set print_filename output.vcf
 print calls
 ```
-Annotating calls:
+Annotating filtered calls:
 ```
 > cnvpytor -root file.pytor -view 100000 
 set Q0_range 0 0.5
@@ -134,7 +137,7 @@ set print
 set output_filename prefix.png
 print joint_calls
 ```
-Annotate calls:
+Annotating merged calls:
 ```
 > cnvpytor -root file1.pytor file2.pytor ... -view 100000 
 set Q0_range 0 0.5
@@ -144,6 +147,28 @@ set annotate
 print joint_calls
 ```
 
+### Genotyping from command line
+```
+> cnvpytor -root file.pytor -genotype 10000 100000
+12:11396601-11436500
+12:11396601-11436500	1.933261	1.937531
+22:20999401-21300400
+22:20999401-21300400	1.949186	1.957068
+```
+
+Genotyping with additional informations:
+```
+> cnvpytor -root file.pytor -genotype 10000 100000 -a
+12:11396601-11436500
+12:11396601-11436500    2.0152  1.629621e+04    9.670589e+08    0.0000  0.0000  4156900 1.0000  50      4       0.0000  1.000000e+00
+```
+
+Genotyping using P filtered (1000 Genome Project strict mask) RD signal:
+```
+> cnvpytor -root file.pytor -genotype 10000 100000 -a -rd_use_mask
+1:800k-900k
+1:800000-900000 2.3012  1.032124e+01    8.296037e+06    0.0021  0.0000  278700  0.8000  48      28      0.0000  1.000000e+00
+```
 
 ### Plot from command line
 ```

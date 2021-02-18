@@ -128,7 +128,35 @@ Result is stored in tab separated files with following columns:
 * e-val3 -- same as e-val1 but for the middle of CNV,
 * e-val4 -- same as e-val2 but for the middle of CNV,
 * q0 -- fraction of reads mapped with q0 quality in call region,
-* pN -- fraction of reference genome gaps (Ns) in call region.
+* pN -- fraction of reference genome gaps (Ns) in call region,
+* dG -- distance from closest large (>100bp) gap in reference genome.
+
+Using viewer mode we can filter calls based on five parameters: 
+CNV size, e-val1, q0, pN and dG:
+
+```
+> cnvpytor -root file.pytor [file2.pytor ...] -view 10000
+
+cnvpytor> set Q0_range -1 0.5        # filter calls with more than half not uniqly maped reads
+cnvpytor> set p_range 0 0.0001       # filter non-confident calls 
+cnvpytor> set p_N 0 0.5              # filter calls with more than 50% Ns in reference genome 
+cnvpytor> set size_range 50000 inf   # filter calls smaller than 50kbp 
+cnvpytor> set dG_range 100000 inf    # filter calls close to gaps in reference genome (<100kbp)
+cnvpytor> print calls                # printing calls on screen (tsv format)
+...
+...
+cnvpytor> set print_file file.xlsx   # output filename (xlsx, tsv or vcf)
+cnvpytor> set annotate               # turn on annotation (optional - takes a lot of time)
+cnvpytor> print calls                # generate output file with filtered calls 
+cnvpytor> quit
+```
+
+Upper bound for parameters _size_range_ and _dG_range_ can be _inf_ (infinity).
+
+If there are multiple samples (pytor files) there will be an additional 
+column with sample name in tsv format, multiple sheets in Excel format, and
+multiple sample columns in vcf format.
+
 
 ## Import SNP data
 
@@ -196,6 +224,33 @@ for each bin size will be performed:
 22:20999401-21300400
 22:20999401-21300400	1.949186	1.957068
 ```
+
+Genotyping with additional informations:
+```
+> cnvpytor -root file.pytor -genotype 10000 -a [-rd_use_mask] [-nomask]
+12:11396601-11436500
+12:11396601-11436500    2.0152  1.629621e+04    9.670589e+08    0.0000  0.0000  4156900 1.0000  50      4       0.0000  1.000000e+00
+```
+
+Output columns are:
+1. region,
+1. cnv level -- mean RD normalized to mean autosomal RD level,
+1. e_val_1 -- p value calculated using t-test statistics between RD statistics in the region and global,
+1. e_val_2 -- p value from the probability of RD values within the region to be in the tails of a gaussian distribution of binned RD,
+1. q0 – fraction of reads mapped with q0 quality within call region,
+1. pN – fraction of reference genome gaps (Ns) within call region,
+1. dG -- distance from closest large (>100bp) gap in reference genome,
+1. proportion of bins used in RD calculation (with option _-rd_use_mask_ some bins can be filtered out),
+1. Number of homozygous variants within region,
+1. Number of heterozygous variants,
+1. BAF level (difference from 0.5) for HETs estimated using maximum likelihood method,
+1. p-value based on BAF signal.
+
+
+Option _-rd_use_mask_ turns on P filtering (1000 Genome Project strict mask) for RD signal.
+
+Option _-nomak_ turns off P filtering of SNPs (1000 Genome Project strict mask) for BAF signal.
+
 
 **Example:**
 

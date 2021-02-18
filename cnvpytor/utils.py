@@ -356,16 +356,16 @@ def t_test_2_samples(m1, s1, n1, m2, s2, n2):
 
 
 def getEValue(mean, sigma, rd, start, end):
-    aver = np.mean(rd[start:end])
-    s = np.std(rd[start:end])
+    aver = np.nanmean(rd[start:end])
+    s = np.nanstd(rd[start:end])
     if s == 0:
         s = sigma * aver / mean if sigma > 0 else 1
     return t_test_1_sample(mean, aver, s, end - start) / (end - start)
 
 def gaussianEValue(mean, sigma, rd, start, end):
-    aver = np.mean(rd[start:end])
-    max = np.max(rd[start:end])
-    min = np.min(rd[start:end])
+    aver = np.nanmean(rd[start:end])
+    max = np.nanmax(rd[start:end])
+    min = np.nanmin(rd[start:end])
 
     if aver < mean:
         x = (max - mean) / (sigma * np.sqrt(2.))

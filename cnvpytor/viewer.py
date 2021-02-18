@@ -453,8 +453,7 @@ class Viewer(Show, Figure, HelpDescription):
                         self.unset(f[1])
                 elif f[0] == "genotype":
                     if n > 1:
-                        for ni in range(1, n):
-                            self.genotype([self.bin_size], f[ni], interactive=True)
+                        self.genotype_all([self.bin_size], f[1:], interactive=True)
                 elif f[0] == "snv":
                     if n == 2:
                         self.snp(callset=f[1])
@@ -1039,7 +1038,7 @@ class Viewer(Show, Figure, HelpDescription):
                     info += ";pytorDG=" + str(call[14])
                     info += ";pytorCL=" + call[1]
                     format = "GT:CN"
-                    row = [call[3], int(call[4]), id, "N", alt, ".", "PASS", info, format]
+                    row = [call[3], int(call[4]), id, ".", alt, ".", "PASS", info, format]
                     for sample in samples:
                         if sample == call[0]:
                             if call[2] == "deletion" and call[7] < 0.25:
@@ -1294,17 +1293,17 @@ class Viewer(Show, Figure, HelpDescription):
         if format == "tsv":
             f.close()
         elif format == "xlsx":
-            sheet.conditional_format(1, 3, ri, len(header)-int(self.annotate), {'type': '3_color_scale',
-                                                                'min_color': "#FF0000",
-                                                                'mid_color': "#FFFFFF",
-                                                                'max_color': "#00FF00",
-                                                                'min_type': 'num',
-                                                                'min_value': 0,
-                                                                'mid_type': 'num',
-                                                                'mid_value': 2,
-                                                                'max_type': 'num',
-                                                                'max_value': 4
-                                                                })
+            sheet.conditional_format(1, 3, ri, len(header) - int(self.annotate), {'type': '3_color_scale',
+                                                                                  'min_color': "#FF0000",
+                                                                                  'mid_color': "#FFFFFF",
+                                                                                  'max_color': "#00FF00",
+                                                                                  'min_type': 'num',
+                                                                                  'min_value': 0,
+                                                                                  'mid_type': 'num',
+                                                                                  'mid_value': 2,
+                                                                                  'max_type': 'num',
+                                                                                  'max_value': 4
+                                                                                  })
             workbook.close()
 
     def manhattan(self, plot_type="rd"):
@@ -3325,10 +3324,28 @@ class Viewer(Show, Figure, HelpDescription):
                     his_p = self.io[file_index].get_signal(c, bs, "RD", flag_rd)
                     qrd_p = self.io[file_index].get_signal(c, bs, "RD")
                     qrd_u = self.io[file_index].get_signal(c, bs, "RD unique")
-                    gc, at = False, False
+                    gc, at, distN = False, False, False
                     if c in rd_gc_chromosomes and self.io_gc.signal_exists(rd_gc_chromosomes[c], None, "GC/AT"):
                         gcat = self.io_gc.get_signal(rd_gc_chromosomes[c], None, "GC/AT")
                         gc, at = gc_at_decompress(gcat)
+                        NN = 100 - np.array(gc) - np.array(at)
+                        distN = np.zeros_like(NN, dtype="long") - 1
+                        distN[NN == 100] = 0
+                        prev = 0
+                        for Ni in range(0, distN.size):
+                            if distN[Ni] == -1:
+                                prev += 100
+                                distN[Ni] = prev
+                            else:
+                                prev = 0
+                        prev = 0
+                        for Ni in range(distN.size - 1, -1, -1):
+                            if distN[Ni] > 0:
+                                prev += 100
+                                if prev < distN[Ni]:
+                                    distN[Ni] = prev
+                            else:
+                                prev = 0
                     snp = c in self.io[file_index].snp_chromosomes()
                     snp_flag = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0) | (
                         FLAG_USEHAP if self.snp_use_phase else 0)
@@ -3338,6 +3355,9 @@ class Viewer(Show, Figure, HelpDescription):
                         snp_hets = self.io[file_index].get_signal(c, bs, "SNP bin count 0|1", snp_flag)
                         snp_hets += self.io[file_index].get_signal(c, bs, "SNP bin count 1|0", snp_flag)
                         snp_homs = self.io[file_index].get_signal(c, bs, "SNP bin count 1|1", snp_flag)
+                else:
+                    if chr_len is not None and pos2 == 1000000000:
+                        pos2 = chr_len
                 oc = c
                 ret[bs].append([c, pos1, pos2])
 
@@ -3347,33 +3367,42 @@ class Viewer(Show, Figure, HelpDescription):
                 rc2 = 0
                 sp = 0
                 su = 0
+                nansize = 0
                 if bin1 == bin2:
                     try:
-                        rc = (pos2 - pos1 + 1) * his_p[bin1] / bs
-                        rc2 = (pos2 - pos1 + 1) * his_p[bin1] * his_p[bin1] / bs
-                        sp = (pos2 - pos1 + 1) * qrd_p[bin1] / bs
-                        su = (pos2 - pos1 + 1) * qrd_u[bin1] / bs
+                        if not np.isnan(his_p[bin1]):
+                            rc = (pos2 - pos1 + 1) * his_p[bin1] / bs
+                            rc2 = (pos2 - pos1 + 1) * his_p[bin1] * his_p[bin1] / bs
+                            sp = (pos2 - pos1 + 1) * qrd_p[bin1] / bs
+                            su = (pos2 - pos1 + 1) * qrd_u[bin1] / bs
+                            nansize = (pos2 - pos1 + 1)
                     except IndexError:
                         pass
                 else:
                     try:
-                        rc += (bin1 * bs - pos1 + 1 + bs) * his_p[bin1] / bs
-                        rc += (pos2 - bin2 * bs) * his_p[bin2] / bs
-                        rc2 += (bin1 * bs - pos1 + 1 + bs) * his_p[bin1] * his_p[bin1] / bs
-                        rc2 += (pos2 - bin2 * bs) * his_p[bin2] * his_p[bin2] / bs
-                        sp += (bin1 * bs - pos1 + 1 + bs) * qrd_p[bin1] / bs
-                        sp += (pos2 - bin2 * bs) * qrd_p[bin2] / bs
-                        su += (bin1 * bs - pos1 + 1 + bs) * qrd_u[bin1] / bs
-                        su += (pos2 - bin2 * bs) * qrd_u[bin2] / bs
+                        if not np.isnan(his_p[bin1]):
+                            rc += (bin1 * bs - pos1 + 1 + bs) * his_p[bin1] / bs
+                            rc2 += (bin1 * bs - pos1 + 1 + bs) * his_p[bin1] * his_p[bin1] / bs
+                            sp += (bin1 * bs - pos1 + 1 + bs) * qrd_p[bin1] / bs
+                            su += (bin1 * bs - pos1 + 1 + bs) * qrd_u[bin1] / bs
+                            nansize += (bin1 * bs - pos1 + 1 + bs)
+                        if not np.isnan(his_p[bin2]):
+                            rc += (pos2 - bin2 * bs) * his_p[bin2] / bs
+                            rc2 += (pos2 - bin2 * bs) * his_p[bin2] * his_p[bin2] / bs
+                            sp += (pos2 - bin2 * bs) * qrd_p[bin2] / bs
+                            su += (pos2 - bin2 * bs) * qrd_u[bin2] / bs
+                            nansize += (pos2 - bin2 * bs)
 
                     except IndexError:
                         pass
                     for ix in range(bin1 + 1, bin2):
                         try:
-                            rc += his_p[ix]
-                            rc2 += his_p[ix] * his_p[ix]
-                            sp += qrd_p[ix]
-                            su += qrd_u[ix]
+                            if not np.isnan(his_p[ix]):
+                                rc += his_p[ix]
+                                rc2 += his_p[ix] * his_p[ix]
+                                sp += qrd_p[ix]
+                                su += qrd_u[ix]
+                                nansize += bs
                         except IndexError:
                             pass
                 if gc:
@@ -3400,11 +3429,18 @@ class Viewer(Show, Figure, HelpDescription):
 
                 e1 = getEValue(stat[4], stat[5], his_p, bin1, bin2 + 1) * 2.9e9 / bs
                 e2 = gaussianEValue(stat[4], stat[5], his_p, bin1, bin2 + 1) * 2.9e9
+                dG = -1
                 if gc:
                     pN = 1 - pN / (pos2 - pos1 + 1)
+                    dG = np.min(distN[sbin1:sbin2])
                 else:
                     pN = -1
-                ret[bs][-1].append(2. * rc / (stat[4] * (pos2 - pos1 + 1) / bs))
+                    dG = -1
+                if nansize == 0:
+                    rc = np.nan
+                else:
+                    rc = 2 * rc / (stat[4] * nansize / bs)
+                ret[bs][-1].append(rc)
                 ret[bs][-1].append(e1)
                 ret[bs][-1].append(e2)
                 q0 = 0
@@ -3412,11 +3448,13 @@ class Viewer(Show, Figure, HelpDescription):
                     q0 = (sp - su) / sp
                 ret[bs][-1].append(q0)
                 ret[bs][-1].append(pN)
+                ret[bs][-1].append(dG)
+                ret[bs][-1].append(nansize / (pos2 - pos1 + 1))
                 if snp:
                     homs = np.sum(snp_homs[bin1:bin2 + 1])
                     hets = np.sum(snp_hets[bin1:bin2 + 1])
                     lh = np.ones_like(snp_likelihood[0])
-                    for ix in range(bin1, bin2 + 1):
+                    for ix in range(bin1, min(bin2 + 1, len(snp_likelihood))):
                         lh *= snp_likelihood[ix]
                         lh /= np.sum(lh)
                     baf, baf_p = likelihood_baf_pval(lh)
@@ -3432,8 +3470,9 @@ class Viewer(Show, Figure, HelpDescription):
                     for ix in range(len(ret[bs])):
                         plist[ix] += ret[bs][ix][3:]
             for r in plist:
-                print(("%s:%d-%d" + (len(bin_sizes) * "\t%.4f\t%e\t%e\t%.4f\t%.4f\t%d\t%d\t%.4f\t%e")) % tuple(r))
-
+                print(
+                    ("%s:%d-%d" + (len(bin_sizes) * "\t%.4f\t%e\t%e\t%.4f\t%.4f\t%d\t%.4f\t%d\t%d\t%.4f\t%e")) % tuple(
+                        r))
         return ret
 
     def genotype_prompt(self, bin_sizes=[], all=False):

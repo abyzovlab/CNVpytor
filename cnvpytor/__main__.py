@@ -192,7 +192,14 @@ def main():
             show.info(args.info)
 
         if args.genotype is not None:
-            view = Viewer(args.root, {}, force_agg=args.force_agg)
+            params = {"output_filename": args.plot_output_file,
+                      "chrom": args.chrom,
+                      "panels": args.panels,
+                      "snp_use_mask": not args.no_mask,
+                      "snp_use_id": args.use_id,
+                      "rd_use_mask": args.use_mask_with_rd
+                      }
+            view = Viewer(args.root, params, force_agg=args.force_agg)
             view.genotype_prompt(list(map(binsize_type, args.genotype)), all=args.all)
 
         if args.compare is not None:
