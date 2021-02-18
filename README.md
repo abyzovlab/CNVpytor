@@ -68,6 +68,7 @@ For single user (without admin privileges) use:
 
 ### Install using pip
 
+Old version (v1.0) is available using pip directly (not recomended):
 ```
 > pip install cnvpytor
 > cnvpytor -download
