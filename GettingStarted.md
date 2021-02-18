@@ -16,6 +16,9 @@ For single user (without admin privileges) use:
 
 ### Using pip
 
+Old version (v1.0) is available using pip directly (not recomended at the moment):
+
+
 ```
 > pip install cnvpytor
 > cnvpytor -download
