@@ -2059,6 +2059,7 @@ class Viewer(Show, Figure, HelpDescription):
                 call_c_2d = []
                 tlen = 0
                 tlen_2d = 0
+                pos_x = []
                 for c, (pos1, pos2) in r:
                     if pos2 == 1000000000:
                         pos2 = io.get_chromosome_length(c)
@@ -2067,6 +2068,8 @@ class Viewer(Show, Figure, HelpDescription):
                     likelihood = io.get_signal(c, bin_size, "SNP likelihood", snp_flag)
                     start_bin = (pos1 - 1) // bin_size
                     end_bin = pos2 // bin_size
+                    bins = len(list(likelihood[start_bin:end_bin]))
+                    pos_x.extend(range(pos1, pos2 + bin_size, bin_size)[0:bins])
                     gl.extend(list(likelihood[start_bin:end_bin]))
                     borders.append(len(gl) - 1)
                     if self.snp_call and ("baf_mosaic" in self.callers):
@@ -2547,7 +2550,7 @@ class Viewer(Show, Figure, HelpDescription):
                 ax.scatter(x, y, marker=".", alpha=0.5)
 
         if self.output_filename != "":
-            plt.savefig(self._image_filename("regions"), dpi=150)
+            plt.savefig(self._image_filename("rd_baf"), dpi=150)
             plt.close(self.fig)
         elif self.interactive:
             plt.show(block=False)
