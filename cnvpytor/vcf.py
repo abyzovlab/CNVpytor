@@ -44,7 +44,6 @@ class Vcf:
             _logger.debug("Header contigs: %s" % ", ".join(self.chrs))
             _logger.debug("Header samples: %s" % ", ".join(self.samples))
 
-
     def get_chromosomes(self):
         """
         Get chromosome names.
@@ -158,8 +157,6 @@ class Vcf:
                         if isinstance(rec.samples[sample][gt_tag], str) or isinstance(rec.samples[sample][gt_tag],
                                                                                       unicode):
                             gt.append(int1(rec.samples[sample][gt_tag][0]) * 2 + int1(rec.samples[sample][gt_tag][2]))
-                            if gt[-1]>3:
-
                             if rec.samples[sample][gt_tag][1] == "|":
                                 gt[-1] += 4
                         else:
@@ -379,7 +376,7 @@ class Vcf:
                     qual = []
                     filter_stat = {}
                     count += 1
-                if len(rec.filter.keys())==0:
+                if len(rec.filter.keys()) == 0:
                     if "No filter (.)" in filter_stat:
                         filter_stat["No filter (.)"] += 1
                     else:
@@ -640,7 +637,8 @@ class Vcf:
                     rd_dp = []
                     chr_count += 1
 
-                if ("PASS" in rec.filter.keys() or not filter) and (ad_tag in rec.samples[sample].keys()) and len(rec.samples[sample][ad_tag]) > 1 and (
+                if ("PASS" in rec.filter.keys() or not filter) and (ad_tag in rec.samples[sample].keys()) and len(
+                        rec.samples[sample][ad_tag]) > 1 and (
                         dp_tag in rec.samples[sample].keys()) and (rec.samples[sample][dp_tag] is not None):
                     try:
                         rd1 = sum(map(int, rec.samples[sample][ad_tag]))
