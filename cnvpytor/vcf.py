@@ -129,7 +129,7 @@ class Vcf:
                         filter_stat[f] += 1
                     else:
                         filter_stat[f] = 1
-                if ("PASS" in rec.filter.keys() or not filter) and rec.alts and len(rec.alts) > 1 and (
+                if ("PASS" in rec.filter.keys() or not filter) and rec.alts and len(rec.alts) >= 1 and (
                         gt_tag in rec.samples[sample].keys()) and (
                         ad_tag in rec.samples[sample].keys()) and len(rec.samples[sample][gt_tag]) > 1 and len(
                     rec.samples[sample][ad_tag]) > 1:
@@ -214,7 +214,7 @@ class Vcf:
         alphabet = ['A', 'T', 'G', 'C', '.']
         try:
             for rec in self.file.fetch(chr_name):
-                if ("PASS" in rec.filter.keys() or not filter) and rec.alts and len(rec.alts) > 1 and (
+                if ("PASS" in rec.filter.keys() or not filter) and rec.alts and len(rec.alts) >= 1 and (
                         gt_tag in rec.samples[sample].keys()) and len(rec.samples[sample][gt_tag]) > 1:
                     if (rec.ref in alphabet) and (rec.alts[0] in alphabet):
                         pos.append(rec.pos)
@@ -387,7 +387,7 @@ class Vcf:
                     else:
                         filter_stat[f] = 1
 
-                if ("PASS" in rec.filter.keys() or not filter) and rec.alts and len(rec.alts) > 1 and (
+                if ("PASS" in rec.filter.keys() or not filter) and rec.alts and len(rec.alts) >= 1 and (
                         gt_tag in rec.samples[sample].keys()) and (
                         ad_tag in rec.samples[sample].keys()) and len(rec.samples[sample][gt_tag]) > 1 and len(
                     rec.samples[sample][ad_tag]) > 1:
@@ -484,7 +484,7 @@ class Vcf:
                     qual = []
                     count += 1
 
-                if ("PASS" in rec.filter.keys() or not filter) and rec.alts and len(rec.alts) > 1 and (
+                if ("PASS" in rec.filter.keys() or not filter) and rec.alts and len(rec.alts) >= 1 and (
                         gt_tag in rec.samples[sample].keys()) and len(rec.samples[sample][gt_tag]) > 1:
                     if (rec.ref in alphabet) and (rec.alts[0] in alphabet) and (
                             rec.samples[sample][gt_tag][0] is not None) and (
@@ -559,7 +559,7 @@ class Vcf:
                     ref = []
                     alt = []
                     count += 1
-                if ("PASS" in rec.filter.keys() or not filter) and rec.alts and len(rec.alts) > 1:
+                if ("PASS" in rec.filter.keys() or not filter) and rec.alts and len(rec.alts) >= 1:
                     if (rec.ref in alphabet) and (rec.alts[0] in alphabet):
                         pos.append(rec.pos)
                         ref.append(rec.ref)
