@@ -44,6 +44,7 @@ class Vcf:
             _logger.debug("Header contigs: %s" % ", ".join(self.chrs))
             _logger.debug("Header samples: %s" % ", ".join(self.samples))
 
+
     def get_chromosomes(self):
         """
         Get chromosome names.
@@ -156,11 +157,13 @@ class Vcf:
                             unicode = str
                         if isinstance(rec.samples[sample][gt_tag], str) or isinstance(rec.samples[sample][gt_tag],
                                                                                       unicode):
-                            gt.append(int(rec.samples[sample][gt_tag][0]) * 2 + int(rec.samples[sample][gt_tag][2]))
+                            gt.append(int1(rec.samples[sample][gt_tag][0]) * 2 + int1(rec.samples[sample][gt_tag][2]))
+                            if gt[-1]>3:
+
                             if rec.samples[sample][gt_tag][1] == "|":
                                 gt[-1] += 4
                         else:
-                            gt.append(rec.samples[sample][gt_tag][0] * 2 + rec.samples[sample][gt_tag][1])
+                            gt.append(int1(rec.samples[sample][gt_tag][0]) * 2 + int1(rec.samples[sample][gt_tag][1]))
                             if rec.samples[sample].phased:
                                 gt[-1] += 4
         except ValueError:
@@ -233,11 +236,11 @@ class Vcf:
                             unicode = str
                         if isinstance(rec.samples[sample][gt_tag], str) or isinstance(rec.samples[sample][gt_tag],
                                                                                       unicode):
-                            gt.append(int(rec.samples[sample][gt_tag][0]) * 2 + int(rec.samples[sample][gt_tag][2]))
+                            gt.append(int1(rec.samples[sample][gt_tag][0]) * 2 + int1(rec.samples[sample][gt_tag][2]))
                             if rec.samples[sample][gt_tag][1] == "|":
                                 gt[-1] += 4
                         else:
-                            gt.append(rec.samples[sample][gt_tag][0] * 2 + rec.samples[sample][gt_tag][1])
+                            gt.append(int1(rec.samples[sample][gt_tag][0]) * 2 + int1(rec.samples[sample][gt_tag][1]))
                             if rec.samples[sample].phased:
                                 gt[-1] += 4
 
@@ -416,11 +419,11 @@ class Vcf:
                             unicode = str
                         if isinstance(rec.samples[sample][gt_tag], str) or isinstance(rec.samples[sample][gt_tag],
                                                                                       unicode):
-                            gt.append(int(rec.samples[sample][gt_tag][0]) * 2 + int(rec.samples[sample][gt_tag][2]))
+                            gt.append(int1(rec.samples[sample][gt_tag][0]) * 2 + int1(rec.samples[sample][gt_tag][2]))
                             if rec.samples[sample][gt_tag][1] == "|":
                                 gt[-1] += 4
                         else:
-                            gt.append(rec.samples[sample][gt_tag][0] * 2 + rec.samples[sample][gt_tag][1])
+                            gt.append(int1(rec.samples[sample][gt_tag][0]) * 2 + int1(rec.samples[sample][gt_tag][1]))
                             if rec.samples[sample].phased:
                                 gt[-1] += 4
 
@@ -505,11 +508,11 @@ class Vcf:
                             unicode = str
                         if isinstance(rec.samples[sample][gt_tag], str) or isinstance(rec.samples[sample][gt_tag],
                                                                                       unicode):
-                            gt.append(int(rec.samples[sample][gt_tag][0]) * 2 + int(rec.samples[sample][gt_tag][2]))
+                            gt.append(int1(rec.samples[sample][gt_tag][0]) * 2 + int1(rec.samples[sample][gt_tag][2]))
                             if rec.samples[sample][gt_tag][1] == "|":
                                 gt[-1] += 4
                         else:
-                            gt.append(rec.samples[sample][gt_tag][0] * 2 + rec.samples[sample][gt_tag][1])
+                            gt.append(int1(rec.samples[sample][gt_tag][0]) * 2 + int1(rec.samples[sample][gt_tag][1]))
                             if rec.samples[sample].phased:
                                 gt[-1] += 4
 

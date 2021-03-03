@@ -307,6 +307,7 @@ def fit_normal(x, y):
         _logger.warning("Problem with fit: Runtime Error. Using mean and std instead fitting parameters!")
         return [area, mean, sigma], None
 
+
 def fit_bimodal(x, y):
     """ Fit double Gaussian
     """
@@ -325,7 +326,7 @@ def fit_bimodal(x, y):
         _logger.warning("Problem with fit: insufficient data points. Return None!")
         return None
     try:
-        popt, pcov = curve_fit(bimodal, x, y, p0=[area/2, mean*0.66, sigma/2, area/2, mean*1.33, sigma/2])
+        popt, pcov = curve_fit(bimodal, x, y, p0=[area / 2, mean * 0.66, sigma / 2, area / 2, mean * 1.33, sigma / 2])
         return popt, pcov
     except ValueError:
         _logger.warning("Problem with fit: Value Error. Return None!")
@@ -361,6 +362,7 @@ def getEValue(mean, sigma, rd, start, end):
     if s == 0:
         s = sigma * aver / mean if sigma > 0 else 1
     return t_test_1_sample(mean, aver, s, end - start) / (end - start)
+
 
 def gaussianEValue(mean, sigma, rd, start, end):
     aver = np.nanmean(rd[start:end])
@@ -511,7 +513,7 @@ def decode_position(s):
     return int(s.replace("K", "000").replace("k", "000").replace("M", "000000").replace("m", "000000"))
 
 
-def decode_region(s,max_size=1000000000):
+def decode_region(s, max_size=1000000000):
     """
 
     Parameters
@@ -740,6 +742,21 @@ def help_format(topic="", p_desc="", p_usage="", p_type="", p_default="", p_affe
         ret_str += TerminalColor.DARKCYAN + add_tabs(p_see) + TerminalColor.END + "\n\n"
     return ret_str[:-1]
 
-def in_interval(x,interval):
-    return x>=interval[0] and x<=interval[1]
 
+def in_interval(x, interval):
+    return x >= interval[0] and x <= interval[1]
+
+
+def int1(x):
+    """
+    Returns 1 if x is 1 or "1"
+    Parameters
+    ----------
+    x : int or str
+
+    Returns
+    -------
+    ret : 1 or 0
+
+    """
+    return int(int(x) == 1)
