@@ -6,6 +6,7 @@ class Vcf: reads SNP data from VCF file
 import pysam
 import logging
 import numpy as np
+from .utils import int1
 
 _logger = logging.getLogger("cnvpytor.vcf")
 
