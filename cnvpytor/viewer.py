@@ -2222,7 +2222,7 @@ class Viewer(Show, Figure, HelpDescription):
         chroms = []
         for c, (l, t) in self.reference_genome["chromosomes"].items():
             rd_chr = self.io[self.plot_files[0]].rd_chromosome_name(c)
-            if len(self.chrom) == 0 or (rd_chr in self.chrom) or (c in self.chrom):
+            if (len(self.chrom) == 0 or (rd_chr in self.chrom) or (c in self.chrom)) and rd_chr is not None:
                 if (Genome.is_autosome(c) or Genome.is_sex_chrom(c)):
                     chroms.append((rd_chr, l))
         panels = self.panels
