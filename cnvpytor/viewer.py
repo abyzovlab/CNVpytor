@@ -2238,6 +2238,10 @@ class Viewer(Show, Figure, HelpDescription):
             io = self.io[ix]
             for i in range(len(panels)):
                 ax = self.next_subpanel(sharex=True)
+                if i == 0:
+                    ax.set_title(self.file_title(ix), position=(0.01, 0.9),
+                                 fontdict={'verticalalignment': 'top', 'horizontalalignment': 'left'},
+                                 color='C0')
 
                 if panels[i] == "rd":
                     start = 0
@@ -2398,6 +2402,8 @@ class Viewer(Show, Figure, HelpDescription):
                         xticks.append(start)
 
                     img = np.array(gl).transpose()
+                    img[0,:]=0
+                    img[-1,:]=0
                     ax.imshow(img, aspect='auto')
                     ax.yaxis.set_ticks([0, img.shape[0] / 4, img.shape[0] / 2, 3 * img.shape[0] / 4, img.shape[0] - 1],
                                        minor=[])
