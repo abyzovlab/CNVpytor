@@ -171,33 +171,6 @@ Genotyping using P filtered (1000 Genome Project strict mask) RD signal:
 1:800000-900000 2.3012  1.032124e+01    8.296037e+06    0.0021  0.0000  278700  0.8000  48      28      0.0000  1.000000e+00
 ```
 
-### Plot from command line
-```
-> cnvpytor -root file.pytor -plot rdstat
-> cnvpytor -root file.pytor -plot rd 10000 100000
-> cnvpytor -root file.pytor -plot rdstat manhattan 100000 -o prefix.pdf
-> cnvpytor -root file.pytor -plot baf 100000 
-> cnvpytor -root file.pytor -plot regions 1:10M-20M,2:20M-43M 3:10M-20M 10000
-> cnvpytor -root file.pytor -plot circular 100000 -rd_use_mask -o prefix.png
-```
-
-### Plot from script
-```
-> echo "rdstat" | cnvpytor -root file.pytor -view 100000 -o prefix.png
-
-> cnvpytor -root file.pytor -view 100000 <<ENDL
-set rd_use_mask
-set markersize 1
-set grid vertical
-set output_filename prefix.png
-manhattan
-circular
-ENDL
-
-> cnvpytor -root file.pytor -view 100000 < script.spytor
-
-```
-
 ### Plot from interactive mode
 
 CNVpytor view interactive mode is implemented with **<tab> completion** and internal documentation (**help** command).
@@ -270,6 +243,35 @@ SEE ALSO
 cnvpytor> set bin_size 100000
 cnvpytor> chr1:1M-50M chr2:60M-65M > filename.png
 ```
+
+### Plot from script
+```
+> echo "rdstat" | cnvpytor -root file.pytor -view 100000 -o prefix.png
+
+> cnvpytor -root file.pytor -view 100000 <<ENDL
+set rd_use_mask
+set markersize 1
+set grid vertical
+set output_filename prefix.png
+manhattan
+circular
+ENDL
+
+> cnvpytor -root file.pytor -view 100000 < script.spytor
+
+```
+
+### Plot from command line
+```
+> cnvpytor -root file.pytor -plot rdstat
+> cnvpytor -root file.pytor -plot rd 10000 100000
+> cnvpytor -root file.pytor -plot rdstat manhattan 100000 -o prefix.pdf
+> cnvpytor -root file.pytor -plot baf 100000 
+> cnvpytor -root file.pytor -plot regions 1:10M-20M,2:20M-43M 3:10M-20M 10000
+> cnvpytor -root file.pytor -plot circular 100000 -rd_use_mask -o prefix.png
+```
+
+
 
 ## Use as a Python package
 

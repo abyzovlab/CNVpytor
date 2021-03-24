@@ -41,6 +41,8 @@ def main():
     parser.add_argument('-cgc', '--copy_gc', type=str, help="copy GC/AT content from another cnvnator file")
     parser.add_argument('-his', '--his', type=binsize_type, nargs="+",
                         help="create histograms for specified bin size (multiple bin sizes separate by space)")
+    parser.add_argument('-snp2his', '--his_from_snp', type=binsize_type, nargs="+",
+                        help="create histograms for specified bin size (multiple bin sizes separate by space)")
     parser.add_argument('-stat', '--stat', type=binsize_type, nargs="+",
                         help="calculate statistics for specified bin size (multiple bin sizes separate by space)")
     parser.add_argument('-partition', '--partition', type=binsize_type, nargs="+",
@@ -60,13 +62,16 @@ def main():
     parser.add_argument('-ad', '--ad_tag', type=str, help="counts tag (default: AD)", default="AD")
     parser.add_argument('-gt', '--gt_tag', type=str, help="genotype tag (default: GT)", default="GT")
     parser.add_argument('-dp', '--dp_tag', type=str, help="read depth tag (default: DP)", default="DP")
-    parser.add_argument('-callset', '--callset', type=str, help="name for somatic VCF signal", default="default")
+    parser.add_argument('-callset', '--callset', type=str, help="name for somatic VCF signal", default=None)
     parser.add_argument('-maxcn', '--max_copy_number', type=int, help="maximal copy number", default=10)
-    parser.add_argument('-mindbaf', '--baf_threshold', type=float, help="threshold for change in BAF level", default=0.0)
+    parser.add_argument('-mindbaf', '--baf_threshold', type=float, help="threshold for change in BAF level",
+                        default=0.0)
     parser.add_argument('-mincf', '--min_cell_fraction', type=float, help="minimal cell fraction", default=0.0)
 
     parser.add_argument('-pileup', '--pileup_bam', nargs="+", type=str, help="calculate SNP counts from bam files")
     parser.add_argument('-snp2rd', '--rd_from_snp', action='store_true', help="calculate RD from SNP counts")
+    parser.add_argument('-sbin', '--s_bin_size', type=binsize_type, help="Super bin size (use with -snp2rd)",
+                        default=10000)
 
     parser.add_argument('-mask', '--mask', type=str, help="read fasta mask file and flag SNPs in P region")
     parser.add_argument('-mask_snps', '--mask_snps', action='store_true', help="flag SNPs in P region")
@@ -266,8 +271,9 @@ def main():
 
         if args.somatic_snv:
             app = Root(args.root[0], create=True, max_cores=args.max_cores)
+            callset = "default" if args.callset is None else args.callset
             app.vcf(args.somatic_snv, chroms=args.chrom, sample=args.vcf_sample, no_counts=args.no_snp_counts,
-                    ad_tag=args.ad_tag, gt_tag=args.gt_tag, filter=not args.no_filter, callset=args.callset)
+                    ad_tag=args.ad_tag, gt_tag=args.gt_tag, filter=not args.no_filter, callset=callset)
 
         if args.rd_from_vcf:
             app = Root(args.root[0], create=True, max_cores=args.max_cores)
@@ -280,7 +286,8 @@ def main():
 
         if args.rd_from_snp:
             app = Root(args.root[0], max_cores=args.max_cores)
-            app.rd_from_snp(chroms=args.chrom, use_mask=not args.no_mask, use_id=args.use_id)
+            app.rd_from_snp(chroms=args.chrom, use_mask=not args.no_mask, use_id=args.use_id,
+                            s_bin_size=args.s_bin_size)
 
         if args.mask:
             app = Root(args.root[0], create=True, max_cores=args.max_cores)
@@ -302,6 +309,11 @@ def main():
             app = Root(args.root[0], max_cores=args.max_cores)
             app.calculate_histograms(args.his, chroms=args.chrom)
 
+        if args.his_from_snp:
+            app = Root(args.root[0], max_cores=args.max_cores)
+            app.calculate_histograms_from_snp_counts(args.his_from_snp, chroms=args.chrom, use_mask=not args.no_mask,
+                                                     use_id=args.use_id, callset=args.callset,
+                                                     min_count=args.min_count)
         if args.baf:
             app = Root(args.root[0], max_cores=args.max_cores)
             app.calculate_baf(args.baf, chroms=args.chrom, use_mask=not args.no_mask, use_id=args.use_id,
@@ -322,7 +334,7 @@ def main():
                                 use_gc_corr=not args.no_gc_corr,
                                 use_mask=args.use_mask_with_rd, anim=args.animation)
             elif args.call[0] == "combined":
-                if args.call[1] in ["mosaic","germline"]:
+                if args.call[1] in ["mosaic", "germline"]:
                     event_type = args.call[1]
                     bins = list(map(binsize_type, args.call[2:]))
                 else:

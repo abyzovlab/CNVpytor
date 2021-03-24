@@ -659,6 +659,20 @@ class IO(Signals):
             self.create_signal(None, None, "RD chromosomes", np.array([np.string_(x) for x in rd_chroms]))
         return ds_p, ds_u
 
+    def add_rd_chromosome(self, chr_name):
+        """
+        Add RD chromosome name to rd chromosomes list
+        Parameters
+        ----------
+        chr_name : str
+            Name of the chromosome.
+        """
+        if not (chr_name in self.rd_chromosomes()):
+            rd_chroms = self.rd_chromosomes()
+            rd_chroms.append(chr_name)
+            self.create_signal(None, None, "RD chromosomes", np.array([np.string_(x) for x in rd_chroms]))
+            _logger.debug("Chromosome '%s' added to 'RD chromosomes' list" % c)
+
     def save_snp(self, chr_name, pos, ref, alt, nref, nalt, gt, flag, qual, update=False, callset=None,
                  chromosome_length=None):
         """
@@ -697,10 +711,10 @@ class IO(Signals):
         else:
             if update:
                 _logger.info("Updating somatic '%s' SNV data for chromosome '%s'. Number of variants: %d." % (
-                callset, chr_name, len(pos)))
+                    callset, chr_name, len(pos)))
             else:
                 _logger.info("Saving somatic '%s' SNV data for chromosome '%s'. Number of variants: %d." % (
-                callset, chr_name, len(pos)))
+                    callset, chr_name, len(pos)))
         snp_pos, snp_desc, snp_counts, snp_qual = snp_compress(pos, ref, alt, nref, nalt, gt, flag, qual)
         rd_name = self.rd_chromosome_name(chr_name)
         if not update and not (rd_name is None):
