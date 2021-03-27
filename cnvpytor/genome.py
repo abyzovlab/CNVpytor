@@ -47,7 +47,7 @@ class Genome:
                  ("chrM", (16569, "M"))]),
             "gc_file": pkg_resources.resource_filename('cnvpytor', 'data') + "/gc_hg38.pytor",
             "mask_file": pkg_resources.resource_filename('cnvpytor', 'data') + "/mask_hg38.pytor",
-            "ensemble_api_region": "https://rest.ensembl.org/overlap/region/human/{region}?content-type=application/json;feature=gene;"
+            "ensembl_api_region": "https://rest.ensembl.org/overlap/region/human/{region}?content-type=application/json;feature=gene;"
         }
     }
 
