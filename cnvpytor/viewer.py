@@ -1013,8 +1013,7 @@ class Viewer(Show, Figure, HelpDescription):
 ##ALT=<ID=LOH,Description="Copy number neutral loss of heterozygosity">
 ##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">;
 ##FORMAT=<ID=CN,Number=1,Type=Integer,Description="Copy number genotype for imprecise events">
-#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t{samples}
-"""
+#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t{samples}"""
             if self.reference_genome:
                 rg = self.reference_genome["name"]
             else:
