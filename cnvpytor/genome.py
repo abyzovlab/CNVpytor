@@ -172,6 +172,8 @@ class Genome:
                 not ("NC" in name.upper()))
         if cls.extended_chrom_name(name) in cls.reference_genomes[cls.detected_genome]["chromosomes"]:
             return cls.reference_genomes[cls.detected_genome]["chromosomes"][cls.extended_chrom_name(name)][1] == "A"
+        elif name in cls.reference_genomes[cls.detected_genome]["chromosomes"]:
+            return cls.reference_genomes[cls.detected_genome]["chromosomes"][name][1] == "A"
         return False
 
     @classmethod
@@ -194,6 +196,8 @@ class Genome:
             return cls.canonical_chrom_name(name) in {"X", "Y", "SEX"}
         if cls.extended_chrom_name(name) in cls.reference_genomes[cls.detected_genome]["chromosomes"]:
             return cls.reference_genomes[cls.detected_genome]["chromosomes"][cls.extended_chrom_name(name)][1] == "S"
+        elif name in cls.reference_genomes[cls.detected_genome]["chromosomes"]:
+            return cls.reference_genomes[cls.detected_genome]["chromosomes"][name][1] == "S"
         return False
 
     @classmethod
@@ -216,6 +220,9 @@ class Genome:
             return cls.canonical_chrom_name(name) in {"M", "MT"}
         if cls.extended_chrom_name(name) in cls.reference_genomes[cls.detected_genome]["chromosomes"]:
             return cls.reference_genomes[cls.detected_genome]["chromosomes"][cls.extended_chrom_name(name)][1] == "M"
+        elif name in cls.reference_genomes[cls.detected_genome]["chromosomes"]:
+            return cls.reference_genomes[cls.detected_genome]["chromosomes"][name][1] == "M"
+
         return False
 
     @classmethod
