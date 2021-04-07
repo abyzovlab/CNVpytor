@@ -135,7 +135,7 @@ class Figure(ViewParams):
         self.current = -1
         self.sg_current = -1
 
-    def new_figure(self, panel_count, grid="auto", panel_size=None, hspace=0, wspace=0, title=None):
+    def new_figure(self, panel_count, grid="auto", panel_size=None, title=None):
         """ Clear figure and create new plot layout.
 
         Parameters
@@ -161,7 +161,7 @@ class Figure(ViewParams):
         if self.output_filename != "":
             self.fig.set_figheight(panel_size[1] * sy)
             self.fig.set_figwidth(panel_size[0] * sx)
-        self.fig_grid = gridspec.GridSpec(sy, sx, hspace=hspace, wspace=wspace)
+        self.fig_grid = gridspec.GridSpec(sy, sx, hspace=self.margins[5], wspace=self.margins[4])
         self.current = -1
         self.sg_current = -1
 
@@ -239,7 +239,7 @@ class Figure(ViewParams):
             sx, sy = tuple(grid)
         return sx, sy
 
-    def fig_show(self, add_sufix=True, suffix="", bottom=0., top=1., wspace=0, hspace=0, left=0., right=1.):
+    def fig_show(self, add_sufix=True, suffix=""):
         """ Plot figure. If output_filename is specified it will plot only into a file.
 
         Parameters
@@ -253,6 +253,7 @@ class Figure(ViewParams):
             Sufix used in filename.
 
         """
+        bottom, top, left, right, wspace, hspace = self.margins
         plt.subplots_adjust(bottom=bottom, top=top, wspace=wspace, hspace=hspace, left=left, right=right)
         if self.output_filename != "":
             image_filename = self.output_filename
@@ -1313,7 +1314,7 @@ class Viewer(Show, Figure, HelpDescription):
         n = len(self.plot_files)
         ix = self.plot_files
 
-        self.new_figure(panel_count=n, grid=(1, n), panel_size=(24, 2), hspace=0.2, wspace=0.2)
+        self.new_figure(panel_count=n, grid=(1, n), panel_size=(24, 2))
         for i in range(n):
             ax = self.next_panel()
             io = self.io[ix[i]]
@@ -1555,8 +1556,7 @@ class Viewer(Show, Figure, HelpDescription):
                 ax.set_xlim([0, n_bins])
                 ax.grid()
 
-        self.fig_show(suffix="manhattan" if plot_type == "rd" else "snp_calls", bottom=0.02, top=(1.0 - 0.15 / n),
-                      wspace=0, hspace=0.2, left=0.02, right=0.98)
+        self.fig_show(suffix="manhattan" if plot_type == "rd" else "snp_calls")
 
     def callmap(self, color="frequency", background="white", pixel_size=1700000, max_p_val=1e-20, min_freq=0.01,
                 plot="cmap"):
@@ -1568,7 +1568,7 @@ class Viewer(Show, Figure, HelpDescription):
         ix = self.plot_files
 
         if plot:
-            self.new_figure(panel_count=n, grid=(1, 1), panel_size=(24, 0.24 * n), hspace=0.2, wspace=0.2)
+            self.new_figure(panel_count=n, grid=(1, 1), panel_size=(24, 0.24 * n))
 
         chroms = []
         starts = []
@@ -1644,7 +1644,7 @@ class Viewer(Show, Figure, HelpDescription):
 
         cmap = (255 * cmap).astype("int")
         if plot == "cmap":
-            self.new_figure(panel_count=1, grid=(1, 1), panel_size=(24, 0.24 * n), hspace=0.2, wspace=0.2)
+            self.new_figure(panel_count=1, grid=(1, 1), panel_size=(24, 0.24 * n))
             ax = self.next_panel()
             plt.imshow(cmap, aspect='auto')
             for i in ends[:-1]:
@@ -1654,8 +1654,7 @@ class Viewer(Show, Figure, HelpDescription):
             ax.set_xticks((np.array(starts) + np.array(ends)) / 2)
             chroms = list(map(Genome.canonical_chrom_name, chroms))
             ax.set_xticklabels(chroms)
-            self.fig_show(suffix="callmap", bottom=1 / (1 + n), top=0.98,
-                          wspace=0, hspace=0.2, left=0.02, right=0.98)
+            self.fig_show(suffix="callmap")
         elif plot == "regions":
             self.new_figure(panel_count=1, grid=(1, 1), panel_size=(24, 24))
             ax = self.next_panel()
@@ -1675,8 +1674,7 @@ class Viewer(Show, Figure, HelpDescription):
             chroms = list(map(Genome.canonical_chrom_name, chroms))
             ax.set_xticklabels(chroms + chroms + chroms)
             ax.set_yticklabels(chroms + chroms + chroms)
-            self.fig_show(suffix="callmap", bottom=1 / (1 + n), top=0.98,
-                          wspace=0, hspace=0.2, left=0.02, right=0.98)
+            self.fig_show(suffix="callmap")
         else:
             self.new_figure(panel_count=2, panel_size=(12, 12))
             ax = self.next_panel()
@@ -1693,20 +1691,18 @@ class Viewer(Show, Figure, HelpDescription):
             Z = hierarchy.linkage(x, 'average', 'correlation')
             dn = hierarchy.dendrogram(Z)
 
-            self.fig_show(suffix="callmap", bottom=1 / (1 + n), top=0.98,
-                          wspace=0, hspace=0.2, left=0.02, right=0.98)
+            self.fig_show(suffix="callmap")
         return cmap
 
     def multiple_regions(self, regions):
         n = len(self.plot_files) * len(regions)
-        self.new_figure(panel_count=n, wspace=0.1, hspace=0.1)
+        self.new_figure(panel_count=n)
         j = 0
         for i in range(len(self.plot_files)):
             for r in regions:
                 self.regions(self.plot_files[i], r)
                 j += 1
-        self.fig_show(suffix="regions", bottom=0.05, top=0.98,
-                      wspace=0, hspace=0.2, left=0.05, right=0.98)
+        self.fig_show(suffix="regions")
 
     def regions(self, ix, region):
         panels = self.panels
@@ -1718,7 +1714,7 @@ class Viewer(Show, Figure, HelpDescription):
         io = self.io[ix]
         for i in range(len(panels)):
             ax = self.next_subpanel(sharex=True)
-            if i == 0:
+            if i == 0 and self.title:
                 ax.set_title(self.file_title(ix) + ": " + region, position=(0.01, 0.9),
                              fontdict={'verticalalignment': 'top', 'horizontalalignment': 'left'},
                              color='C0')
@@ -2230,7 +2226,7 @@ class Viewer(Show, Figure, HelpDescription):
             FLAG_USEHAP if self.snp_use_phase else 0)
         rd_flag = (FLAG_USEMASK if self.rd_use_mask else 0) | (FLAG_GC_CORR if self.rd_use_gc_corr else 0)
         n = len(self.plot_files)
-        self.new_figure(panel_count=n, wspace=0.1, hspace=0.1)
+        self.new_figure(panel_count=n)
         for ii in range(len(self.plot_files)):
             ix = self.plot_files[ii]
             self.new_subgrid(len(panels), hspace=0.05, wspace=0.05)
@@ -2419,8 +2415,7 @@ class Viewer(Show, Figure, HelpDescription):
                     ax.xaxis.grid()
                     self.fig.add_subplot(ax)
 
-        self.fig_show(suffix="global", bottom=0.05, top=0.98,
-                      wspace=0, hspace=0.2, left=0.05, right=0.98)
+        self.fig_show(suffix="global")
 
     def circular(self):
         chroms = self.chrom
@@ -2430,7 +2425,7 @@ class Viewer(Show, Figure, HelpDescription):
         snp_flag = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0) | (
             FLAG_USEHAP if self.snp_use_phase else 0)
         rd_flag = FLAG_GC_CORR | (FLAG_USEMASK if self.rd_use_mask else 0)
-        self.new_figure(panel_count=n, wspace=0.2, hspace=0.2)
+        self.new_figure(panel_count=n)
         for i in range(n):
             ax = self.next_polar_panel()
             ax.set_theta_zero_location("N")
@@ -2493,7 +2488,7 @@ class Viewer(Show, Figure, HelpDescription):
             ax.set_thetagrids(angles, labels=labels, fontsize=10, weight="bold", color="black")
             ax.set_title(self.file_title(ix[i]), loc="left", fontsize=10, weight="bold", color="black")
             ax.grid(False)
-        self.fig_show(suffix="circular", bottom=0.05, top=0.95, wspace=0.2, hspace=0.2, left=0.05, right=0.95)
+        self.fig_show(suffix="circular")
 
     def rd_baf(self, hist=True):
         plt.clf()
@@ -2890,7 +2885,7 @@ class Viewer(Show, Figure, HelpDescription):
         """
 
         if plot:
-            self.new_figure(panel_count=2, panel_size=(16, 6), hspace=0.2, wspace=0.2, title=title)
+            self.new_figure(panel_count=2, panel_size=(16, 6), title=title)
             ax = self.next_panel()
             bafG = []
             baf = []
@@ -2998,7 +2993,7 @@ class Viewer(Show, Figure, HelpDescription):
             ax.set_ylabel("Distribution")
             self.fig.add_subplot(ax)
 
-            self.fig_show(suffix="allelic_dropout", top=0.95, bottom=0.05, left=0.1, right=0.95)
+            self.fig_show(suffix="allelic_dropout")
 
     def compare_rd_dist(self, regions):
         self.new_figure(panel_count=1)
@@ -3038,7 +3033,7 @@ class Viewer(Show, Figure, HelpDescription):
         # ax.legend()
         ax.set_yticklabels([])
         ax.grid()
-        self.fig_show(suffix="compare_rd", bottom=0.1, top=0.95, wspace=0, hspace=0, left=0.05, right=0.95)
+        self.fig_show(suffix="compare_rd")
 
     def snp_dist(self, regions, callset=None, n_bins=100, gt_plot=[0, 1, 2, 3], titles=None, beta_distribution=False,
                  log_scale=False):
@@ -3046,7 +3041,7 @@ class Viewer(Show, Figure, HelpDescription):
         regions = regions.split(" ")
         nr = len(regions)
         n = nf * nr
-        self.new_figure(panel_count=n, hspace=0.2, wspace=0.2)
+        self.new_figure(panel_count=n)
         for ii in range(nf):
             for i in range(nr):
                 ax = self.next_panel()
@@ -3098,7 +3093,7 @@ class Viewer(Show, Figure, HelpDescription):
                 ax.set_xlabel("VAF")
                 ax.set_ylabel("Distribution")
 
-        self.fig_show(suffix="snp_dist", top=0.9, bottom=0.1, left=0.125, right=0.9)
+        self.fig_show(suffix="snp_dist")
 
     def phased_baf(self, regions, callset=None, print=False):
         regions = regions.split(" ")
@@ -3138,7 +3133,7 @@ class Viewer(Show, Figure, HelpDescription):
     def snp_compare(self, regions, ix1, ix2, callset=None, n_bins=100, titles=None, test_loh=False):
         regions = regions.split(" ")
         n = len(regions)
-        self.new_figure(panel_count=n, hspace=0.2, wspace=0.2)
+        self.new_figure(panel_count=n)
         for i in range(n):
             ax = self.next_panel()
             if titles is None:
@@ -3213,7 +3208,7 @@ class Viewer(Show, Figure, HelpDescription):
                 ax.set_xlabel("position")
                 ax.set_ylabel("baf")
 
-        self.fig_show(suffix="snp_dist", top=0.9, bottom=0.1, left=0.125, right=0.9)
+        self.fig_show(suffix="snp_dist")
 
     def denovo_calls(self, sample, reference, call_type="mosaic"):
         bin_size = self.bin_size
@@ -3505,10 +3500,7 @@ class Viewer(Show, Figure, HelpDescription):
         bin_size = self.bin_size
         n = len(self.plot_files)
         ix = self.plot_files
-        self.new_figure(panel_count=n, wspace=0.1, hspace=0.1)
-
-        self.fig_show(suffix="regions", bottom=0.05, top=0.98,
-                      wspace=0.2, hspace=0.2, left=0.05, right=0.98)
+        self.new_figure(panel_count=n)
 
         for i in range(n):
             ax = self.next_panel()
@@ -3563,8 +3555,7 @@ class Viewer(Show, Figure, HelpDescription):
             ax.set_xlim([-0.02, 0.5])
             ax.grid()
 
-        self.fig_show(suffix="models", bottom=0.05, top=0.98,
-                      wspace=0, hspace=0.2, left=0.05, right=0.98)
+        self.fig_show(suffix="models")
 
 
 def anim_plot_likelihood(likelihood, segments, n, res, iter, prefix, maxp, minp):

@@ -40,6 +40,7 @@ class ViewParams(object):
         "lh_marker": "_",
         "rd_colors": ["grey", "black", "red", "green", "blue", "cyan"],
         "legend": False,
+        "title": True,
         "snp_colors": ["orange", "brown", "green", "blue", "yellow", "red", "orange", "brown"],
         "snp_alpha_P": False,
         "rd_circular_colors": ["#555555", "#aaaaaa"],
@@ -56,6 +57,7 @@ class ViewParams(object):
         "subgrid": "vertical",
         "panel_size": [8,6],
         "xkcd": False,
+        "margins": [0.05, 0.95, 0.1, 0.98, 0.1, 0.2],
         "dpi": 200,
         "output_filename": "",
         "print_filename": "",
@@ -93,7 +95,12 @@ class ViewParams(object):
                 if len(sp) == 2 and (sp[0] in self.params) and sp[0][-7:] == "_colors" and sp[1].isdigit():
                     ix = int(sp[1])
                     self.params[sp[0]][ix] = args[0]
-
+                if len(sp) == 2 and sp[0]=="margins" and sp[1].isdigit():
+                    ix = int(sp[1])
+                    self.params[sp[0]][ix] = float(args[0])
+            elif param == "margins":
+                if len(args) > 0:
+                    self.__setattr__(param, list(map(float, args)))
             elif param == "bin_size":
                 if len(args) > 0:
                     self.__setattr__(param, args[0])
@@ -617,6 +624,15 @@ class HelpDescription(object):
             p_example="set legend\nunset legend",
             p_see="rd_range, rd_call"
         ),
+        "title": help_format(
+            topic="title",
+            p_desc="Enables title in region plots",
+            p_type="bool",
+            p_default=str(default["legend"]),
+            p_affects="region plot, rd, baf",
+            p_example="set title\nunset title",
+            p_see="legend"
+        ),
         "snp_colors": help_format(
             topic="snp_colors",
             p_desc="Colors used in snp plot.\n" +
@@ -900,6 +916,16 @@ class HelpDescription(object):
             p_default=str(default["dpi"]),
             p_affects="calls, likelihood, region plot",
             p_example="set dpi 300\nunset dpi",
-            p_see="style, output_filename, xkcd"
+            p_see="margins, style, output_filename, xkcd"
+        ),
+        "margins": help_format(
+            topic="margins",
+            p_desc="Margins used for matplotlib figure:\n" +
+                   "[bottom, top, left, right, wspace, hspace]",
+            p_type="list of floats",
+            p_default=str(default["margins"]),
+            p_affects="all plots",
+            p_example="set margins 0 0 0 0 0 0\nunset margins\nset margins.3 0.2",
+            p_see="style, output_filename, dpi"
         ),
     }
