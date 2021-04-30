@@ -36,7 +36,6 @@ import logging
 import pkg_resources
 import os
 
-
 _logger = logging.getLogger(&#34;cnvpytor.genome&#34;)
 
 
@@ -55,8 +54,9 @@ class Genome:
                  (&#34;chr19&#34;, (59128983, &#34;A&#34;)), (&#34;chr20&#34;, (63025520, &#34;A&#34;)), (&#34;chr21&#34;, (48129895, &#34;A&#34;)),
                  (&#34;chr22&#34;, (51304566, &#34;A&#34;)), (&#34;chrX&#34;, (155270560, &#34;S&#34;)), (&#34;chrY&#34;, (59373566, &#34;S&#34;)),
                  (&#34;chrM&#34;, (16571, &#34;M&#34;))]),
-            &#34;gc_file&#34;: pkg_resources.resource_filename(&#39;cnvpytor&#39;, &#39;data&#39;)+&#34;/gc_hg19.pytor&#34;,
-            &#34;mask_file&#34;: pkg_resources.resource_filename(&#39;cnvpytor&#39;, &#39;data&#39;)+&#34;/mask_hg19.pytor&#34;
+            &#34;gc_file&#34;: pkg_resources.resource_filename(&#39;cnvpytor&#39;, &#39;data&#39;) + &#34;/gc_hg19.pytor&#34;,
+            &#34;mask_file&#34;: pkg_resources.resource_filename(&#39;cnvpytor&#39;, &#39;data&#39;) + &#34;/mask_hg19.pytor&#34;,
+            &#34;ensembl_api_region&#34;: &#34;https://grch37.rest.ensembl.org/overlap/region/human/{region}?content-type=application/json;feature=gene;&#34;
         },
         &#34;hg38&#34;: {
             &#34;name&#34;: &#34;GRCh38&#34;,
@@ -72,7 +72,8 @@ class Genome:
                  (&#34;chr22&#34;, (50818468, &#34;A&#34;)), (&#34;chrX&#34;, (156040895, &#34;S&#34;)), (&#34;chrY&#34;, (57227415, &#34;S&#34;)),
                  (&#34;chrM&#34;, (16569, &#34;M&#34;))]),
             &#34;gc_file&#34;: pkg_resources.resource_filename(&#39;cnvpytor&#39;, &#39;data&#39;) + &#34;/gc_hg38.pytor&#34;,
-            &#34;mask_file&#34;: pkg_resources.resource_filename(&#39;cnvpytor&#39;, &#39;data&#39;) + &#34;/mask_hg38.pytor&#34;
+            &#34;mask_file&#34;: pkg_resources.resource_filename(&#39;cnvpytor&#39;, &#39;data&#39;) + &#34;/mask_hg38.pytor&#34;,
+            &#34;ensembl_api_region&#34;: &#34;https://rest.ensembl.org/overlap/region/human/{region}?content-type=application/json;feature=gene;&#34;
         }
     }
 
@@ -117,7 +118,6 @@ class Genome:
         &#34;&#34;&#34;
         return &#34;chr&#34; + Genome.canonical_chrom_name(name)
 
-
     @classmethod
     def check_resources(cls):
         &#34;&#34;&#34;
@@ -149,11 +149,11 @@ class Genome:
                 _logger.info(&#34;Detecting missing GC resource file for reference genome &#39;%s&#39;&#34; % i)
                 res = cls.reference_genomes[i][&#34;gc_file&#34;]
                 fn = res.split(&#34;/&#34;)[-1]
-                url = &#34;https://github.com/abyzovlab/CNVpytor/raw/master/cnvpytor/data/&#34;+fn
+                url = &#34;https://github.com/abyzovlab/CNVpytor/raw/master/cnvpytor/data/&#34; + fn
                 if is_downloadable(url):
-                    _logger.info(&#34;Downloading GC resource file: %s&#34;,fn)
+                    _logger.info(&#34;Downloading GC resource file: %s&#34;, fn)
                     try:
-                        download(url,res)
+                        download(url, res)
                         _logger.info(&#34;File downlaoded.&#34;)
                     except Exception as e:
                         _logger.error(&#34;Problem with downloading/saving resource files.&#34;)
@@ -165,11 +165,11 @@ class Genome:
                 _logger.info(&#34;Detecting missing MASK resource file for reference genome &#39;%s&#39;&#34; % i)
                 res = cls.reference_genomes[i][&#34;mask_file&#34;]
                 fn = res.split(&#34;/&#34;)[-1]
-                url = &#34;https://github.com/abyzovlab/CNVpytor/raw/master/cnvpytor/data/&#34;+fn
+                url = &#34;https://github.com/abyzovlab/CNVpytor/raw/master/cnvpytor/data/&#34; + fn
                 if is_downloadable(url):
-                    _logger.info(&#34;Downloading MASK resource file: %s&#34;,fn)
+                    _logger.info(&#34;Downloading MASK resource file: %s&#34;, fn)
                     try:
-                        download(url,res)
+                        download(url, res)
                         _logger.info(&#34;File downlaoded.&#34;)
                     except Exception as e:
                         _logger.error(&#34;Problem with downloading/saving resource files.&#34;)
@@ -198,6 +198,8 @@ class Genome:
                 not (&#34;NC&#34; in name.upper()))
         if cls.extended_chrom_name(name) in cls.reference_genomes[cls.detected_genome][&#34;chromosomes&#34;]:
             return cls.reference_genomes[cls.detected_genome][&#34;chromosomes&#34;][cls.extended_chrom_name(name)][1] == &#34;A&#34;
+        elif name in cls.reference_genomes[cls.detected_genome][&#34;chromosomes&#34;]:
+            return cls.reference_genomes[cls.detected_genome][&#34;chromosomes&#34;][name][1] == &#34;A&#34;
         return False
 
     @classmethod
@@ -220,6 +222,8 @@ class Genome:
             return cls.canonical_chrom_name(name) in {&#34;X&#34;, &#34;Y&#34;, &#34;SEX&#34;}
         if cls.extended_chrom_name(name) in cls.reference_genomes[cls.detected_genome][&#34;chromosomes&#34;]:
             return cls.reference_genomes[cls.detected_genome][&#34;chromosomes&#34;][cls.extended_chrom_name(name)][1] == &#34;S&#34;
+        elif name in cls.reference_genomes[cls.detected_genome][&#34;chromosomes&#34;]:
+            return cls.reference_genomes[cls.detected_genome][&#34;chromosomes&#34;][name][1] == &#34;S&#34;
         return False
 
     @classmethod
@@ -242,6 +246,9 @@ class Genome:
             return cls.canonical_chrom_name(name) in {&#34;M&#34;, &#34;MT&#34;}
         if cls.extended_chrom_name(name) in cls.reference_genomes[cls.detected_genome][&#34;chromosomes&#34;]:
             return cls.reference_genomes[cls.detected_genome][&#34;chromosomes&#34;][cls.extended_chrom_name(name)][1] == &#34;M&#34;
+        elif name in cls.reference_genomes[cls.detected_genome][&#34;chromosomes&#34;]:
+            return cls.reference_genomes[cls.detected_genome][&#34;chromosomes&#34;][name][1] == &#34;M&#34;
+
         return False
 
     @classmethod
@@ -266,9 +273,14 @@ class Genome:
             found = True
             checked = False
             for c, l in zip(names, lengths):
-                if (cls.extended_chrom_name(c) in cls.reference_genomes[g][&#34;chromosomes&#34;]) and (not cls.is_mt_chrom(c)):
+                if ((c in cls.reference_genomes[g][&#34;chromosomes&#34;]) or (
+                        cls.extended_chrom_name(c) in cls.reference_genomes[g][&#34;chromosomes&#34;])) and (
+                        not cls.is_mt_chrom(c)):
                     checked = True
-                    found = found and (cls.reference_genomes[g][&#34;chromosomes&#34;][cls.extended_chrom_name(c)][0] == l)
+                    if c in cls.reference_genomes[g][&#34;chromosomes&#34;]:
+                        found = found and (cls.reference_genomes[g][&#34;chromosomes&#34;][c][0] == l)
+                    else:
+                        found = found and (cls.reference_genomes[g][&#34;chromosomes&#34;][cls.extended_chrom_name(c)][0] == l)
             if checked and found:
                 cls.detected_genome = g
                 return g
@@ -308,7 +320,7 @@ class Genome:
 
         &#34;&#34;&#34;
         _logger.info(&#34;Reading configuration file &#39;%s&#39;.&#34; % filename)
-        exec(open(filename).read(),globals())
+        exec (open(filename).read(), globals())
         for g in import_reference_genomes:
             _logger.info(&#34;Importing reference genome data: &#39;%s&#39;.&#34; % g)
             cls.reference_genomes[g] = import_reference_genomes[g]</code></pre>
@@ -458,9 +470,14 @@ def detect_genome(cls, names, lengths):
         found = True
         checked = False
         for c, l in zip(names, lengths):
-            if (cls.extended_chrom_name(c) in cls.reference_genomes[g][&#34;chromosomes&#34;]) and (not cls.is_mt_chrom(c)):
+            if ((c in cls.reference_genomes[g][&#34;chromosomes&#34;]) or (
+                    cls.extended_chrom_name(c) in cls.reference_genomes[g][&#34;chromosomes&#34;])) and (
+                    not cls.is_mt_chrom(c)):
                 checked = True
-                found = found and (cls.reference_genomes[g][&#34;chromosomes&#34;][cls.extended_chrom_name(c)][0] == l)
+                if c in cls.reference_genomes[g][&#34;chromosomes&#34;]:
+                    found = found and (cls.reference_genomes[g][&#34;chromosomes&#34;][c][0] == l)
+                else:
+                    found = found and (cls.reference_genomes[g][&#34;chromosomes&#34;][cls.extended_chrom_name(c)][0] == l)
         if checked and found:
             cls.detected_genome = g
             return g
@@ -486,11 +503,11 @@ def download_resources(cls):
             _logger.info(&#34;Detecting missing GC resource file for reference genome &#39;%s&#39;&#34; % i)
             res = cls.reference_genomes[i][&#34;gc_file&#34;]
             fn = res.split(&#34;/&#34;)[-1]
-            url = &#34;https://github.com/abyzovlab/CNVpytor/raw/master/cnvpytor/data/&#34;+fn
+            url = &#34;https://github.com/abyzovlab/CNVpytor/raw/master/cnvpytor/data/&#34; + fn
             if is_downloadable(url):
-                _logger.info(&#34;Downloading GC resource file: %s&#34;,fn)
+                _logger.info(&#34;Downloading GC resource file: %s&#34;, fn)
                 try:
-                    download(url,res)
+                    download(url, res)
                     _logger.info(&#34;File downlaoded.&#34;)
                 except Exception as e:
                     _logger.error(&#34;Problem with downloading/saving resource files.&#34;)
@@ -502,11 +519,11 @@ def download_resources(cls):
             _logger.info(&#34;Detecting missing MASK resource file for reference genome &#39;%s&#39;&#34; % i)
             res = cls.reference_genomes[i][&#34;mask_file&#34;]
             fn = res.split(&#34;/&#34;)[-1]
-            url = &#34;https://github.com/abyzovlab/CNVpytor/raw/master/cnvpytor/data/&#34;+fn
+            url = &#34;https://github.com/abyzovlab/CNVpytor/raw/master/cnvpytor/data/&#34; + fn
             if is_downloadable(url):
-                _logger.info(&#34;Downloading MASK resource file: %s&#34;,fn)
+                _logger.info(&#34;Downloading MASK resource file: %s&#34;, fn)
                 try:
-                    download(url,res)
+                    download(url, res)
                     _logger.info(&#34;File downlaoded.&#34;)
                 except Exception as e:
                     _logger.error(&#34;Problem with downloading/saving resource files.&#34;)
@@ -591,6 +608,8 @@ def is_autosome(cls, name):
             not (&#34;NC&#34; in name.upper()))
     if cls.extended_chrom_name(name) in cls.reference_genomes[cls.detected_genome][&#34;chromosomes&#34;]:
         return cls.reference_genomes[cls.detected_genome][&#34;chromosomes&#34;][cls.extended_chrom_name(name)][1] == &#34;A&#34;
+    elif name in cls.reference_genomes[cls.detected_genome][&#34;chromosomes&#34;]:
+        return cls.reference_genomes[cls.detected_genome][&#34;chromosomes&#34;][name][1] == &#34;A&#34;
     return False</code></pre>
 </details>
 </dd>
@@ -632,6 +651,9 @@ def is_mt_chrom(cls, name):
         return cls.canonical_chrom_name(name) in {&#34;M&#34;, &#34;MT&#34;}
     if cls.extended_chrom_name(name) in cls.reference_genomes[cls.detected_genome][&#34;chromosomes&#34;]:
         return cls.reference_genomes[cls.detected_genome][&#34;chromosomes&#34;][cls.extended_chrom_name(name)][1] == &#34;M&#34;
+    elif name in cls.reference_genomes[cls.detected_genome][&#34;chromosomes&#34;]:
+        return cls.reference_genomes[cls.detected_genome][&#34;chromosomes&#34;][name][1] == &#34;M&#34;
+
     return False</code></pre>
 </details>
 </dd>
@@ -673,6 +695,8 @@ def is_sex_chrom(cls, name):
         return cls.canonical_chrom_name(name) in {&#34;X&#34;, &#34;Y&#34;, &#34;SEX&#34;}
     if cls.extended_chrom_name(name) in cls.reference_genomes[cls.detected_genome][&#34;chromosomes&#34;]:
         return cls.reference_genomes[cls.detected_genome][&#34;chromosomes&#34;][cls.extended_chrom_name(name)][1] == &#34;S&#34;
+    elif name in cls.reference_genomes[cls.detected_genome][&#34;chromosomes&#34;]:
+        return cls.reference_genomes[cls.detected_genome][&#34;chromosomes&#34;][name][1] == &#34;S&#34;
     return False</code></pre>
 </details>
 </dd>
@@ -743,7 +767,7 @@ def load_reference_genomes(cls, filename):
 
     &#34;&#34;&#34;
     _logger.info(&#34;Reading configuration file &#39;%s&#39;.&#34; % filename)
-    exec(open(filename).read(),globals())
+    exec (open(filename).read(), globals())
     for g in import_reference_genomes:
         _logger.info(&#34;Importing reference genome data: &#39;%s&#39;.&#34; % g)
         cls.reference_genomes[g] = import_reference_genomes[g]</code></pre>

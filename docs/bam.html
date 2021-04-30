@@ -58,6 +58,7 @@ class Bam:
         self.max_frg_len = max_fragment_len
         self.reference_genome = None
         self.filename = filename
+        self.reference_filename = reference_filename
         if filename[-4:] == &#34;.bam&#34;:
             self.file = pysam.AlignmentFile(filename, &#34;rb&#34;)
         elif filename[-4:] == &#34;.sam&#34;:
@@ -130,9 +131,14 @@ class Bam:
                         continue
                 if r.reference_start and r.reference_end and not (r.mapping_quality is None):
                     mid = (r.reference_end + r.reference_start) // 200
-                    rd_p[mid] += 1
-                    if r.mapping_quality &gt; 0:
-                        rd_u[mid] += 1
+                    if mid &gt;=0 and mid &lt; n:
+                        rd_p[mid] += 1
+                        if r.mapping_quality &gt; 0:
+                            rd_u[mid] += 1
+                    else:
+                        _logger.warning(&#34;Record: &#34; + r.to_string())
+                        _logger.warning(&#34;Out of bound! Ignoring...&#34;)
+
         except IOError:
             _logger.error(&#34;Error while reading file &#39;%s&#39;&#34; % self.filename)
             exit(0)
@@ -151,14 +157,17 @@ class Bam:
         for i in pos:
             print(chr_name, i, file=f)
         f.close()
-        mpile = pysam.mpileup(&#34;-r&#34;, chr_name, &#34;-l&#34;, tmp_file, self.filename)
+        if self.reference_filename:
+            mpile = pysam.mpileup(&#34;-r&#34;, chr_name, &#34;-l&#34;, tmp_file, &#34;--reference&#34;, self.reference_filename, self.filename)
+        else:
+            mpile = pysam.mpileup(&#34;-r&#34;, chr_name, &#34;-l&#34;, tmp_file, self.filename)
         os.remove(tmp_file)
         pos_seq = dict([(int(x.split(&#34;\t&#34;)[1]), x.split(&#34;\t&#34;)[4].upper()) for x in mpile.split(&#34;\n&#34;) if x != &#34;&#34;])
         nref = [0] * len(pos)
         nalt = [0] * len(pos)
         for ix in range(len(pos)):
             if pos[ix] in pos_seq:
-                nref[ix] = pos_seq[pos[ix]].count(ref[ix])
+                nref[ix] = pos_seq[pos[ix]].count(ref[ix]) + pos_seq[pos[ix]].count(&#34;.&#34;) + pos_seq[pos[ix]].count(&#34;,&#34;)
                 nalt[ix] = pos_seq[pos[ix]].count(alt[ix])
         return nref, nalt</code></pre>
 </details>
@@ -238,14 +247,17 @@ class Bam:
     for i in pos:
         print(chr_name, i, file=f)
     f.close()
-    mpile = pysam.mpileup(&#34;-r&#34;, chr_name, &#34;-l&#34;, tmp_file, self.filename)
+    if self.reference_filename:
+        mpile = pysam.mpileup(&#34;-r&#34;, chr_name, &#34;-l&#34;, tmp_file, &#34;--reference&#34;, self.reference_filename, self.filename)
+    else:
+        mpile = pysam.mpileup(&#34;-r&#34;, chr_name, &#34;-l&#34;, tmp_file, self.filename)
     os.remove(tmp_file)
     pos_seq = dict([(int(x.split(&#34;\t&#34;)[1]), x.split(&#34;\t&#34;)[4].upper()) for x in mpile.split(&#34;\n&#34;) if x != &#34;&#34;])
     nref = [0] * len(pos)
     nalt = [0] * len(pos)
     for ix in range(len(pos)):
         if pos[ix] in pos_seq:
-            nref[ix] = pos_seq[pos[ix]].count(ref[ix])
+            nref[ix] = pos_seq[pos[ix]].count(ref[ix]) + pos_seq[pos[ix]].count(&#34;.&#34;) + pos_seq[pos[ix]].count(&#34;,&#34;)
             nalt[ix] = pos_seq[pos[ix]].count(alt[ix])
     return nref, nalt</code></pre>
 </details>
@@ -310,9 +322,14 @@ class Bam:
                     continue
             if r.reference_start and r.reference_end and not (r.mapping_quality is None):
                 mid = (r.reference_end + r.reference_start) // 200
-                rd_p[mid] += 1
-                if r.mapping_quality &gt; 0:
-                    rd_u[mid] += 1
+                if mid &gt;=0 and mid &lt; n:
+                    rd_p[mid] += 1
+                    if r.mapping_quality &gt; 0:
+                        rd_u[mid] += 1
+                else:
+                    _logger.warning(&#34;Record: &#34; + r.to_string())
+                    _logger.warning(&#34;Out of bound! Ignoring...&#34;)
+
     except IOError:
         _logger.error(&#34;Error while reading file &#39;%s&#39;&#34; % self.filename)
         exit(0)

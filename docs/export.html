@@ -358,7 +358,7 @@ class ExportJBrowse:
 
     @staticmethod
     def add_config_reference():
-        track_dct = {&#39;formatVersion&#39;: 1, &#39;tracks&#39;: []}
+        track_dct = {&#39;formatVersion&#39;: 1, &#34;plugins&#34;: [&#34;MultiBigWig&#34;, &#34;MultiScaleBigWig&#34;], &#39;tracks&#39;: []}
         track_dct[&#39;tracks&#39;].append({
             &#34;category&#34;: &#34;Reference sequence&#34;,
             &#34;chunkSize&#34;: 20000,
@@ -771,7 +771,7 @@ Parameters</p>
 
     @staticmethod
     def add_config_reference():
-        track_dct = {&#39;formatVersion&#39;: 1, &#39;tracks&#39;: []}
+        track_dct = {&#39;formatVersion&#39;: 1, &#34;plugins&#34;: [&#34;MultiBigWig&#34;, &#34;MultiScaleBigWig&#34;], &#39;tracks&#39;: []}
         track_dct[&#39;tracks&#39;].append({
             &#34;category&#34;: &#34;Reference sequence&#34;,
             &#34;chunkSize&#34;: 20000,
@@ -954,7 +954,7 @@ Parameters</p>
 <summary>Source code</summary>
 <pre><code class="python">@staticmethod
 def add_config_reference():
-    track_dct = {&#39;formatVersion&#39;: 1, &#39;tracks&#39;: []}
+    track_dct = {&#39;formatVersion&#39;: 1, &#34;plugins&#34;: [&#34;MultiBigWig&#34;, &#34;MultiScaleBigWig&#34;], &#39;tracks&#39;: []}
     track_dct[&#39;tracks&#39;].append({
         &#34;category&#34;: &#34;Reference sequence&#34;,
         &#34;chunkSize&#34;: 20000,

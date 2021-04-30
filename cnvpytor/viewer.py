@@ -2406,7 +2406,11 @@ class Viewer(Show, Figure, HelpDescription):
                         lh = list(likelihood)
                         size = l // bin_size + 1
                         if len(lh) < size:
-                            lh.extend([lh[-1] for jj in range(size - len(lh))])
+                            if len(lh)>0:
+                                lh.extend([lh[-1] for jj in range(size - len(lh))])
+                            elif len(gl)>0:
+                                lh.extend([gl[-1] for jj in range(size - len(lh))])
+
                         gl.extend(lh)
                         xticks_minor.append(start + l // bin_size // 2)
                         xticks_labels.append(Genome.canonical_chrom_name(c))

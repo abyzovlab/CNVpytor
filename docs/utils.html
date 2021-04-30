@@ -298,6 +298,10 @@ def normal(x, a, x0, sigma):
     return a * np.exp(-(x - x0) ** 2 / (2 * sigma ** 2)) / np.sqrt(2 * np.pi) / sigma
 
 
+def bimodal(x, a1, x01, sigma1, a2, x02, sigma2):
+    return normal(x, a1, x01, sigma1) + normal(x, a2, x02, sigma2)
+
+
 def fit_normal(x, y):
     &#34;&#34;&#34; Fit Gaussian
     &#34;&#34;&#34;
@@ -330,6 +334,34 @@ def fit_normal(x, y):
         return [area, mean, sigma], None
 
 
+def fit_bimodal(x, y):
+    &#34;&#34;&#34; Fit double Gaussian
+    &#34;&#34;&#34;
+    if sum(y) == 0:
+        _logger.debug(&#34;Problem with fit: all data points have zero value. Return None!&#34;)
+        return None
+    mean = sum(x * y) / sum(y)
+    sigma = np.sqrt(sum(y * (x - mean) ** 2) / sum(y))
+    area = sum(y[:-1] * (x[1:] - x[:-1]))
+    _logger.debug(&#34;%f %f %f %d&#34; % (area, mean, sigma, len(x)))
+    if sigma == 0:
+        _logger.debug(&#34;Problem with fit: sigma equals zero. Return None!&#34;)
+        return None
+
+    if len(x) &lt; 3:
+        _logger.warning(&#34;Problem with fit: insufficient data points. Return None!&#34;)
+        return None
+    try:
+        popt, pcov = curve_fit(bimodal, x, y, p0=[area / 2, mean * 0.66, sigma / 2, area / 2, mean * 1.33, sigma / 2])
+        return popt, pcov
+    except ValueError:
+        _logger.warning(&#34;Problem with fit: Value Error. Return None!&#34;)
+        return None
+    except RuntimeError:
+        _logger.warning(&#34;Problem with fit: Runtime Error. Return None!&#34;)
+        return None
+
+
 def t_test_1_sample(mean, m, s, n):
     if s == 0:
         s = 1
@@ -351,17 +383,17 @@ def t_test_2_samples(m1, s1, n1, m2, s2, n2):
 
 
 def getEValue(mean, sigma, rd, start, end):
-    aver = np.mean(rd[start:end])
-    s = np.std(rd[start:end])
+    aver = np.nanmean(rd[start:end])
+    s = np.nanstd(rd[start:end])
     if s == 0:
         s = sigma * aver / mean if sigma &gt; 0 else 1
     return t_test_1_sample(mean, aver, s, end - start) / (end - start)
 
 
 def gaussianEValue(mean, sigma, rd, start, end):
-    aver = np.mean(rd[start:end])
-    max = np.max(rd[start:end])
-    min = np.min(rd[start:end])
+    aver = np.nanmean(rd[start:end])
+    max = np.nanmax(rd[start:end])
+    min = np.nanmin(rd[start:end])
 
     if aver &lt; mean:
         x = (max - mean) / (sigma * np.sqrt(2.))
@@ -407,7 +439,7 @@ def adjustToEvalue(mean, sigma, rd, start, end, pval, max_steps=1000):
 def calculate_gc_correction(his_rd_gc, mean, sigma, bin_size=1):
     &#34;&#34;&#34; Calculate GC correction from RD-GC histogram
     &#34;&#34;&#34;
-    max_bin = int(max(2 * mean, mean + 5 * sigma) / bin_size)
+    max_bin = min(int(max(2 * mean, mean + 5 * sigma) / bin_size), his_rd_gc.shape[0])
     his = his_rd_gc[1:max_bin, :]
     rd = np.repeat((np.arange(1, max_bin * bin_size, bin_size)[:max_bin - 1]).reshape((max_bin - 1, 1)), 101, axis=1)
     np.seterr(divide=&#39;ignore&#39;, invalid=&#39;ignore&#39;)
@@ -507,7 +539,7 @@ def decode_position(s):
     return int(s.replace(&#34;K&#34;, &#34;000&#34;).replace(&#34;k&#34;, &#34;000&#34;).replace(&#34;M&#34;, &#34;000000&#34;).replace(&#34;m&#34;, &#34;000000&#34;))
 
 
-def decode_region(s):
+def decode_region(s, max_size=1000000000):
     &#34;&#34;&#34;
 
     Parameters
@@ -527,7 +559,7 @@ def decode_region(s):
             begin_end = chr_interval[1].split(&#34;-&#34;)
             ret.append((chr_interval[0], (decode_position(begin_end[0]), decode_position(begin_end[1]))))
         else:
-            ret.append((chr_interval[0], (1, 1000000000)))
+            ret.append((chr_interval[0], (1, max_size)))
     return ret
 
 
@@ -556,7 +588,33 @@ def likelihood_baf_pval(likelihood):
     ix1 = (res // 2 + ix) // 2
     ix2 = res - 1 - ix1
     p = np.sum(likelihood[ix1:ix2]) / np.sum(likelihood)
+    if ix == res // 2:
+        p = 1.0
     return b, p
+
+
+def likelihood_of_baf(likelihood, baf):
+    &#34;&#34;&#34;
+    Calculates likelihood for given baf
+    Parameters
+    ----------
+    likelihood
+    baf
+
+    Returns
+    -------
+    lhv : float
+        likelihood value
+
+    &#34;&#34;&#34;
+    res = likelihood.size
+    bin = int(baf * (res - 1))
+    fr = baf * (res - 1) - bin
+    if bin &lt; res - 1:
+        return likelihood[bin] * (1 - fr) + likelihood[bin + 1] * fr
+    else:
+        return likelihood[bin]
+
 
 def likelihood_pixels_pval(likelihood):
     &#34;&#34;&#34;
@@ -582,6 +640,7 @@ def likelihood_pixels_pval(likelihood):
     ix2 = res - 1 - ix1
     p = np.sum(likelihood[ix1:ix2]) / np.sum(likelihood)
     return ix, res - 1 - ix, p
+
 
 def is_downloadable(url):
     &#34;&#34;&#34;
@@ -707,7 +766,51 @@ def help_format(topic=&#34;&#34;, p_desc=&#34;&#34;, p_usage=&#34;&#34;, p_type=
     if p_see != &#34;&#34;:
         ret_str += TerminalColor.BOLD + &#34;SEE ALSO\n&#34; + TerminalColor.END
         ret_str += TerminalColor.DARKCYAN + add_tabs(p_see) + TerminalColor.END + &#34;\n\n&#34;
-    return ret_str[:-1]</code></pre>
+    return ret_str[:-1]
+
+
+def in_interval(x, interval):
+    return x &gt;= interval[0] and x &lt;= interval[1]
+
+
+def int1(x):
+    &#34;&#34;&#34;
+    Returns 1 if x is 1 or &#34;1&#34;
+    Parameters
+    ----------
+    x : int or str
+
+    Returns
+    -------
+    ret : 1 or 0
+
+    &#34;&#34;&#34;
+    return int(int(x) == 1)
+
+
+def gt_from_str(s):
+    phased = s[1] == &#34;|&#34;
+    haps = list(map(int1, s.split(&#34;|&#34; if phased else &#34;/&#34;)))
+    ones, n = sum(haps), len(haps)
+    x = int(phased) * 4
+    if ones == 0:
+        return x
+    elif ones == n:
+        return 3 + x
+    else:
+        return 1 + int(phased) * haps[0] + x
+
+
+def gt_from_list(l, phased):
+    haps = list(map(int1, l))
+    ones, n = sum(haps), len(haps)
+    x = int(phased) * 4
+    if ones == 0:
+        return 0
+    elif ones == n:
+        return 3 + x
+    else:
+        return 1 + int(phased) * haps[0] + x</code></pre>
 </details>
 </section>
 <section>
@@ -821,6 +924,17 @@ Function is not normalized.</p>
         return 1.0 * p ** k * (1. - p) ** m + 1.0 * p ** m * (1. - p) ** k</code></pre>
 </details>
 </dd>
+<dt id="cnvpytor.utils.bimodal"><code class="name flex">
+<span>def <span class="ident">bimodal</span></span>(<span>x, a1, x01, sigma1, a2, x02, sigma2)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def bimodal(x, a1, x01, sigma1, a2, x02, sigma2):
+    return normal(x, a1, x01, sigma1) + normal(x, a2, x02, sigma2)</code></pre>
+</details>
+</dd>
 <dt id="cnvpytor.utils.binsize_format"><code class="name flex">
 <span>def <span class="ident">binsize_format</span></span>(<span>x)</span>
 </code></dt>
@@ -861,7 +975,7 @@ Function is not normalized.</p>
 <pre><code class="python">def calculate_gc_correction(his_rd_gc, mean, sigma, bin_size=1):
     &#34;&#34;&#34; Calculate GC correction from RD-GC histogram
     &#34;&#34;&#34;
-    max_bin = int(max(2 * mean, mean + 5 * sigma) / bin_size)
+    max_bin = min(int(max(2 * mean, mean + 5 * sigma) / bin_size), his_rd_gc.shape[0])
     his = his_rd_gc[1:max_bin, :]
     rd = np.repeat((np.arange(1, max_bin * bin_size, bin_size)[:max_bin - 1]).reshape((max_bin - 1, 1)), 101, axis=1)
     np.seterr(divide=&#39;ignore&#39;, invalid=&#39;ignore&#39;)
@@ -902,7 +1016,7 @@ Function is not normalized.</p>
 </details>
 </dd>
 <dt id="cnvpytor.utils.decode_region"><code class="name flex">
-<span>def <span class="ident">decode_region</span></span>(<span>s)</span>
+<span>def <span class="ident">decode_region</span></span>(<span>s, max_size=1000000000)</span>
 </code></dt>
 <dd>
 <section class="desc"><h2 id="parameters">Parameters</h2>
@@ -917,7 +1031,7 @@ Function is not normalized.</p>
 </dl></section>
 <details class="source">
 <summary>Source code</summary>
-<pre><code class="python">def decode_region(s):
+<pre><code class="python">def decode_region(s, max_size=1000000000):
     &#34;&#34;&#34;
 
     Parameters
@@ -937,7 +1051,7 @@ Function is not normalized.</p>
             begin_end = chr_interval[1].split(&#34;-&#34;)
             ret.append((chr_interval[0], (decode_position(begin_end[0]), decode_position(begin_end[1]))))
         else:
-            ret.append((chr_interval[0], (1, 1000000000)))
+            ret.append((chr_interval[0], (1, max_size)))
     return ret</code></pre>
 </details>
 </dd>
@@ -970,6 +1084,41 @@ Function is not normalized.</p>
     r = requests.get(url, allow_redirects=True)
     with open(file, &#39;wb&#39;) as f:
         f.write(r.content)</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.utils.fit_bimodal"><code class="name flex">
+<span>def <span class="ident">fit_bimodal</span></span>(<span>x, y)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Fit double Gaussian</p></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def fit_bimodal(x, y):
+    &#34;&#34;&#34; Fit double Gaussian
+    &#34;&#34;&#34;
+    if sum(y) == 0:
+        _logger.debug(&#34;Problem with fit: all data points have zero value. Return None!&#34;)
+        return None
+    mean = sum(x * y) / sum(y)
+    sigma = np.sqrt(sum(y * (x - mean) ** 2) / sum(y))
+    area = sum(y[:-1] * (x[1:] - x[:-1]))
+    _logger.debug(&#34;%f %f %f %d&#34; % (area, mean, sigma, len(x)))
+    if sigma == 0:
+        _logger.debug(&#34;Problem with fit: sigma equals zero. Return None!&#34;)
+        return None
+
+    if len(x) &lt; 3:
+        _logger.warning(&#34;Problem with fit: insufficient data points. Return None!&#34;)
+        return None
+    try:
+        popt, pcov = curve_fit(bimodal, x, y, p0=[area / 2, mean * 0.66, sigma / 2, area / 2, mean * 1.33, sigma / 2])
+        return popt, pcov
+    except ValueError:
+        _logger.warning(&#34;Problem with fit: Value Error. Return None!&#34;)
+        return None
+    except RuntimeError:
+        _logger.warning(&#34;Problem with fit: Runtime Error. Return None!&#34;)
+        return None</code></pre>
 </details>
 </dd>
 <dt id="cnvpytor.utils.fit_normal"><code class="name flex">
@@ -1019,9 +1168,9 @@ Function is not normalized.</p>
 <details class="source">
 <summary>Source code</summary>
 <pre><code class="python">def gaussianEValue(mean, sigma, rd, start, end):
-    aver = np.mean(rd[start:end])
-    max = np.max(rd[start:end])
-    min = np.min(rd[start:end])
+    aver = np.nanmean(rd[start:end])
+    max = np.nanmax(rd[start:end])
+    min = np.nanmin(rd[start:end])
 
     if aver &lt; mean:
         x = (max - mean) / (sigma * np.sqrt(2.))
@@ -1169,11 +1318,50 @@ Transforms #at, #gc -&gt; #at, 100-#at-#gc</p>
 <details class="source">
 <summary>Source code</summary>
 <pre><code class="python">def getEValue(mean, sigma, rd, start, end):
-    aver = np.mean(rd[start:end])
-    s = np.std(rd[start:end])
+    aver = np.nanmean(rd[start:end])
+    s = np.nanstd(rd[start:end])
     if s == 0:
         s = sigma * aver / mean if sigma &gt; 0 else 1
     return t_test_1_sample(mean, aver, s, end - start) / (end - start)</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.utils.gt_from_list"><code class="name flex">
+<span>def <span class="ident">gt_from_list</span></span>(<span>l, phased)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def gt_from_list(l, phased):
+    haps = list(map(int1, l))
+    ones, n = sum(haps), len(haps)
+    x = int(phased) * 4
+    if ones == 0:
+        return 0
+    elif ones == n:
+        return 3 + x
+    else:
+        return 1 + int(phased) * haps[0] + x</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.utils.gt_from_str"><code class="name flex">
+<span>def <span class="ident">gt_from_str</span></span>(<span>s)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def gt_from_str(s):
+    phased = s[1] == &#34;|&#34;
+    haps = list(map(int1, s.split(&#34;|&#34; if phased else &#34;/&#34;)))
+    ones, n = sum(haps), len(haps)
+    x = int(phased) * 4
+    if ones == 0:
+        return x
+    elif ones == n:
+        return 3 + x
+    else:
+        return 1 + int(phased) * haps[0] + x</code></pre>
 </details>
 </dd>
 <dt id="cnvpytor.utils.help_format"><code class="name flex">
@@ -1207,6 +1395,50 @@ Transforms #at, #gc -&gt; #at, 100-#at-#gc</p>
         ret_str += TerminalColor.BOLD + &#34;SEE ALSO\n&#34; + TerminalColor.END
         ret_str += TerminalColor.DARKCYAN + add_tabs(p_see) + TerminalColor.END + &#34;\n\n&#34;
     return ret_str[:-1]</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.utils.in_interval"><code class="name flex">
+<span>def <span class="ident">in_interval</span></span>(<span>x, interval)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def in_interval(x, interval):
+    return x &gt;= interval[0] and x &lt;= interval[1]</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.utils.int1"><code class="name flex">
+<span>def <span class="ident">int1</span></span>(<span>x)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Returns 1 if x is 1 or "1"
+Parameters</p>
+<hr>
+<dl>
+<dt><strong><code>x</code></strong> :&ensp;<code>int</code> or <code>str</code></dt>
+<dd>&nbsp;</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>ret</code></strong> :&ensp;<code>1</code> or <code>0</code></dt>
+<dd>&nbsp;</dd>
+</dl></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def int1(x):
+    &#34;&#34;&#34;
+    Returns 1 if x is 1 or &#34;1&#34;
+    Parameters
+    ----------
+    x : int or str
+
+    Returns
+    -------
+    ret : 1 or 0
+
+    &#34;&#34;&#34;
+    return int(int(x) == 1)</code></pre>
 </details>
 </dd>
 <dt id="cnvpytor.utils.is_downloadable"><code class="name flex">
@@ -1310,7 +1542,52 @@ Parameters</p>
     ix1 = (res // 2 + ix) // 2
     ix2 = res - 1 - ix1
     p = np.sum(likelihood[ix1:ix2]) / np.sum(likelihood)
+    if ix == res // 2:
+        p = 1.0
     return b, p</code></pre>
+</details>
+</dd>
+<dt id="cnvpytor.utils.likelihood_of_baf"><code class="name flex">
+<span>def <span class="ident">likelihood_of_baf</span></span>(<span>likelihood, baf)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Calculates likelihood for given baf
+Parameters</p>
+<hr>
+<dl>
+<dt><strong><code>likelihood</code></strong></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>baf</code></strong></dt>
+<dd>&nbsp;</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>lhv</code></strong> :&ensp;<code>float</code></dt>
+<dd>likelihood value</dd>
+</dl></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def likelihood_of_baf(likelihood, baf):
+    &#34;&#34;&#34;
+    Calculates likelihood for given baf
+    Parameters
+    ----------
+    likelihood
+    baf
+
+    Returns
+    -------
+    lhv : float
+        likelihood value
+
+    &#34;&#34;&#34;
+    res = likelihood.size
+    bin = int(baf * (res - 1))
+    fr = baf * (res - 1) - bin
+    if bin &lt; res - 1:
+        return likelihood[bin] * (1 - fr) + likelihood[bin + 1] * fr
+    else:
+        return likelihood[bin]</code></pre>
 </details>
 </dd>
 <dt id="cnvpytor.utils.likelihood_overlap"><code class="name flex">
@@ -1916,22 +2193,29 @@ snp_qual - 8 bits</p></section>
 <li><code><a title="cnvpytor.utils.add_tabs" href="#cnvpytor.utils.add_tabs">add_tabs</a></code></li>
 <li><code><a title="cnvpytor.utils.adjustToEvalue" href="#cnvpytor.utils.adjustToEvalue">adjustToEvalue</a></code></li>
 <li><code><a title="cnvpytor.utils.beta" href="#cnvpytor.utils.beta">beta</a></code></li>
+<li><code><a title="cnvpytor.utils.bimodal" href="#cnvpytor.utils.bimodal">bimodal</a></code></li>
 <li><code><a title="cnvpytor.utils.binsize_format" href="#cnvpytor.utils.binsize_format">binsize_format</a></code></li>
 <li><code><a title="cnvpytor.utils.binsize_type" href="#cnvpytor.utils.binsize_type">binsize_type</a></code></li>
 <li><code><a title="cnvpytor.utils.calculate_gc_correction" href="#cnvpytor.utils.calculate_gc_correction">calculate_gc_correction</a></code></li>
 <li><code><a title="cnvpytor.utils.decode_position" href="#cnvpytor.utils.decode_position">decode_position</a></code></li>
 <li><code><a title="cnvpytor.utils.decode_region" href="#cnvpytor.utils.decode_region">decode_region</a></code></li>
 <li><code><a title="cnvpytor.utils.download" href="#cnvpytor.utils.download">download</a></code></li>
+<li><code><a title="cnvpytor.utils.fit_bimodal" href="#cnvpytor.utils.fit_bimodal">fit_bimodal</a></code></li>
 <li><code><a title="cnvpytor.utils.fit_normal" href="#cnvpytor.utils.fit_normal">fit_normal</a></code></li>
 <li><code><a title="cnvpytor.utils.gaussianEValue" href="#cnvpytor.utils.gaussianEValue">gaussianEValue</a></code></li>
 <li><code><a title="cnvpytor.utils.gc_at_compress" href="#cnvpytor.utils.gc_at_compress">gc_at_compress</a></code></li>
 <li><code><a title="cnvpytor.utils.gc_at_decompress" href="#cnvpytor.utils.gc_at_decompress">gc_at_decompress</a></code></li>
 <li><code><a title="cnvpytor.utils.gcp_decompress" href="#cnvpytor.utils.gcp_decompress">gcp_decompress</a></code></li>
 <li><code><a title="cnvpytor.utils.getEValue" href="#cnvpytor.utils.getEValue">getEValue</a></code></li>
+<li><code><a title="cnvpytor.utils.gt_from_list" href="#cnvpytor.utils.gt_from_list">gt_from_list</a></code></li>
+<li><code><a title="cnvpytor.utils.gt_from_str" href="#cnvpytor.utils.gt_from_str">gt_from_str</a></code></li>
 <li><code><a title="cnvpytor.utils.help_format" href="#cnvpytor.utils.help_format">help_format</a></code></li>
+<li><code><a title="cnvpytor.utils.in_interval" href="#cnvpytor.utils.in_interval">in_interval</a></code></li>
+<li><code><a title="cnvpytor.utils.int1" href="#cnvpytor.utils.int1">int1</a></code></li>
 <li><code><a title="cnvpytor.utils.is_downloadable" href="#cnvpytor.utils.is_downloadable">is_downloadable</a></code></li>
 <li><code><a title="cnvpytor.utils.key_val_str" href="#cnvpytor.utils.key_val_str">key_val_str</a></code></li>
 <li><code><a title="cnvpytor.utils.likelihood_baf_pval" href="#cnvpytor.utils.likelihood_baf_pval">likelihood_baf_pval</a></code></li>
+<li><code><a title="cnvpytor.utils.likelihood_of_baf" href="#cnvpytor.utils.likelihood_of_baf">likelihood_of_baf</a></code></li>
 <li><code><a title="cnvpytor.utils.likelihood_overlap" href="#cnvpytor.utils.likelihood_overlap">likelihood_overlap</a></code></li>
 <li><code><a title="cnvpytor.utils.likelihood_pixels_pval" href="#cnvpytor.utils.likelihood_pixels_pval">likelihood_pixels_pval</a></code></li>
 <li><code><a title="cnvpytor.utils.log_beta" href="#cnvpytor.utils.log_beta">log_beta</a></code></li>

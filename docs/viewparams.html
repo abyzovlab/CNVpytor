@@ -42,34 +42,51 @@ class ViewParams(object):
         &#34;bin_size&#34;: None,
         &#34;panels&#34;: [&#34;rd&#34;],
         &#34;rd_raw&#34;: True,
-        &#34;rd_partition&#34;: True,
+        &#34;rd_corrected&#34;: True,
+        &#34;rd_partition&#34;: False,
         &#34;rd_call&#34;: True,
-        &#34;rd_call_mosaic&#34;: False,
         &#34;rd_use_mask&#34;: False,
         &#34;rd_use_gc_corr&#34;: True,
-        &#34;rd_range&#34; : [0, 3],
+        &#34;callers&#34;: [&#34;rd_mean_shift&#34;],
+        &#34;Q0_range&#34;: [-1,1],
+        &#34;pN_range&#34;: [-1,1],
+        &#34;dG_range&#34;: [-1,np.inf],
+        &#34;size_range&#34;: [0,np.inf],
+        &#34;p_range&#34;: [0,np.inf],
+        &#34;annotate&#34;: False,
+        &#34;rd_range&#34;: [0, 6],
         &#34;rd_manhattan_range&#34;: [0, 2],
         &#34;rd_manhattan_call&#34;: False,
         &#34;snp_use_mask&#34;: True,
         &#34;snp_use_id&#34;: False,
         &#34;snp_use_phase&#34;: False,
-        &#34;snp_call&#34;: False,
+        &#34;snp_call&#34;: True,
         &#34;markersize&#34;: &#34;auto&#34;,
-        &#34;rd_colors&#34;: [&#34;grey&#34;,&#34;black&#34;,&#34;red&#34;,&#34;green&#34;,&#34;blue&#34;],
-        &#34;snp_colors&#34;: [&#34;yellow&#34;, &#34;orange&#34;, &#34;cyan&#34;, &#34;blue&#34;, &#34;lime&#34;, &#34;green&#34;, &#34;yellow&#34;, &#34;orange&#34;],
+        &#34;lh_markersize&#34;: 20,
+        &#34;lh_marker&#34;: &#34;_&#34;,
+        &#34;rd_colors&#34;: [&#34;grey&#34;, &#34;black&#34;, &#34;red&#34;, &#34;green&#34;, &#34;blue&#34;, &#34;cyan&#34;],
+        &#34;legend&#34;: False,
+        &#34;title&#34;: True,
+        &#34;snp_colors&#34;: [&#34;orange&#34;, &#34;brown&#34;, &#34;green&#34;, &#34;blue&#34;, &#34;yellow&#34;, &#34;red&#34;, &#34;orange&#34;, &#34;brown&#34;],
+        &#34;snp_alpha_P&#34;: False,
         &#34;rd_circular_colors&#34;: [&#34;#555555&#34;, &#34;#aaaaaa&#34;],
         &#34;snp_circular_colors&#34;: [&#34;#00ff00&#34;, &#34;#0000ff&#34;],
-        &#34;baf_colors&#34;: [&#34;gray&#34;,&#34;black&#34;,&#34;red&#34;,&#34;green&#34;,&#34;blue&#34;],
-        &#34;lh_colors&#34;: [&#34;yellow&#34;],
+        &#34;baf_colors&#34;: [&#34;gray&#34;, &#34;black&#34;, &#34;red&#34;, &#34;green&#34;, &#34;blue&#34;],
+        &#34;lh_colors&#34;: [&#34;yellow&#34;, &#34;red&#34;],
         &#34;plot_files&#34;: [],
         &#34;plot_file&#34;: 0,
+        &#34;plot&#34;: False,
         &#34;file_titles&#34;: [],
         &#34;chrom&#34;: [],
         &#34;style&#34;: None,
         &#34;grid&#34;: &#34;auto&#34;,
+        &#34;subgrid&#34;: &#34;vertical&#34;,
+        &#34;panel_size&#34;: [8,6],
         &#34;xkcd&#34;: False,
+        &#34;margins&#34;: [0.05, 0.95, 0.1, 0.98, 0.1, 0.2],
         &#34;dpi&#34;: 200,
         &#34;output_filename&#34;: &#34;&#34;,
+        &#34;print_filename&#34;: &#34;&#34;,
         &#34;contrast&#34;: 20,
         &#34;min_segment_size&#34;: 0
     }
@@ -86,68 +103,125 @@ class ViewParams(object):
         for c in self.param_help:
             self.command_tree[&#34;help&#34;][c] = None
         self.command_tree[&#34;set&#34;][&#34;panels&#34;] = {}
-        for panel1 in [&#34;rd&#34;, &#34;likelihood&#34;, &#34;snp&#34;, &#34;baf&#34;, &#34;snv&#34;]:
+        for panel1 in [&#34;rd&#34;, &#34;likelihood&#34;, &#34;snp&#34;, &#34;baf&#34;, &#34;snv&#34;, &#34;CN&#34;]:
             self.command_tree[&#34;set&#34;][&#34;panels&#34;][panel1] = self.command_tree[&#34;set&#34;][&#34;panels&#34;]
+        self.command_tree[&#34;set&#34;][&#34;callers&#34;] = {}
+        for caller in [&#34;rd_mean_shift&#34;,&#34;rd_mosaic&#34;,&#34;baf_mosaic&#34;,&#34;combined_mosaic&#34;]:
+            self.command_tree[&#34;set&#34;][&#34;callers&#34;][caller] = self.command_tree[&#34;set&#34;][&#34;callers&#34;]
+        self.command_tree[&#34;set&#34;][&#34;grid&#34;] = {&#34;auto&#34;: None, &#34;horizontal&#34;: None, &#34;vertical&#34;: None}
+        self.command_tree[&#34;set&#34;][&#34;subgrid&#34;] = {&#34;auto&#34;: None, &#34;horizontal&#34;: None, &#34;vertical&#34;: None}
+        self.interactive = True
 
     def set(self, param, args):
-        if param in self.params and self.params[param] is False:
-            self.__setattr__(param, True)
-        elif param.find(&#34;.&#34;)&gt;0:
-            sp = param.split(&#34;.&#34;)
-            if len(sp)==2 and (sp[0] in self.params) and sp[0][-7:]==&#34;_colors&#34; and sp[1].isdigit():
-                ix = int(sp[1])
-                self.params[sp[0]][ix] = args[0]
-
-        elif param == &#34;bin_size&#34;:
-            if len(args) &gt; 0:
-                self.__setattr__(param, args[0])
-        elif param == &#34;contrast&#34;:
-            if len(args) &gt; 0:
-                self.__setattr__(param, float(args[0]))
-        elif param == &#34;markersize&#34;:
-            if len(args) &gt; 0:
-                if args[0] == &#34;auto&#34;:
-                    self.__setattr__(param, &#34;auto&#34;)
-                else:
+        try:
+            if param in self.params and self.params[param] is False:
+                self.__setattr__(param, True)
+            elif param.find(&#34;.&#34;) &gt; 0:
+                sp = param.split(&#34;.&#34;)
+                if len(sp) == 2 and (sp[0] in self.params) and sp[0][-7:] == &#34;_colors&#34; and sp[1].isdigit():
+                    ix = int(sp[1])
+                    self.params[sp[0]][ix] = args[0]
+                if len(sp) == 2 and sp[0]==&#34;margins&#34; and sp[1].isdigit():
+                    ix = int(sp[1])
+                    self.params[sp[0]][ix] = float(args[0])
+            elif param == &#34;margins&#34;:
+                if len(args) &gt; 0:
+                    self.__setattr__(param, list(map(float, args)))
+            elif param == &#34;bin_size&#34;:
+                if len(args) &gt; 0:
+                    self.__setattr__(param, args[0])
+            elif param == &#34;contrast&#34;:
+                if len(args) &gt; 0:
                     self.__setattr__(param, float(args[0]))
-        elif param == &#34;grid&#34;:
-            if len(args) &gt; 0:
-                if args[0] == &#34;auto&#34;:
-                    self.__setattr__(param, &#34;auto&#34;)
-                else:
-                    self.__setattr__(param, list(map(int, args[:2])))
-        elif param == &#34;dpi&#34;:
-            if len(args) &gt; 0:
-                self.__setattr__(param, int(args[0]))
-        elif param == &#34;rd_range&#34;:
-            if len(args) &gt; 1:
-                self.__setattr__(param, list(map(float, args[:2])))
-        elif param == &#34;rd_manhattan_range&#34;:
-            if len(args) &gt; 1:
-                self.__setattr__(param, list(map(float, args[:2])))
-        elif param == &#34;min_segment_size&#34;:
-            if len(args) &gt; 0:
-                self.__setattr__(param, int(args[0]))
-        elif param == &#34;output_filename&#34;:
-            if len(args) &gt; 0:
-                self.__setattr__(param, args[0])
-        elif param == &#34;plot_file&#34;:
-            if len(args) &gt; 0:
-                self.__setattr__(param, int(args[0]))
-        elif param == &#34;plot_files&#34;:
-            self.__setattr__(param, list(map(int, args)))
-        elif param == &#34;style&#34;:
-            if len(args) &gt; 0:
-                self.__setattr__(param, args[0])
-        elif param in self.params and self.params[param] is not True:
-            self.__setattr__(param, args)
-        if param in self.params:
-            print(&#34;    * %s: %s&#34; % (param, str(self.params[param])))
-        else:
-            sp = param.split(&#34;.&#34;)
-            if sp[0] in self.params:
-                print(&#34;    * %s: %s&#34; % (sp[0], str(self.params[sp[0]])))
-
+            elif param == &#34;markersize&#34;:
+                if len(args) &gt; 0:
+                    if args[0] == &#34;auto&#34;:
+                        self.__setattr__(param, &#34;auto&#34;)
+                    else:
+                        self.__setattr__(param, float(args[0]))
+            elif param == &#34;lh_markersize&#34;:
+                if len(args) &gt; 0:
+                    self.__setattr__(param, float(args[0]))
+            elif param == &#34;lh_marker&#34;:
+                if len(args) &gt; 0:
+                    self.__setattr__(param, args[0])
+            elif param == &#34;grid&#34;:
+                if len(args) &gt; 0:
+                    if args[0] in [&#34;auto&#34;, &#34;horizontal&#34;, &#34;vertical&#34;]:
+                        self.__setattr__(param, args[0])
+                    else:
+                        self.__setattr__(param, list(map(int, args[:2])))
+            elif param == &#34;subgrid&#34;:
+                if len(args) &gt; 0:
+                    if args[0] in [&#34;auto&#34;, &#34;horizontal&#34;, &#34;vertical&#34;]:
+                        self.__setattr__(param, args[0])
+                    else:
+                        self.__setattr__(param, list(map(int, args[:2])))
+            elif param == &#34;panel_size&#34;:
+                if len(args) &gt; 0:
+                        self.__setattr__(param, list(map(float, args[:2])))
+            elif param == &#34;dpi&#34;:
+                if len(args) &gt; 0:
+                    self.__setattr__(param, int(args[0]))
+            elif param == &#34;Q0_range&#34;:
+                    if len(args) &gt; 1:
+                        self.__setattr__(param, list(map(float, args[:2])))
+            elif param == &#34;pN_range&#34;:
+                    if len(args) &gt; 1:
+                        self.__setattr__(param, list(map(float, args[:2])))
+            elif param == &#34;size_range&#34;:
+                    if len(args) &gt; 1:
+                        if args[1]==&#34;inf&#34;:
+                            self.__setattr__(param, [int(args[0]),np.inf])
+                        else:
+                            self.__setattr__(param, list(map(int, args[:2])))
+            elif param == &#34;dG_range&#34;:
+                    if len(args) &gt; 1:
+                        if args[1]==&#34;inf&#34;:
+                            self.__setattr__(param, [int(args[0]),np.inf])
+                        else:
+                            self.__setattr__(param, list(map(int, args[:2])))
+            elif param == &#34;p_range&#34;:
+                    if len(args) &gt; 1:
+                        self.__setattr__(param, list(map(float, args[:2])))
+            elif param == &#34;rd_range&#34;:
+                if len(args) &gt; 1:
+                    self.__setattr__(param, list(map(float, args[:2])))
+            elif param == &#34;rd_manhattan_range&#34;:
+                if len(args) &gt; 1:
+                    self.__setattr__(param, list(map(float, args[:2])))
+            elif param == &#34;min_segment_size&#34;:
+                if len(args) &gt; 0:
+                    self.__setattr__(param, int(args[0]))
+            elif param == &#34;output_filename&#34;:
+                if len(args) &gt; 0:
+                    self.__setattr__(param, args[0])
+            elif param == &#34;print_filename&#34;:
+                if len(args) &gt; 0:
+                    if args[0].split(&#34;.&#34;)[-1] in [&#34;tsv&#34;, &#34;vcf&#34;, &#34;xlsx&#34;]:
+                        self.__setattr__(param, args[0])
+                    else:
+                        raise(ValueError)
+            elif param == &#34;plot_file&#34;:
+                if len(args) &gt; 0:
+                    self.__setattr__(param, int(args[0]))
+            elif param == &#34;plot_files&#34;:
+                self.__setattr__(param, list(map(int, args)))
+            elif param == &#34;style&#34;:
+                if len(args) &gt; 0:
+                    self.__setattr__(param, args[0])
+            elif param in self.params and self.params[param] is not True:
+                self.__setattr__(param, args)
+            if param in self.params:
+                if self.interactive:
+                    print(&#34;    * %s: %s&#34; % (param, str(self.params[param])))
+            else:
+                sp = param.split(&#34;.&#34;)
+                if sp[0] in self.params:
+                    if self.interactive:
+                        print(&#34;    * %s: %s&#34; % (sp[0], str(self.params[sp[0]])))
+        except ValueError:
+            _logger.warning(&#34;Value error while setting %s!&#34; % param)
 
     def unset(self, param):
         if param in self.params:
@@ -223,8 +297,11 @@ class HelpDescription(object):
         &#34;rdstat&#34;: None,
         &#34;circular&#34;: None,
         &#34;manhattan&#34;: None,
+        &#34;genotype&#34;:None,
         &#34;calls&#34;: None,
+        &#34;print&#34;: {&#34;calls&#34;, &#34;joint_calls&#34;},
         &#34;ls&#34;: None,
+        &#34;meta&#34;: None,
         &#34;compare&#34;: None
     }
 
@@ -400,6 +477,12 @@ class HelpDescription(object):
             p_usage=&#34;ls&#34;,
             p_see=&#34;show&#34;
         ),
+        &#34;meta&#34;: help_format(
+            topic=&#34;ls&#34;,
+            p_desc=&#34;Print meta information&#34;,
+            p_usage=&#34;ls&#34;,
+            p_see=&#34;show&#34;
+        ),
         &#34;bin_size&#34;: help_format(
             topic=&#34;bin_size&#34;,
             p_desc=&#34;Size of bins used for plotting&#34;,
@@ -429,7 +512,7 @@ class HelpDescription(object):
             p_default=str(default[&#34;rd_partition&#34;]),
             p_affects=&#34;region plot, rd&#34;,
             p_example=&#34;set rd_partition\nunset rd_partition&#34;,
-            p_see=&#34;rd_call, rd_call_mosaic&#34;
+            p_see=&#34;rd_call&#34;
         ),
         &#34;rd_call&#34;: help_format(
             topic=&#34;rd_call&#34;,
@@ -438,16 +521,7 @@ class HelpDescription(object):
             p_default=str(default[&#34;rd_call&#34;]),
             p_affects=&#34;region plot, rd&#34;,
             p_example=&#34;set rd_call\nunset rd_call&#34;,
-            p_see=&#34;rd_partition, rd_call_mosaic&#34;
-        ),
-        &#34;rd_call_mosaic&#34;: help_format(
-            topic=&#34;rd_call_mosaic&#34;,
-            p_desc=&#34;Enables plotting mosaic call signal in rd plots (calculated using -call mosaic option)&#34;,
-            p_type=&#34;bool&#34;,
-            p_default=str(default[&#34;rd_call_mosaic&#34;]),
-            p_affects=&#34;region plot, rd&#34;,
-            p_example=&#34;set rd_call_mosaic\nunset rd_call_mosaic&#34;,
-            p_see=&#34;rd_partition, rd_call&#34;
+            p_see=&#34;rd_partition&#34;
         ),
         &#34;rd_raw&#34;: help_format(
             topic=&#34;rd_raw&#34;,
@@ -455,8 +529,17 @@ class HelpDescription(object):
             p_type=&#34;bool&#34;,
             p_default=str(default[&#34;rd_raw&#34;]),
             p_affects=&#34;region plot, rd&#34;,
-            p_example=&#34;set rd_call_mosaic\nunset rd_call_mosaic&#34;,
-            p_see=&#34;rd_partition, rd_call, rd_call_mosaic&#34;
+            p_example=&#34;set rd_raw\nunset rd_raw&#34;,
+            p_see=&#34;rd_corrected, rd_partition, rd_call, rd_call_mosaic&#34;
+        ),
+        &#34;rd_corrected&#34;: help_format(
+            topic=&#34;rd_corrected&#34;,
+            p_desc=&#34;Enables plotting raw signal in rd plots&#34;,
+            p_type=&#34;bool&#34;,
+            p_default=str(default[&#34;rd_corrected&#34;]),
+            p_affects=&#34;region plot, rd&#34;,
+            p_example=&#34;set rd_corrected\nunset rd_corrected&#34;,
+            p_see=&#34;rd_raw, rd_partition, rd_call, rd_call_mosaic&#34;
         ),
         &#34;rd_use_mask&#34;: help_format(
             topic=&#34;rd_use_mask&#34;,
@@ -555,23 +638,51 @@ class HelpDescription(object):
             p_type=&#34;list of strings&#34;,
             p_default=str(default[&#34;rd_colors&#34;]),
             p_affects=&#34;rd, region plot with rd panel&#34;,
-            p_example=&#34;set rd_colors red grey green black blue\nunset rd_colors\nset rd_colors.1 red&#34;,
+            p_example=&#34;set rd_colors red grey green black blue cyan\nunset rd_colors\nset rd_colors.1 red&#34;,
             p_see=&#34;markersize, snp_colors, baf_colors, lh_colors&#34;
+        ),
+        &#34;legend&#34;: help_format(
+            topic=&#34;legend&#34;,
+            p_desc=&#34;Enables legend in region plots&#34;,
+            p_type=&#34;bool&#34;,
+            p_default=str(default[&#34;legend&#34;]),
+            p_affects=&#34;region plot, rd, baf&#34;,
+            p_example=&#34;set legend\nunset legend&#34;,
+            p_see=&#34;rd_range, rd_call&#34;
+        ),
+        &#34;title&#34;: help_format(
+            topic=&#34;title&#34;,
+            p_desc=&#34;Enables title in region plots&#34;,
+            p_type=&#34;bool&#34;,
+            p_default=str(default[&#34;legend&#34;]),
+            p_affects=&#34;region plot, rd, baf&#34;,
+            p_example=&#34;set title\nunset title&#34;,
+            p_see=&#34;legend&#34;
         ),
         &#34;snp_colors&#34;: help_format(
             topic=&#34;snp_colors&#34;,
             p_desc=&#34;Colors used in snp plot.\n&#34; +
                    &#34;Eight colors correspond to following SNPs:\n&#34; +
-                   &#34;    &#34;+ TerminalColor.YELLOW +&#34;0|0 out of P region, &#34;+ TerminalColor.YELLOW2 +&#34;0|0 inside P region,\n&#34; +
-                   &#34;    &#34;+ TerminalColor.CYAN +&#34;0|1 out of P region, &#34;+ TerminalColor.BLUE +&#34;0|1 inside P region,\n&#34; +
-                   &#34;    &#34;+ TerminalColor.GREEN2 +&#34;1|0 out of P region, &#34;+ TerminalColor.GREEN +&#34;1|0 inside P region,\n&#34; +
-                   &#34;    &#34;+ TerminalColor.YELLOW +&#34;1|1 out of P region, &#34;+ TerminalColor.YELLOW2 +&#34;1|1 inside P region.\n&#34; +
-                   TerminalColor.DARKCYAN + &#34;P region refers to 1kG project strict mask.&#34;,
+                   &#34;    &#34; + TerminalColor.YELLOW + &#34;0|0 out of P region, &#34; + TerminalColor.YELLOW2 + &#34;0|0 inside P region,\n&#34; +
+                   &#34;    &#34; + TerminalColor.CYAN + &#34;0|1 out of P region, &#34; + TerminalColor.BLUE + &#34;0|1 inside P region,\n&#34; +
+                   &#34;    &#34; + TerminalColor.GREEN2 + &#34;1|0 out of P region, &#34; + TerminalColor.GREEN + &#34;1|0 inside P region,\n&#34; +
+                   &#34;    &#34; + TerminalColor.YELLOW + &#34;1|1 out of P region, &#34; + TerminalColor.YELLOW2 + &#34;1|1 inside P region.\n&#34; +
+                   TerminalColor.DARKCYAN + &#34;P region refers to 1kG project strict mask.\n&#34; +
+                   &#34;If snp_alpha_P is set, transparency will be used instead colors for out of P region SNPs.\n&#34;,
             p_type=&#34;list of strings&#34;,
             p_default=str(default[&#34;snp_colors&#34;]),
             p_affects=&#34;snp, region plot with snp panel&#34;,
             p_example=&#34;set snp_colors red grey green black blue yellow orange cyan\nunset snp_colors\nset snp_colors.7 red&#34;,
             p_see=&#34;markersize, rd_colors, baf_colors, lh_colors&#34;
+        ),
+        &#34;snp_alpha_P&#34;: help_format(
+            topic=&#34;snp_alpha_P&#34;,
+            p_desc=&#34;If set, alpha color value will be used for non-P region SNPs.&#34;,
+            p_type=&#34;bool&#34;,
+            p_default=str(default[&#34;snp_alpha_P&#34;]),
+            p_affects=&#34;region plot, snp&#34;,
+            p_example=&#34;set snp_alpha_P\nunset snp_alpha_P&#34;,
+            p_see=&#34;snp_colors, snp_use_mask, snp_use_id&#34;
         ),
         &#34;baf_colors&#34;: help_format(
             topic=&#34;baf_colors&#34;,
@@ -644,11 +755,29 @@ class HelpDescription(object):
         &#34;grid&#34;: help_format(
             topic=&#34;grid&#34;,
             p_desc=&#34;Set plot layout grid. Automatic if &#39;auto&#39;.&#34;,
-            p_type=&#34;two integers or &#39;auto&#39;&#34;,
+            p_type=&#34;two integers, &#39;auto&#39;, &#39;vertical&#39; or &#39;horizontal&#39;&#34;,
             p_default=str(default[&#34;grid&#34;]),
             p_affects=&#34;all plots&#34;,
-            p_example=&#34;set grid 5 4\nunset grid&#34;,
-            p_see=&#34;xkcd, chrom, output_filename&#34;
+            p_example=&#34;set grid 5 4\nset grid horizontal\nunset grid&#34;,
+            p_see=&#34;subgrid, xkcd, chrom, output_filename&#34;
+        ),
+        &#34;subgrid&#34;: help_format(
+            topic=&#34;subgrid&#34;,
+            p_desc=&#34;Set plot layout subgrid. Automatic if &#39;auto&#39;.&#34;,
+            p_type=&#34;two integers, &#39;auto&#39;, &#39;vertical&#39; or &#39;horizontal&#39;&#34;,
+            p_default=str(default[&#34;subgrid&#34;]),
+            p_affects=&#34;plots with multiple panels&#34;,
+            p_example=&#34;set subgrid 5 4\nset subgrid horizontal\nunset subgrid&#34;,
+            p_see=&#34;grid, xkcd, chrom, output_filename&#34;
+        ),
+        &#34;panel_size&#34;: help_format(
+            topic=&#34;panel_size&#34;,
+            p_desc=&#34;Set plot panel size.&#34;,
+            p_type=&#34;two floats&#34;,
+            p_default=str(default[&#34;panel_size&#34;]),
+            p_affects=&#34;plots with multiple panels&#34;,
+            p_example=&#34;set panel_size 8 1\nunset panel_size&#34;,
+            p_see=&#34;grid, subgrid, output_filename&#34;
         ),
         &#34;xkcd&#34;: help_format(
             topic=&#34;xkcd&#34;,
@@ -658,6 +787,15 @@ class HelpDescription(object):
             p_affects=&#34;all plots&#34;,
             p_example=&#34;set xkcd\nunset xkcd&#34;,
             p_see=&#34;style, chrom, output_filename&#34;
+        ),
+        &#34;plot&#34;: help_format(
+            topic=&#34;plot&#34;,
+            p_desc=&#34;Plots when true (works with compare and print).&#34;,
+            p_type=&#34;bool&#34;,
+            p_default=str(default[&#34;plot&#34;]),
+            p_affects=&#34;compare, print&#34;,
+            p_example=&#34;set plot\nunset plot&#34;,
+            p_see=&#34;compare, print calls, print join_calls&#34;
         ),
         &#34;output_filename&#34;: help_format(
             topic=&#34;output_filename&#34;,
@@ -681,6 +819,39 @@ class HelpDescription(object):
             p_affects=&#34;all plots&#34;,
             p_example=&#34;set output_filename filename.png\nunset output_filename&#34;,
             p_see=&#34;save, dpi, style, xkcd&#34;
+        ),
+        &#34;print_filename&#34;: help_format(
+            topic=&#34;output_filename&#34;,
+            p_desc=&#34;If not empty calls will be printed into specified file.&#34; +
+                   &#34;Use one of following extensions:\n&#34; +
+                   &#34;    * tsv - tab separated\n&#34; +
+                   &#34;    * xlsx - Excel format\n&#34; +
+                   &#34;    * vcf - VCF file format (not working for merged calls)&#34;,
+            p_type=&#34;str&#34;,
+            p_default=str(default[&#34;output_filename&#34;]),
+            p_affects=&#34;print&#34;,
+            p_example=&#34;set print_filename filename.tsv\nunset print_filename&#34;,
+            p_see=&#34;print, callers&#34;
+        ),
+        &#34;callers&#34;: help_format(
+            topic=&#34;callers&#34;,
+            p_desc=&#34;List of callers to use for plotting and printing. Possible options are:\n&#34; +
+                   &#34;    rd_mean_shift    - read depth mean shift caller,\n&#34; +
+                   &#34;    rd_mosaic    - read depth mosaic caller (under development),\n&#34; +
+                   &#34;    baf_mosaic    - baf mosaic caller (under development),\n&#34; +
+                   &#34;    combined_mosaic  - read depth and baf mosaic caller (under development).&#34;,
+            p_type=&#34;list of strings&#34;,
+            p_default=str(default[&#34;callers&#34;]),
+            p_affects=&#34;region plot, manhattan&#34;,
+            p_example=&#34;set callers rd_mean_shift\nunset callers&#34;,
+            p_see=&#34;plotting, print&#34;
+        ),
+        &#34;print&#34;: help_format(
+            topic=&#34;print&#34;,
+            p_desc=&#34;Print filtered calls.&#34;,
+            p_usage=&#34;print [calls, joint_calls]&#34;,
+            p_example=&#34;print calls\nprint joint_calls&#34;,
+            p_see=&#34;Q0_range, p_range, pN_range, size_range, dG_range, callers&#34;
         ),
         &#34;rd_circular_colors&#34;: help_format(
             topic=&#34;rd_circular_colors&#34;,
@@ -718,14 +889,70 @@ class HelpDescription(object):
             p_example=&#34;set min_segment_size 10\nunset min_segment_size&#34;,
             p_see=&#34;contrast&#34;
         ),
-        &#34;dpi&#34; : help_format(
+        &#34;Q0_range&#34;: help_format(
+            topic=&#34;Q0_range&#34;,
+            p_desc=&#34;Range used to filter Q0 for calls&#34;,
+            p_type=&#34;two floats&#34;,
+            p_default=str(default[&#34;Q0_range&#34;]),
+            p_affects=&#34;calls plot&#34;,
+            p_example=&#34;set Q0_range 0 0.5\nunset Q0_range&#34;,
+            p_see=&#34;pN_range, size_range, dG_range, p_range&#34;
+        ),
+        &#34;pN_range&#34;: help_format(
+            topic=&#34;pN_range&#34;,
+            p_desc=&#34;Range used to filter percentage of reference genome gaps for calls&#34;,
+            p_type=&#34;two floats&#34;,
+            p_default=str(default[&#34;pN_range&#34;]),
+            p_affects=&#34;calls plot&#34;,
+            p_example=&#34;set pN_range 0 0.5\nunset pN_range&#34;,
+            p_see=&#34;Q0_range, size_range, dG_range, p_range&#34;
+        ),
+        &#34;size_range&#34;: help_format(
+            topic=&#34;size_range&#34;,
+            p_desc=&#34;Range used to filter size of calls&#34;,
+            p_type=&#34;two integers or integer and &#39;inf&#39; (for unlimited upper bound)&#34;,
+            p_default=str(default[&#34;size_range&#34;]),
+            p_affects=&#34;calls plot&#34;,
+            p_example=&#34;set size_range 100000 10000000\nset dG_range 100000 inf\nunset size_range&#34;,
+            p_see=&#34;Q0_range, pN_range, p_range, dG_range&#34;
+        ),
+        &#34;dG_range&#34;: help_format(
+            topic=&#34;size_range&#34;,
+            p_desc=&#34;Range used to filter calls on distance from closest large (&gt;100bp) gap in reference genome&#34;,
+            p_type=&#34;two integers or integer and &#39;inf&#39; (for unlimited upper bound)&#34;,
+            p_default=str(default[&#34;dG_range&#34;]),
+            p_affects=&#34;calls plot&#34;,
+            p_example=&#34;set dG_range 100000 10000000\nset dG_range 100000 inf\nunset dG_range&#34;,
+            p_see=&#34;Q0_range, pN_range, size_range, p_range&#34;
+        ),
+        &#34;p_range&#34;: help_format(
+            topic=&#34;p_range&#34;,
+            p_desc=&#34;Range used to filter size of calls&#34;,
+            p_type=&#34;two floats&#34;,
+            p_default=str(default[&#34;p_range&#34;]),
+            p_affects=&#34;calls plot&#34;,
+            p_example=&#34;set p_range 0 0.000001\nunset p_range&#34;,
+            p_see=&#34;Q0_range, pN_range, size_range, dG_range&#34;
+        ),
+
+        &#34;dpi&#34;: help_format(
             topic=&#34;dpi&#34;,
             p_desc=&#34;Resolution (dots per inch) used for plotting.&#34;,
             p_type=&#34;int&#34;,
             p_default=str(default[&#34;dpi&#34;]),
             p_affects=&#34;calls, likelihood, region plot&#34;,
             p_example=&#34;set dpi 300\nunset dpi&#34;,
-            p_see=&#34;style, output_filename, xkcd&#34;
+            p_see=&#34;margins, style, output_filename, xkcd&#34;
+        ),
+        &#34;margins&#34;: help_format(
+            topic=&#34;margins&#34;,
+            p_desc=&#34;Margins used for matplotlib figure:\n&#34; +
+                   &#34;[bottom, top, left, right, wspace, hspace]&#34;,
+            p_type=&#34;list of floats&#34;,
+            p_default=str(default[&#34;margins&#34;]),
+            p_affects=&#34;all plots&#34;,
+            p_example=&#34;set margins 0 0 0 0 0 0\nunset margins\nset margins.3 0.2&#34;,
+            p_see=&#34;style, output_filename, dpi&#34;
         ),
     }</code></pre>
 </details>
@@ -767,8 +994,11 @@ class HelpDescription(object):
         &#34;rdstat&#34;: None,
         &#34;circular&#34;: None,
         &#34;manhattan&#34;: None,
+        &#34;genotype&#34;:None,
         &#34;calls&#34;: None,
+        &#34;print&#34;: {&#34;calls&#34;, &#34;joint_calls&#34;},
         &#34;ls&#34;: None,
+        &#34;meta&#34;: None,
         &#34;compare&#34;: None
     }
 
@@ -944,6 +1174,12 @@ class HelpDescription(object):
             p_usage=&#34;ls&#34;,
             p_see=&#34;show&#34;
         ),
+        &#34;meta&#34;: help_format(
+            topic=&#34;ls&#34;,
+            p_desc=&#34;Print meta information&#34;,
+            p_usage=&#34;ls&#34;,
+            p_see=&#34;show&#34;
+        ),
         &#34;bin_size&#34;: help_format(
             topic=&#34;bin_size&#34;,
             p_desc=&#34;Size of bins used for plotting&#34;,
@@ -973,7 +1209,7 @@ class HelpDescription(object):
             p_default=str(default[&#34;rd_partition&#34;]),
             p_affects=&#34;region plot, rd&#34;,
             p_example=&#34;set rd_partition\nunset rd_partition&#34;,
-            p_see=&#34;rd_call, rd_call_mosaic&#34;
+            p_see=&#34;rd_call&#34;
         ),
         &#34;rd_call&#34;: help_format(
             topic=&#34;rd_call&#34;,
@@ -982,16 +1218,7 @@ class HelpDescription(object):
             p_default=str(default[&#34;rd_call&#34;]),
             p_affects=&#34;region plot, rd&#34;,
             p_example=&#34;set rd_call\nunset rd_call&#34;,
-            p_see=&#34;rd_partition, rd_call_mosaic&#34;
-        ),
-        &#34;rd_call_mosaic&#34;: help_format(
-            topic=&#34;rd_call_mosaic&#34;,
-            p_desc=&#34;Enables plotting mosaic call signal in rd plots (calculated using -call mosaic option)&#34;,
-            p_type=&#34;bool&#34;,
-            p_default=str(default[&#34;rd_call_mosaic&#34;]),
-            p_affects=&#34;region plot, rd&#34;,
-            p_example=&#34;set rd_call_mosaic\nunset rd_call_mosaic&#34;,
-            p_see=&#34;rd_partition, rd_call&#34;
+            p_see=&#34;rd_partition&#34;
         ),
         &#34;rd_raw&#34;: help_format(
             topic=&#34;rd_raw&#34;,
@@ -999,8 +1226,17 @@ class HelpDescription(object):
             p_type=&#34;bool&#34;,
             p_default=str(default[&#34;rd_raw&#34;]),
             p_affects=&#34;region plot, rd&#34;,
-            p_example=&#34;set rd_call_mosaic\nunset rd_call_mosaic&#34;,
-            p_see=&#34;rd_partition, rd_call, rd_call_mosaic&#34;
+            p_example=&#34;set rd_raw\nunset rd_raw&#34;,
+            p_see=&#34;rd_corrected, rd_partition, rd_call, rd_call_mosaic&#34;
+        ),
+        &#34;rd_corrected&#34;: help_format(
+            topic=&#34;rd_corrected&#34;,
+            p_desc=&#34;Enables plotting raw signal in rd plots&#34;,
+            p_type=&#34;bool&#34;,
+            p_default=str(default[&#34;rd_corrected&#34;]),
+            p_affects=&#34;region plot, rd&#34;,
+            p_example=&#34;set rd_corrected\nunset rd_corrected&#34;,
+            p_see=&#34;rd_raw, rd_partition, rd_call, rd_call_mosaic&#34;
         ),
         &#34;rd_use_mask&#34;: help_format(
             topic=&#34;rd_use_mask&#34;,
@@ -1099,23 +1335,51 @@ class HelpDescription(object):
             p_type=&#34;list of strings&#34;,
             p_default=str(default[&#34;rd_colors&#34;]),
             p_affects=&#34;rd, region plot with rd panel&#34;,
-            p_example=&#34;set rd_colors red grey green black blue\nunset rd_colors\nset rd_colors.1 red&#34;,
+            p_example=&#34;set rd_colors red grey green black blue cyan\nunset rd_colors\nset rd_colors.1 red&#34;,
             p_see=&#34;markersize, snp_colors, baf_colors, lh_colors&#34;
+        ),
+        &#34;legend&#34;: help_format(
+            topic=&#34;legend&#34;,
+            p_desc=&#34;Enables legend in region plots&#34;,
+            p_type=&#34;bool&#34;,
+            p_default=str(default[&#34;legend&#34;]),
+            p_affects=&#34;region plot, rd, baf&#34;,
+            p_example=&#34;set legend\nunset legend&#34;,
+            p_see=&#34;rd_range, rd_call&#34;
+        ),
+        &#34;title&#34;: help_format(
+            topic=&#34;title&#34;,
+            p_desc=&#34;Enables title in region plots&#34;,
+            p_type=&#34;bool&#34;,
+            p_default=str(default[&#34;legend&#34;]),
+            p_affects=&#34;region plot, rd, baf&#34;,
+            p_example=&#34;set title\nunset title&#34;,
+            p_see=&#34;legend&#34;
         ),
         &#34;snp_colors&#34;: help_format(
             topic=&#34;snp_colors&#34;,
             p_desc=&#34;Colors used in snp plot.\n&#34; +
                    &#34;Eight colors correspond to following SNPs:\n&#34; +
-                   &#34;    &#34;+ TerminalColor.YELLOW +&#34;0|0 out of P region, &#34;+ TerminalColor.YELLOW2 +&#34;0|0 inside P region,\n&#34; +
-                   &#34;    &#34;+ TerminalColor.CYAN +&#34;0|1 out of P region, &#34;+ TerminalColor.BLUE +&#34;0|1 inside P region,\n&#34; +
-                   &#34;    &#34;+ TerminalColor.GREEN2 +&#34;1|0 out of P region, &#34;+ TerminalColor.GREEN +&#34;1|0 inside P region,\n&#34; +
-                   &#34;    &#34;+ TerminalColor.YELLOW +&#34;1|1 out of P region, &#34;+ TerminalColor.YELLOW2 +&#34;1|1 inside P region.\n&#34; +
-                   TerminalColor.DARKCYAN + &#34;P region refers to 1kG project strict mask.&#34;,
+                   &#34;    &#34; + TerminalColor.YELLOW + &#34;0|0 out of P region, &#34; + TerminalColor.YELLOW2 + &#34;0|0 inside P region,\n&#34; +
+                   &#34;    &#34; + TerminalColor.CYAN + &#34;0|1 out of P region, &#34; + TerminalColor.BLUE + &#34;0|1 inside P region,\n&#34; +
+                   &#34;    &#34; + TerminalColor.GREEN2 + &#34;1|0 out of P region, &#34; + TerminalColor.GREEN + &#34;1|0 inside P region,\n&#34; +
+                   &#34;    &#34; + TerminalColor.YELLOW + &#34;1|1 out of P region, &#34; + TerminalColor.YELLOW2 + &#34;1|1 inside P region.\n&#34; +
+                   TerminalColor.DARKCYAN + &#34;P region refers to 1kG project strict mask.\n&#34; +
+                   &#34;If snp_alpha_P is set, transparency will be used instead colors for out of P region SNPs.\n&#34;,
             p_type=&#34;list of strings&#34;,
             p_default=str(default[&#34;snp_colors&#34;]),
             p_affects=&#34;snp, region plot with snp panel&#34;,
             p_example=&#34;set snp_colors red grey green black blue yellow orange cyan\nunset snp_colors\nset snp_colors.7 red&#34;,
             p_see=&#34;markersize, rd_colors, baf_colors, lh_colors&#34;
+        ),
+        &#34;snp_alpha_P&#34;: help_format(
+            topic=&#34;snp_alpha_P&#34;,
+            p_desc=&#34;If set, alpha color value will be used for non-P region SNPs.&#34;,
+            p_type=&#34;bool&#34;,
+            p_default=str(default[&#34;snp_alpha_P&#34;]),
+            p_affects=&#34;region plot, snp&#34;,
+            p_example=&#34;set snp_alpha_P\nunset snp_alpha_P&#34;,
+            p_see=&#34;snp_colors, snp_use_mask, snp_use_id&#34;
         ),
         &#34;baf_colors&#34;: help_format(
             topic=&#34;baf_colors&#34;,
@@ -1188,11 +1452,29 @@ class HelpDescription(object):
         &#34;grid&#34;: help_format(
             topic=&#34;grid&#34;,
             p_desc=&#34;Set plot layout grid. Automatic if &#39;auto&#39;.&#34;,
-            p_type=&#34;two integers or &#39;auto&#39;&#34;,
+            p_type=&#34;two integers, &#39;auto&#39;, &#39;vertical&#39; or &#39;horizontal&#39;&#34;,
             p_default=str(default[&#34;grid&#34;]),
             p_affects=&#34;all plots&#34;,
-            p_example=&#34;set grid 5 4\nunset grid&#34;,
-            p_see=&#34;xkcd, chrom, output_filename&#34;
+            p_example=&#34;set grid 5 4\nset grid horizontal\nunset grid&#34;,
+            p_see=&#34;subgrid, xkcd, chrom, output_filename&#34;
+        ),
+        &#34;subgrid&#34;: help_format(
+            topic=&#34;subgrid&#34;,
+            p_desc=&#34;Set plot layout subgrid. Automatic if &#39;auto&#39;.&#34;,
+            p_type=&#34;two integers, &#39;auto&#39;, &#39;vertical&#39; or &#39;horizontal&#39;&#34;,
+            p_default=str(default[&#34;subgrid&#34;]),
+            p_affects=&#34;plots with multiple panels&#34;,
+            p_example=&#34;set subgrid 5 4\nset subgrid horizontal\nunset subgrid&#34;,
+            p_see=&#34;grid, xkcd, chrom, output_filename&#34;
+        ),
+        &#34;panel_size&#34;: help_format(
+            topic=&#34;panel_size&#34;,
+            p_desc=&#34;Set plot panel size.&#34;,
+            p_type=&#34;two floats&#34;,
+            p_default=str(default[&#34;panel_size&#34;]),
+            p_affects=&#34;plots with multiple panels&#34;,
+            p_example=&#34;set panel_size 8 1\nunset panel_size&#34;,
+            p_see=&#34;grid, subgrid, output_filename&#34;
         ),
         &#34;xkcd&#34;: help_format(
             topic=&#34;xkcd&#34;,
@@ -1202,6 +1484,15 @@ class HelpDescription(object):
             p_affects=&#34;all plots&#34;,
             p_example=&#34;set xkcd\nunset xkcd&#34;,
             p_see=&#34;style, chrom, output_filename&#34;
+        ),
+        &#34;plot&#34;: help_format(
+            topic=&#34;plot&#34;,
+            p_desc=&#34;Plots when true (works with compare and print).&#34;,
+            p_type=&#34;bool&#34;,
+            p_default=str(default[&#34;plot&#34;]),
+            p_affects=&#34;compare, print&#34;,
+            p_example=&#34;set plot\nunset plot&#34;,
+            p_see=&#34;compare, print calls, print join_calls&#34;
         ),
         &#34;output_filename&#34;: help_format(
             topic=&#34;output_filename&#34;,
@@ -1225,6 +1516,39 @@ class HelpDescription(object):
             p_affects=&#34;all plots&#34;,
             p_example=&#34;set output_filename filename.png\nunset output_filename&#34;,
             p_see=&#34;save, dpi, style, xkcd&#34;
+        ),
+        &#34;print_filename&#34;: help_format(
+            topic=&#34;output_filename&#34;,
+            p_desc=&#34;If not empty calls will be printed into specified file.&#34; +
+                   &#34;Use one of following extensions:\n&#34; +
+                   &#34;    * tsv - tab separated\n&#34; +
+                   &#34;    * xlsx - Excel format\n&#34; +
+                   &#34;    * vcf - VCF file format (not working for merged calls)&#34;,
+            p_type=&#34;str&#34;,
+            p_default=str(default[&#34;output_filename&#34;]),
+            p_affects=&#34;print&#34;,
+            p_example=&#34;set print_filename filename.tsv\nunset print_filename&#34;,
+            p_see=&#34;print, callers&#34;
+        ),
+        &#34;callers&#34;: help_format(
+            topic=&#34;callers&#34;,
+            p_desc=&#34;List of callers to use for plotting and printing. Possible options are:\n&#34; +
+                   &#34;    rd_mean_shift    - read depth mean shift caller,\n&#34; +
+                   &#34;    rd_mosaic    - read depth mosaic caller (under development),\n&#34; +
+                   &#34;    baf_mosaic    - baf mosaic caller (under development),\n&#34; +
+                   &#34;    combined_mosaic  - read depth and baf mosaic caller (under development).&#34;,
+            p_type=&#34;list of strings&#34;,
+            p_default=str(default[&#34;callers&#34;]),
+            p_affects=&#34;region plot, manhattan&#34;,
+            p_example=&#34;set callers rd_mean_shift\nunset callers&#34;,
+            p_see=&#34;plotting, print&#34;
+        ),
+        &#34;print&#34;: help_format(
+            topic=&#34;print&#34;,
+            p_desc=&#34;Print filtered calls.&#34;,
+            p_usage=&#34;print [calls, joint_calls]&#34;,
+            p_example=&#34;print calls\nprint joint_calls&#34;,
+            p_see=&#34;Q0_range, p_range, pN_range, size_range, dG_range, callers&#34;
         ),
         &#34;rd_circular_colors&#34;: help_format(
             topic=&#34;rd_circular_colors&#34;,
@@ -1262,14 +1586,70 @@ class HelpDescription(object):
             p_example=&#34;set min_segment_size 10\nunset min_segment_size&#34;,
             p_see=&#34;contrast&#34;
         ),
-        &#34;dpi&#34; : help_format(
+        &#34;Q0_range&#34;: help_format(
+            topic=&#34;Q0_range&#34;,
+            p_desc=&#34;Range used to filter Q0 for calls&#34;,
+            p_type=&#34;two floats&#34;,
+            p_default=str(default[&#34;Q0_range&#34;]),
+            p_affects=&#34;calls plot&#34;,
+            p_example=&#34;set Q0_range 0 0.5\nunset Q0_range&#34;,
+            p_see=&#34;pN_range, size_range, dG_range, p_range&#34;
+        ),
+        &#34;pN_range&#34;: help_format(
+            topic=&#34;pN_range&#34;,
+            p_desc=&#34;Range used to filter percentage of reference genome gaps for calls&#34;,
+            p_type=&#34;two floats&#34;,
+            p_default=str(default[&#34;pN_range&#34;]),
+            p_affects=&#34;calls plot&#34;,
+            p_example=&#34;set pN_range 0 0.5\nunset pN_range&#34;,
+            p_see=&#34;Q0_range, size_range, dG_range, p_range&#34;
+        ),
+        &#34;size_range&#34;: help_format(
+            topic=&#34;size_range&#34;,
+            p_desc=&#34;Range used to filter size of calls&#34;,
+            p_type=&#34;two integers or integer and &#39;inf&#39; (for unlimited upper bound)&#34;,
+            p_default=str(default[&#34;size_range&#34;]),
+            p_affects=&#34;calls plot&#34;,
+            p_example=&#34;set size_range 100000 10000000\nset dG_range 100000 inf\nunset size_range&#34;,
+            p_see=&#34;Q0_range, pN_range, p_range, dG_range&#34;
+        ),
+        &#34;dG_range&#34;: help_format(
+            topic=&#34;size_range&#34;,
+            p_desc=&#34;Range used to filter calls on distance from closest large (&gt;100bp) gap in reference genome&#34;,
+            p_type=&#34;two integers or integer and &#39;inf&#39; (for unlimited upper bound)&#34;,
+            p_default=str(default[&#34;dG_range&#34;]),
+            p_affects=&#34;calls plot&#34;,
+            p_example=&#34;set dG_range 100000 10000000\nset dG_range 100000 inf\nunset dG_range&#34;,
+            p_see=&#34;Q0_range, pN_range, size_range, p_range&#34;
+        ),
+        &#34;p_range&#34;: help_format(
+            topic=&#34;p_range&#34;,
+            p_desc=&#34;Range used to filter size of calls&#34;,
+            p_type=&#34;two floats&#34;,
+            p_default=str(default[&#34;p_range&#34;]),
+            p_affects=&#34;calls plot&#34;,
+            p_example=&#34;set p_range 0 0.000001\nunset p_range&#34;,
+            p_see=&#34;Q0_range, pN_range, size_range, dG_range&#34;
+        ),
+
+        &#34;dpi&#34;: help_format(
             topic=&#34;dpi&#34;,
             p_desc=&#34;Resolution (dots per inch) used for plotting.&#34;,
             p_type=&#34;int&#34;,
             p_default=str(default[&#34;dpi&#34;]),
             p_affects=&#34;calls, likelihood, region plot&#34;,
             p_example=&#34;set dpi 300\nunset dpi&#34;,
-            p_see=&#34;style, output_filename, xkcd&#34;
+            p_see=&#34;margins, style, output_filename, xkcd&#34;
+        ),
+        &#34;margins&#34;: help_format(
+            topic=&#34;margins&#34;,
+            p_desc=&#34;Margins used for matplotlib figure:\n&#34; +
+                   &#34;[bottom, top, left, right, wspace, hspace]&#34;,
+            p_type=&#34;list of floats&#34;,
+            p_default=str(default[&#34;margins&#34;]),
+            p_affects=&#34;all plots&#34;,
+            p_example=&#34;set margins 0 0 0 0 0 0\nunset margins\nset margins.3 0.2&#34;,
+            p_see=&#34;style, output_filename, dpi&#34;
         ),
     }</code></pre>
 </details>
@@ -1306,34 +1686,51 @@ class HelpDescription(object):
         &#34;bin_size&#34;: None,
         &#34;panels&#34;: [&#34;rd&#34;],
         &#34;rd_raw&#34;: True,
-        &#34;rd_partition&#34;: True,
+        &#34;rd_corrected&#34;: True,
+        &#34;rd_partition&#34;: False,
         &#34;rd_call&#34;: True,
-        &#34;rd_call_mosaic&#34;: False,
         &#34;rd_use_mask&#34;: False,
         &#34;rd_use_gc_corr&#34;: True,
-        &#34;rd_range&#34; : [0, 3],
+        &#34;callers&#34;: [&#34;rd_mean_shift&#34;],
+        &#34;Q0_range&#34;: [-1,1],
+        &#34;pN_range&#34;: [-1,1],
+        &#34;dG_range&#34;: [-1,np.inf],
+        &#34;size_range&#34;: [0,np.inf],
+        &#34;p_range&#34;: [0,np.inf],
+        &#34;annotate&#34;: False,
+        &#34;rd_range&#34;: [0, 6],
         &#34;rd_manhattan_range&#34;: [0, 2],
         &#34;rd_manhattan_call&#34;: False,
         &#34;snp_use_mask&#34;: True,
         &#34;snp_use_id&#34;: False,
         &#34;snp_use_phase&#34;: False,
-        &#34;snp_call&#34;: False,
+        &#34;snp_call&#34;: True,
         &#34;markersize&#34;: &#34;auto&#34;,
-        &#34;rd_colors&#34;: [&#34;grey&#34;,&#34;black&#34;,&#34;red&#34;,&#34;green&#34;,&#34;blue&#34;],
-        &#34;snp_colors&#34;: [&#34;yellow&#34;, &#34;orange&#34;, &#34;cyan&#34;, &#34;blue&#34;, &#34;lime&#34;, &#34;green&#34;, &#34;yellow&#34;, &#34;orange&#34;],
+        &#34;lh_markersize&#34;: 20,
+        &#34;lh_marker&#34;: &#34;_&#34;,
+        &#34;rd_colors&#34;: [&#34;grey&#34;, &#34;black&#34;, &#34;red&#34;, &#34;green&#34;, &#34;blue&#34;, &#34;cyan&#34;],
+        &#34;legend&#34;: False,
+        &#34;title&#34;: True,
+        &#34;snp_colors&#34;: [&#34;orange&#34;, &#34;brown&#34;, &#34;green&#34;, &#34;blue&#34;, &#34;yellow&#34;, &#34;red&#34;, &#34;orange&#34;, &#34;brown&#34;],
+        &#34;snp_alpha_P&#34;: False,
         &#34;rd_circular_colors&#34;: [&#34;#555555&#34;, &#34;#aaaaaa&#34;],
         &#34;snp_circular_colors&#34;: [&#34;#00ff00&#34;, &#34;#0000ff&#34;],
-        &#34;baf_colors&#34;: [&#34;gray&#34;,&#34;black&#34;,&#34;red&#34;,&#34;green&#34;,&#34;blue&#34;],
-        &#34;lh_colors&#34;: [&#34;yellow&#34;],
+        &#34;baf_colors&#34;: [&#34;gray&#34;, &#34;black&#34;, &#34;red&#34;, &#34;green&#34;, &#34;blue&#34;],
+        &#34;lh_colors&#34;: [&#34;yellow&#34;, &#34;red&#34;],
         &#34;plot_files&#34;: [],
         &#34;plot_file&#34;: 0,
+        &#34;plot&#34;: False,
         &#34;file_titles&#34;: [],
         &#34;chrom&#34;: [],
         &#34;style&#34;: None,
         &#34;grid&#34;: &#34;auto&#34;,
+        &#34;subgrid&#34;: &#34;vertical&#34;,
+        &#34;panel_size&#34;: [8,6],
         &#34;xkcd&#34;: False,
+        &#34;margins&#34;: [0.05, 0.95, 0.1, 0.98, 0.1, 0.2],
         &#34;dpi&#34;: 200,
         &#34;output_filename&#34;: &#34;&#34;,
+        &#34;print_filename&#34;: &#34;&#34;,
         &#34;contrast&#34;: 20,
         &#34;min_segment_size&#34;: 0
     }
@@ -1350,68 +1747,125 @@ class HelpDescription(object):
         for c in self.param_help:
             self.command_tree[&#34;help&#34;][c] = None
         self.command_tree[&#34;set&#34;][&#34;panels&#34;] = {}
-        for panel1 in [&#34;rd&#34;, &#34;likelihood&#34;, &#34;snp&#34;, &#34;baf&#34;, &#34;snv&#34;]:
+        for panel1 in [&#34;rd&#34;, &#34;likelihood&#34;, &#34;snp&#34;, &#34;baf&#34;, &#34;snv&#34;, &#34;CN&#34;]:
             self.command_tree[&#34;set&#34;][&#34;panels&#34;][panel1] = self.command_tree[&#34;set&#34;][&#34;panels&#34;]
+        self.command_tree[&#34;set&#34;][&#34;callers&#34;] = {}
+        for caller in [&#34;rd_mean_shift&#34;,&#34;rd_mosaic&#34;,&#34;baf_mosaic&#34;,&#34;combined_mosaic&#34;]:
+            self.command_tree[&#34;set&#34;][&#34;callers&#34;][caller] = self.command_tree[&#34;set&#34;][&#34;callers&#34;]
+        self.command_tree[&#34;set&#34;][&#34;grid&#34;] = {&#34;auto&#34;: None, &#34;horizontal&#34;: None, &#34;vertical&#34;: None}
+        self.command_tree[&#34;set&#34;][&#34;subgrid&#34;] = {&#34;auto&#34;: None, &#34;horizontal&#34;: None, &#34;vertical&#34;: None}
+        self.interactive = True
 
     def set(self, param, args):
-        if param in self.params and self.params[param] is False:
-            self.__setattr__(param, True)
-        elif param.find(&#34;.&#34;)&gt;0:
-            sp = param.split(&#34;.&#34;)
-            if len(sp)==2 and (sp[0] in self.params) and sp[0][-7:]==&#34;_colors&#34; and sp[1].isdigit():
-                ix = int(sp[1])
-                self.params[sp[0]][ix] = args[0]
-
-        elif param == &#34;bin_size&#34;:
-            if len(args) &gt; 0:
-                self.__setattr__(param, args[0])
-        elif param == &#34;contrast&#34;:
-            if len(args) &gt; 0:
-                self.__setattr__(param, float(args[0]))
-        elif param == &#34;markersize&#34;:
-            if len(args) &gt; 0:
-                if args[0] == &#34;auto&#34;:
-                    self.__setattr__(param, &#34;auto&#34;)
-                else:
+        try:
+            if param in self.params and self.params[param] is False:
+                self.__setattr__(param, True)
+            elif param.find(&#34;.&#34;) &gt; 0:
+                sp = param.split(&#34;.&#34;)
+                if len(sp) == 2 and (sp[0] in self.params) and sp[0][-7:] == &#34;_colors&#34; and sp[1].isdigit():
+                    ix = int(sp[1])
+                    self.params[sp[0]][ix] = args[0]
+                if len(sp) == 2 and sp[0]==&#34;margins&#34; and sp[1].isdigit():
+                    ix = int(sp[1])
+                    self.params[sp[0]][ix] = float(args[0])
+            elif param == &#34;margins&#34;:
+                if len(args) &gt; 0:
+                    self.__setattr__(param, list(map(float, args)))
+            elif param == &#34;bin_size&#34;:
+                if len(args) &gt; 0:
+                    self.__setattr__(param, args[0])
+            elif param == &#34;contrast&#34;:
+                if len(args) &gt; 0:
                     self.__setattr__(param, float(args[0]))
-        elif param == &#34;grid&#34;:
-            if len(args) &gt; 0:
-                if args[0] == &#34;auto&#34;:
-                    self.__setattr__(param, &#34;auto&#34;)
-                else:
-                    self.__setattr__(param, list(map(int, args[:2])))
-        elif param == &#34;dpi&#34;:
-            if len(args) &gt; 0:
-                self.__setattr__(param, int(args[0]))
-        elif param == &#34;rd_range&#34;:
-            if len(args) &gt; 1:
-                self.__setattr__(param, list(map(float, args[:2])))
-        elif param == &#34;rd_manhattan_range&#34;:
-            if len(args) &gt; 1:
-                self.__setattr__(param, list(map(float, args[:2])))
-        elif param == &#34;min_segment_size&#34;:
-            if len(args) &gt; 0:
-                self.__setattr__(param, int(args[0]))
-        elif param == &#34;output_filename&#34;:
-            if len(args) &gt; 0:
-                self.__setattr__(param, args[0])
-        elif param == &#34;plot_file&#34;:
-            if len(args) &gt; 0:
-                self.__setattr__(param, int(args[0]))
-        elif param == &#34;plot_files&#34;:
-            self.__setattr__(param, list(map(int, args)))
-        elif param == &#34;style&#34;:
-            if len(args) &gt; 0:
-                self.__setattr__(param, args[0])
-        elif param in self.params and self.params[param] is not True:
-            self.__setattr__(param, args)
-        if param in self.params:
-            print(&#34;    * %s: %s&#34; % (param, str(self.params[param])))
-        else:
-            sp = param.split(&#34;.&#34;)
-            if sp[0] in self.params:
-                print(&#34;    * %s: %s&#34; % (sp[0], str(self.params[sp[0]])))
-
+            elif param == &#34;markersize&#34;:
+                if len(args) &gt; 0:
+                    if args[0] == &#34;auto&#34;:
+                        self.__setattr__(param, &#34;auto&#34;)
+                    else:
+                        self.__setattr__(param, float(args[0]))
+            elif param == &#34;lh_markersize&#34;:
+                if len(args) &gt; 0:
+                    self.__setattr__(param, float(args[0]))
+            elif param == &#34;lh_marker&#34;:
+                if len(args) &gt; 0:
+                    self.__setattr__(param, args[0])
+            elif param == &#34;grid&#34;:
+                if len(args) &gt; 0:
+                    if args[0] in [&#34;auto&#34;, &#34;horizontal&#34;, &#34;vertical&#34;]:
+                        self.__setattr__(param, args[0])
+                    else:
+                        self.__setattr__(param, list(map(int, args[:2])))
+            elif param == &#34;subgrid&#34;:
+                if len(args) &gt; 0:
+                    if args[0] in [&#34;auto&#34;, &#34;horizontal&#34;, &#34;vertical&#34;]:
+                        self.__setattr__(param, args[0])
+                    else:
+                        self.__setattr__(param, list(map(int, args[:2])))
+            elif param == &#34;panel_size&#34;:
+                if len(args) &gt; 0:
+                        self.__setattr__(param, list(map(float, args[:2])))
+            elif param == &#34;dpi&#34;:
+                if len(args) &gt; 0:
+                    self.__setattr__(param, int(args[0]))
+            elif param == &#34;Q0_range&#34;:
+                    if len(args) &gt; 1:
+                        self.__setattr__(param, list(map(float, args[:2])))
+            elif param == &#34;pN_range&#34;:
+                    if len(args) &gt; 1:
+                        self.__setattr__(param, list(map(float, args[:2])))
+            elif param == &#34;size_range&#34;:
+                    if len(args) &gt; 1:
+                        if args[1]==&#34;inf&#34;:
+                            self.__setattr__(param, [int(args[0]),np.inf])
+                        else:
+                            self.__setattr__(param, list(map(int, args[:2])))
+            elif param == &#34;dG_range&#34;:
+                    if len(args) &gt; 1:
+                        if args[1]==&#34;inf&#34;:
+                            self.__setattr__(param, [int(args[0]),np.inf])
+                        else:
+                            self.__setattr__(param, list(map(int, args[:2])))
+            elif param == &#34;p_range&#34;:
+                    if len(args) &gt; 1:
+                        self.__setattr__(param, list(map(float, args[:2])))
+            elif param == &#34;rd_range&#34;:
+                if len(args) &gt; 1:
+                    self.__setattr__(param, list(map(float, args[:2])))
+            elif param == &#34;rd_manhattan_range&#34;:
+                if len(args) &gt; 1:
+                    self.__setattr__(param, list(map(float, args[:2])))
+            elif param == &#34;min_segment_size&#34;:
+                if len(args) &gt; 0:
+                    self.__setattr__(param, int(args[0]))
+            elif param == &#34;output_filename&#34;:
+                if len(args) &gt; 0:
+                    self.__setattr__(param, args[0])
+            elif param == &#34;print_filename&#34;:
+                if len(args) &gt; 0:
+                    if args[0].split(&#34;.&#34;)[-1] in [&#34;tsv&#34;, &#34;vcf&#34;, &#34;xlsx&#34;]:
+                        self.__setattr__(param, args[0])
+                    else:
+                        raise(ValueError)
+            elif param == &#34;plot_file&#34;:
+                if len(args) &gt; 0:
+                    self.__setattr__(param, int(args[0]))
+            elif param == &#34;plot_files&#34;:
+                self.__setattr__(param, list(map(int, args)))
+            elif param == &#34;style&#34;:
+                if len(args) &gt; 0:
+                    self.__setattr__(param, args[0])
+            elif param in self.params and self.params[param] is not True:
+                self.__setattr__(param, args)
+            if param in self.params:
+                if self.interactive:
+                    print(&#34;    * %s: %s&#34; % (param, str(self.params[param])))
+            else:
+                sp = param.split(&#34;.&#34;)
+                if sp[0] in self.params:
+                    if self.interactive:
+                        print(&#34;    * %s: %s&#34; % (sp[0], str(self.params[sp[0]])))
+        except ValueError:
+            _logger.warning(&#34;Value error while setting %s!&#34; % param)
 
     def unset(self, param):
         if param in self.params:
@@ -1527,63 +1981,115 @@ def params(self):
 <details class="source">
 <summary>Source code</summary>
 <pre><code class="python">def set(self, param, args):
-    if param in self.params and self.params[param] is False:
-        self.__setattr__(param, True)
-    elif param.find(&#34;.&#34;)&gt;0:
-        sp = param.split(&#34;.&#34;)
-        if len(sp)==2 and (sp[0] in self.params) and sp[0][-7:]==&#34;_colors&#34; and sp[1].isdigit():
-            ix = int(sp[1])
-            self.params[sp[0]][ix] = args[0]
-
-    elif param == &#34;bin_size&#34;:
-        if len(args) &gt; 0:
-            self.__setattr__(param, args[0])
-    elif param == &#34;contrast&#34;:
-        if len(args) &gt; 0:
-            self.__setattr__(param, float(args[0]))
-    elif param == &#34;markersize&#34;:
-        if len(args) &gt; 0:
-            if args[0] == &#34;auto&#34;:
-                self.__setattr__(param, &#34;auto&#34;)
-            else:
+    try:
+        if param in self.params and self.params[param] is False:
+            self.__setattr__(param, True)
+        elif param.find(&#34;.&#34;) &gt; 0:
+            sp = param.split(&#34;.&#34;)
+            if len(sp) == 2 and (sp[0] in self.params) and sp[0][-7:] == &#34;_colors&#34; and sp[1].isdigit():
+                ix = int(sp[1])
+                self.params[sp[0]][ix] = args[0]
+            if len(sp) == 2 and sp[0]==&#34;margins&#34; and sp[1].isdigit():
+                ix = int(sp[1])
+                self.params[sp[0]][ix] = float(args[0])
+        elif param == &#34;margins&#34;:
+            if len(args) &gt; 0:
+                self.__setattr__(param, list(map(float, args)))
+        elif param == &#34;bin_size&#34;:
+            if len(args) &gt; 0:
+                self.__setattr__(param, args[0])
+        elif param == &#34;contrast&#34;:
+            if len(args) &gt; 0:
                 self.__setattr__(param, float(args[0]))
-    elif param == &#34;grid&#34;:
-        if len(args) &gt; 0:
-            if args[0] == &#34;auto&#34;:
-                self.__setattr__(param, &#34;auto&#34;)
-            else:
-                self.__setattr__(param, list(map(int, args[:2])))
-    elif param == &#34;dpi&#34;:
-        if len(args) &gt; 0:
-            self.__setattr__(param, int(args[0]))
-    elif param == &#34;rd_range&#34;:
-        if len(args) &gt; 1:
-            self.__setattr__(param, list(map(float, args[:2])))
-    elif param == &#34;rd_manhattan_range&#34;:
-        if len(args) &gt; 1:
-            self.__setattr__(param, list(map(float, args[:2])))
-    elif param == &#34;min_segment_size&#34;:
-        if len(args) &gt; 0:
-            self.__setattr__(param, int(args[0]))
-    elif param == &#34;output_filename&#34;:
-        if len(args) &gt; 0:
-            self.__setattr__(param, args[0])
-    elif param == &#34;plot_file&#34;:
-        if len(args) &gt; 0:
-            self.__setattr__(param, int(args[0]))
-    elif param == &#34;plot_files&#34;:
-        self.__setattr__(param, list(map(int, args)))
-    elif param == &#34;style&#34;:
-        if len(args) &gt; 0:
-            self.__setattr__(param, args[0])
-    elif param in self.params and self.params[param] is not True:
-        self.__setattr__(param, args)
-    if param in self.params:
-        print(&#34;    * %s: %s&#34; % (param, str(self.params[param])))
-    else:
-        sp = param.split(&#34;.&#34;)
-        if sp[0] in self.params:
-            print(&#34;    * %s: %s&#34; % (sp[0], str(self.params[sp[0]])))</code></pre>
+        elif param == &#34;markersize&#34;:
+            if len(args) &gt; 0:
+                if args[0] == &#34;auto&#34;:
+                    self.__setattr__(param, &#34;auto&#34;)
+                else:
+                    self.__setattr__(param, float(args[0]))
+        elif param == &#34;lh_markersize&#34;:
+            if len(args) &gt; 0:
+                self.__setattr__(param, float(args[0]))
+        elif param == &#34;lh_marker&#34;:
+            if len(args) &gt; 0:
+                self.__setattr__(param, args[0])
+        elif param == &#34;grid&#34;:
+            if len(args) &gt; 0:
+                if args[0] in [&#34;auto&#34;, &#34;horizontal&#34;, &#34;vertical&#34;]:
+                    self.__setattr__(param, args[0])
+                else:
+                    self.__setattr__(param, list(map(int, args[:2])))
+        elif param == &#34;subgrid&#34;:
+            if len(args) &gt; 0:
+                if args[0] in [&#34;auto&#34;, &#34;horizontal&#34;, &#34;vertical&#34;]:
+                    self.__setattr__(param, args[0])
+                else:
+                    self.__setattr__(param, list(map(int, args[:2])))
+        elif param == &#34;panel_size&#34;:
+            if len(args) &gt; 0:
+                    self.__setattr__(param, list(map(float, args[:2])))
+        elif param == &#34;dpi&#34;:
+            if len(args) &gt; 0:
+                self.__setattr__(param, int(args[0]))
+        elif param == &#34;Q0_range&#34;:
+                if len(args) &gt; 1:
+                    self.__setattr__(param, list(map(float, args[:2])))
+        elif param == &#34;pN_range&#34;:
+                if len(args) &gt; 1:
+                    self.__setattr__(param, list(map(float, args[:2])))
+        elif param == &#34;size_range&#34;:
+                if len(args) &gt; 1:
+                    if args[1]==&#34;inf&#34;:
+                        self.__setattr__(param, [int(args[0]),np.inf])
+                    else:
+                        self.__setattr__(param, list(map(int, args[:2])))
+        elif param == &#34;dG_range&#34;:
+                if len(args) &gt; 1:
+                    if args[1]==&#34;inf&#34;:
+                        self.__setattr__(param, [int(args[0]),np.inf])
+                    else:
+                        self.__setattr__(param, list(map(int, args[:2])))
+        elif param == &#34;p_range&#34;:
+                if len(args) &gt; 1:
+                    self.__setattr__(param, list(map(float, args[:2])))
+        elif param == &#34;rd_range&#34;:
+            if len(args) &gt; 1:
+                self.__setattr__(param, list(map(float, args[:2])))
+        elif param == &#34;rd_manhattan_range&#34;:
+            if len(args) &gt; 1:
+                self.__setattr__(param, list(map(float, args[:2])))
+        elif param == &#34;min_segment_size&#34;:
+            if len(args) &gt; 0:
+                self.__setattr__(param, int(args[0]))
+        elif param == &#34;output_filename&#34;:
+            if len(args) &gt; 0:
+                self.__setattr__(param, args[0])
+        elif param == &#34;print_filename&#34;:
+            if len(args) &gt; 0:
+                if args[0].split(&#34;.&#34;)[-1] in [&#34;tsv&#34;, &#34;vcf&#34;, &#34;xlsx&#34;]:
+                    self.__setattr__(param, args[0])
+                else:
+                    raise(ValueError)
+        elif param == &#34;plot_file&#34;:
+            if len(args) &gt; 0:
+                self.__setattr__(param, int(args[0]))
+        elif param == &#34;plot_files&#34;:
+            self.__setattr__(param, list(map(int, args)))
+        elif param == &#34;style&#34;:
+            if len(args) &gt; 0:
+                self.__setattr__(param, args[0])
+        elif param in self.params and self.params[param] is not True:
+            self.__setattr__(param, args)
+        if param in self.params:
+            if self.interactive:
+                print(&#34;    * %s: %s&#34; % (param, str(self.params[param])))
+        else:
+            sp = param.split(&#34;.&#34;)
+            if sp[0] in self.params:
+                if self.interactive:
+                    print(&#34;    * %s: %s&#34; % (sp[0], str(self.params[sp[0]])))
+    except ValueError:
+        _logger.warning(&#34;Value error while setting %s!&#34; % param)</code></pre>
 </details>
 </dd>
 <dt id="cnvpytor.viewparams.ViewParams.unset"><code class="name flex">

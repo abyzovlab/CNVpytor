@@ -32,6 +32,7 @@ class Vcf: reads SNP data from VCF file
 import pysam
 import logging
 import numpy as np
+from .utils import int1, gt_from_list, gt_from_str
 
 _logger = logging.getLogger(&#34;cnvpytor.vcf&#34;)
 
@@ -94,7 +95,7 @@ class Vcf:
         &#34;&#34;&#34;
         return self.samples
 
-    def read_chromosome_snp(self, chr_name, sample=&#39;&#39;, ad_tag=&#39;AD&#39;, gt_tag=&#39;GT&#39;):
+    def read_chromosome_snp(self, chr_name, sample=&#39;&#39;, ad_tag=&#39;AD&#39;, gt_tag=&#39;GT&#39;, filter=True):
         &#34;&#34;&#34;
         Read SNP/indel data for given chromosome and sample.
 
@@ -104,6 +105,12 @@ class Vcf:
             Name of the chromosome.
         sample : str
             Name of the sample (first one if empty - default)
+        ad_tag : str
+            AD tag in VCF file (default: &#39;AD&#39;)
+        gt_tag : str
+            GT tag in VCF file (default: &#39;GT&#39;)
+        filter : bool
+            If True it will read only variants with PASS filter, otherwise all
 
         Returns
         -------
@@ -135,10 +142,21 @@ class Vcf:
         gt = []
         flag = []
         qual = []
+        filter_stat = {}
         alphabet = [&#39;A&#39;, &#39;T&#39;, &#39;G&#39;, &#39;C&#39;, &#39;.&#39;]
         try:
             for rec in self.file.fetch(chr_name):
-                if &#34;PASS&#34; in rec.filter.keys() and rec.alts and len(rec.alts) == 1 and (
+                if len(rec.filter.keys()) == 0:
+                    if &#34;No filter (.)&#34; in filter_stat:
+                        filter_stat[&#34;No filter (.)&#34;] += 1
+                    else:
+                        filter_stat[&#34;No filter (.)&#34;] = 1
+                for f in rec.filter.keys():
+                    if f in filter_stat:
+                        filter_stat[f] += 1
+                    else:
+                        filter_stat[f] = 1
+                if (&#34;PASS&#34; in rec.filter.keys() or not filter) and rec.alts and len(rec.alts) &gt;= 1 and (
                         gt_tag in rec.samples[sample].keys()) and (
                         ad_tag in rec.samples[sample].keys()) and len(rec.samples[sample][gt_tag]) &gt; 1 and len(
                     rec.samples[sample][ad_tag]) &gt; 1:
@@ -165,19 +183,19 @@ class Vcf:
                             unicode = str
                         if isinstance(rec.samples[sample][gt_tag], str) or isinstance(rec.samples[sample][gt_tag],
                                                                                       unicode):
-                            gt.append(int(rec.samples[sample][gt_tag][0]) * 2 + int(rec.samples[sample][gt_tag][2]))
-                            if rec.samples[sample][gt_tag][1] == &#34;|&#34;:
-                                gt[-1] += 4
+                            gt.append(gt_from_str(rec.samples[sample][gt_tag]))
                         else:
-                            gt.append(rec.samples[sample][gt_tag][0] * 2 + rec.samples[sample][gt_tag][1])
-                            if rec.samples[sample].phased:
-                                gt[-1] += 4
+                            gt.append(gt_from_list(rec.samples[sample][gt_tag], rec.samples[sample].phased))
         except ValueError:
             _logger.error(&#34;Variant file reading problem. Probably index file is missing or corrupted.&#34;)
             exit(0)
+        _logger.debug(&#34;Chromosome &#39;%s&#39; read. Number of variants to store: %d.&#34; % (chr_name, len(pos)))
+        _logger.debug(&#34;Variants filter field statistics:&#34;)
+        for f in filter_stat:
+            _logger.debug(&#34; * &#39;%s&#39; : %d&#34; % (f, filter_stat[f]))
         return pos, ref, alt, nref, nalt, gt, flag, qual
 
-    def read_chromosome_snp_no_counts(self, chr_name, sample=&#39;&#39;, gt_tag=&#39;GT&#39;):
+    def read_chromosome_snp_no_counts(self, chr_name, sample=&#39;&#39;, gt_tag=&#39;GT&#39;, filter=True):
         &#34;&#34;&#34;
         Read SNP/indel data without counts (AD tag) for given chromosome and sample.
 
@@ -187,6 +205,10 @@ class Vcf:
             Name of the chromosome.
         sample : str
             Name of the sample (first one if empty - default)
+        gt_tag : str
+            GT tag in VCF file (default: &#39;GT&#39;)
+        filter : bool
+            If True it will read only variants with PASS filter, otherwise all
 
         Returns
         -------
@@ -215,7 +237,7 @@ class Vcf:
         alphabet = [&#39;A&#39;, &#39;T&#39;, &#39;G&#39;, &#39;C&#39;, &#39;.&#39;]
         try:
             for rec in self.file.fetch(chr_name):
-                if &#34;PASS&#34; in rec.filter.keys() and rec.alts and len(rec.alts) == 1 and (
+                if (&#34;PASS&#34; in rec.filter.keys() or not filter) and rec.alts and len(rec.alts) &gt;= 1 and (
                         gt_tag in rec.samples[sample].keys()) and len(rec.samples[sample][gt_tag]) &gt; 1:
                     if (rec.ref in alphabet) and (rec.alts[0] in alphabet):
                         pos.append(rec.pos)
@@ -234,20 +256,16 @@ class Vcf:
                             unicode = str
                         if isinstance(rec.samples[sample][gt_tag], str) or isinstance(rec.samples[sample][gt_tag],
                                                                                       unicode):
-                            gt.append(int(rec.samples[sample][gt_tag][0]) * 2 + int(rec.samples[sample][gt_tag][2]))
-                            if rec.samples[sample][gt_tag][1] == &#34;|&#34;:
-                                gt[-1] += 4
+                            gt.append(gt_from_str(rec.samples[sample][gt_tag]))
                         else:
-                            gt.append(rec.samples[sample][gt_tag][0] * 2 + rec.samples[sample][gt_tag][1])
-                            if rec.samples[sample].phased:
-                                gt[-1] += 4
+                            gt.append(gt_from_list(rec.samples[sample][gt_tag], rec.samples[sample].phased))
 
         except ValueError:
             _logger.error(&#34;Variant file reading problem. Probably index file is missing or corrupted.&#34;)
             exit(0)
         return pos, ref, alt, gt, flag, qual
 
-    def read_chromosome_rd(self, chr_name, sample=&#39;&#39;, ad_tag=&#39;AD&#39;, dp_tag=&#39;DP&#39;):
+    def read_chromosome_rd(self, chr_name, sample=&#39;&#39;, ad_tag=&#39;AD&#39;, dp_tag=&#39;DP&#39;, filter=False):
         &#34;&#34;&#34;
         Read RD data for given chromosome and sample.
 
@@ -257,6 +275,12 @@ class Vcf:
             Name of the chromosome.
         sample : str
             Name of the sample (first one if empty - default)
+        ad_tag : str
+            AD tag in VCF file (default: &#39;AD&#39;)
+        dp_tag : str
+            DP tag in VCF file (default: &#39;DP&#39;)
+        filter : bool
+            If True it will read only variants with PASS filter, otherwise all
 
         Returns
         -------
@@ -273,8 +297,9 @@ class Vcf:
         rd_dp = []
         try:
             for rec in self.file.fetch(chr_name):
-                if (ad_tag in rec.samples[sample].keys()) and len(rec.samples[sample][ad_tag]) &gt; 1 and (
-                        dp_tag in rec.samples[sample].keys()) and (rec.samples[sample][dp_tag] is not None):
+                if (&#34;PASS&#34; in rec.filter.keys() or not filter) and (ad_tag in rec.samples[sample].keys()) and len(
+                        rec.samples[sample][ad_tag]) &gt; 1 and (dp_tag in rec.samples[sample].keys()) and (
+                        rec.samples[sample][dp_tag] is not None):
                     try:
                         rd1 = sum(map(int, rec.samples[sample][ad_tag]))
                         rd2 = int(rec.samples[sample][dp_tag])
@@ -311,7 +336,7 @@ class Vcf:
                     rd_u[i * 100:(i + 1) * 100] = np.nan
         return rd_p, rd_u
 
-    def read_all_snp(self, callback, sample=&#39;&#39;, ad_tag=&#39;AD&#39;, gt_tag=&#39;GT&#39;):
+    def read_all_snp(self, callback, sample=&#39;&#39;, ad_tag=&#39;AD&#39;, gt_tag=&#39;GT&#39;, filter=True):
         &#34;&#34;&#34;
         Read SNP/indel data for given sample name.
 
@@ -320,9 +345,14 @@ class Vcf:
         callback : callable
             Function to call after read a chromosome:
             callback(chrom, pos, ref, alt, nref, nalt, gt, flag, qual)
-
         sample : str
             Name of the sample (first one if empty - default)
+        ad_tag : str
+            AD tag in VCF file (default: &#39;AD&#39;)
+        gt_tag : str
+            GT tag in VCF file (default: &#39;GT&#39;)
+        filter : bool
+            If True it will read only variants with PASS filter, otherwise all
 
         Returns
         -------
@@ -340,6 +370,7 @@ class Vcf:
         gt = []
         flag = []
         qual = []
+        filter_stat = {}
         last_chrom = None
         count = 0
         alphabet = [&#39;A&#39;, &#39;T&#39;, &#39;G&#39;, &#39;C&#39;, &#39;.&#39;]
@@ -349,6 +380,10 @@ class Vcf:
                 if last_chrom is None:
                     last_chrom = rec.chrom
                 if last_chrom != rec.chrom:
+                    _logger.info(&#34;Chromosome &#39;%s&#39; read. Number of variants to store: %d.&#34; % (last_chrom, len(pos)))
+                    _logger.debug(&#34;Variants filter field statistics:&#34;)
+                    for f in filter_stat:
+                        _logger.debug(&#34;    * &#39;%s&#39; : %d&#34; % (f, filter_stat[f]))
                     callback(last_chrom, pos, ref, alt, nref, nalt, gt, flag, qual)
                     pos = []
                     ref = []
@@ -358,9 +393,20 @@ class Vcf:
                     gt = []
                     flag = []
                     qual = []
+                    filter_stat = {}
                     count += 1
+                if len(rec.filter.keys()) == 0:
+                    if &#34;No filter (.)&#34; in filter_stat:
+                        filter_stat[&#34;No filter (.)&#34;] += 1
+                    else:
+                        filter_stat[&#34;No filter (.)&#34;] = 1
+                for f in rec.filter.keys():
+                    if f in filter_stat:
+                        filter_stat[f] += 1
+                    else:
+                        filter_stat[f] = 1
 
-                if &#34;PASS&#34; in rec.filter.keys() and rec.alts and len(rec.alts) == 1 and (
+                if (&#34;PASS&#34; in rec.filter.keys() or not filter) and rec.alts and len(rec.alts) &gt;= 1 and (
                         gt_tag in rec.samples[sample].keys()) and (
                         ad_tag in rec.samples[sample].keys()) and len(rec.samples[sample][gt_tag]) &gt; 1 and len(
                     rec.samples[sample][ad_tag]) &gt; 1:
@@ -389,24 +435,23 @@ class Vcf:
                             unicode = str
                         if isinstance(rec.samples[sample][gt_tag], str) or isinstance(rec.samples[sample][gt_tag],
                                                                                       unicode):
-                            gt.append(int(rec.samples[sample][gt_tag][0]) * 2 + int(rec.samples[sample][gt_tag][2]))
-                            if rec.samples[sample][gt_tag][1] == &#34;|&#34;:
-                                gt[-1] += 4
+                            gt.append(gt_from_str(rec.samples[sample][gt_tag]))
                         else:
-                            gt.append(rec.samples[sample][gt_tag][0] * 2 + rec.samples[sample][gt_tag][1])
-                            if rec.samples[sample].phased:
-                                gt[-1] += 4
+                            gt.append(gt_from_list(rec.samples[sample][gt_tag], rec.samples[sample].phased))
 
                 last_chrom = rec.chrom
-            if len(pos) &gt; 0:
-                callback(last_chrom, pos, ref, alt, nref, nalt, gt, flag, qual)
-                count += 1
+            _logger.debug(&#34;Chromosome &#39;%s&#39; read. Number of variants to store: %d.&#34; % (last_chrom, len(pos)))
+            _logger.debug(&#34;Variants filter field statistics:&#34;)
+            for f in filter_stat:
+                _logger.debug(&#34; * &#39;%s&#39; : %d&#34; % (f, filter_stat[f]))
+            callback(last_chrom, pos, ref, alt, nref, nalt, gt, flag, qual)
+            count += 1
             return count
         except ValueError:
             _logger.error(&#34;Variant file reading problem.&#34;)
             exit(0)
 
-    def read_all_snp_no_counts(self, callback, sample=&#39;&#39;, gt_tag=&#39;GT&#39;):
+    def read_all_snp_no_counts(self, callback, sample=&#39;&#39;, gt_tag=&#39;GT&#39;, filter=True):
         &#34;&#34;&#34;
         Read SNP/indel data without counts (AD tag) for given sample name.
 
@@ -415,9 +460,12 @@ class Vcf:
         callback : callable
             Function to call after read a chromosome:
             callback(chrom, pos, ref, alt, gt, flag, qual)
-
         sample : str
             Name of the sample (first one if empty - default)
+        gt_tag : str
+            GT tag in VCF file (default: &#39;GT&#39;)
+        filter : bool
+            If True it will read only variants with PASS filter, otherwise all
 
         Returns
         -------
@@ -451,7 +499,7 @@ class Vcf:
                     qual = []
                     count += 1
 
-                if &#34;PASS&#34; in rec.filter.keys() and rec.alts and len(rec.alts) == 1 and (
+                if (&#34;PASS&#34; in rec.filter.keys() or not filter) and rec.alts and len(rec.alts) &gt;= 1 and (
                         gt_tag in rec.samples[sample].keys()) and len(rec.samples[sample][gt_tag]) &gt; 1:
                     if (rec.ref in alphabet) and (rec.alts[0] in alphabet) and (
                             rec.samples[sample][gt_tag][0] is not None) and (
@@ -472,13 +520,9 @@ class Vcf:
                             unicode = str
                         if isinstance(rec.samples[sample][gt_tag], str) or isinstance(rec.samples[sample][gt_tag],
                                                                                       unicode):
-                            gt.append(int(rec.samples[sample][gt_tag][0]) * 2 + int(rec.samples[sample][gt_tag][2]))
-                            if rec.samples[sample][gt_tag][1] == &#34;|&#34;:
-                                gt[-1] += 4
+                            gt.append(gt_from_str(rec.samples[sample][gt_tag]))
                         else:
-                            gt.append(rec.samples[sample][gt_tag][0] * 2 + rec.samples[sample][gt_tag][1])
-                            if rec.samples[sample].phased:
-                                gt[-1] += 4
+                            gt.append(gt_from_list(rec.samples[sample][gt_tag], rec.samples[sample].phased))
 
                 last_chrom = rec.chrom
             if len(pos) &gt; 0:
@@ -489,7 +533,58 @@ class Vcf:
             _logger.error(&#34;Variant file reading problem.&#34;)
             exit(0)
 
-    def read_all_rd(self, callback, sample=&#39;&#39;, ad_tag=&#39;AD&#39;, dp_tag=&#39;DP&#39;):
+    def read_all_snp_positions(self, callback, filter=True):
+        &#34;&#34;&#34;
+        Read SNP/indel data positions.
+
+        Parameters
+        ----------
+        callback : callable
+            Function to call after read a chromosome:
+            callback(chrom, pos, ref, alt)
+        sample : str
+            Name of the sample (first one if empty - default)
+        filter : bool
+            If True it will read only variants with PASS filter, otherwise all
+
+        Returns
+        -------
+        count : int
+            Number of read chromosomes
+
+        &#34;&#34;&#34;
+        pos = []
+        ref = []
+        alt = []
+        last_chrom = None
+        count = 0
+        alphabet = [&#39;A&#39;, &#39;T&#39;, &#39;G&#39;, &#39;C&#39;, &#39;.&#39;]
+
+        try:
+            for rec in self.file.fetch():
+                if last_chrom is None:
+                    last_chrom = rec.chrom
+                if last_chrom != rec.chrom:
+                    callback(last_chrom, pos, ref, alt)
+                    pos = []
+                    ref = []
+                    alt = []
+                    count += 1
+                if (&#34;PASS&#34; in rec.filter.keys() or not filter) and rec.alts and len(rec.alts) &gt;= 1:
+                    if (rec.ref in alphabet) and (rec.alts[0] in alphabet):
+                        pos.append(rec.pos)
+                        ref.append(rec.ref)
+                        alt.append(rec.alts[0])
+                last_chrom = rec.chrom
+            if len(pos) &gt; 0:
+                callback(last_chrom, pos, ref, alt)
+                count += 1
+            return count
+        except ValueError:
+            _logger.error(&#34;Variant file reading problem.&#34;)
+            exit(0)
+
+    def read_all_rd(self, callback, sample=&#39;&#39;, ad_tag=&#39;AD&#39;, dp_tag=&#39;DP&#39;, filter=False):
         &#34;&#34;&#34;
         Read RD data for given chromosome and sample.
 
@@ -499,6 +594,12 @@ class Vcf:
             Name of the chromosome.
         sample : str
             Name of the sample (first one if empty - default)
+        ad_tag : str
+            AD tag in VCF file (default: &#39;AD&#39;)
+        dp_tag : str
+            DP tag in VCF file (default: &#39;DP&#39;)
+        filter : bool
+            If True it will read only variants with PASS filter, otherwise all
 
         Returns
         -------
@@ -536,8 +637,8 @@ class Vcf:
                     for i in range(n // 100 + 1):
                         if (100 * i) &lt; n:
                             if count[100 * i] != 0:
-                                rd_p[i * 100 :(i + 1) * 100] = rd_p[i * 100] / count[i * 100]
-                                rd_u[i * 100 :(i + 1) * 100] = rd_u[i * 100] / count[i * 100]
+                                rd_p[i * 100:(i + 1) * 100] = rd_p[i * 100] / count[i * 100]
+                                rd_u[i * 100:(i + 1) * 100] = rd_u[i * 100] / count[i * 100]
                             else:
                                 rd_p[i * 100:(i + 1) * 100] = np.nan
                                 rd_u[i * 100:(i + 1) * 100] = np.nan
@@ -547,7 +648,8 @@ class Vcf:
                     rd_dp = []
                     chr_count += 1
 
-                if (ad_tag in rec.samples[sample].keys()) and len(rec.samples[sample][ad_tag]) &gt; 1 and (
+                if (&#34;PASS&#34; in rec.filter.keys() or not filter) and (ad_tag in rec.samples[sample].keys()) and len(
+                        rec.samples[sample][ad_tag]) &gt; 1 and (
                         dp_tag in rec.samples[sample].keys()) and (rec.samples[sample][dp_tag] is not None):
                     try:
                         rd1 = sum(map(int, rec.samples[sample][ad_tag]))
@@ -665,7 +767,7 @@ class Vcf:
 </details>
 </dd>
 <dt id="cnvpytor.vcf.Vcf.read_all_rd"><code class="name flex">
-<span>def <span class="ident">read_all_rd</span></span>(<span>self, callback, sample='', ad_tag='AD', dp_tag='DP')</span>
+<span>def <span class="ident">read_all_rd</span></span>(<span>self, callback, sample='', ad_tag='AD', dp_tag='DP', filter=False)</span>
 </code></dt>
 <dd>
 <section class="desc"><p>Read RD data for given chromosome and sample.</p>
@@ -675,6 +777,12 @@ class Vcf:
 <dd>Name of the chromosome.</dd>
 <dt><strong><code>sample</code></strong> :&ensp;<code>str</code></dt>
 <dd>Name of the sample (first one if empty - default)</dd>
+<dt><strong><code>ad_tag</code></strong> :&ensp;<code>str</code></dt>
+<dd>AD tag in VCF file (default: 'AD')</dd>
+<dt><strong><code>dp_tag</code></strong> :&ensp;<code>str</code></dt>
+<dd>DP tag in VCF file (default: 'DP')</dd>
+<dt><strong><code>filter</code></strong> :&ensp;<code>bool</code></dt>
+<dd>If True it will read only variants with PASS filter, otherwise all</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <dl>
@@ -685,7 +793,7 @@ class Vcf:
 </dl></section>
 <details class="source">
 <summary>Source code</summary>
-<pre><code class="python">def read_all_rd(self, callback, sample=&#39;&#39;, ad_tag=&#39;AD&#39;, dp_tag=&#39;DP&#39;):
+<pre><code class="python">def read_all_rd(self, callback, sample=&#39;&#39;, ad_tag=&#39;AD&#39;, dp_tag=&#39;DP&#39;, filter=False):
     &#34;&#34;&#34;
     Read RD data for given chromosome and sample.
 
@@ -695,6 +803,12 @@ class Vcf:
         Name of the chromosome.
     sample : str
         Name of the sample (first one if empty - default)
+    ad_tag : str
+        AD tag in VCF file (default: &#39;AD&#39;)
+    dp_tag : str
+        DP tag in VCF file (default: &#39;DP&#39;)
+    filter : bool
+        If True it will read only variants with PASS filter, otherwise all
 
     Returns
     -------
@@ -732,8 +846,8 @@ class Vcf:
                 for i in range(n // 100 + 1):
                     if (100 * i) &lt; n:
                         if count[100 * i] != 0:
-                            rd_p[i * 100 :(i + 1) * 100] = rd_p[i * 100] / count[i * 100]
-                            rd_u[i * 100 :(i + 1) * 100] = rd_u[i * 100] / count[i * 100]
+                            rd_p[i * 100:(i + 1) * 100] = rd_p[i * 100] / count[i * 100]
+                            rd_u[i * 100:(i + 1) * 100] = rd_u[i * 100] / count[i * 100]
                         else:
                             rd_p[i * 100:(i + 1) * 100] = np.nan
                             rd_u[i * 100:(i + 1) * 100] = np.nan
@@ -743,7 +857,8 @@ class Vcf:
                 rd_dp = []
                 chr_count += 1
 
-            if (ad_tag in rec.samples[sample].keys()) and len(rec.samples[sample][ad_tag]) &gt; 1 and (
+            if (&#34;PASS&#34; in rec.filter.keys() or not filter) and (ad_tag in rec.samples[sample].keys()) and len(
+                    rec.samples[sample][ad_tag]) &gt; 1 and (
                     dp_tag in rec.samples[sample].keys()) and (rec.samples[sample][dp_tag] is not None):
                 try:
                     rd1 = sum(map(int, rec.samples[sample][ad_tag]))
@@ -785,7 +900,7 @@ class Vcf:
 </details>
 </dd>
 <dt id="cnvpytor.vcf.Vcf.read_all_snp"><code class="name flex">
-<span>def <span class="ident">read_all_snp</span></span>(<span>self, callback, sample='', ad_tag='AD', gt_tag='GT')</span>
+<span>def <span class="ident">read_all_snp</span></span>(<span>self, callback, sample='', ad_tag='AD', gt_tag='GT', filter=True)</span>
 </code></dt>
 <dd>
 <section class="desc"><p>Read SNP/indel data for given sample name.</p>
@@ -796,6 +911,12 @@ class Vcf:
 callback(chrom, pos, ref, alt, nref, nalt, gt, flag, qual)</dd>
 <dt><strong><code>sample</code></strong> :&ensp;<code>str</code></dt>
 <dd>Name of the sample (first one if empty - default)</dd>
+<dt><strong><code>ad_tag</code></strong> :&ensp;<code>str</code></dt>
+<dd>AD tag in VCF file (default: 'AD')</dd>
+<dt><strong><code>gt_tag</code></strong> :&ensp;<code>str</code></dt>
+<dd>GT tag in VCF file (default: 'GT')</dd>
+<dt><strong><code>filter</code></strong> :&ensp;<code>bool</code></dt>
+<dd>If True it will read only variants with PASS filter, otherwise all</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <dl>
@@ -804,7 +925,7 @@ callback(chrom, pos, ref, alt, nref, nalt, gt, flag, qual)</dd>
 </dl></section>
 <details class="source">
 <summary>Source code</summary>
-<pre><code class="python">def read_all_snp(self, callback, sample=&#39;&#39;, ad_tag=&#39;AD&#39;, gt_tag=&#39;GT&#39;):
+<pre><code class="python">def read_all_snp(self, callback, sample=&#39;&#39;, ad_tag=&#39;AD&#39;, gt_tag=&#39;GT&#39;, filter=True):
     &#34;&#34;&#34;
     Read SNP/indel data for given sample name.
 
@@ -813,9 +934,14 @@ callback(chrom, pos, ref, alt, nref, nalt, gt, flag, qual)</dd>
     callback : callable
         Function to call after read a chromosome:
         callback(chrom, pos, ref, alt, nref, nalt, gt, flag, qual)
-
     sample : str
         Name of the sample (first one if empty - default)
+    ad_tag : str
+        AD tag in VCF file (default: &#39;AD&#39;)
+    gt_tag : str
+        GT tag in VCF file (default: &#39;GT&#39;)
+    filter : bool
+        If True it will read only variants with PASS filter, otherwise all
 
     Returns
     -------
@@ -833,6 +959,7 @@ callback(chrom, pos, ref, alt, nref, nalt, gt, flag, qual)</dd>
     gt = []
     flag = []
     qual = []
+    filter_stat = {}
     last_chrom = None
     count = 0
     alphabet = [&#39;A&#39;, &#39;T&#39;, &#39;G&#39;, &#39;C&#39;, &#39;.&#39;]
@@ -842,6 +969,10 @@ callback(chrom, pos, ref, alt, nref, nalt, gt, flag, qual)</dd>
             if last_chrom is None:
                 last_chrom = rec.chrom
             if last_chrom != rec.chrom:
+                _logger.info(&#34;Chromosome &#39;%s&#39; read. Number of variants to store: %d.&#34; % (last_chrom, len(pos)))
+                _logger.debug(&#34;Variants filter field statistics:&#34;)
+                for f in filter_stat:
+                    _logger.debug(&#34;    * &#39;%s&#39; : %d&#34; % (f, filter_stat[f]))
                 callback(last_chrom, pos, ref, alt, nref, nalt, gt, flag, qual)
                 pos = []
                 ref = []
@@ -851,9 +982,20 @@ callback(chrom, pos, ref, alt, nref, nalt, gt, flag, qual)</dd>
                 gt = []
                 flag = []
                 qual = []
+                filter_stat = {}
                 count += 1
+            if len(rec.filter.keys()) == 0:
+                if &#34;No filter (.)&#34; in filter_stat:
+                    filter_stat[&#34;No filter (.)&#34;] += 1
+                else:
+                    filter_stat[&#34;No filter (.)&#34;] = 1
+            for f in rec.filter.keys():
+                if f in filter_stat:
+                    filter_stat[f] += 1
+                else:
+                    filter_stat[f] = 1
 
-            if &#34;PASS&#34; in rec.filter.keys() and rec.alts and len(rec.alts) == 1 and (
+            if (&#34;PASS&#34; in rec.filter.keys() or not filter) and rec.alts and len(rec.alts) &gt;= 1 and (
                     gt_tag in rec.samples[sample].keys()) and (
                     ad_tag in rec.samples[sample].keys()) and len(rec.samples[sample][gt_tag]) &gt; 1 and len(
                 rec.samples[sample][ad_tag]) &gt; 1:
@@ -882,18 +1024,17 @@ callback(chrom, pos, ref, alt, nref, nalt, gt, flag, qual)</dd>
                         unicode = str
                     if isinstance(rec.samples[sample][gt_tag], str) or isinstance(rec.samples[sample][gt_tag],
                                                                                   unicode):
-                        gt.append(int(rec.samples[sample][gt_tag][0]) * 2 + int(rec.samples[sample][gt_tag][2]))
-                        if rec.samples[sample][gt_tag][1] == &#34;|&#34;:
-                            gt[-1] += 4
+                        gt.append(gt_from_str(rec.samples[sample][gt_tag]))
                     else:
-                        gt.append(rec.samples[sample][gt_tag][0] * 2 + rec.samples[sample][gt_tag][1])
-                        if rec.samples[sample].phased:
-                            gt[-1] += 4
+                        gt.append(gt_from_list(rec.samples[sample][gt_tag], rec.samples[sample].phased))
 
             last_chrom = rec.chrom
-        if len(pos) &gt; 0:
-            callback(last_chrom, pos, ref, alt, nref, nalt, gt, flag, qual)
-            count += 1
+        _logger.debug(&#34;Chromosome &#39;%s&#39; read. Number of variants to store: %d.&#34; % (last_chrom, len(pos)))
+        _logger.debug(&#34;Variants filter field statistics:&#34;)
+        for f in filter_stat:
+            _logger.debug(&#34; * &#39;%s&#39; : %d&#34; % (f, filter_stat[f]))
+        callback(last_chrom, pos, ref, alt, nref, nalt, gt, flag, qual)
+        count += 1
         return count
     except ValueError:
         _logger.error(&#34;Variant file reading problem.&#34;)
@@ -901,7 +1042,7 @@ callback(chrom, pos, ref, alt, nref, nalt, gt, flag, qual)</dd>
 </details>
 </dd>
 <dt id="cnvpytor.vcf.Vcf.read_all_snp_no_counts"><code class="name flex">
-<span>def <span class="ident">read_all_snp_no_counts</span></span>(<span>self, callback, sample='', gt_tag='GT')</span>
+<span>def <span class="ident">read_all_snp_no_counts</span></span>(<span>self, callback, sample='', gt_tag='GT', filter=True)</span>
 </code></dt>
 <dd>
 <section class="desc"><p>Read SNP/indel data without counts (AD tag) for given sample name.</p>
@@ -912,6 +1053,10 @@ callback(chrom, pos, ref, alt, nref, nalt, gt, flag, qual)</dd>
 callback(chrom, pos, ref, alt, gt, flag, qual)</dd>
 <dt><strong><code>sample</code></strong> :&ensp;<code>str</code></dt>
 <dd>Name of the sample (first one if empty - default)</dd>
+<dt><strong><code>gt_tag</code></strong> :&ensp;<code>str</code></dt>
+<dd>GT tag in VCF file (default: 'GT')</dd>
+<dt><strong><code>filter</code></strong> :&ensp;<code>bool</code></dt>
+<dd>If True it will read only variants with PASS filter, otherwise all</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <dl>
@@ -920,7 +1065,7 @@ callback(chrom, pos, ref, alt, gt, flag, qual)</dd>
 </dl></section>
 <details class="source">
 <summary>Source code</summary>
-<pre><code class="python">def read_all_snp_no_counts(self, callback, sample=&#39;&#39;, gt_tag=&#39;GT&#39;):
+<pre><code class="python">def read_all_snp_no_counts(self, callback, sample=&#39;&#39;, gt_tag=&#39;GT&#39;, filter=True):
     &#34;&#34;&#34;
     Read SNP/indel data without counts (AD tag) for given sample name.
 
@@ -929,9 +1074,12 @@ callback(chrom, pos, ref, alt, gt, flag, qual)</dd>
     callback : callable
         Function to call after read a chromosome:
         callback(chrom, pos, ref, alt, gt, flag, qual)
-
     sample : str
         Name of the sample (first one if empty - default)
+    gt_tag : str
+        GT tag in VCF file (default: &#39;GT&#39;)
+    filter : bool
+        If True it will read only variants with PASS filter, otherwise all
 
     Returns
     -------
@@ -965,7 +1113,7 @@ callback(chrom, pos, ref, alt, gt, flag, qual)</dd>
                 qual = []
                 count += 1
 
-            if &#34;PASS&#34; in rec.filter.keys() and rec.alts and len(rec.alts) == 1 and (
+            if (&#34;PASS&#34; in rec.filter.keys() or not filter) and rec.alts and len(rec.alts) &gt;= 1 and (
                     gt_tag in rec.samples[sample].keys()) and len(rec.samples[sample][gt_tag]) &gt; 1:
                 if (rec.ref in alphabet) and (rec.alts[0] in alphabet) and (
                         rec.samples[sample][gt_tag][0] is not None) and (
@@ -986,13 +1134,9 @@ callback(chrom, pos, ref, alt, gt, flag, qual)</dd>
                         unicode = str
                     if isinstance(rec.samples[sample][gt_tag], str) or isinstance(rec.samples[sample][gt_tag],
                                                                                   unicode):
-                        gt.append(int(rec.samples[sample][gt_tag][0]) * 2 + int(rec.samples[sample][gt_tag][2]))
-                        if rec.samples[sample][gt_tag][1] == &#34;|&#34;:
-                            gt[-1] += 4
+                        gt.append(gt_from_str(rec.samples[sample][gt_tag]))
                     else:
-                        gt.append(rec.samples[sample][gt_tag][0] * 2 + rec.samples[sample][gt_tag][1])
-                        if rec.samples[sample].phased:
-                            gt[-1] += 4
+                        gt.append(gt_from_list(rec.samples[sample][gt_tag], rec.samples[sample].phased))
 
             last_chrom = rec.chrom
         if len(pos) &gt; 0:
@@ -1004,8 +1148,82 @@ callback(chrom, pos, ref, alt, gt, flag, qual)</dd>
         exit(0)</code></pre>
 </details>
 </dd>
+<dt id="cnvpytor.vcf.Vcf.read_all_snp_positions"><code class="name flex">
+<span>def <span class="ident">read_all_snp_positions</span></span>(<span>self, callback, filter=True)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Read SNP/indel data positions.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>callback</code></strong> :&ensp;<code>callable</code></dt>
+<dd>Function to call after read a chromosome:
+callback(chrom, pos, ref, alt)</dd>
+<dt><strong><code>sample</code></strong> :&ensp;<code>str</code></dt>
+<dd>Name of the sample (first one if empty - default)</dd>
+<dt><strong><code>filter</code></strong> :&ensp;<code>bool</code></dt>
+<dd>If True it will read only variants with PASS filter, otherwise all</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>count</code></strong> :&ensp;<code>int</code></dt>
+<dd>Number of read chromosomes</dd>
+</dl></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def read_all_snp_positions(self, callback, filter=True):
+    &#34;&#34;&#34;
+    Read SNP/indel data positions.
+
+    Parameters
+    ----------
+    callback : callable
+        Function to call after read a chromosome:
+        callback(chrom, pos, ref, alt)
+    sample : str
+        Name of the sample (first one if empty - default)
+    filter : bool
+        If True it will read only variants with PASS filter, otherwise all
+
+    Returns
+    -------
+    count : int
+        Number of read chromosomes
+
+    &#34;&#34;&#34;
+    pos = []
+    ref = []
+    alt = []
+    last_chrom = None
+    count = 0
+    alphabet = [&#39;A&#39;, &#39;T&#39;, &#39;G&#39;, &#39;C&#39;, &#39;.&#39;]
+
+    try:
+        for rec in self.file.fetch():
+            if last_chrom is None:
+                last_chrom = rec.chrom
+            if last_chrom != rec.chrom:
+                callback(last_chrom, pos, ref, alt)
+                pos = []
+                ref = []
+                alt = []
+                count += 1
+            if (&#34;PASS&#34; in rec.filter.keys() or not filter) and rec.alts and len(rec.alts) &gt;= 1:
+                if (rec.ref in alphabet) and (rec.alts[0] in alphabet):
+                    pos.append(rec.pos)
+                    ref.append(rec.ref)
+                    alt.append(rec.alts[0])
+            last_chrom = rec.chrom
+        if len(pos) &gt; 0:
+            callback(last_chrom, pos, ref, alt)
+            count += 1
+        return count
+    except ValueError:
+        _logger.error(&#34;Variant file reading problem.&#34;)
+        exit(0)</code></pre>
+</details>
+</dd>
 <dt id="cnvpytor.vcf.Vcf.read_chromosome_rd"><code class="name flex">
-<span>def <span class="ident">read_chromosome_rd</span></span>(<span>self, chr_name, sample='', ad_tag='AD', dp_tag='DP')</span>
+<span>def <span class="ident">read_chromosome_rd</span></span>(<span>self, chr_name, sample='', ad_tag='AD', dp_tag='DP', filter=False)</span>
 </code></dt>
 <dd>
 <section class="desc"><p>Read RD data for given chromosome and sample.</p>
@@ -1015,6 +1233,12 @@ callback(chrom, pos, ref, alt, gt, flag, qual)</dd>
 <dd>Name of the chromosome.</dd>
 <dt><strong><code>sample</code></strong> :&ensp;<code>str</code></dt>
 <dd>Name of the sample (first one if empty - default)</dd>
+<dt><strong><code>ad_tag</code></strong> :&ensp;<code>str</code></dt>
+<dd>AD tag in VCF file (default: 'AD')</dd>
+<dt><strong><code>dp_tag</code></strong> :&ensp;<code>str</code></dt>
+<dd>DP tag in VCF file (default: 'DP')</dd>
+<dt><strong><code>filter</code></strong> :&ensp;<code>bool</code></dt>
+<dd>If True it will read only variants with PASS filter, otherwise all</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <dl>
@@ -1025,7 +1249,7 @@ callback(chrom, pos, ref, alt, gt, flag, qual)</dd>
 </dl></section>
 <details class="source">
 <summary>Source code</summary>
-<pre><code class="python">def read_chromosome_rd(self, chr_name, sample=&#39;&#39;, ad_tag=&#39;AD&#39;, dp_tag=&#39;DP&#39;):
+<pre><code class="python">def read_chromosome_rd(self, chr_name, sample=&#39;&#39;, ad_tag=&#39;AD&#39;, dp_tag=&#39;DP&#39;, filter=False):
     &#34;&#34;&#34;
     Read RD data for given chromosome and sample.
 
@@ -1035,6 +1259,12 @@ callback(chrom, pos, ref, alt, gt, flag, qual)</dd>
         Name of the chromosome.
     sample : str
         Name of the sample (first one if empty - default)
+    ad_tag : str
+        AD tag in VCF file (default: &#39;AD&#39;)
+    dp_tag : str
+        DP tag in VCF file (default: &#39;DP&#39;)
+    filter : bool
+        If True it will read only variants with PASS filter, otherwise all
 
     Returns
     -------
@@ -1051,8 +1281,9 @@ callback(chrom, pos, ref, alt, gt, flag, qual)</dd>
     rd_dp = []
     try:
         for rec in self.file.fetch(chr_name):
-            if (ad_tag in rec.samples[sample].keys()) and len(rec.samples[sample][ad_tag]) &gt; 1 and (
-                    dp_tag in rec.samples[sample].keys()) and (rec.samples[sample][dp_tag] is not None):
+            if (&#34;PASS&#34; in rec.filter.keys() or not filter) and (ad_tag in rec.samples[sample].keys()) and len(
+                    rec.samples[sample][ad_tag]) &gt; 1 and (dp_tag in rec.samples[sample].keys()) and (
+                    rec.samples[sample][dp_tag] is not None):
                 try:
                     rd1 = sum(map(int, rec.samples[sample][ad_tag]))
                     rd2 = int(rec.samples[sample][dp_tag])
@@ -1091,7 +1322,7 @@ callback(chrom, pos, ref, alt, gt, flag, qual)</dd>
 </details>
 </dd>
 <dt id="cnvpytor.vcf.Vcf.read_chromosome_snp"><code class="name flex">
-<span>def <span class="ident">read_chromosome_snp</span></span>(<span>self, chr_name, sample='', ad_tag='AD', gt_tag='GT')</span>
+<span>def <span class="ident">read_chromosome_snp</span></span>(<span>self, chr_name, sample='', ad_tag='AD', gt_tag='GT', filter=True)</span>
 </code></dt>
 <dd>
 <section class="desc"><p>Read SNP/indel data for given chromosome and sample.</p>
@@ -1101,6 +1332,12 @@ callback(chrom, pos, ref, alt, gt, flag, qual)</dd>
 <dd>Name of the chromosome.</dd>
 <dt><strong><code>sample</code></strong> :&ensp;<code>str</code></dt>
 <dd>Name of the sample (first one if empty - default)</dd>
+<dt><strong><code>ad_tag</code></strong> :&ensp;<code>str</code></dt>
+<dd>AD tag in VCF file (default: 'AD')</dd>
+<dt><strong><code>gt_tag</code></strong> :&ensp;<code>str</code></dt>
+<dd>GT tag in VCF file (default: 'GT')</dd>
+<dt><strong><code>filter</code></strong> :&ensp;<code>bool</code></dt>
+<dd>If True it will read only variants with PASS filter, otherwise all</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <dl>
@@ -1123,7 +1360,7 @@ callback(chrom, pos, ref, alt, gt, flag, qual)</dd>
 </dl></section>
 <details class="source">
 <summary>Source code</summary>
-<pre><code class="python">def read_chromosome_snp(self, chr_name, sample=&#39;&#39;, ad_tag=&#39;AD&#39;, gt_tag=&#39;GT&#39;):
+<pre><code class="python">def read_chromosome_snp(self, chr_name, sample=&#39;&#39;, ad_tag=&#39;AD&#39;, gt_tag=&#39;GT&#39;, filter=True):
     &#34;&#34;&#34;
     Read SNP/indel data for given chromosome and sample.
 
@@ -1133,6 +1370,12 @@ callback(chrom, pos, ref, alt, gt, flag, qual)</dd>
         Name of the chromosome.
     sample : str
         Name of the sample (first one if empty - default)
+    ad_tag : str
+        AD tag in VCF file (default: &#39;AD&#39;)
+    gt_tag : str
+        GT tag in VCF file (default: &#39;GT&#39;)
+    filter : bool
+        If True it will read only variants with PASS filter, otherwise all
 
     Returns
     -------
@@ -1164,10 +1407,21 @@ callback(chrom, pos, ref, alt, gt, flag, qual)</dd>
     gt = []
     flag = []
     qual = []
+    filter_stat = {}
     alphabet = [&#39;A&#39;, &#39;T&#39;, &#39;G&#39;, &#39;C&#39;, &#39;.&#39;]
     try:
         for rec in self.file.fetch(chr_name):
-            if &#34;PASS&#34; in rec.filter.keys() and rec.alts and len(rec.alts) == 1 and (
+            if len(rec.filter.keys()) == 0:
+                if &#34;No filter (.)&#34; in filter_stat:
+                    filter_stat[&#34;No filter (.)&#34;] += 1
+                else:
+                    filter_stat[&#34;No filter (.)&#34;] = 1
+            for f in rec.filter.keys():
+                if f in filter_stat:
+                    filter_stat[f] += 1
+                else:
+                    filter_stat[f] = 1
+            if (&#34;PASS&#34; in rec.filter.keys() or not filter) and rec.alts and len(rec.alts) &gt;= 1 and (
                     gt_tag in rec.samples[sample].keys()) and (
                     ad_tag in rec.samples[sample].keys()) and len(rec.samples[sample][gt_tag]) &gt; 1 and len(
                 rec.samples[sample][ad_tag]) &gt; 1:
@@ -1194,21 +1448,21 @@ callback(chrom, pos, ref, alt, gt, flag, qual)</dd>
                         unicode = str
                     if isinstance(rec.samples[sample][gt_tag], str) or isinstance(rec.samples[sample][gt_tag],
                                                                                   unicode):
-                        gt.append(int(rec.samples[sample][gt_tag][0]) * 2 + int(rec.samples[sample][gt_tag][2]))
-                        if rec.samples[sample][gt_tag][1] == &#34;|&#34;:
-                            gt[-1] += 4
+                        gt.append(gt_from_str(rec.samples[sample][gt_tag]))
                     else:
-                        gt.append(rec.samples[sample][gt_tag][0] * 2 + rec.samples[sample][gt_tag][1])
-                        if rec.samples[sample].phased:
-                            gt[-1] += 4
+                        gt.append(gt_from_list(rec.samples[sample][gt_tag], rec.samples[sample].phased))
     except ValueError:
         _logger.error(&#34;Variant file reading problem. Probably index file is missing or corrupted.&#34;)
         exit(0)
+    _logger.debug(&#34;Chromosome &#39;%s&#39; read. Number of variants to store: %d.&#34; % (chr_name, len(pos)))
+    _logger.debug(&#34;Variants filter field statistics:&#34;)
+    for f in filter_stat:
+        _logger.debug(&#34; * &#39;%s&#39; : %d&#34; % (f, filter_stat[f]))
     return pos, ref, alt, nref, nalt, gt, flag, qual</code></pre>
 </details>
 </dd>
 <dt id="cnvpytor.vcf.Vcf.read_chromosome_snp_no_counts"><code class="name flex">
-<span>def <span class="ident">read_chromosome_snp_no_counts</span></span>(<span>self, chr_name, sample='', gt_tag='GT')</span>
+<span>def <span class="ident">read_chromosome_snp_no_counts</span></span>(<span>self, chr_name, sample='', gt_tag='GT', filter=True)</span>
 </code></dt>
 <dd>
 <section class="desc"><p>Read SNP/indel data without counts (AD tag) for given chromosome and sample.</p>
@@ -1218,6 +1472,10 @@ callback(chrom, pos, ref, alt, gt, flag, qual)</dd>
 <dd>Name of the chromosome.</dd>
 <dt><strong><code>sample</code></strong> :&ensp;<code>str</code></dt>
 <dd>Name of the sample (first one if empty - default)</dd>
+<dt><strong><code>gt_tag</code></strong> :&ensp;<code>str</code></dt>
+<dd>GT tag in VCF file (default: 'GT')</dd>
+<dt><strong><code>filter</code></strong> :&ensp;<code>bool</code></dt>
+<dd>If True it will read only variants with PASS filter, otherwise all</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <dl>
@@ -1236,7 +1494,7 @@ callback(chrom, pos, ref, alt, gt, flag, qual)</dd>
 </dl></section>
 <details class="source">
 <summary>Source code</summary>
-<pre><code class="python">def read_chromosome_snp_no_counts(self, chr_name, sample=&#39;&#39;, gt_tag=&#39;GT&#39;):
+<pre><code class="python">def read_chromosome_snp_no_counts(self, chr_name, sample=&#39;&#39;, gt_tag=&#39;GT&#39;, filter=True):
     &#34;&#34;&#34;
     Read SNP/indel data without counts (AD tag) for given chromosome and sample.
 
@@ -1246,6 +1504,10 @@ callback(chrom, pos, ref, alt, gt, flag, qual)</dd>
         Name of the chromosome.
     sample : str
         Name of the sample (first one if empty - default)
+    gt_tag : str
+        GT tag in VCF file (default: &#39;GT&#39;)
+    filter : bool
+        If True it will read only variants with PASS filter, otherwise all
 
     Returns
     -------
@@ -1274,7 +1536,7 @@ callback(chrom, pos, ref, alt, gt, flag, qual)</dd>
     alphabet = [&#39;A&#39;, &#39;T&#39;, &#39;G&#39;, &#39;C&#39;, &#39;.&#39;]
     try:
         for rec in self.file.fetch(chr_name):
-            if &#34;PASS&#34; in rec.filter.keys() and rec.alts and len(rec.alts) == 1 and (
+            if (&#34;PASS&#34; in rec.filter.keys() or not filter) and rec.alts and len(rec.alts) &gt;= 1 and (
                     gt_tag in rec.samples[sample].keys()) and len(rec.samples[sample][gt_tag]) &gt; 1:
                 if (rec.ref in alphabet) and (rec.alts[0] in alphabet):
                     pos.append(rec.pos)
@@ -1293,13 +1555,9 @@ callback(chrom, pos, ref, alt, gt, flag, qual)</dd>
                         unicode = str
                     if isinstance(rec.samples[sample][gt_tag], str) or isinstance(rec.samples[sample][gt_tag],
                                                                                   unicode):
-                        gt.append(int(rec.samples[sample][gt_tag][0]) * 2 + int(rec.samples[sample][gt_tag][2]))
-                        if rec.samples[sample][gt_tag][1] == &#34;|&#34;:
-                            gt[-1] += 4
+                        gt.append(gt_from_str(rec.samples[sample][gt_tag]))
                     else:
-                        gt.append(rec.samples[sample][gt_tag][0] * 2 + rec.samples[sample][gt_tag][1])
-                        if rec.samples[sample].phased:
-                            gt[-1] += 4
+                        gt.append(gt_from_list(rec.samples[sample][gt_tag], rec.samples[sample].phased))
 
     except ValueError:
         _logger.error(&#34;Variant file reading problem. Probably index file is missing or corrupted.&#34;)
@@ -1333,6 +1591,7 @@ callback(chrom, pos, ref, alt, gt, flag, qual)</dd>
 <li><code><a title="cnvpytor.vcf.Vcf.read_all_rd" href="#cnvpytor.vcf.Vcf.read_all_rd">read_all_rd</a></code></li>
 <li><code><a title="cnvpytor.vcf.Vcf.read_all_snp" href="#cnvpytor.vcf.Vcf.read_all_snp">read_all_snp</a></code></li>
 <li><code><a title="cnvpytor.vcf.Vcf.read_all_snp_no_counts" href="#cnvpytor.vcf.Vcf.read_all_snp_no_counts">read_all_snp_no_counts</a></code></li>
+<li><code><a title="cnvpytor.vcf.Vcf.read_all_snp_positions" href="#cnvpytor.vcf.Vcf.read_all_snp_positions">read_all_snp_positions</a></code></li>
 <li><code><a title="cnvpytor.vcf.Vcf.read_chromosome_rd" href="#cnvpytor.vcf.Vcf.read_chromosome_rd">read_chromosome_rd</a></code></li>
 <li><code><a title="cnvpytor.vcf.Vcf.read_chromosome_snp" href="#cnvpytor.vcf.Vcf.read_chromosome_snp">read_chromosome_snp</a></code></li>
 <li><code><a title="cnvpytor.vcf.Vcf.read_chromosome_snp_no_counts" href="#cnvpytor.vcf.Vcf.read_chromosome_snp_no_counts">read_chromosome_snp_no_counts</a></code></li>
