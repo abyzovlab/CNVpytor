@@ -760,3 +760,28 @@ def int1(x):
 
     """
     return int(int(x) == 1)
+
+
+def gt_from_str(s):
+    phased = s[1] == "|"
+    haps = list(map(int1, s.split("|" if phased else "/")))
+    ones, n = sum(haps), len(haps)
+    x = int(phased) * 4
+    if ones == 0:
+        return x
+    elif ones == n:
+        return 3 + x
+    else:
+        return 1 + int(phased) * haps[0] + x
+
+
+def gt_from_list(l, phased):
+    haps = list(map(int1, l))
+    ones, n = sum(haps), len(haps)
+    x = int(phased) * 4
+    if ones == 0:
+        return 0
+    elif ones == n:
+        return 3 + x
+    else:
+        return 1 + int(phased) * haps[0] + x

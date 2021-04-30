@@ -167,7 +167,7 @@ multiple sample columns in vcf format.
 
 To import variant data from VCF file use following command:
 ```
-> cnvpytor -root file.root -snp file.vcf.gz [-sample sample_name] [-chrom name1 ...] [-ad AD_TAG] [-gt GT_TAG] [-noAD]
+> cnvpytor -root file.pytor -snp file.vcf.gz [-sample sample_name] [-chrom name1 ...] [-ad AD_TAG] [-gt GT_TAG] [-noAD]
 ```
 where:
 

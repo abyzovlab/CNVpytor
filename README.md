@@ -261,15 +261,23 @@ ENDL
 
 ```
 
-### Plot from command line
+### Persistent history and viewer configuration (experimental)
+
+CNVpytor will automatically store command line history into file `~/.cnvpytor/history` if there is directory
+`~/.cnvpytor`. To enable this functionality create this directory:
 ```
-> cnvpytor -root file.pytor -plot rdstat
-> cnvpytor -root file.pytor -plot rd 10000 100000
-> cnvpytor -root file.pytor -plot rdstat manhattan 100000 -o prefix.pdf
-> cnvpytor -root file.pytor -plot baf 100000 
-> cnvpytor -root file.pytor -plot regions 1:10M-20M,2:20M-43M 3:10M-20M 10000
-> cnvpytor -root file.pytor -plot circular 100000 -rd_use_mask -o prefix.png
+> mkdir ~/.cnvpytor
 ```
+
+To configure viewer parameters create file ```viewer.conf``` within same directory in following format:
+```
+{
+  'panels': ['rd', 'likelihood'],
+  'snp_colors': ['orange', 'brown', 'green', 'blue', 'green', 'blue', 'orange', 'brown']
+}
+```
+This way you can set any parameter using python syntax. Any parameter specified here will overwrite 
+parameters provided in command line.
 
 
 

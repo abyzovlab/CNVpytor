@@ -72,10 +72,12 @@ could assign reference genome using -rg:
 cnvpytor -conf REL_PATH/example_ref_genome_conf.py -root file.pytor -rg mm9
 ```
 
-To avoid typing "-conf REL_PATH/example_ref_genome_conf.py" each time you run cnvpytor, 
-you can create an bash alias. However, we would like to encourage you to send us configuration, 
-gc and mask file and we would be glad to include it into the CNVpytor code. Or, even better, 
-fork the repository on GitHub, add configuration in cnvpytor/genome.py, data files in cnvpytor/data 
-and create a pull request.
+To avoid typing ```-conf REL_PATH/example_ref_genome_conf.py"``` each time you run cnvpytor, 
+you can create an bash alias or make configuration permanent by copying ```example_ref_genome_conf.py``` 
+to ```~/.cnvpytor/reference_genomes_conf.py```. 
+
+We would like to encourage you to send us configuration, gc and mask file and we would be glad to include it 
+into the CNVpytor code. Or, even better, fork the repository on GitHub, add configuration in cnvpytor/genome.py, 
+data files in cnvpytor/data and create a pull request.
 
 

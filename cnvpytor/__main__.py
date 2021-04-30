@@ -8,6 +8,7 @@ from .viewer import *
 from .version import __version__
 from .export import *
 import sys
+import os
 import logging
 import argparse
 import matplotlib.pyplot as plt
@@ -162,6 +163,8 @@ def main():
 
     if args.reference_genomes_conf:
         Genome.load_reference_genomes(args.reference_genomes_conf)
+    elif os.path.exists(os.path.expanduser('~/.cnvpytor/reference_genomes_conf.py')):
+        Genome.load_reference_genomes(os.path.expanduser('~/.cnvpytor/reference_genomes_conf.py'))
 
     if args.root is not None:
 

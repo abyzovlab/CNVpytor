@@ -6,7 +6,7 @@ class Vcf: reads SNP data from VCF file
 import pysam
 import logging
 import numpy as np
-from .utils import int1
+from .utils import int1, gt_from_list, gt_from_str
 
 _logger = logging.getLogger("cnvpytor.vcf")
 
@@ -157,13 +157,9 @@ class Vcf:
                             unicode = str
                         if isinstance(rec.samples[sample][gt_tag], str) or isinstance(rec.samples[sample][gt_tag],
                                                                                       unicode):
-                            gt.append(int1(rec.samples[sample][gt_tag][0]) * 2 + int1(rec.samples[sample][gt_tag][2]))
-                            if rec.samples[sample][gt_tag][1] == "|":
-                                gt[-1] += 4
+                            gt.append(gt_from_str(rec.samples[sample][gt_tag]))
                         else:
-                            gt.append(int1(rec.samples[sample][gt_tag][0]) * 2 + int1(rec.samples[sample][gt_tag][1]))
-                            if rec.samples[sample].phased:
-                                gt[-1] += 4
+                            gt.append(gt_from_list(rec.samples[sample][gt_tag], rec.samples[sample].phased))
         except ValueError:
             _logger.error("Variant file reading problem. Probably index file is missing or corrupted.")
             exit(0)
@@ -234,13 +230,9 @@ class Vcf:
                             unicode = str
                         if isinstance(rec.samples[sample][gt_tag], str) or isinstance(rec.samples[sample][gt_tag],
                                                                                       unicode):
-                            gt.append(int1(rec.samples[sample][gt_tag][0]) * 2 + int1(rec.samples[sample][gt_tag][2]))
-                            if rec.samples[sample][gt_tag][1] == "|":
-                                gt[-1] += 4
+                            gt.append(gt_from_str(rec.samples[sample][gt_tag]))
                         else:
-                            gt.append(int1(rec.samples[sample][gt_tag][0]) * 2 + int1(rec.samples[sample][gt_tag][1]))
-                            if rec.samples[sample].phased:
-                                gt[-1] += 4
+                            gt.append(gt_from_list(rec.samples[sample][gt_tag], rec.samples[sample].phased))
 
         except ValueError:
             _logger.error("Variant file reading problem. Probably index file is missing or corrupted.")
@@ -417,13 +409,9 @@ class Vcf:
                             unicode = str
                         if isinstance(rec.samples[sample][gt_tag], str) or isinstance(rec.samples[sample][gt_tag],
                                                                                       unicode):
-                            gt.append(int1(rec.samples[sample][gt_tag][0]) * 2 + int1(rec.samples[sample][gt_tag][2]))
-                            if rec.samples[sample][gt_tag][1] == "|":
-                                gt[-1] += 4
+                            gt.append(gt_from_str(rec.samples[sample][gt_tag]))
                         else:
-                            gt.append(int1(rec.samples[sample][gt_tag][0]) * 2 + int1(rec.samples[sample][gt_tag][1]))
-                            if rec.samples[sample].phased:
-                                gt[-1] += 4
+                            gt.append(gt_from_list(rec.samples[sample][gt_tag], rec.samples[sample].phased))
 
                 last_chrom = rec.chrom
             _logger.debug("Chromosome '%s' read. Number of variants to store: %d." % (last_chrom, len(pos)))
@@ -506,13 +494,9 @@ class Vcf:
                             unicode = str
                         if isinstance(rec.samples[sample][gt_tag], str) or isinstance(rec.samples[sample][gt_tag],
                                                                                       unicode):
-                            gt.append(int1(rec.samples[sample][gt_tag][0]) * 2 + int1(rec.samples[sample][gt_tag][2]))
-                            if rec.samples[sample][gt_tag][1] == "|":
-                                gt[-1] += 4
+                            gt.append(gt_from_str(rec.samples[sample][gt_tag]))
                         else:
-                            gt.append(int1(rec.samples[sample][gt_tag][0]) * 2 + int1(rec.samples[sample][gt_tag][1]))
-                            if rec.samples[sample].phased:
-                                gt[-1] += 4
+                            gt.append(gt_from_list(rec.samples[sample][gt_tag], rec.samples[sample].phased))
 
                 last_chrom = rec.chrom
             if len(pos) > 0:

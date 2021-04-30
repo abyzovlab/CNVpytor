@@ -314,7 +314,7 @@ class Figure(ViewParams):
 
 class Viewer(Show, Figure, HelpDescription):
 
-    def __init__(self, files, params={}, force_agg=False):
+    def __init__(self, files, params={}, force_agg=False, history_file_size=1000):
         """
 
         Parameters
@@ -328,6 +328,17 @@ class Viewer(Show, Figure, HelpDescription):
         _logger.debug("Viewer class init: files [%s], params %s." % (", ".join(files), str(params)))
         Figure.__init__(self, params, force_agg=force_agg)
         Show.__init__(self, files)
+        self.history_file_size = history_file_size
+        self.cnvpytor_dir = os.path.expanduser('~/.cnvpytor')
+        self.save_history = False
+        if os.path.exists(self.cnvpytor_dir):
+            if os.access(self.cnvpytor_dir, os.W_OK):
+                self.save_history = True
+            if os.path.exists(self.cnvpytor_dir+"/viewer.conf"):
+                conf = eval(open(self.cnvpytor_dir+"/viewer.conf").read())
+                for key in conf:
+                    setattr(self,key,conf[key])
+
         self.io_gc = self.io[0]
         self.io_mask = self.io[0]
         self.reference_genome = None
@@ -391,6 +402,8 @@ class Viewer(Show, Figure, HelpDescription):
         for c in chromosomes:
             self.command_tree[c] = None
         self.command_tree["set"]["style"] = dict(zip(plt.style.available, [None] * len(plt.style.available)))
+        if os.path.exists(self.cnvpytor_dir+"/history"):
+            readline.read_history_file(self.cnvpytor_dir+"/history")
 
         readline.parse_and_bind("tab: complete")
         completer = PromptCompleter(self.command_tree)
@@ -408,8 +421,12 @@ class Viewer(Show, Figure, HelpDescription):
                 except NameError:
                     line = input(prompt_str)
 
-                if line[0] == "#":
+                if line[0] == "#" or line[0] == "":
                     continue
+
+                if self.save_history and self.interactive:
+                    readline.set_history_length(self.history_file_size)
+                    readline.write_history_file(self.cnvpytor_dir+"/history")
 
                 pre = line.split(">")
                 f = pre[0].strip().split(" ")
@@ -2397,8 +2414,8 @@ class Viewer(Show, Figure, HelpDescription):
                         xticks.append(start)
 
                     img = np.array(gl).transpose()
-                    img[0,:]=0
-                    img[-1,:]=0
+                    img[0, :] = 0
+                    img[-1, :] = 0
                     ax.imshow(img, aspect='auto')
                     ax.yaxis.set_ticks([0, img.shape[0] / 4, img.shape[0] / 2, 3 * img.shape[0] / 4, img.shape[0] - 1],
                                        minor=[])
