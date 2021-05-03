@@ -17,7 +17,7 @@ Follow [CNVpytor Twitter account](https://twitter.com/cnvpytor).
 ## Learn how to use CNVpytor in 10 minutes
 
 * [Geting started](GettingStarted.md) with command line interface
-* [Jupyter notebook](examples/PythonLibraryGuide.html): How to use CNVpytor from Python
+* [Jupyter notebook](examples/PythonLibraryGuide.ipynb): How to use CNVpytor from Python
 * [Google Colab](examples/Colab.ipynb): With CEPH trio example dataset
 * [Video Tutorial](https://www.youtube.com/watch?v=RJMQtrD0SuE): 3-minute YT demo
 
