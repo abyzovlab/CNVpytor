@@ -220,13 +220,17 @@ def main():
                 view.compare(args.compare[0], args.compare[1])
             elif len(args.compare) == 4:
                 view.compare(args.compare[0], args.compare[1], int(args.compare[2]))
-        if args.reference_genome:
-            app = Root(args.root[0], max_cores=args.max_cores)
-            app.set_reference_genome(args.reference_genome)
 
         if args.rd:
             app = Root(args.root[0], create=True, max_cores=args.max_cores)
+            if args.reference_genome:
+                app.set_reference_genome(args.reference_genome)
+
             app.rd(args.rd, chroms=args.chrom, reference_filename=args.reference_filename)
+
+        if args.reference_genome:
+            app = Root(args.root[0], max_cores=args.max_cores)
+            app.set_reference_genome(args.reference_genome)
 
         if args.plot:
             params = {"output_filename": args.plot_output_file,
