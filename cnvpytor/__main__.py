@@ -223,9 +223,6 @@ def main():
 
         if args.rd:
             app = Root(args.root[0], create=True, max_cores=args.max_cores)
-            if args.reference_genome:
-                app.set_reference_genome(args.reference_genome)
-
             app.rd(args.rd, chroms=args.chrom, reference_filename=args.reference_filename)
 
         if args.reference_genome:
