@@ -478,6 +478,46 @@ class IO(Signals):
         """
         self.file.flush()
 
+    def gc_info(self, stdout=False):
+        """
+        Prints information about GC content of CNVpytor file.
+        Output is tab separated with columns:
+            1. length (100 bp resolution)
+            2. GC content
+            3. GC content percentage
+            4. AT content
+            5. AT content percentage
+            6. N content
+            7. N content percentage
+
+        Parameters
+        ----------
+        stdout : bool
+            If true prints output to stdout (default: False)
+
+        Returns
+        -------
+        ret : dict
+            Distionary: chromosome -> [l, gc_content, gc_content_percent, at_content,
+                                       at_content_percent, n_content, n_content_percent]
+
+        """
+        ret = {}
+        gc_chrom = sorted(self.gc_chromosomes(), key=lambda x: (len(x), x))
+        if len(gc_chrom) > 0:
+            if stdout:
+                print("Contig\tLength\tGC\tGC [%]\tAT\tAT [%]")
+            for c in gc_chrom:
+                gcat = self.get_signal(c, None, "GC/AT")
+                gc, at = gc_at_decompress(gcat)
+                l = len(gc) * 100
+                tgc = sum(gc)
+                tac = sum(at)
+                ret[c] = [l, tgc, 100 * tgc / l, tac, 100 * tac / l, l - tac - tgc, 100 * (l - tac - tgc) / l]
+                if stdout:
+                    print("%s\t%d\t%d\t%.2f\t%d\t%.2f\t%d\t%.2f" % tuple([c] + ret[c]))
+        return ret
+
     def ls(self):
         """
         Prints content of CNVpytor file.
@@ -954,6 +994,20 @@ class IO(Signals):
         if chromosome in chr_len:
             return int(chr_len[chromosome])
         return None
+
+    def get_chromosome_lengths(self):
+        """
+        Returns list of pairs (chromosome name, chromosome length)
+
+        Returns
+        -------
+        ret : list of (str, int)
+            List of pairs: chromosome name and length
+
+        """
+        chr_len = list(np.array(self.get_signal(None, None, "chromosome lengths")).astype("str"))
+        chr_len = list(zip(chr_len[::2], map(int,chr_len[1::2])))
+        return chr_len
 
     def is_chromosome_length_set(self, chromosome):
         """

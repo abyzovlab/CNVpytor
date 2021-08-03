@@ -6,6 +6,7 @@ from __future__ import print_function
 from .root import *
 from .viewer import *
 from .version import __version__
+from .fasta import *
 from .export import *
 import sys
 import os
@@ -115,11 +116,14 @@ def main():
                         default=None)
 
     parser.add_argument('-ls', '--ls', action='store_true', help='list pytor file(s) content')
+    parser.add_argument('-gc_info', '--gc_info', action='store_true', help='list pytor file(s) gc content stat')
     parser.add_argument('-info', '--info', type=binsize_type, nargs="*", help='print statistics for pythor file(s)')
     parser.add_argument('-comp', '--compare', type=str, nargs="*", help='compere two regions: -comp reg1 reg2 [n_bins]')
     parser.add_argument('-genotype', '--genotype', type=str, nargs="*")
     parser.add_argument('-a', '--all', action='store_true', help='Genotype with all columns')
     parser.add_argument('-meta', '--metadata', action='store_true', help='list Metadata')
+    parser.add_argument('-fasta2rg', '--reference_genome_template', type=str,
+                        help="create template for reference genome using chromosome lengths from fasta file")
     parser.add_argument('-export', '--export', type=str, nargs="*", help='Export to jbrowse and cnvnator')
     args = parser.parse_args(sys.argv[1:])
 
@@ -148,6 +152,9 @@ def main():
         logger = logging.getLogger('cnvpytor')
     logger.debug("Start logging...")
 
+    if args.reference_genome_template is not None:
+        Fasta(args.reference_genome_template).print_reference_genome_template()
+
     if args.download_resources:
         Genome.download_resources()
         return 0
@@ -171,6 +178,10 @@ def main():
         if args.ls:
             show = Show(args.root)
             show.ls()
+
+        if args.gc_info:
+            show = Show(args.root)
+            show.gc_info()
 
         if args.export:
             if len(args.export) > 0:

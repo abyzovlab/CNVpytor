@@ -47,6 +47,13 @@ class Show(Reader):
         for i in self.io:
             i.ls()
 
+    def gc_info(self):
+        """ Prints to stdout gc content info of all cnvpytor files.
+
+        """
+        for i in self.io:
+            i.gc_info(stdout=True)
+
     def meta(self):
         """ Prints to stdout meta tags of all cnvpytor files.
 
@@ -334,10 +341,10 @@ class Viewer(Show, Figure, HelpDescription):
         if os.path.exists(self.cnvpytor_dir):
             if os.access(self.cnvpytor_dir, os.W_OK):
                 self.save_history = True
-            if os.path.exists(self.cnvpytor_dir+"/viewer.conf"):
-                conf = eval(open(self.cnvpytor_dir+"/viewer.conf").read())
+            if os.path.exists(self.cnvpytor_dir + "/viewer.conf"):
+                conf = eval(open(self.cnvpytor_dir + "/viewer.conf").read())
                 for key in conf:
-                    setattr(self,key,conf[key])
+                    setattr(self, key, conf[key])
 
         self.io_gc = self.io[0]
         self.io_mask = self.io[0]
@@ -402,8 +409,8 @@ class Viewer(Show, Figure, HelpDescription):
         for c in chromosomes:
             self.command_tree[c] = None
         self.command_tree["set"]["style"] = dict(zip(plt.style.available, [None] * len(plt.style.available)))
-        if os.path.exists(self.cnvpytor_dir+"/history"):
-            readline.read_history_file(self.cnvpytor_dir+"/history")
+        if os.path.exists(self.cnvpytor_dir + "/history"):
+            readline.read_history_file(self.cnvpytor_dir + "/history")
 
         readline.parse_and_bind("tab: complete")
         completer = PromptCompleter(self.command_tree)
@@ -421,12 +428,12 @@ class Viewer(Show, Figure, HelpDescription):
                 except NameError:
                     line = input(prompt_str)
 
-                if line[0] == "#" or line[0] == "":
+                if line == "" or line[0] == "#":
                     continue
 
                 if self.save_history and self.interactive:
                     readline.set_history_length(self.history_file_size)
-                    readline.write_history_file(self.cnvpytor_dir+"/history")
+                    readline.write_history_file(self.cnvpytor_dir + "/history")
 
                 pre = line.split(">")
                 f = pre[0].strip().split(" ")
@@ -957,10 +964,11 @@ class Viewer(Show, Figure, HelpDescription):
                                         if len(self.callers) > 1:
                                             print("%s\t" % caller, end="")
                                         keys = ["start", "end", "size", "cnv", "p_val", "lh_del", "lh_loh",
-                                                "lh_dup", "Q0", "pN", "pNS", "pP", "bins", "baf",
-                                                "rd_p_val", "baf_p_val", "segment", "hets", "homs"]
+                                                "lh_dup", "Q0", "pN", "pNS", "pP", "bins", "bins", "baf",
+                                                "rd_p_val", "baf_p_val", "hets", "homs"]
                                         type = {-1: "deletion", 0: "cnnloh", 1: "duplication"}[call["type"]]
                                         row = [self.file_title(i), caller, type, c] + [call[k] for k in keys]
+                                        row[16]=bin_size
                                         for m in range(2):
                                             row += call["models"][m]
 
@@ -1145,10 +1153,11 @@ class Viewer(Show, Figure, HelpDescription):
                                         if len(self.callers) > 1:
                                             print("%s\t" % caller, end="")
                                         keys = ["start", "end", "size", "cnv", "p_val", "lh_del", "lh_loh",
-                                                "lh_dup", "Q0", "pN", "pNS", "pP", "bins", "baf",
-                                                "rd_p_val", "baf_p_val", "segment", "hets", "homs"]
+                                                "lh_dup", "Q0", "pN", "pNS", "pP", "bins", "bins", "baf",
+                                                "rd_p_val", "baf_p_val", "hets", "homs"]
                                         type = {-1: "deletion", 0: "cnnloh", 1: "duplication"}[call["type"]]
                                         data = [type, c] + [call[k] for k in keys]
+                                        data[14] = bin_size
                                         for m in range(2):
                                             data += call["models"][m]
 
@@ -2406,9 +2415,9 @@ class Viewer(Show, Figure, HelpDescription):
                         lh = list(likelihood)
                         size = l // bin_size + 1
                         if len(lh) < size:
-                            if len(lh)>0:
+                            if len(lh) > 0:
                                 lh.extend([lh[-1] for jj in range(size - len(lh))])
-                            elif len(gl)>0:
+                            elif len(gl) > 0:
                                 lh.extend([gl[-1] for jj in range(size - len(lh))])
 
                         gl.extend(lh)
@@ -3016,6 +3025,156 @@ class Viewer(Show, Figure, HelpDescription):
 
             self.fig_show(suffix="allelic_dropout")
 
+    def single_cell_allelic_dropout_2(self, callset=None, res=1000, n_bins=100, threshold=0.1, snp_threshold=0.01,
+                                    neigh=False, plot=True, stdout=False, title=None):
+        """
+        Function used to identify regions without allelic dropout in the case of single cell amplification.
+        It requires baf data for bin size. It will filter out all bins with at least one SNP bellow snp_threshold and
+        all bins with collective maximum baf likelihood bellow threshold parameter.
+
+        Parameters
+        ----------
+        callset : str or None
+            Name of callset if not default.
+        res : int
+            Resolution in bins used to calculate percentage of dropouts in region.
+        n_bins : int
+            Number of bins in histograms.
+        threshold : float
+            Collective threshold of AF for allelic dropout
+        snp_threshold : float
+            Single SNP threshold of AF for allelic dropout
+        neigh : bool
+            Remove neighbouring bins also.
+        plot : bool
+            Make plots.
+        stdout : bool
+            Print out good regions
+
+        """
+
+        if plot:
+            self.new_figure(panel_count=2, panel_size=(16, 6), title=title)
+            ax = self.next_panel()
+            bafG = []
+            baf = []
+            cpos = 0
+            sizeG = []
+            sizeB = []
+            start = 0
+            xticks = [0]
+            xticks_minor = []
+            xticks_labels = []
+        for c in self.io[self.plot_file].snp_chromosomes():
+            if len(self.chrom) == 0 or (c in self.chrom):
+                snp_flag = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0) | (
+                    FLAG_USEHAP if self.snp_use_phase else 0)
+                i1 = self.io[self.plot_file].get_signal(c, self.bin_size, "SNP i1", snp_flag)
+                pos, ref, alt, nref, nalt, gt, flag, qual = self.io[self.plot_file].read_snp(c, callset=callset)
+                c00 = self.io[self.plot_file].get_signal(c, self.bin_size, "SNP bin count 0|0", snp_flag)
+                c11 = self.io[self.plot_file].get_signal(c, self.bin_size, "SNP bin count 1|1", snp_flag)
+                homs = c00 + c11
+                c01 = self.io[self.plot_file].get_signal(c, self.bin_size, "SNP bin count 0|1", snp_flag)
+                c10 = self.io[self.plot_file].get_signal(c, self.bin_size, "SNP bin count 1|0", snp_flag)
+                hets = c01 + c10
+                count = c01 + c10 + c00 + c11
+                mask = np.zeros_like(i1)
+                density = np.zeros(len(mask) // res)
+                # mask[hets == 0] = 1
+                mask[hets == 0] = 2
+                mask[i1 > (0.5 - threshold)] = 1
+                for ix in range(len(pos)):
+                    if (nref[ix] + nalt[ix]) != 0 and ((gt[ix] % 4) in [1, 2]):
+                        b = 1.0 * nalt[ix] / (nref[ix] + nalt[ix])
+                        if (b < snp_threshold) or (b > (1 - snp_threshold)):
+                            mask[(pos[ix] - 1) // self.bin_size] = 1
+
+                if neigh:
+                    ada = mask == 1
+                    ada1 = np.roll(ada, 1)
+                    ada2 = np.roll(ada, -1)
+                    ada1[0] = False
+                    ada2[-1] = False
+                    mask[ada1] = 1
+                    mask[ada2] = 1
+                ix = 0
+                while ix < len(mask):
+                    if mask[ix] == 2:
+                        adan = 0
+                        if ix > 0 and mask[ix - 1] == 1:
+                            adan = 1
+                        jx = ix
+                        while jx < len(mask) and mask[jx] == 2:
+                            jx += 1
+                        if jx < len(mask) and mask[jx] == 1:
+                            adan = 1
+                        mask[ix:jx] = adan
+                        ix = jx
+                    else:
+                        ix += 1
+                ix = 0
+                ojx = 0
+                while ix < len(mask):
+                    if mask[ix] == 0:
+                        jx = ix
+                        while jx < len(mask) and mask[jx] == 0:
+                            jx += 1
+                        if stdout:
+                            print("%s\t%d\t%d" % (c, ix * self.bin_size + 1, jx * self.bin_size))
+                        sizeG.append((jx - ix) * self.bin_size)
+                        if ix > ojx:
+                            sizeB.append((ix - ojx) * self.bin_size)
+                        ojx = jx
+                        ix = jx
+                    else:
+                        ix += 1
+
+                if plot:
+                    for ix in range(len(density)):
+                        density[ix] = np.mean(mask[res * ix:res * (ix + 1)])*100
+
+                    pos1 = np.arange(cpos, cpos + len(density)) # * res
+                    if self.markersize == "auto":
+                        plt.plot(pos1, density, ls='', marker='o', markersize=1)
+                    else:
+                        plt.plot(pos1, density, ls='', marker='o', markersize=self.markersize)
+                    cpos += len(density)
+
+                    xticks_minor.append(start + len(density) // 2)
+                    xticks_labels.append(Genome.canonical_chrom_name(c))
+                    start += len(density)
+                    xticks.append(start)
+
+                    for ix in range(len(pos)):
+                        if (nref[ix] + nalt[ix]) != 0 and ((gt[ix] % 4) in [1, 2]):
+                            baf.append(1.0 * nalt[ix] / (nref[ix] + nalt[ix]))
+                            if mask[(pos[ix] - 1) // self.bin_size] == 0:
+                                bafG.append(1.0 * nalt[ix] / (nref[ix] + nalt[ix]))
+
+        ax.set_xlim([0, start])
+        ax.xaxis.set_ticks(xticks)
+        ax.xaxis.set_ticklabels([""] * len(xticks))
+        ax.minorticks_on()
+        ax.xaxis.set_ticks(xticks_minor, minor=True)
+        ax.xaxis.set_ticklabels(xticks_labels, minor=True)
+        print(xticks_minor,xticks_labels)
+        ax.set_xlabel("Chromosome")
+        ax.set_ylabel("Percentage of allelic dropout")
+        ax.grid(True)
+        if plot:
+            ax = self.next_panel()
+            ax.hist(baf, bins=np.arange(0, 1.0 + 1. / (n_bins + 1), 1. / (n_bins + 1)),
+                    label="All heterozygous variants")
+            ax.hist(bafG, bins=np.arange(0, 1.0 + 1. / (n_bins + 1), 1. / (n_bins + 1)),
+                    label="Region with both alleles")
+            ax.legend()
+            ax.grid(True)
+            ax.set_xlabel("VAF")
+            ax.set_ylabel("Distribution")
+
+            self.fig_show(suffix="allelic_dropout")
+
+
     def compare_rd_dist(self, regions):
         self.new_figure(panel_count=1)
         ax = self.next_panel()
@@ -3116,7 +3275,7 @@ class Viewer(Show, Figure, HelpDescription):
 
         self.fig_show(suffix="snp_dist")
 
-    def phased_baf(self, regions, callset=None, print=False):
+    def phased_baf(self, regions, callset=None, stdout=False):
         regions = regions.split(" ")
         n = len(regions)
         ret = []
@@ -3147,7 +3306,7 @@ class Viewer(Show, Figure, HelpDescription):
             baf = talt / (tref + talt)
             bafP = taltP / (trefP + taltP)
             ret.append([baf, bafP])
-            if print:
+            if stdout:
                 print("%s\t%f\t%f" % (regions[i], baf, bafP))
         return ret
 
@@ -3577,6 +3736,55 @@ class Viewer(Show, Figure, HelpDescription):
             ax.grid()
 
         self.fig_show(suffix="models")
+
+    def rd_stat_violin(self):
+        chroms = []
+        for c, (l, t) in self.reference_genome["chromosomes"].items():
+            rd_chr = self.io[self.plot_files[0]].rd_chromosome_name(c)
+            if (len(self.chrom) == 0 or (rd_chr in self.chrom) or (c in self.chrom)) and rd_chr is not None:
+                chroms.append(rd_chr)
+        n = len(self.plot_files)
+        ix = self.plot_files
+        self.new_figure(panel_count=n)
+        for i in range(n):
+            ax = self.next_panel()
+            io = self.io[ix[i]]
+            allrd = []
+            flag_rd = (FLAG_USEMASK if self.rd_use_mask else 0) | (FLAG_GC_CORR if self.rd_use_gc_corr else 0)
+            mean, stdev = io.rd_normal_level(self.bin_size, flag_rd)
+            pchr = []
+            for c in chroms:
+                rd = io.get_signal(c, self.bin_size, "RD", flag_rd)*2/mean
+                rd = rd[rd < self.rd_range[1]]
+                if rd is not None and len(rd) > 5:
+                    allrd.append(rd)
+                    pchr.append(c)
+            pos = list(range(len(allrd),0,-1))
+            ax.violinplot(allrd,pos,showmeans=False,showmedians=True,showextrema=False,vert=False)
+            ax.set_yticks(pos)
+            ax.set_yticklabels(pchr)
+            if self.rd_range[1]<30:
+                ax.set_xticks(range(0,int(self.rd_range[1]),2))
+            ax.grid(True)
+        self.fig_show(suffix="rd_stat_violin")
+
+    def read_fragment_dist(self):
+        n = len(self.plot_files)
+        ix = self.plot_files
+        self.new_figure(panel_count=n)
+        for i in range(n):
+            self.new_subgrid(2,hspace=0.2,wspace=0.2)
+            io = self.io[ix[i]]
+            rfd = io.get_signal(None, None, "read frg dist")
+            rd = np.sum(rfd, axis=1)
+            fd = np.sum(rfd, axis=0)
+            ax = self.next_subpanel()
+            ax.plot(rd)
+            ax = self.next_subpanel()
+            ax.plot(fd)
+
+        self.fig_show(suffix="read_fragment_dist")
+
 
 
 def anim_plot_likelihood(likelihood, segments, n, res, iter, prefix, maxp, minp):

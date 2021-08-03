@@ -120,3 +120,33 @@ class Fasta:
         p = re.compile("([P]+)")
         re_iterator = p.finditer(seq)
         return [i.span() for i in re_iterator]
+
+    def print_reference_genome_template(self):
+        """
+        Prints to stdout template for configuration file for reference genome.
+        User should enter NAME, FULL NAME, SPECIES NAME, GC_FILE and MASK_FILE and adjust chromosome types.
+
+        Returns
+        -------
+        None
+        """
+        prefix = """import_reference_genomes = {\n    "NAME": {
+        "name": "FULL NAME",
+        "species": "SPECIES NAME",
+        "chromosomes": OrderedDict(["""
+        sufix = """
+        ]),
+        "gc_file":"/..PATH../GC_FILE.pytor",
+        "mask_file":"/..PATH../MASK_FILE.pytor"\n    }\n}"""
+        print(prefix)
+        s = ""
+        ix = 0
+        for c, l in zip(self.file.references, self.file.lengths):
+            ix += 1
+            if ix % 4 == 1:
+                s += '            '
+            s += '("%s", (%d,"A")), ' % (c, l)
+            if ix % 4 == 0:
+                s += "\n"
+        print(s[:-2], end="")
+        print(sufix)
