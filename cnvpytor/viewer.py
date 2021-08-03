@@ -353,6 +353,7 @@ class Viewer(Show, Figure, HelpDescription):
         self.default["plot_files"] = list(range(len(files)))
         if self.io[0].signal_exists(None, None, "reference genome"):
             rg_name = np.array(self.io[0].get_signal(None, None, "reference genome")).astype("str")[0]
+            Genome.detected_genome = rg_name
             self.reference_genome = Genome.reference_genomes[rg_name]
             if "mask_file" in Genome.reference_genomes[rg_name]:
                 self.io_mask = IO(Genome.reference_genomes[rg_name]["mask_file"], ro=True, buffer=True)

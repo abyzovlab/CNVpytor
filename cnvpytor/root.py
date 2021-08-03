@@ -2422,39 +2422,39 @@ class Root:
             _logger.info("    * rd_mean  = %.4f" % mean)
             _logger.info("    * rd_std   = %.4f" % std)
 
-            # _logger.info("Checking bimodal hypothesis...")
-            # bim = fit_bimodal(bins[:-1], hist)
-            # if False and bim is not None:
-            #         #and bim[0][0] > 0 and bim[0][1] > 0 and bim[0][3] > 0 and bim[0][4] > 0:
-            #         #and np.sum(np.sqrt(np.diag(bim[1])) / np.array(bim[0])) < 10:
-            #     _logger.info("Fit successful:")
-            #     _logger.info("    * a1   = %.4f" % bim[0][0])
-            #     _logger.info("    * mean1   = %.4f" % bim[0][1])
-            #     _logger.info("    * std1   = %.4f" % bim[0][2])
-            #     _logger.info("    * a2   = %.4f" % bim[0][3])
-            #     _logger.info("    * mean2   = %.4f" % bim[0][4])
-            #     _logger.info("    * std2   = %.4f" % bim[0][5])
-            #     _logger.info("    * mean2/mean1   = %.4f" % (bim[0][4] / bim[0][1]))
-            #     if bim[0][4] / bim[0][1] > 1.75:
-            #         if bim[0][4] / bim[0][1] < 2.5:
-            #             _logger.info("Using both peaks to estimate normal levels")
-            #             fitm = (bim[0][0] * bim[0][1] + bim[0][3] * bim[0][4] / 2) / (bim[0][0] + bim[0][3])
-            #             fits = (bim[0][0] * bim[0][2] + bim[0][3] * bim[0][5] / 2) / (bim[0][0] + bim[0][3])
-            #         else:
-            #             _logger.info("Using first peak to estimate normal levels")
-            #             fitm = bim[0][1]
-            #             fits = bim[0][2]
-            #     else:
-            #         _logger.info("Ratio mean2/mean1 is smaller than expected. Using single peak fit values.")
-            #     # plt.hist(data, bins=bins, alpha=.5, label='RD in bins with BAF=1/2', edgecolor='blue', linewidth=1)
-            #     # plt.plot(np.linspace(0, rd_max, 400), bimodal(np.linspace(0, rd_max, 400), *bim[0]), color='red', lw=3,
-            #     #          label='Bimodal fit')
-            #     # plt.xlabel("RD")
-            #     # plt.ylabel("Number of bins")
-            #     # plt.legend()
-            #     # plt.show()
-            # else:
-            #     _logger.info("Fit was not successful. Rejecting hypothesis.")
+            _logger.info("Checking bimodal hypothesis...")
+            bim = fit_bimodal(bins[:-1], hist)
+            if False and bim is not None:
+                    #and bim[0][0] > 0 and bim[0][1] > 0 and bim[0][3] > 0 and bim[0][4] > 0:
+                    #and np.sum(np.sqrt(np.diag(bim[1])) / np.array(bim[0])) < 10:
+                _logger.info("Fit successful:")
+                _logger.info("    * a1   = %.4f" % bim[0][0])
+                _logger.info("    * mean1   = %.4f" % bim[0][1])
+                _logger.info("    * std1   = %.4f" % bim[0][2])
+                _logger.info("    * a2   = %.4f" % bim[0][3])
+                _logger.info("    * mean2   = %.4f" % bim[0][4])
+                _logger.info("    * std2   = %.4f" % bim[0][5])
+                _logger.info("    * mean2/mean1   = %.4f" % (bim[0][4] / bim[0][1]))
+                if bim[0][4] / bim[0][1] > 1.75:
+                    if bim[0][4] / bim[0][1] < 2.5:
+                        _logger.info("Using both peaks to estimate normal levels")
+                        fitm = (bim[0][0] * bim[0][1] + bim[0][3] * bim[0][4] / 2) / (bim[0][0] + bim[0][3])
+                        fits = (bim[0][0] * bim[0][2] + bim[0][3] * bim[0][5] / 2) / (bim[0][0] + bim[0][3])
+                    else:
+                        _logger.info("Using first peak to estimate normal levels")
+                        fitm = bim[0][1]
+                        fits = bim[0][2]
+                else:
+                    _logger.info("Ratio mean2/mean1 is smaller than expected. Using single peak fit values.")
+                # plt.hist(data, bins=bins, alpha=.5, label='RD in bins with BAF=1/2', edgecolor='blue', linewidth=1)
+                # plt.plot(np.linspace(0, rd_max, 400), bimodal(np.linspace(0, rd_max, 400), *bim[0]), color='red', lw=3,
+                #          label='Bimodal fit')
+                # plt.xlabel("RD")
+                # plt.ylabel("Number of bins")
+                # plt.legend()
+                # plt.show()
+            else:
+                _logger.info("Fit was not successful. Rejecting hypothesis.")
 
             _logger.info("Updating RD normal levels: mean = %.4f, stdev = %.4f !" % (fitm, fits))
             self.io.set_rd_normal_level(bin_size, fitm, fits, flags=flag_rd)
