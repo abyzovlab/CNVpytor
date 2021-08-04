@@ -1823,10 +1823,9 @@ class Root:
         tref = 0
         for c in self.io.snp_chromosomes():
             if len(chroms) == 0 or c in chroms:
-                _logger.info("Calculating BAF histograms for chromosome '%s'." % c)
                 pos, ref, alt, nref, nalt, gt, flag, qual = self.io.read_snp(c)
                 for r,a,g,f in zip(nref,nalt,gt,flag):
-                    if ((g % 4) in [1,2]) and (not use_id or (f & 1)) and (not use_mask or (f & 2)):
+                    if (a+r)>0 and ((g % 4) in [1,2]) and (not use_id or (f & 1)) and (not use_mask or (f & 2)):
                         bafs.append(1.0 * a / (a + r))
                         talt += a
                         tref += r
@@ -1860,7 +1859,7 @@ class Root:
         alt_factor = 1.0
         if alt_ref_correct:
             alt_factor /= self.calculate_alt_ref_bias(chroms, use_mask, use_id)
-            _logger.debug("Using alt counts correcection factor %f" % alt_factor)
+            _logger.debug("Using alt counts correction factor %f" % alt_factor)
 
         snp_flag = (FLAG_USEMASK if use_mask else 0) | (FLAG_USEID if use_id else 0)
         for c in self.io.snp_chromosomes():
