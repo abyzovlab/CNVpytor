@@ -2260,7 +2260,7 @@ class Viewer(Show, Figure, HelpDescription):
             io = self.io[ix]
             for i in range(len(panels)):
                 ax = self.next_subpanel(sharex=True)
-                if i == 0:
+                if i == 0 and self.title:
                     ax.set_title(self.file_title(ix), position=(0.01, 0.9),
                                  fontdict={'verticalalignment': 'top', 'horizontalalignment': 'left'},
                                  color='C0')
@@ -2517,7 +2517,8 @@ class Viewer(Show, Figure, HelpDescription):
             ax.set_rmax(1.0)
             ax.set_rticks([])
             ax.set_thetagrids(angles, labels=labels, fontsize=10, weight="bold", color="black")
-            ax.set_title(self.file_title(ix[i]), loc="left", fontsize=10, weight="bold", color="black")
+            if self.title:
+                ax.set_title(self.file_title(ix[i]), loc="left", fontsize=10, weight="bold", color="black")
             ax.grid(False)
         self.fig_show(suffix="circular")
 
