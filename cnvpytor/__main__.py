@@ -90,6 +90,9 @@ def main():
                         help="reduce noise in processing SNP data")
     parser.add_argument('-blw', '--baf_likelihood_width', type=float,
                         help="likelihood width used in processing SNP data (default=0.8)", default=0.8)
+    parser.add_argument('-altc', '--alt_corr', action='store_true',
+                        help="Remove alt/ref bias")
+
 
     parser.add_argument('-plot', '--plot', type=str, nargs="+", help="plotting")
     parser.add_argument('-view', '--view', type=binsize_type,
@@ -333,7 +336,7 @@ def main():
             app = Root(args.root[0], max_cores=args.max_cores)
             app.calculate_baf(args.baf, chroms=args.chrom, use_mask=not args.no_mask, use_id=args.use_id,
                               use_phase=args.use_phase, reduce_noise=args.reduce_noise, blw=args.baf_likelihood_width,
-                              use_hom=args.use_hom)
+                              use_hom=args.use_hom, alt_ref_correct=args.alt_corr)
         if args.partition:
             app = Root(args.root[0], max_cores=args.max_cores)
             app.partition(args.partition, chroms=args.chrom, use_gc_corr=not args.no_gc_corr,

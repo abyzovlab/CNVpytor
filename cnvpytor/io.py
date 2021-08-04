@@ -506,7 +506,7 @@ class IO(Signals):
         gc_chrom = sorted(self.gc_chromosomes(), key=lambda x: (len(x), x))
         if len(gc_chrom) > 0:
             if stdout:
-                print("Contig\tLength\tGC\tGC [%]\tAT\tAT [%]")
+                print("Contig\tLength\tGC\tGC[%]\tAT\tAT[%]\tN\tN[%]")
             for c in gc_chrom:
                 gcat = self.get_signal(c, None, "GC/AT")
                 gc, at = gc_at_decompress(gcat)

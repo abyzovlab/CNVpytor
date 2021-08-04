@@ -1804,8 +1804,39 @@ class Root:
 
         return vcff.read_all_snp_positions(set_id_flag)
 
+    def calculate_alt_ref_bias(self, chroms=[], use_mask=True, use_id=False):
+        """
+        Calculates alt/ref bias based on whole genome statistics
+
+        Parameters
+        ----------
+        chroms : list of str
+            List of chromosomes. Calculates for all available if empty.
+        use_mask : bool
+            Use P-mask filter if True. Default: True.
+        use_id : bool
+            Use id flag filter if True. Default: False.
+        """
+
+        bafs = []
+        talt = 0
+        tref = 0
+        for c in self.io.snp_chromosomes():
+            if len(chroms) == 0 or c in chroms:
+                _logger.info("Calculating BAF histograms for chromosome '%s'." % c)
+                pos, ref, alt, nref, nalt, gt, flag, qual = self.io.read_snp(c)
+                for r,a,g,f in zip(nref,nalt,gt,flag):
+                    if ((g % 4) in [1,2]) and (not use_id or (f & 1)) and (not use_mask or (f & 2)):
+                        bafs.append(1.0 * a / (a + r))
+                        talt += a
+                        tref += r
+
+        return talt/tref
+
+
+
     def calculate_baf(self, bin_sizes, chroms=[], use_mask=True, use_id=False, use_phase=False, res=200,
-                      reduce_noise=False, blw=0.8, use_hom=False):
+                      reduce_noise=False, blw=0.8, use_hom=False, alt_ref_correct=False):
         """
         Calculates BAF histograms and store data into cnvpytor file.
 
@@ -1826,6 +1857,11 @@ class Root:
 
 
         """
+        alt_factor = 1.0
+        if alt_ref_correct:
+            alt_factor /= self.calculate_alt_ref_bias(chroms, use_mask, use_id)
+            _logger.debug("Using alt counts correcection factor %f" % alt_factor)
+
         snp_flag = (FLAG_USEMASK if use_mask else 0) | (FLAG_USEID if use_id else 0)
         for c in self.io.snp_chromosomes():
             if len(chroms) == 0 or c in chroms:
@@ -1864,6 +1900,8 @@ class Root:
 
                 for i in range(len(pos)):
                     if (nalt[i] + nref[i]) > 0 and (not use_id or (flag[i] & 1)) and (not use_mask or (flag[i] & 2)):
+                        if alt_ref_correct:
+                            nalt[i] *= alt_factor
                         if gt[i] == 1 or gt[i] == 5 or gt[i] == 6:
                             for bs in bin_sizes:
                                 b = (pos[i] - 1) // bs
