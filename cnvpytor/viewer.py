@@ -969,7 +969,7 @@ class Viewer(Show, Figure, HelpDescription):
                                                 "rd_p_val", "baf_p_val", "hets", "homs"]
                                         type = {-1: "deletion", 0: "cnnloh", 1: "duplication"}[call["type"]]
                                         row = [self.file_title(i), caller, type, c] + [call[k] for k in keys]
-                                        row[16]=bin_size
+                                        row[16] = bin_size
                                         for m in range(2):
                                             row += call["models"][m]
 
@@ -1701,6 +1701,145 @@ class Viewer(Show, Figure, HelpDescription):
             chroms = list(map(Genome.canonical_chrom_name, chroms))
             ax.set_xticklabels(chroms + chroms + chroms)
             ax.set_yticklabels(chroms + chroms + chroms)
+            self.fig_show(suffix="callmap")
+        else:
+            self.new_figure(panel_count=2, panel_size=(12, 12))
+            ax = self.next_panel()
+            x = np.concatenate((cmap[:, :, 0], cmap[:, :, 1], cmap[:, :, 2]),
+                               axis=1)
+            corr = np.corrcoef(x)
+            plt.imshow(corr, aspect='auto', vmin=-1, vmax=1)
+            plt.colorbar()
+            ax = plt.gca()
+
+            ax.set_xticks(range(n))
+            ax.set_yticks(range(n))
+            ax = self.next_panel()
+            Z = hierarchy.linkage(x, 'average', 'correlation')
+            dn = hierarchy.dendrogram(Z)
+
+            self.fig_show(suffix="callmap")
+        return cmap
+
+    def callmap_regions(self, regions, color="frequency", background="white", pixel_size=1700000, max_p_val=1e-20,
+                        min_freq=0.01, plot="cmap"):
+        bin_size = self.bin_size
+        n = len(self.plot_files)
+        ix = self.plot_files
+
+        if plot:
+            self.new_figure(panel_count=n, grid=(1, 1), panel_size=(24, 0.24 * n))
+
+        chroms = []
+        starts = []
+        ends = []
+        pixels = 0
+        regs = decode_region(regions, max_size=1000000000)
+        for c, (pos1, pos2) in regs:
+            chr_len = self.io[ix[0]].get_chromosome_length(c)
+            if chr_len is not None and pos2 == 1000000000:
+                pos2 = chr_len
+            starts.append(pixels)
+            pixels += (pos2 - pos1) // pixel_size + 1
+            ends.append(pixels - 1)
+
+        cmap = np.zeros((n, pixels, 3))
+        cmap[:, ends, :] = 1
+
+        for i in range(n):
+            io = self.io[ix[i]]
+            print(io.filename)
+            flag = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0) | (
+                FLAG_USEHAP if self.snp_use_phase else 0) | (FLAG_USEMASK if self.rd_use_mask else 0) | FLAG_GC_CORR
+            flag_rd = FLAG_GC_CORR | (FLAG_USEMASK if self.rd_use_mask else 0)
+            for (c, (pos1, pos2)), start in zip(regs,starts):
+                chr_len = self.io[ix[0]].get_chromosome_length(c)
+                if chr_len is not None and pos2 == 1000000000:
+                    pos2 = chr_len
+                snp_chr = io.snp_chromosome_name(c)
+                if io.signal_exists(snp_chr, bin_size, "calls combined", flag):
+
+                    calls = io.read_calls(snp_chr, bin_size, "calls combined", flag)
+                    segments = io.get_signal(snp_chr, bin_size, "RD mosaic segments 2d", flag_rd)
+                    segments = segments_decode(segments)
+
+                    for call in calls:
+                        if call["bins"] > self.min_segment_size and call["p_val"] < max_p_val and "segment" in call and \
+                                call["models"][0][4] > min_freq:
+                            cix = int(call["type"]) + 1
+                            for b in segments[int(call["segment"])]:
+                                if (b * bin_size > pos1) and (b * bin_size < pos2):
+                                    if color == "frequency":
+                                        cmap[i, start + (b * bin_size - pos1) // pixel_size, cix] = max(
+                                            cmap[i, start + (b * bin_size - pos1) // pixel_size, cix],
+                                            call["models"][0][4])
+                                    elif color == "coverage":
+                                        cmap[i, start + (
+                                                    b * bin_size - pos1) // pixel_size, cix] += bin_size / pixel_size
+                                    else:  # model copy number
+                                        if call["models"][0][0] == 0:
+                                            cmap[i, start + (b * bin_size - pos1) // pixel_size, 0] = 1
+                                        elif call["models"][0][0] == 1:
+                                            cmap[i, start + (b * bin_size - pos1) // pixel_size, 0] = 1
+                                            cmap[i, start + (b * bin_size - pos1) // pixel_size, 1] = 1
+                                        elif call["models"][0][0] == 2:
+                                            cmap[i, start + (b * bin_size - pos1) // pixel_size, 2] = 1
+                                        else:
+                                            cn = call["models"][0][0]
+                                            if cn > 6:
+                                                cn = 6
+                                            cmap[i, start + (b * bin_size - pos1) // pixel_size, 1] = (2 + cn) / 8
+
+        def b2w(pixel):
+            if np.all(pixel == 1):
+                pixel[:] = 0
+            elif pixel[0] > pixel[1] and pixel[0] > pixel[2]:
+                pixel[1] = pixel[2] = 1 - pixel[0]
+                pixel[0] = 1
+            elif pixel[1] > pixel[2]:
+                pixel[0] = pixel[2] = 1 - pixel[1]
+                pixel[1] = 1
+            else:
+                pixel[0] = pixel[1] = 1 - pixel[2]
+                pixel[2] = 1
+            return pixel
+
+        if background == "white":
+            cmap = cmap.reshape(n * pixels, 3)
+            np.apply_along_axis(b2w, 1, cmap)
+            cmap = cmap.reshape(n, pixels, 3)
+
+        cmap = (255 * cmap).astype("int")
+        if plot == "cmap":
+            self.new_figure(panel_count=1, grid=(1, 1), panel_size=(24, 0.24 * n))
+            ax = self.next_panel()
+            plt.imshow(cmap, aspect='auto')
+            for i in ends[:-1]:
+                plt.axvline(x=i - 0.5, color='red', linewidth=0.5)
+            ax.set_yticks([])
+            ax.set_yticklabels([])
+            ax.set_xticks((np.array(starts) + np.array(ends)) / 2)
+            ax.set_xticklabels(regions.split(","))
+            self.fig_show(suffix="callmap")
+        elif plot == "regions":
+            self.new_figure(panel_count=1, grid=(1, 1), panel_size=(24, 24))
+            ax = self.next_panel()
+            corr = np.corrcoef(
+                np.concatenate((cmap[:, :, 0].transpose(), cmap[:, :, 1].transpose(), cmap[:, :, 2].transpose()),
+                               axis=0))
+            plt.imshow(corr, aspect='auto', vmin=-1, vmax=1)
+            plt.colorbar()
+            starts3 = np.concatenate((np.array(starts), np.array(starts) + ends[-1], np.array(starts) + 2 * ends[-1]))
+            ends3 = np.concatenate((np.array(ends), np.array(ends) + ends[-1], np.array(ends) + 2 * ends[-1]))
+            for i in ends3[:-1]:
+                plt.axvline(x=i - 0.5, color='red', linewidth=0.5)
+                plt.axhline(y=i - 0.5, color='red', linewidth=0.5)
+
+            ax.set_xticks((starts3 + ends3) / 2)
+            ax.set_yticks((starts3 + ends3) / 2)
+            chroms = list(map(Genome.canonical_chrom_name, chroms))
+            ax.set_xticklabels(regions.split(",") + regions.split(",") + regions.split(","))
+            ax.set_yticklabels(regions.split(",") + regions.split(",") + regions.split(","))
             self.fig_show(suffix="callmap")
         else:
             self.new_figure(panel_count=2, panel_size=(12, 12))
@@ -3028,7 +3167,7 @@ class Viewer(Show, Figure, HelpDescription):
             self.fig_show(suffix="allelic_dropout")
 
     def single_cell_allelic_dropout_2(self, callset=None, res=1000, n_bins=100, threshold=0.1, snp_threshold=0.01,
-                                    neigh=False, plot=True, stdout=False, title=None):
+                                      neigh=False, plot=True, stdout=False, title=None):
         """
         Function used to identify regions without allelic dropout in the case of single cell amplification.
         It requires baf data for bin size. It will filter out all bins with at least one SNP bellow snp_threshold and
@@ -3133,9 +3272,9 @@ class Viewer(Show, Figure, HelpDescription):
 
                 if plot:
                     for ix in range(len(density)):
-                        density[ix] = np.mean(mask[res * ix:res * (ix + 1)])*100
+                        density[ix] = np.mean(mask[res * ix:res * (ix + 1)]) * 100
 
-                    pos1 = np.arange(cpos, cpos + len(density)) # * res
+                    pos1 = np.arange(cpos, cpos + len(density))  # * res
                     if self.markersize == "auto":
                         plt.plot(pos1, density, ls='', marker='o', markersize=1)
                     else:
@@ -3159,7 +3298,7 @@ class Viewer(Show, Figure, HelpDescription):
         ax.minorticks_on()
         ax.xaxis.set_ticks(xticks_minor, minor=True)
         ax.xaxis.set_ticklabels(xticks_labels, minor=True)
-        print(xticks_minor,xticks_labels)
+        print(xticks_minor, xticks_labels)
         ax.set_xlabel("Chromosome")
         ax.set_ylabel("Percentage of allelic dropout")
         ax.grid(True)
@@ -3175,7 +3314,6 @@ class Viewer(Show, Figure, HelpDescription):
             ax.set_ylabel("Distribution")
 
             self.fig_show(suffix="allelic_dropout")
-
 
     def compare_rd_dist(self, regions):
         self.new_figure(panel_count=1)
@@ -3756,17 +3894,17 @@ class Viewer(Show, Figure, HelpDescription):
             mean, stdev = io.rd_normal_level(self.bin_size, flag_rd)
             pchr = []
             for c in chroms:
-                rd = io.get_signal(c, self.bin_size, "RD", flag_rd)*2/mean
+                rd = io.get_signal(c, self.bin_size, "RD", flag_rd) * 2 / mean
                 rd = rd[rd < self.rd_range[1]]
                 if rd is not None and len(rd) > 5:
                     allrd.append(rd)
                     pchr.append(c)
-            pos = list(range(len(allrd),0,-1))
-            ax.violinplot(allrd,pos,showmeans=False,showmedians=True,showextrema=False,vert=False)
+            pos = list(range(len(allrd), 0, -1))
+            ax.violinplot(allrd, pos, showmeans=False, showmedians=True, showextrema=False, vert=False)
             ax.set_yticks(pos)
             ax.set_yticklabels(pchr)
-            if self.rd_range[1]<30:
-                ax.set_xticks(range(0,int(self.rd_range[1]),2))
+            if self.rd_range[1] < 30:
+                ax.set_xticks(range(0, int(self.rd_range[1]), 2))
             ax.grid(True)
         self.fig_show(suffix="rd_stat_violin")
 
@@ -3775,7 +3913,7 @@ class Viewer(Show, Figure, HelpDescription):
         ix = self.plot_files
         self.new_figure(panel_count=n)
         for i in range(n):
-            self.new_subgrid(2,hspace=0.2,wspace=0.2)
+            self.new_subgrid(2, hspace=0.2, wspace=0.2)
             io = self.io[ix[i]]
             rfd = io.get_signal(None, None, "read frg dist")
             rd = np.sum(rfd, axis=1)
@@ -3786,7 +3924,6 @@ class Viewer(Show, Figure, HelpDescription):
             ax.plot(fd)
 
         self.fig_show(suffix="read_fragment_dist")
-
 
 
 def anim_plot_likelihood(likelihood, segments, n, res, iter, prefix, maxp, minp):
