@@ -16,7 +16,7 @@ For single user (without admin privileges) use:
 
 ### Using pip
 
-Old version (v1.0) is available using pip directly (not recomended at the moment):
+Old version (v1.0) is available using pip directly (not recommended at the moment):
 
 
 ```
@@ -79,7 +79,7 @@ in _pytor_ file.
 Chromosome names and lengths are parsed from the input file header and used to 
 detect reference genome. 
 
-Reference genome is important for for GC correction and 1000 genome strict mask filtering.
+Reference genome is important for GC correction and 1000 genome strict mask filtering.
 CNVpytor installation includes human genomes hg19 and hg38 with data files that provide information
 about GC content and strict mask. For other species or reference genomes you have to 
 configure reference genome (see 
@@ -105,7 +105,7 @@ that created it.
 First we have to chose bin size. By cnvpytor design it have to be divisible by 100. 
 Here we will use 10 kbp and 100 kbp bins.
 
-To calculate a read depth histograms, GC correction and statistics type:
+To calculate read depth histograms, GC correction and statistics type:
 ```
 > cnvpytor -root file.pytor -his 10000 100000
 ```
@@ -140,7 +140,7 @@ CNV size, e-val1, q0, pN and dG:
 ```
 > cnvpytor -root file.pytor [file2.pytor ...] -view 10000
 
-cnvpytor> set Q0_range -1 0.5        # filter calls with more than half not uniqly maped reads
+cnvpytor> set Q0_range -1 0.5        # filter calls with more than half not uniquely mapped reads
 cnvpytor> set p_range 0 0.0001       # filter non-confident calls 
 cnvpytor> set p_N 0 0.5              # filter calls with more than 50% Ns in reference genome 
 cnvpytor> set size_range 50000 inf   # filter calls smaller than 50kbp 
@@ -223,12 +223,12 @@ for each bin size will be performed:
 ```
 > cnvpytor -root file.pytor -genotype 10000 100000
 12:11396601-11436500
-12:11396601-11436500	1.933261	1.937531
+12:11396601-11436500    1.933261    1.937531
 22:20999401-21300400
-22:20999401-21300400	1.949186	1.957068
+22:20999401-21300400    1.949186    1.957068
 ```
 
-Genotyping with additional informations:
+Genotyping with additional information:
 ```
 > cnvpytor -root file.pytor -genotype 10000 -a [-rd_use_mask] [-nomask]
 12:11396601-11436500
