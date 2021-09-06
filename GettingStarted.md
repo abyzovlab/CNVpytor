@@ -148,7 +148,7 @@ cnvpytor> set dG_range 100000 inf    # filter calls close to gaps in reference g
 cnvpytor> print calls                # printing calls on screen (tsv format)
 ...
 ...
-cnvpytor> set print_file file.xlsx   # output filename (xlsx, tsv or vcf)
+cnvpytor> set print_filename file.xlsx   # output filename (xlsx, tsv or vcf)
 cnvpytor> set annotate               # turn on annotation (optional - takes a lot of time)
 cnvpytor> print calls                # generate output file with filtered calls 
 cnvpytor> quit
