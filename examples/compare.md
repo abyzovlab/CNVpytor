@@ -17,6 +17,7 @@ Enter interactive plotting mode with all sample you want to plot listed:
 
 cnvpytor> set style classic
 cnvpytor> set rd_use_mask
+cnvpytor> set plot
 cnvpytor> compare 16:5400k-6200k 16:17500k-18200k
 
 sample.pytor 16:5400k-6200k 16:17500k-18200k 1751.9391 72.2750 2865.2145 96.6045 0.000000e+00 0.6115 0.0053
