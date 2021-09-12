@@ -3776,10 +3776,16 @@ class Viewer(Show, Figure, HelpDescription):
                 if snp:
                     homs = np.sum(snp_homs[bin1:bin2 + 1])
                     hets = np.sum(snp_hets[bin1:bin2 + 1])
-                    lh = np.ones_like(snp_likelihood[0])
+                    log_lh = np.zeros_like(snp_likelihood[0],dtype="g")
                     for ix in range(bin1, min(bin2 + 1, len(snp_likelihood))):
-                        lh *= snp_likelihood[ix]
-                        lh /= np.sum(lh)
+                        if np.isfinite(np.sum(snp_likelihood[ix])):
+                            tmp = np.log(snp_likelihood[ix]+1e-100)
+                            tmp[tmp==-np.inf]=-100
+                            log_lh += tmp
+
+                    log_lh-=np.max(log_lh)
+                    lh = np.exp(log_lh)
+                    lh = lh/np.sum(lh)
                     baf, baf_p = likelihood_baf_pval(lh)
                     ret[bs][-1] += [homs, hets, baf, baf_p]
                 else:
