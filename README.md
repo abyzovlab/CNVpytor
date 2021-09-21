@@ -1,4 +1,5 @@
 ![CNVpytor Logo](https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/cnvpytor/imgs/cnvpytor_w_640.png)
+[3D printable CNVpytor logo (stl file)](https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/CNVpytor.stl)
 
 # CNVpytor - a python extension of CNVnator
 
