@@ -260,7 +260,7 @@ Option _-nomak_ turns off P filtering of SNPs (1000 Genome Project strict mask) 
 Genotype all called CNVs:
 
 ```
-> awk '{ print $2 } END { print "exit" }' calls.10000.tsv | cnvpytor -root file.pytor -genotype 10000 100000
+> awk '{ print $2 }' calls.10000.tsv | cnvpytor -root file.pytor -genotype 10000 100000
 ```
 
 ## Visualization
