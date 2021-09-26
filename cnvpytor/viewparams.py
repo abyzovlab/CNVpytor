@@ -273,7 +273,7 @@ class HelpDescription(object):
         "manhattan": None,
         "genotype":None,
         "calls": None,
-        "print": {"calls", "joint_calls"},
+        "print": {"calls", "merged_calls"},
         "ls": None,
         "meta": None,
         "compare": None
@@ -823,8 +823,8 @@ class HelpDescription(object):
         "print": help_format(
             topic="print",
             p_desc="Print filtered calls.",
-            p_usage="print [calls, joint_calls]",
-            p_example="print calls\nprint joint_calls",
+            p_usage="print [calls, merged_calls]",
+            p_example="print calls\nprint merged_calls",
             p_see="Q0_range, p_range, pN_range, size_range, dG_range, callers"
         ),
         "rd_circular_colors": help_format(

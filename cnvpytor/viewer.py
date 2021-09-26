@@ -499,8 +499,8 @@ class Viewer(Show, Figure, HelpDescription):
                             self.print_calls()
                         else:
                             self.print_calls_file()
-                    elif f[1] == "joint_calls":
-                        self.print_simple_joint_calls()
+                    elif f[1] == "joint_calls" or f[1] == "merged_calls":
+                        self.print_simple_merged_calls()
 
                 else:
                     try:
@@ -927,7 +927,8 @@ class Viewer(Show, Figure, HelpDescription):
                     chroms = io.rd_chromosomes()
                     for c in chroms:
                         if (c in self.chrom) or len(self.chrom) == 0:
-                            flag = (FLAG_USEMASK if self.rd_use_mask else 0) | FLAG_GC_CORR
+                            flag = (FLAG_USEMASK if self.rd_use_mask else 0) | \
+                                   (FLAG_GC_CORR if self.rd_use_gc_corr else 0)
                             if io.signal_exists(c, bin_size, "calls", flag):
                                 calls = io.read_calls(c, bin_size, "calls", flag)
                                 for call in calls:
@@ -950,7 +951,8 @@ class Viewer(Show, Figure, HelpDescription):
                     chroms = io.rd_chromosomes()
                     for c in chroms:
                         if (c in self.chrom) or len(self.chrom) == 0:
-                            flag = (FLAG_USEMASK if self.rd_use_mask else 0) | FLAG_GC_CORR | \
+                            flag = (FLAG_USEMASK if self.rd_use_mask else 0) | \
+                                   (FLAG_GC_CORR if self.rd_use_gc_corr else 0) | \
                                    (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0)
                             if io.signal_exists(c, bin_size, "calls combined", flag):
                                 calls = io.read_calls(c, bin_size, "calls combined", flag)
@@ -1103,7 +1105,8 @@ class Viewer(Show, Figure, HelpDescription):
                     chroms = io.rd_chromosomes()
                     for c in chroms:
                         if (c in self.chrom) or len(self.chrom) == 0:
-                            flag = (FLAG_USEMASK if self.rd_use_mask else 0) | FLAG_GC_CORR
+                            flag = (FLAG_USEMASK if self.rd_use_mask else 0) | \
+                                   (FLAG_GC_CORR if self.rd_use_gc_corr else 0)
                             if io.signal_exists(c, bin_size, "calls", flag):
                                 calls = io.read_calls(c, bin_size, "calls", flag)
                                 for call in calls:
@@ -1139,7 +1142,8 @@ class Viewer(Show, Figure, HelpDescription):
                     chroms = io.rd_chromosomes()
                     for c in chroms:
                         if (c in self.chrom) or len(self.chrom) == 0:
-                            flag = (FLAG_USEMASK if self.rd_use_mask else 0) | FLAG_GC_CORR | \
+                            flag = (FLAG_USEMASK if self.rd_use_mask else 0) | \
+                                   (FLAG_GC_CORR if self.rd_use_gc_corr else 0) | \
                                    (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0)
                             if io.signal_exists(c, bin_size, "calls combined", flag):
                                 calls = io.read_calls(c, bin_size, "calls combined", flag)
@@ -1176,7 +1180,7 @@ class Viewer(Show, Figure, HelpDescription):
                                             plot_end = call["end"] + call["size"]
                                             self.multiple_regions(["%s:%d-%d" % (c, plot_start, plot_end)])
 
-    def print_simple_joint_calls(self):
+    def print_simple_merged_calls(self):
 
         bin_size = self.bin_size
         n = len(self.plot_files)
@@ -1230,7 +1234,7 @@ class Viewer(Show, Figure, HelpDescription):
         chroms = self.io[ix[0]].rd_chromosomes()
         for c in chroms:
             if (c in self.chrom) or len(self.chrom) == 0:
-                flag = (FLAG_USEMASK if self.rd_use_mask else 0) | FLAG_GC_CORR
+                flag = (FLAG_USEMASK if self.rd_use_mask else 0) | (FLAG_GC_CORR if self.rd_use_gc_corr else 0)
                 calls = [list(filter(lambda call: in_interval(call["size"], self.size_range) \
                                                   and in_interval(call["p_val"], self.p_range) \
                                                   and in_interval(call["pN"], self.pN_range) \

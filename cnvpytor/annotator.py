@@ -60,6 +60,9 @@ class Annotator:
                     position = "intersect left"
                 else:
                     position = "intersect right"
-
-                ret.append("%s (%s %s)" % (i["external_name"], i["id"], position))
+                if "external_name" in i:
+                    ret.append("%s (%s %s)" % (i["external_name"], i["id"], position))
+                else:
+                    ret.append("%s (%s %s)" % (i["id"], i["id"], position))
         return ", ".join(ret)
+

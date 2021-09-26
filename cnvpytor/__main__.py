@@ -249,7 +249,8 @@ def main():
                       "panels": args.panels,
                       "snp_use_mask": not args.no_mask,
                       "snp_use_id": args.use_id,
-                      "rd_use_mask": args.use_mask_with_rd
+                      "rd_use_mask": args.use_mask_with_rd,
+                      "rd_use_gc_corr": not args.no_gc_corr
                       }
             if args.plot_style:
                 params["style"] = args.plot_style
@@ -263,7 +264,8 @@ def main():
                       "panels": args.panels,
                       "snp_use_mask": not args.no_mask,
                       "snp_use_id": args.use_id,
-                      "rd_use_mask": args.use_mask_with_rd
+                      "rd_use_mask": args.use_mask_with_rd,
+                      "rd_use_gc_corr": not args.no_gc_corr
                       }
             if args.plot_style:
                 params["style"] = args.plot_style
