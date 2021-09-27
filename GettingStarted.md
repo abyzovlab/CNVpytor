@@ -233,14 +233,14 @@ Result is stored in tab separated files with following columns:
 * e-val2 -- e-value (p-value multiplied by genome size divided by bin size) from the probability of RD values within the region to be in the tails of a gaussian distribution of binned RD,
 * e-val3 -- same as e-val1 but for the middle of CNV,
 * e-val4 -- same as e-val2 but for the middle of CNV,
-* q0 -- fraction of reads mapped with q0 quality in call region,
-* pN -- fraction of reference genome gaps (Ns) in call region,
-* dG -- distance from closest large (>100bp) gap in reference genome,
-* pP -- fraction of P bases (1kGP strict mask) in call region,
+* q0 -- fraction of reads mapped with q0 quality in call segments,
+* pN -- fraction of reference genome gaps (Ns) within call region,
+* dNS -- fraction of reference genome gaps (Ns) within call segments,
+* pP -- fraction of P bases (1kGP strict mask) within call segments,
 * bin_size – size of bins
-* n – number of bins within call region,
+* n – number of bins within call segments,
 * delta_BAF – change in BAF from ½,
-* e-val1 -- e-value RD based,
+* e-val1 -- e-value RD based (repeted, reserved for future upgrades),
 * baf_eval – e-value BAF based,
 * hets – number of HETs,
 * homs – number of HOMs,
@@ -282,7 +282,6 @@ multiple sample columns in vcf format.
 Comparison between CNVnator and CNVpytor callers output format:
 
 <img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/joint_caller_output.png">
-
 
 
 ## Genotyping genomic regions
