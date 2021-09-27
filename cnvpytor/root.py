@@ -2181,6 +2181,7 @@ class Root:
                 min_count = mcount
 
             gstat_rd0 = []
+            gstat_rd_all = []
             gstat_rd = []
             gstat_baf = []
             gstat_error = []
@@ -2372,6 +2373,7 @@ class Root:
                                 homs = 0
                                 hets = 0
                                 for bin in segments[i]:
+                                    gstat_rd_all.append(rd[bin])
                                     if baf_mean <= baf_threshold:
                                         gstat_rd0.append(rd[bin])
                                     srdp += qrd_p[bin]
@@ -2433,7 +2435,11 @@ class Root:
                         self.io.create_signal(c, bin_size, "SNP likelihood call 2d",
                                               data=np.array(likelihood, dtype="float32"), flags=snp_flag)
 
-            data = np.array(gstat_rd0)
+            if len(gstat_rd0)==0:
+                data = np.array(gstat_rd_all)
+                _logger.warning("No bins with BAF=0.5! Using all bins for RD normalisation.")
+            else:
+                data = np.array(gstat_rd0)
             dmin = np.min(data)
             dmax = np.max(data)
             p1 = np.percentile(data, 1)
