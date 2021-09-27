@@ -20,19 +20,19 @@ cnvpytor> set Q0_range -1 0.5              # filter calls with more than half no
 cnvpytor> set p_range 0 0.0001             # filter non-confident calls 
 cnvpytor> set size_range 50000 inf         # filter calls smaller than 50kbp
 cnvpytor> set dG_range 100000 inf          # filter calls close to gaps in reference genome (<100kbp)
-cnvpytor> print joint_calls                # printing calls on screen
+cnvpytor> print merged_calls                # printing calls on screen
 ...
 ...
-cnvpytor> set print_filename joint.xlsx    # Output filename
-cnvpytor> set output_filename joint.png    # Prefix for graphical output files
+cnvpytor> set print_filename merged.xlsx    # Output filename
+cnvpytor> set output_filename merged.png    # Prefix for graphical output files
 cnvpytor> set annotate                     # Turn on annotation (optional - takes a lot of time)
 cnvpytor> set plot                         # Turn on ploting for each calls (optional - takes a lot of time)
-cnvpytor> print joint_calls                # Generate Excel output and png files with RD plots
+cnvpytor> print merged_calls                # Generate Excel output and png files with RD plots
 cnvpytor> quit
 ```
-File joint.xlsx contains list Excel file with list of all calls merged over samples.
+File merged.xlsx contains list Excel file with list of all calls merged over samples.
 
-Files joint.regions.0000.png to joint.regions.0047.png contain RD region plots for all 48 calls.
+Files merged.regions.0000.png to merged.regions.0047.png contain RD region plots for all 48 calls.
 This could be used for manual filtering of false positive calls. This is an example of generated plot:
 
 <img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/joint.regions.0017.png">

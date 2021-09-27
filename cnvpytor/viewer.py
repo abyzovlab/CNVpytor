@@ -1087,8 +1087,8 @@ class Viewer(Show, Figure, HelpDescription):
         if self.plot:
             for call in calls:
                 plot_start = call[4] - call[6]
-                if plot_start < 0:
-                    plot_start = 0
+                if plot_start < 1:
+                    plot_start = 1
                 plot_end = call[5] + call[6]
                 self.multiple_regions(["%s:%d-%d" % (c, plot_start, plot_end)])
 
@@ -1132,8 +1132,8 @@ class Viewer(Show, Figure, HelpDescription):
                                             print()
                                         if self.plot:
                                             plot_start = call["start"] - call["size"]
-                                            if plot_start < 0:
-                                                plot_start = 0
+                                            if plot_start < 1:
+                                                plot_start = 1
                                             plot_end = call["end"] + call["size"]
                                             self.multiple_regions(["%s:%d-%d" % (c, plot_start, plot_end)])
             elif caller == "combined_mosaic":
@@ -1175,8 +1175,8 @@ class Viewer(Show, Figure, HelpDescription):
                                             print()
                                         if self.plot:
                                             plot_start = call["start"] - call["size"]
-                                            if plot_start < 0:
-                                                plot_start = 0
+                                            if plot_start < 1:
+                                                plot_start = 1
                                             plot_end = call["end"] + call["size"]
                                             self.multiple_regions(["%s:%d-%d" % (c, plot_start, plot_end)])
 
@@ -1315,8 +1315,8 @@ class Viewer(Show, Figure, HelpDescription):
 
                         if self.plot:
                             plot_start = maxstart - (minend - maxstart)
-                            if plot_start < 0:
-                                plot_start = 0
+                            if plot_start < 1:
+                                plot_start = 1
                             plot_end = minend + (minend - maxstart)
                             self.multiple_regions(["%s:%d-%d" % (c, plot_start, plot_end)])
                     for i in toupdate:
