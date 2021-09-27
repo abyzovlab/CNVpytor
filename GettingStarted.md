@@ -215,6 +215,76 @@ To calculate baf histograms for maf, baf and likelihood function for baf use:
 > cnvpytor -root file.pytor -baf 10000 100000 [-nomask]
 ```
 
+### Predicting CNV regions using joint caller (prototype)
+
+
+Finally we can call CNV regions using commands:
+```
+> cnvpytor -root file.pytor -call combined 10000 > calls.combined.10000.tsv
+> cnvpytor -root file.pytor -call combined 100000 > calls.combined.100000.tsv
+```
+
+Result is stored in tab separated files with following columns:
+* CNV type: "deletion", "duplication", or ”cnnloh", 
+* CNV region (chr:start-end),
+* CNV size,
+* CNV level - read depth normalized to 1,
+* e-val1 -- e-value (p-value multiplied by genome size divided by bin size) calculated using t-test statistics between RD statistics in the region and global,
+* e-val2 -- e-value (p-value multiplied by genome size divided by bin size) from the probability of RD values within the region to be in the tails of a gaussian distribution of binned RD,
+* e-val3 -- same as e-val1 but for the middle of CNV,
+* e-val4 -- same as e-val2 but for the middle of CNV,
+* q0 -- fraction of reads mapped with q0 quality in call region,
+* pN -- fraction of reference genome gaps (Ns) in call region,
+* dG -- distance from closest large (>100bp) gap in reference genome,
+* pP -- fraction of P bases (1kGP strict mask) in call region,
+* bin_size – size of bins
+* n – number of bins within call region,
+* delta_BAF – change in BAF from ½,
+* e-val1 -- e-value RD based,
+* baf_eval – e-value BAF based,
+* hets – number of HETs,
+* homs – number of HOMs,
+* cn_1 – most likely model copy number,
+* genotype_1 - most likely model genotype,
+* likelihood_1 – most likely model likelihood,
+* cf_1 -- most likely model cell fraction,
+* cn_2 – the second most likely model copy number,
+* genotype_2 - the second most likely model genotype,
+* likelihood_2 – the second most likely model likelihood,
+* cf_2 -- the second most likely model cell fraction.
+
+Using viewer mode we can filter calls based on five parameters: 
+CNV size, e-val1, q0, pN and dG:
+
+```
+> cnvpytor -root file.pytor [file2.pytor ...] -view 10000
+cnvpytor> set caller combined_mosaic # IMPORTANT, default caller is mean shift
+cnvpytor> set Q0_range -1 0.5        # filter calls with more than half not uniquely mapped reads
+cnvpytor> set p_range 0 0.0001       # filter non-confident calls 
+cnvpytor> set p_N 0 0.5              # filter calls with more than 50% Ns in reference genome 
+cnvpytor> set size_range 50000 inf   # filter calls smaller than 50kbp 
+cnvpytor> set dG_range 100000 inf    # filter calls close to gaps in reference genome (<100kbp)
+cnvpytor> print calls                # printing calls on screen (tsv format)
+...
+...
+cnvpytor> set print_filename file.xlsx   # output filename (xlsx, tsv or vcf)
+cnvpytor> set annotate               # turn on annotation (optional - takes a lot of time)
+cnvpytor> print calls                # generate output file with filtered calls 
+cnvpytor> quit
+```
+
+Upper bound for parameters _size_range_ and _dG_range_ can be _inf_ (infinity).
+
+If there are multiple samples (pytor files) there will be an additional 
+column with sample name in tsv format, multiple sheets in Excel format, and
+multiple sample columns in vcf format.
+
+Comparison between CNVnator and CNVpytor callers output format:
+
+<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/joint_caller_output.png">
+
+
+
 ## Genotyping genomic regions
 
 Using -genotype option followed by bin_sizes you can enter region and genotype calculation

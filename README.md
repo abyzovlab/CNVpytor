@@ -31,7 +31,7 @@ Follow [CNVpytor Twitter account](https://twitter.com/cnvpytor).
 |<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/manhattan.png" width="512px">|<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/circular.png" width="512px">|
 | Region plot ([see example](examples/region.md))| Compare regions ([see example](examples/compare.md))|
 |<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/region.png" width="512px">|<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/compare.png" width="512px">|
-| Merging and annotating calls ([see example](examples/merging.md))|Useing joint caller (prototype) ([see example](examples/JointCaller.md))|
+| Merging and annotating calls ([see example](examples/merging.md))|Using joint caller (prototype) ([see example](examples/JointCaller.md))|
 |<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/merging.png" width="512px">|<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/joint_caller.png" width="512px">
 
 ## Install
@@ -94,7 +94,8 @@ _Diagram made using [Draw.io](https://github.com/jgraph/drawio)._
 ### Importing and using single nucleotide polymorphism data:
 ```
 > cnvpytor -root file.pytor -snp file.vcf -sample sample_name
-> cnvpytor -root file.pytor -pileup file.bam # OPTIONAL
+> cnvpytor -root file.pytor -pileup file.bam                   # OPTIONAL
+> cnvpytor -root file.pytor -mask_snps                         # OPTIONAL 
 > cnvpytor -root file.pytor -baf 10000 100000
 ```
 
@@ -124,11 +125,11 @@ print calls
 ### Merging calls form multiple samples
 ```
 > cnvpytor -root file1.pytor file2.pytor ... -view 100000 
-print joint_calls
+print merged_calls
 set Q0_range 0 0.5
 set size_range 100000 inf
 set print_filename output.xls
-print joint_calls
+print merged_calls
 ```
 Plotting all merged calls:
 ```
@@ -138,7 +139,7 @@ set size_range 100000 inf
 set print_filename output.xls
 set print
 set output_filename prefix.png
-print joint_calls
+print merged_calls
 ```
 Annotating merged calls:
 ```
@@ -147,7 +148,7 @@ set Q0_range 0 0.5
 set size_range 100000 inf
 set print_filename output.xls
 set annotate
-print joint_calls
+print merged_calls
 ```
 
 ### Genotyping from command line
