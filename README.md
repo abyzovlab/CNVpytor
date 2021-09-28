@@ -31,7 +31,7 @@ Follow [CNVpytor Twitter account](https://twitter.com/cnvpytor).
 |<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/manhattan.png" width="512px">|<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/circular.png" width="512px">|
 | Region plot ([see example](examples/region.md))| Compare regions ([see example](examples/compare.md))|
 |<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/region.png" width="512px">|<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/compare.png" width="512px">|
-| Merging and annotating calls ([see example](examples/merging.md))|Using joint caller (prototype) ([see example](examples/JointCaller.md))|
+| Merging and annotating calls ([see example](examples/merging.md))|Call somatic CNAs using RD and BAF data ([see example](examples/JointCaller.md))|
 |<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/merging.png" width="512px">|<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/joint_caller.png" width="512px">
 
 ## Install

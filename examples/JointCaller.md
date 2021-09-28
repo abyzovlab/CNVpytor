@@ -1,4 +1,7 @@
-# Using joint caller (prototype)
+# Calling somatic CNAs with joint caller (prototype)
+
+<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/joint_caller.png" width="512px">
+
 
 Import RD signal from bam/sam/cram file, calculate histograms, import SNPs form VCF file and calculate BAF histograms
 with specified bin size. Bin size should be larger then 5kbp to have enough SNPs per bin. We use 100kbp in this example:
