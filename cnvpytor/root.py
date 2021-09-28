@@ -1362,7 +1362,9 @@ class Root:
                                     else:
                                         return np.zeros_like(nm_levels)
 
-                                grad = np.sum([calc_grad(k) for k in range(1, 3 * bin_band + 1)], axis=0)
+                                grad = np.zeros_like(nm_levels)
+                                for k in range(1, 3 * bin_band + 1):
+                                    grad += calc_grad(k)
 
                                 border = [i for i in range(grad.size - 1) if grad[i] < 0 and grad[i + 1] >= 0]
                                 border.append(grad.size - 1)
