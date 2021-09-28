@@ -22,7 +22,7 @@ Output format is illustrated here:
 <img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/joint_caller_output.png">
 
 
-Full description of columns you can find in [Geting started](/GettingStarted.md).
+Full description of columns you can find in [Geting started](/GettingStarted.md#predicting-cnv-regions-using-joint-caller-prototype).
 
 
 ## Filtering and exporting calls
