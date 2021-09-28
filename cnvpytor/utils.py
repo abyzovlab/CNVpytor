@@ -98,11 +98,37 @@ binary_to_bp = {0: 'A', 3: 'T', 1: 'G', 2: 'C', 4: '.'}
 
 def snp_compress(pos, ref, alt, nref, nalt, gt, flag, qual):
     """
-    Commpress SNP information binary in four arrays:
-            snp_pos - diferences in positions
-            snp_counts - 32 bits: ref count (16 bits), alt count (16 bits)
-            snp_desc -  16 bits: ref (3 bits), alt (3 bits), gt (3 bits), flag (2 bits)
-            snp_qual - 8 bits
+    Commpress SNP information binary and return four arrays.
+
+    Parameters
+    ----------
+    pos : list of int
+        Positions of SNPs
+    ref : list of str
+        Reference bases
+    alt : list of str
+        Alternative bases
+    nref : list of int
+        Reference counts
+    nalt : list of int
+        Alternative counts
+    gt : list of int
+        Genotypes (0:0/0, 1:0/1, 2:1/0, 3:1/1, 4:0|0, 5:0|1, 6:1|0, 7:1|1)
+    flag : list of int
+        Flags (two bites 0..3)
+    qual: list of int
+        Quality (byte 0..255)
+
+    Returns
+    -------
+    snp_pos : numpy.ndarray
+        Diferences in positions.
+    snp_counts : numpy.ndarray
+        32 bits: ref count (16 bits), alt count (16 bits)
+    snp_desc : numpy.ndarray
+        16 bits: ref (3 bits), alt (3 bits), gt (3 bits), flag (2 bits)
+    snp_qual : numpy.ndarray
+        8 bits
 
     """
     snp_pos = list(map(lambda i, j: i - j,
@@ -119,7 +145,37 @@ def snp_compress(pos, ref, alt, nref, nalt, gt, flag, qual):
 
 def snp_decompress(snp_pos, snp_desc, snp_counts, snp_qual):
     """
-    Decommpress SNP information
+    Decommpress SNP information binary.
+
+    Parameters
+    ----------
+    snp_pos : numpy.ndarray
+        Diferences in positions.
+    snp_counts : numpy.ndarray
+        32 bits: ref count (16 bits), alt count (16 bits)
+    snp_desc : numpy.ndarray
+        16 bits: ref (3 bits), alt (3 bits), gt (3 bits), flag (2 bits)
+    snp_qual : numpy.ndarray
+        8 bits
+
+    Returns
+    -------
+    pos : list of int
+        Positions of SNPs
+    ref : list of str
+        Reference bases
+    alt : list of str
+        Alternative bases
+    nref : list of int
+        Reference counts
+    nalt : list of int
+        Alternative counts
+    gt : list of int
+        Genotypes (0:0/0, 1:0/1, 2:1/0, 3:1/1, 4:0|0, 5:0|1, 6:1|0, 7:1|1)
+    flag : list of int
+        Flags (two bites 0..3)
+    qual: list of int
+        Quality (byte 0..255)
 
     """
     pos = []
@@ -147,9 +203,19 @@ def snp_decompress(snp_pos, snp_desc, snp_counts, snp_qual):
 
 
 def mask_compress(mask):
-    """ Commpress strict mask P value intervals.
-    Argument:
-        mask - list of intervals [(start_1, end_1), (start_2, end_2),...]
+    """
+    Commpress strict mask P value intervals.
+
+    Parameters
+    ----------
+    mask: list of (int, int)
+        List of intervals [(start_1, end_1), (start_2, end_2),...]
+
+    Returns
+    -------
+    cmask : numpy.ndarray
+        Array contains compressed mask content.
+
     """
     pos = [p for interval in mask for p in interval]
     cmask = list(map(lambda i, j: i - j, pos, [0] + pos[:-1]))
@@ -157,7 +223,19 @@ def mask_compress(mask):
 
 
 def mask_decompress(cmask):
-    """ Decommpress strict mask P value intervals.
+    """
+    Decommpress strict mask P value intervals.
+
+    Parameters
+    ----------
+    cmask : numpy.ndarray
+        Array contains compressed mask content.
+
+    Returns
+    -------
+    mask: list of (int, int)
+        List of intervals [(start_1, end_1), (start_2, end_2),...]
+
     """
     pos = []
     s = 0
@@ -168,13 +246,47 @@ def mask_decompress(cmask):
 
 
 def rd_compress(rd_p, rd_u, data_type="uint16"):
-    """ Compres RD signal
+    """
+    Compress RD signal.
+
+    Parameters
+    ----------
+    rd_p : list of int
+        RD signal
+    rd_u : list of int
+        RD signal from uniquely mapped reads
+    data_type : str
+        Numpy data type used for compression.
+
+    Returns
+    -------
+    crd_p : numpy.ndarray
+        Array contains RD signal
+    crd_u : numpy.ndarray
+        Array contains difference between two signals
+
     """
     return rd_p.astype(data_type), (rd_p - rd_u).astype(data_type)
 
 
 def rd_decompress(crd_p, crd_u):
-    """ Decommpress SNP information
+    """
+    Decompress RD signal.
+
+    Parameters
+    ----------
+    crd_p : numpy.ndarray
+        Array contains RD signal
+    crd_u : numpy.ndarray
+        Array contains difference between two signals
+
+    Returns
+    -------
+    rd_p : list of int
+        RD signal
+    rd_u : list of int
+        RD signal from uniquely mapped reads
+
     """
     return np.array(crd_p), np.array(crd_p) - np.array(crd_u)
 
@@ -182,6 +294,7 @@ def rd_decompress(crd_p, crd_u):
 def segments_code(segments):
     """
     Convert segments to numpy array e.g. [[1,2],[3]] -> [1,2,MAX,3,MAX]
+
     Parameters
     ----------
     segments : list of list of int
@@ -204,9 +317,10 @@ def segments_code(segments):
 def segments_decode(aseg):
     """
     Decode segments.
+
     Parameters
     ----------
-    aseg : numpy.ndarra of uint32
+    aseg : numpy.ndarray
 
     Returns
     -------
@@ -226,6 +340,20 @@ def segments_decode(aseg):
 
 
 def binsize_type(x):
+    """
+    Casts to int and checks divisibility by 100 (native bin size).
+
+    Parameters
+    ----------
+    x : int, str or float
+        Bin size
+
+    Returns
+    -------
+    : int
+        Bin size
+
+    """
     x = int(x)
     if x % 100 != 0 or x <= 0:
         raise ArgumentTypeError("Bin size should be positive integer divisible by 100!")
@@ -233,6 +361,18 @@ def binsize_type(x):
 
 
 def binsize_format(x):
+    """
+    Converts integer to human readable format (K - x1000, M - x1e6)
+
+    Parameters
+    ----------
+    x : int
+
+    Returns
+    -------
+    sx : str
+
+    """
     if x >= 1000000:
         return str(x // 1000000) + "M"
     elif x >= 1000:
@@ -242,6 +382,26 @@ def binsize_format(x):
 
 
 def normal_overlap(m1, s1, m2, s2):
+    """
+    Calculates two normal distributions overlap area.
+
+    Parameters
+    ----------
+    m1 : float
+        Mean value of the first distribution
+    s1 : float
+        Sigma of the first distribution
+    m2 : float
+        Mean value for second distribution
+    s2 : float
+        Sigma of the second distribution
+
+    Returns
+    -------
+    area : float
+        Area of overlap
+
+    """
     if m1 > m2:
         m1, m2 = m2, m1
         s1, s2 = s2, s1
@@ -262,6 +422,28 @@ def normal_overlap(m1, s1, m2, s2):
 
 
 def normal_merge(m1, s1, m2, s2):
+    """
+    Calculates normal distribution that is product of two given normal distributions.
+
+    Parameters
+    ----------
+    m1 : float
+        Mean value of the first distribution
+    s1 : float
+        Sigma of the first distribution
+    m2 : float
+        Mean value for second distribution
+    s2 : float
+        Sigma of the second distribution
+
+    Returns
+    -------
+    m : float
+        Mean value of the first distribution
+    s : float
+        Sigma of the first distribution
+
+    """
     if s1 == 0 and s2 == 0:
         return 0.5 * (m1 + m2), 0
     else:
@@ -269,6 +451,26 @@ def normal_merge(m1, s1, m2, s2):
 
 
 def normal(x, a, x0, sigma):
+    """
+    Normal distribution.
+
+    Parameters
+    ----------
+    x : float
+        Variable.
+    a : float
+        Area.
+    x0 : float
+        Mean value.
+    sigma : float
+        Sigma.
+
+    Returns
+    -------
+    : float
+        Value of distribution in x.
+
+    """
     return a * np.exp(-(x - x0) ** 2 / (2 * sigma ** 2)) / np.sqrt(2 * np.pi) / sigma
 
 

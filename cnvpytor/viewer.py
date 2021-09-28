@@ -59,7 +59,7 @@ class Show(Reader):
 
         """
         for i in self.io:
-            i.read_meta_attribute()
+            i.print_meta_attribute()
 
     def info(self, bin_sizes):
         """ Prints to stdout RD info for all cnvpytor files.
@@ -122,7 +122,7 @@ class Show(Reader):
 
 class Figure(ViewParams):
     def __init__(self, params, force_agg=False):
-        """ Class implements matplotlib frequently used figure manipulation and plot panels arrangement.
+        """ Class implements visualisations and exports
 
         Parameters
         ----------
@@ -469,7 +469,7 @@ class Viewer(Show, Figure, HelpDescription):
                         self.show()
                 elif f[0] == "set":
                     if n > 1:
-                        self.set(f[1], f[2:])
+                        self.set_param(f[1], f[2:])
                 elif f[0] == "help" and n > 1:
                     self.help(f[1])
                 elif f[0] == "help" and n == 1:
@@ -1756,7 +1756,7 @@ class Viewer(Show, Figure, HelpDescription):
             flag = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0) | (
                 FLAG_USEHAP if self.snp_use_phase else 0) | (FLAG_USEMASK if self.rd_use_mask else 0) | FLAG_GC_CORR
             flag_rd = FLAG_GC_CORR | (FLAG_USEMASK if self.rd_use_mask else 0)
-            for (c, (pos1, pos2)), start in zip(regs,starts):
+            for (c, (pos1, pos2)), start in zip(regs, starts):
                 chr_len = self.io[ix[0]].get_chromosome_length(c)
                 if chr_len is not None and pos2 == 1000000000:
                     pos2 = chr_len
@@ -1779,7 +1779,7 @@ class Viewer(Show, Figure, HelpDescription):
                                             call["models"][0][4])
                                     elif color == "coverage":
                                         cmap[i, start + (
-                                                    b * bin_size - pos1) // pixel_size, cix] += bin_size / pixel_size
+                                                b * bin_size - pos1) // pixel_size, cix] += bin_size / pixel_size
                                     else:  # model copy number
                                         if call["models"][0][0] == 0:
                                             cmap[i, start + (b * bin_size - pos1) // pixel_size, 0] = 1
@@ -3780,16 +3780,16 @@ class Viewer(Show, Figure, HelpDescription):
                 if snp:
                     homs = np.sum(snp_homs[bin1:bin2 + 1])
                     hets = np.sum(snp_hets[bin1:bin2 + 1])
-                    log_lh = np.zeros_like(snp_likelihood[0],dtype="g")
+                    log_lh = np.zeros_like(snp_likelihood[0], dtype="g")
                     for ix in range(bin1, min(bin2 + 1, len(snp_likelihood))):
                         if np.isfinite(np.sum(snp_likelihood[ix])):
-                            tmp = np.log(snp_likelihood[ix]+1e-100)
-                            tmp[tmp==-np.inf]=-100
+                            tmp = np.log(snp_likelihood[ix] + 1e-100)
+                            tmp[tmp == -np.inf] = -100
                             log_lh += tmp
 
-                    log_lh-=np.max(log_lh)
+                    log_lh -= np.max(log_lh)
                     lh = np.exp(log_lh)
-                    lh = lh/np.sum(lh)
+                    lh = lh / np.sum(lh)
                     baf, baf_p = likelihood_baf_pval(lh)
                     ret[bs][-1] += [homs, hets, baf, baf_p]
                 else:

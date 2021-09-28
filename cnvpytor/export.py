@@ -3,18 +3,19 @@ from pathlib import Path
 from .io import *
 from .genome import *
 
-
 _logger = logging.getLogger("cnvpytor.export")
 
 
 class Wiggle:
     def __init__(self, filename):
         """
-        creates bigwig file
+        Creates bigwig file
+
         Parameters
         ----------
         filename : path
             Path for the bigwig filename
+
         """
         self.filename = filename
         self.file = None
@@ -33,6 +34,7 @@ class Wiggle:
     def add_header_list(self, chr_len_list):
         """
         Add header to the bigwig file
+
         Parameters
         ----------
         chr_len_list : list of tuple
@@ -40,6 +42,7 @@ class Wiggle:
 
         Returns
         -------
+        None
 
         """
         self.file.addHeader(chr_len_list)
@@ -47,6 +50,7 @@ class Wiggle:
     def add_fixedstep(self, chrom, position_int, value_list, span=1, step=1):
         """
         Add fixed step formatted data
+
         Parameters
         ----------
         chrom : str
@@ -60,6 +64,7 @@ class Wiggle:
 
         Returns
         -------
+        None
 
         """
         self.file.addEntries(chrom, position_int, values=value_list, span=span, step=step)
@@ -105,7 +110,6 @@ class Wiggle:
 
 
 class ExportJBrowse:
-
     rd_signal_dct = {
         "RD": {
             "FLAG": [0, 0x0010],
@@ -184,7 +188,7 @@ class ExportJBrowse:
                 while default_name.exists():
                     update_name = "{}({})".format(tmp_name.name, i)
                     default_name = default_name.with_name(update_name)
-                    i = i+1
+                    i = i + 1
             return default_name
         else:
             if self.dir.parent.exists():
@@ -363,7 +367,8 @@ class ExportJBrowse:
                             signal = self.signal_name(bin_size, signal_name, flag)
                             bigwig_filename = "{}.bw".format(signal)
                             bigwig_file = self.export_data_dir_list[root_index].joinpath(bigwig_filename)
-                            bigwig_current_path = Path(bigwig_file.parent.parent.name).joinpath(bigwig_file.parent.name, bigwig_file.name).as_posix()
+                            bigwig_current_path = Path(bigwig_file.parent.parent.name).joinpath(bigwig_file.parent.name,
+                                                                                                bigwig_file.name).as_posix()
                             if bigwig_file.exists():
                                 scales[bin_size] = bigwig_current_path
 
@@ -376,7 +381,6 @@ class ExportJBrowse:
 
                             })
             if len(url_template_dct) > 0:
-
                 track_dct = {
                     "category": self.pytor_names[root_index],
                     'autoscale': 'local',
@@ -411,7 +415,8 @@ class ExportJBrowse:
                             signal = self.signal_name(bin_size, signal_name, flag)
                             bigwig_filename = "{}_offset{}.bw".format(signal, offset)
                             bigwig_file = self.export_data_dir_list[root_index].joinpath(bigwig_filename)
-                            bigwig_current_path = Path(bigwig_file.parent.parent.name).joinpath(bigwig_file.parent.name, bigwig_file.name).as_posix()
+                            bigwig_current_path = Path(bigwig_file.parent.parent.name).joinpath(bigwig_file.parent.name,
+                                                                                                bigwig_file.name).as_posix()
                             if bigwig_file.exists():
                                 scales[bin_size] = bigwig_current_path
                     else:
@@ -420,7 +425,8 @@ class ExportJBrowse:
                             signal = self.signal_name(bin_size, signal_name, flag)
                             bigwig_filename = "{}.bw".format(signal)
                             bigwig_file = self.export_data_dir_list[root_index].joinpath(bigwig_filename)
-                            bigwig_current_path = Path(bigwig_file.parent.parent.name).joinpath(bigwig_file.parent.name, bigwig_file.name).as_posix()
+                            bigwig_current_path = Path(bigwig_file.parent.parent.name).joinpath(bigwig_file.parent.name,
+                                                                                                bigwig_file.name).as_posix()
                             if bigwig_file.exists():
                                 scales[bin_size] = bigwig_current_path
                     if len(scales) > 0:

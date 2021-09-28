@@ -111,6 +111,10 @@ class Root:
         chroms : list of str
             List of chromosomes. Calculates for all available if empty.
 
+        Returns
+        -------
+        None
+
         """
         rd_stat = []
         auto, sex, mt = False, False, False
@@ -290,6 +294,12 @@ class Root:
             List of chromosomes. Import all available if empty.
         reference_filename : str
             Only for CRAM files - reference genome filename
+        overwrite : bool
+            If True reset counts to zero before reading.
+
+        Returns
+        -------
+        None
 
         """
         for bf in bamfiles:
@@ -357,6 +367,10 @@ class Root:
         use_index : bool
             Use index file for vcf parsing. Default is False.
 
+        Returns
+        -------
+        None
+
         """
         vcff = Vcf(vcf_file)
         chrs = [c for c in vcff.get_chromosomes() if len(chroms) == 0 or c in chroms]
@@ -420,6 +434,11 @@ class Root:
             List of chromosomes. Calculates for all available if empty.
         reference_filename : str
             Only for CRAM files - reference genome filename
+
+        Returns
+        -------
+        None
+
         """
         chrs = [c for c in self.io.snp_chromosomes() if (len(chroms) == 0 or c in chroms)]
 
@@ -450,9 +469,12 @@ class Root:
         callset : str or None
             It will assume SNP data if None. Otherwise it will assume SNV data
             stored under the name provided by callset variable.
+        s_bin_size: int
+            Bin size used for calculations.
 
         Returns
         -------
+        None
 
         """
 
@@ -483,10 +505,23 @@ class Root:
             self.io.save_rd(c, rd, rd)
 
     def gc(self, filename, chroms=[], make_gc_genome_file=False):
-        """ Read GC content from reference fasta file and store in .cnvnator file
-                Arguments:
-                    * FASTA filename
-                    * list of chromosome names
+        """
+        Read GC content from reference fasta file and store in .cnvnator file
+
+        Parameters
+        ----------
+        filename : str
+            Fasta filename
+        chroms : list of str
+            List of chromosomes. Calculates for all available if empty.
+        make_gc_genome_file : bool
+            Reads all chromosomes from fasta if set, otherwise reads only chromosomes within
+            pytor file filtered by chroms list.
+
+        Returns
+        -------
+        None
+
         """
         fasta = Fasta(filename)
         chrname, chrlen = fasta.get_chr_len()
@@ -515,13 +550,22 @@ class Root:
         if count > 0:
             _logger.info("Running RD statistics on chromosomes with imported GC data.")
             self.rd_stat()
-        return count
 
     def copy_gc(self, filename, chroms=[]):
-        """ Copy GC content from another cnvnator file
-                Arguments:
-                    * cnvnator filename
-                    * list of chromosome names
+        """
+        Copy GC content from another cnvnator file
+
+        Parameters
+        ----------
+        filename : str
+            Pytor filename.
+        chroms : list of str
+            List of chromosomes. Calculates for all available if empty.
+
+        Returns
+        -------
+        None
+
         """
         io_src = IO(filename)
         chr_rdn = []
@@ -533,18 +577,29 @@ class Root:
                 else:
                     _logger.debug("Found RD signal for chromosome '%s' with name '%s'." % (c, rd_name))
                     chr_rdn.append((c, rd_name))
-        count = 0
         for c, rdn in chr_rdn:
             _logger.info(
                 "Copying GC data for chromosome '%s' from file '%s' in file '%s'." % (c, filename, self.io.filename))
             self.io.create_signal(rdn, None, "GC/AT", io_src.get_signal(c, None, "GC/AT").astype(dtype="uint8"))
-        return count
 
     def mask(self, filename, chroms=[], make_mask_genome_file=False):
-        """ Read strict mask fasta file and store in .cnvnator file
-                Arguments:
-                    * FASTA filename
-                    * list of chromosome names
+        """
+        Read strict mask fasta file and store in pytor file
+
+        Parameters
+        ----------
+        filename : str
+            Fasta filename
+        chroms : list of str
+            List of chromosomes. Calculates for all available if empty.
+        make_mask_genome_file : bool
+            Reads all chromosomes from fasta if set, otherwise reads only chromosomes within
+            pytor file filtered by chroms list.
+
+        Returns
+        -------
+        None
+
         """
         fasta = Fasta(filename)
         chrname, chrlen = fasta.get_chr_len()
@@ -574,13 +629,22 @@ class Root:
                 self.io.create_signal(rdn, None, "mask", mask_compress(mask))
                 count += 1
                 _logger.info("Strict mask data for chromosome '%s' saved in file '%s'." % (rdn, self.io.filename))
-        return count
 
     def copy_mask(self, filename, chroms=[]):
-        """ Copy strict mask data from another cnvnator file
-                Arguments:
-                    * cnvnator filename
-                    * list of chromosome names
+        """
+        Copy strict mask from another cnvnator file
+
+        Parameters
+        ----------
+        filename : str
+            Pytor filename.
+        chroms : list of str
+            List of chromosomes. Calculates for all available if empty.
+
+        Returns
+        -------
+        None
+
         """
         io_src = IO(filename)
         chr_rdn = []
@@ -602,19 +666,20 @@ class Root:
                 "Copying strict mask data for chromosome '%s' from file '%s' in file '%s'." % (
                     c, filename, self.io.filename))
             self.io.create_signal(rdn, None, "mask", io_src.get_signal(c, None, "mask").astype(dtype="uint32"))
-        return count
 
     def set_reference_genome(self, rg):
-        """ Manually sets reference genome.
+        """
+        Manually sets reference genome.
 
         Parameters
         ----------
         rg: str
-            Name of reference genome
+            Name of reference genome.
 
         Returns
         -------
-            True if genome exists in database
+        : bool
+            True if genome exists in database.
 
         """
         if rg in Genome.reference_genomes:
@@ -625,8 +690,10 @@ class Root:
                 _logger.info("Strict mask for reference genome '%s' found in database." % rg)
             if "gc_file" in Genome.reference_genomes[rg]:
                 _logger.info("GC content for reference genome '%s' found in database." % rg)
+            return True
         else:
             _logger.warning("Reference genome '%s' not found in database." % rg)
+            return False
 
     def calculate_histograms(self, bin_sizes, chroms=[]):
         """
@@ -638,6 +705,10 @@ class Root:
             List of histogram bin sizes
         chroms : list of str
             List of chromosomes. Calculates for all available if empty.
+
+        Returns
+        -------
+        None
 
         """
         rd_gc_chromosomes = {}
@@ -923,6 +994,9 @@ class Root:
         min_count : int
             minimal number of SNPs within bin
 
+        Returns
+        -------
+        None
 
         """
         if min_count is None:
@@ -1046,7 +1120,7 @@ class Root:
                         dist_p, bins = np.histogram(his_p, bins=bins_auto)
                         dist_u, bins = np.histogram(his_u, bins=bins_auto)
                         gcat = self.io_gc.get_signal(snp_gc_chromosomes[c], None, "GC/AT")
-                        print(len(his_p),len(gcp_decompress(gcat, bin_ratio)))
+                        print(len(his_p), len(gcp_decompress(gcat, bin_ratio)))
                         dist_p_gc, xbins, ybins = np.histogram2d(his_p, gcp_decompress(gcat, bin_ratio),
                                                                  bins=(bins_auto, range(102)))
                         dist_p_auto += dist_p
@@ -1198,7 +1272,7 @@ class Root:
 
     def partition(self, bin_sizes, chroms=[], use_gc_corr=True, use_mask=False, repeats=3, genome_size=2.9e9):
         """
-        Calculates segmentation of RD signal.
+        Calculates mean-shift segmentation of RD signal. Based on CNVnator algorithm.
 
         Parameters
         ----------
@@ -1210,6 +1284,14 @@ class Root:
             Use GC corrected signal if True. Default: True.
         use_mask : bool
             Use P-mask filter if True. Default: False.
+        repeats : int
+            Algorithm parameter, how many times core segmentation will be repeated.
+        genome_size : float
+            Size of genome (used to estimate multiple hypotesis e-vals).
+
+        Returns
+        -------
+        None
 
         """
         bin_bands = [2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 16, 20, 24, 28, 32, 40, 48, 56, 64, 80, 96, 112, 128]
@@ -1343,7 +1425,7 @@ class Root:
     def call(self, bin_sizes, chroms=[], print_calls=False, use_gc_corr=True, use_mask=False, genome_size=2.9e9,
              genome_cnv_fraction=0.01):
         """
-        CNV caller based on the segmented RD signal.
+        CNV caller based on the mean-shift segmented RD signal. Based on CNVnator algorithm.
 
         Parameters
         ----------
@@ -1357,6 +1439,10 @@ class Root:
             Use GC corrected signal if True. Default: True.
         use_mask : bool
             Use P-mask filter if True. Default: False.
+        genome_size : float
+            Size of genome (used to estimate multiple hypotesis e-vals).
+        genome_cnv_fraction : float
+            Proportion of genome coverd by CNVs (used to estimate multiple hypotesis e-vals).
 
         Returns
         -------
@@ -1589,18 +1675,7 @@ class Root:
     def call_mosaic(self, bin_sizes, chroms=[], use_gc_corr=True, use_mask=False, omin=None,
                     max_distance=0.3, anim=""):
         """
-        CNV caller based on likelihood merger.
-
-        Parameters
-        ----------
-        bin_sizes : list of int
-            List of histogram bin sizes
-        chroms : list of str
-            List of chromosomes. Calculates for all available if empty.
-        use_gc_corr : bool
-            Use GC corrected signal if True. Default: True.
-        use_mask : bool
-            Use P-mask filter if True. Default: False.
+        CNV caller based on RD likelihood merger (UNDER DEVELOPMENT).
 
         """
         rd_gc_chromosomes = {}
@@ -1751,6 +1826,10 @@ class Root:
             It will assume SNP data if None. Otherwise it will assume SNV data
             stored under the name provided by callset variable.
 
+        Returns
+        -------
+        None
+
         """
         snp_mask_chromosomes = {}
         for c in self.io_mask.mask_chromosomes():
@@ -1776,12 +1855,29 @@ class Root:
                     self.io.save_snp(c, pos, ref, alt, nref, nalt, gt, flag, qual, update=True, callset=callset)
 
     def variant_id(self, vcf_file, chroms, callset=None):
+        """
+        Set ID flag for SNPs existing in specified vcf file.
+        Can be used for additional filtering of SNPs with use_id option.
+
+        Parameters
+        ----------
+        vcf_file : str
+            Variant filename
+        chroms : list of str
+            List of chromosomes. Calculates for all available if empty.
+        callset : str or None
+            It will assume SNP data if None. Otherwise it will assume SNV data
+            stored under the name provided by callset variable.
+
+        Returns
+        -------
+
+        """
         vcff = Vcf(vcf_file)
-        chrs = [c for c in vcff.get_chromosomes() if len(chroms) == 0 or c in chroms]
 
         def set_id_flag(chr, id_pos, id_ref, id_alt):
             snp_chr_name = self.io.snp_chromosome_name(chr)
-            if snp_chr_name is not None:
+            if snp_chr_name is not None and (len(chroms) == 0 or (snp_chr_name in chroms) or (chr in chroms)):
                 pos, ref, alt, nref, nalt, gt, flag, qual = self.io.read_snp(snp_chr_name, callset=callset)
                 id_ix = 0
                 f0 = 0
@@ -1801,12 +1897,11 @@ class Root:
                 if len(pos) > 0:
                     self.io.save_snp(snp_chr_name, pos, ref, alt, nref, nalt, gt, flag, qual, update=True,
                                      callset=callset)
-
-        return vcff.read_all_snp_positions(set_id_flag)
+        vcff.read_all_snp_positions(set_id_flag)
 
     def calculate_alt_ref_bias(self, chroms=[], use_mask=True, use_id=False):
         """
-        Calculates alt/ref bias based on whole genome statistics
+        Calculates alt/ref bias based on whole genome statistics.
 
         Parameters
         ----------
@@ -1816,23 +1911,26 @@ class Root:
             Use P-mask filter if True. Default: True.
         use_id : bool
             Use id flag filter if True. Default: False.
-        """
 
+        Return
+        ------
+        alt_ref_ratio : float
+            Ratio between number of reads supporting alternative and reference for HETs.
+
+        """
         bafs = []
         talt = 0
         tref = 0
         for c in self.io.snp_chromosomes():
             if len(chroms) == 0 or c in chroms:
                 pos, ref, alt, nref, nalt, gt, flag, qual = self.io.read_snp(c)
-                for r,a,g,f in zip(nref,nalt,gt,flag):
-                    if (a+r)>0 and ((g % 4) in [1,2]) and (not use_id or (f & 1)) and (not use_mask or (f & 2)):
+                for r, a, g, f in zip(nref, nalt, gt, flag):
+                    if (a + r) > 0 and ((g % 4) in [1, 2]) and (not use_id or (f & 1)) and (not use_mask or (f & 2)):
                         bafs.append(1.0 * a / (a + r))
                         talt += a
                         tref += r
-
-        return talt/tref
-
-
+        alt_ref_ratio = talt / tref
+        return alt_ref_ratio
 
     def calculate_baf(self, bin_sizes, chroms=[], use_mask=True, use_id=False, use_phase=False, res=200,
                       reduce_noise=False, blw=0.8, use_hom=False, alt_ref_correct=False):
@@ -1853,7 +1951,19 @@ class Root:
             Use phasing information if True and available. Default: False.
         res: int
             Likelihood function resolution. Default: 200.
+        reduce_noise: bool
+            Reduce noise by increasing smaller count by one. It can change final BAF level.
+        blw : bool
+            Exponent used in beta distribution
+        use_hom : bool
+            For bins without HETs estimate likelihood using number of HOMs if True.
+            Use this option for calling germline deletions and CNNLOHs.
+        alt_ref_correct : bool
+            Removes alternative/reference bias if True.
 
+        Returns
+        -------
+        None
 
         """
         alt_factor = 1.0
@@ -1992,18 +2102,8 @@ class Root:
 
     def call_baf(self, bin_sizes, chroms=[], use_mask=True, use_id=False, odec=0.9, omin=None, mcount=None,
                  max_distance=0.1, anim=""):
-        """ CNV caller based on BAF likelihood mearger
+        """ CNV caller based on BAF likelihood mearger (UNDER CONSTRUCTION).
 
-        Parameters
-        ----------
-        bin_sizes : list of int
-            List of histogram bin sizes
-        chroms : list of str
-            List of chromosomes. Calculates for all available if empty.
-        use_mask : bool
-            Use P-mask filter if True. Default: False.
-        use_id : bool
-            Use ID filter if True. Default: False.
         """
 
         for bin_size in bin_sizes:
@@ -2151,7 +2251,25 @@ class Root:
         max_copy_number : int
             Maximal copy number model
         min_cell_fraction : float
+            Minimal cell fraction used for estimate most likely copy number model.
+        baf_threshold : float
+            Ignores calls with BAF change smaller then this threshold value.
+        omin : None or float
+            Algorithm ends when maximal likelihood overlap decrease below this value.
+            If None, 0.05 multiple hypotesis p-value.
+        mcount : None or int
+            Minimal number of SNPs to use bin.
+        max_distance: float
+        use_hom : bool
+            For bins without HETs estimate likelihood using number of HOMs if True.
+            Use this option for calling germline deletions and CNNLOHs.
+            Function calculate_baf should be run using the same parameter.
+        anim : str
+            If not empty string it will generate plot after each itteretion (debuging purpose)
 
+        Returns
+        -------
+        None
 
         """
 
@@ -2435,7 +2553,7 @@ class Root:
                         self.io.create_signal(c, bin_size, "SNP likelihood call 2d",
                                               data=np.array(likelihood, dtype="float32"), flags=snp_flag)
 
-            if len(gstat_rd0)==0:
+            if len(gstat_rd0) == 0:
                 data = np.array(gstat_rd_all)
                 _logger.warning("No bins with BAF=0.5! Using all bins for RD normalisation.")
             else:
@@ -2468,8 +2586,8 @@ class Root:
             _logger.info("Checking bimodal hypothesis...")
             bim = fit_bimodal(bins[:-1], hist)
             if False and bim is not None:
-                    #and bim[0][0] > 0 and bim[0][1] > 0 and bim[0][3] > 0 and bim[0][4] > 0:
-                    #and np.sum(np.sqrt(np.diag(bim[1])) / np.array(bim[0])) < 10:
+                # and bim[0][0] > 0 and bim[0][1] > 0 and bim[0][3] > 0 and bim[0][4] > 0:
+                # and np.sum(np.sqrt(np.diag(bim[1])) / np.array(bim[0])) < 10:
                 _logger.info("Fit successful:")
                 _logger.info("    * a1   = %.4f" % bim[0][0])
                 _logger.info("    * mean1   = %.4f" % bim[0][1])
@@ -2639,32 +2757,14 @@ class Root:
 
         return ret
 
-
-    def call_2d_phased(self, bin_sizes, chroms=[], event_type="both", print_calls=False, use_gc_corr=True, rd_use_mask=False,
-                snp_use_mask=True, snp_use_id=False, max_copy_number=10, min_cell_fraction=0.0, baf_threshold=0,
-                omin=None, mcount=None, max_distance=0.1, use_hom=False, anim=""):
+    def call_2d_phased(self, bin_sizes, chroms=[], event_type="both", print_calls=False, use_gc_corr=True,
+                       rd_use_mask=False,
+                       snp_use_mask=True, snp_use_id=False, max_copy_number=10, min_cell_fraction=0.0, baf_threshold=0,
+                       omin=None, mcount=None, max_distance=0.1, use_hom=False, anim=""):
         """
-        CNV caller using combined RD and BAF sigal based on likelihood merger.
-
-        Parameters
-        ----------
-        bin_sizes : list of int
-            List of histogram bin sizes
-        chroms : list of str
-            List of chromosomes. Calculates for all available if empty.
-        print_calls : bool
-            Print to stdout list of calls if true.
-        use_gc_corr : bool
-            Use GC corrected signal if True. Default: True.
-        rd_use_mask : bool
-            Use P-mask filter for RD if True. Default: False.
-        snp_use_mask : bool
-            Use P-mask filter for SNP if True. Default: True.
-        snp_use_id : bool
-            Use ID filter for SNP if True. Default: False.
+        CNV phased caller using combined RD and BAF sigal based on likelihood merger (UNDER DEVELOPMENT).
 
         """
-
         snp_flag = (FLAG_USEMASK if snp_use_mask else 0) | (FLAG_USEID if snp_use_id else 0)
         rd_gc_chromosomes = {}
         for c in self.io_gc.gc_chromosomes():
@@ -2945,7 +3045,7 @@ class Root:
                         self.io.create_signal(c, bin_size, "SNP likelihood call 2d",
                                               data=np.array(likelihood, dtype="float32"), flags=snp_flag)
 
-            if len(gstat_rd0)==0:
+            if len(gstat_rd0) == 0:
                 data = np.array(gstat_rd_all)
                 _logger.warning("No bins with BAF=0.5! Using all bins for RD normalisation.")
             else:
@@ -3149,9 +3249,13 @@ class Root:
 
         return ret
 
-
     def ls(self):
-        """ Print to stdout content of cnvpytor file.
+        """
+        Print to stdout content of cnvpytor file
+
+        Returns
+        -------
+        None
 
         """
         self.io.ls()

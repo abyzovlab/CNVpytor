@@ -40,7 +40,7 @@ class Bam:
             self.file = pysam.AlignmentFile(filename, "r")
         elif filename[-5:] == ".cram":
             if reference_filename:
-                self.file = pysam.AlignmentFile(filename, "rc",reference_filename=reference_filename)
+                self.file = pysam.AlignmentFile(filename, "rc", reference_filename=reference_filename)
             else:
                 self.file = pysam.AlignmentFile(filename, "rc")
         else:
@@ -106,7 +106,7 @@ class Bam:
                         continue
                 if r.reference_start and r.reference_end and not (r.mapping_quality is None):
                     mid = (r.reference_end + r.reference_start) // 200
-                    if mid >=0 and mid < n:
+                    if mid >= 0 and mid < n:
                         rd_p[mid] += 1
                         if r.mapping_quality > 0:
                             rd_u[mid] += 1
@@ -123,6 +123,30 @@ class Bam:
         return rd_p, rd_u, his_read_frg
 
     def pileup(self, chr_name, pos, ref, alt, tmp_file=".cnvpytor"):
+        """
+        Run samtools mpileup and return SNP counts
+
+        Parameters
+        ----------
+        chr_name : str
+            Name of the chromosome.
+        pos : list of integers
+            Positions of SNPs
+        ref : list of chars
+            Reference base
+        alt : list of chars
+            Alternative base
+        tmp_file : string
+            Prefix for temporary file name used during processing
+
+        Returns
+        -------
+        nref : list of integers
+            Reference counts
+        nalt : list of integers
+            Alternative counts
+
+        """
         if not (chr_name in self.len):
             _logger.warning("Can not find chromosome '%s' in file '%s'." % (chr_name, self.filename))
             return

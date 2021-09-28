@@ -11,6 +11,7 @@ from .utils import decode_region
 
 _logger = logging.getLogger("cnvpytor.annotator")
 
+
 class Annotator:
 
     def __init__(self, reference_genome, biotypes=["protein_coding"]):
@@ -52,11 +53,11 @@ class Annotator:
             return "No information"
         for i in response.json():
             if ("biotype" in i) and i["biotype"] in self.biotypes:
-                if i["start"]>start and i["end"]<end:
+                if i["start"] > start and i["end"] < end:
                     position = "inside"
-                elif i["start"]<start and i["end"]>end:
+                elif i["start"] < start and i["end"] > end:
                     position = "cover"
-                elif i["start"]<start:
+                elif i["start"] < start:
                     position = "intersect left"
                 else:
                     position = "intersect right"
@@ -65,4 +66,3 @@ class Annotator:
                 else:
                     ret.append("%s (%s %s)" % (i["id"], i["id"], position))
         return ", ".join(ret)
-

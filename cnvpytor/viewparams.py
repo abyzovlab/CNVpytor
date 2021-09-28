@@ -22,11 +22,11 @@ class ViewParams(object):
         "rd_use_mask": False,
         "rd_use_gc_corr": True,
         "callers": ["rd_mean_shift"],
-        "Q0_range": [-1,1],
-        "pN_range": [-1,1],
-        "dG_range": [-1,np.inf],
-        "size_range": [0,np.inf],
-        "p_range": [0,np.inf],
+        "Q0_range": [-1, 1],
+        "pN_range": [-1, 1],
+        "dG_range": [-1, np.inf],
+        "size_range": [0, np.inf],
+        "p_range": [0, np.inf],
         "annotate": False,
         "rd_range": [0, 6],
         "rd_manhattan_range": [0, 2],
@@ -55,7 +55,7 @@ class ViewParams(object):
         "style": None,
         "grid": "auto",
         "subgrid": "vertical",
-        "panel_size": [8,6],
+        "panel_size": [8, 6],
         "xkcd": False,
         "margins": [0.05, 0.95, 0.1, 0.98, 0.1, 0.2],
         "dpi": 200,
@@ -66,6 +66,15 @@ class ViewParams(object):
     }
 
     def __init__(self, params):
+        """
+        Class implements parameters and command tree used in Viewer
+
+        Parameters
+        ----------
+        params : dict
+            Initial parameters
+
+        """
         for key in self.default:
             if key in params:
                 setattr(self, key, params[key])
@@ -80,13 +89,28 @@ class ViewParams(object):
         for panel1 in ["rd", "likelihood", "snp", "baf", "snv", "CN"]:
             self.command_tree["set"]["panels"][panel1] = self.command_tree["set"]["panels"]
         self.command_tree["set"]["callers"] = {}
-        for caller in ["rd_mean_shift","rd_mosaic","baf_mosaic","combined_mosaic"]:
+        for caller in ["rd_mean_shift", "rd_mosaic", "baf_mosaic", "combined_mosaic"]:
             self.command_tree["set"]["callers"][caller] = self.command_tree["set"]["callers"]
         self.command_tree["set"]["grid"] = {"auto": None, "horizontal": None, "vertical": None}
         self.command_tree["set"]["subgrid"] = {"auto": None, "horizontal": None, "vertical": None}
         self.interactive = True
 
-    def set(self, param, args):
+    def set_param(self, param, args):
+        """
+        Set parameter
+
+        Parameters
+        ----------
+        param: str
+            Parameter name
+        args: list of str
+            Value/values to be casted and saved
+
+        Returns
+        -------
+        None
+
+        """
         try:
             if param in self.params and self.params[param] is False:
                 self.__setattr__(param, True)
@@ -95,7 +119,7 @@ class ViewParams(object):
                 if len(sp) == 2 and (sp[0] in self.params) and sp[0][-7:] == "_colors" and sp[1].isdigit():
                     ix = int(sp[1])
                     self.params[sp[0]][ix] = args[0]
-                if len(sp) == 2 and sp[0]=="margins" and sp[1].isdigit():
+                if len(sp) == 2 and sp[0] == "margins" and sp[1].isdigit():
                     ix = int(sp[1])
                     self.params[sp[0]][ix] = float(args[0])
             elif param == "margins":
@@ -133,31 +157,31 @@ class ViewParams(object):
                         self.__setattr__(param, list(map(int, args[:2])))
             elif param == "panel_size":
                 if len(args) > 0:
-                        self.__setattr__(param, list(map(float, args[:2])))
+                    self.__setattr__(param, list(map(float, args[:2])))
             elif param == "dpi":
                 if len(args) > 0:
                     self.__setattr__(param, int(args[0]))
             elif param == "Q0_range":
-                    if len(args) > 1:
-                        self.__setattr__(param, list(map(float, args[:2])))
+                if len(args) > 1:
+                    self.__setattr__(param, list(map(float, args[:2])))
             elif param == "pN_range":
-                    if len(args) > 1:
-                        self.__setattr__(param, list(map(float, args[:2])))
+                if len(args) > 1:
+                    self.__setattr__(param, list(map(float, args[:2])))
             elif param == "size_range":
-                    if len(args) > 1:
-                        if args[1]=="inf":
-                            self.__setattr__(param, [int(args[0]),np.inf])
-                        else:
-                            self.__setattr__(param, list(map(int, args[:2])))
+                if len(args) > 1:
+                    if args[1] == "inf":
+                        self.__setattr__(param, [int(args[0]), np.inf])
+                    else:
+                        self.__setattr__(param, list(map(int, args[:2])))
             elif param == "dG_range":
-                    if len(args) > 1:
-                        if args[1]=="inf":
-                            self.__setattr__(param, [int(args[0]),np.inf])
-                        else:
-                            self.__setattr__(param, list(map(int, args[:2])))
+                if len(args) > 1:
+                    if args[1] == "inf":
+                        self.__setattr__(param, [int(args[0]), np.inf])
+                    else:
+                        self.__setattr__(param, list(map(int, args[:2])))
             elif param == "p_range":
-                    if len(args) > 1:
-                        self.__setattr__(param, list(map(float, args[:2])))
+                if len(args) > 1:
+                    self.__setattr__(param, list(map(float, args[:2])))
             elif param == "rd_range":
                 if len(args) > 1:
                     self.__setattr__(param, list(map(float, args[:2])))
@@ -175,7 +199,7 @@ class ViewParams(object):
                     if args[0].split(".")[-1] in ["tsv", "vcf", "xlsx"]:
                         self.__setattr__(param, args[0])
                     else:
-                        raise(ValueError)
+                        raise (ValueError)
             elif param == "plot_file":
                 if len(args) > 0:
                     self.__setattr__(param, int(args[0]))
@@ -198,6 +222,19 @@ class ViewParams(object):
             _logger.warning("Value error while setting %s!" % param)
 
     def unset(self, param):
+        """
+        Set parameter to false if bool or restore default in other cases
+
+        Parameters
+        ----------
+        param : str
+            Parameter name
+
+        Returns
+        -------
+        None
+
+        """
         if param in self.params:
             if type(self.default[param]) == type(True):
                 self.__setattr__(param, False)
@@ -271,7 +308,7 @@ class HelpDescription(object):
         "rdstat": None,
         "circular": None,
         "manhattan": None,
-        "genotype":None,
+        "genotype": None,
         "calls": None,
         "print": {"calls", "merged_calls"},
         "ls": None,

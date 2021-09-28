@@ -129,6 +129,7 @@ class Fasta:
         Returns
         -------
         None
+
         """
         prefix = """import_reference_genomes = {\n    "NAME": {
         "name": "FULL NAME",

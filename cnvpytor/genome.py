@@ -116,6 +116,10 @@ class Genome:
         """
         Download missing resource files files from github.
 
+        Returns
+        -------
+        None
+
         """
         _logger.info("Updating reference genome resource files...")
         for i in cls.reference_genomes:
@@ -166,6 +170,7 @@ class Genome:
         -------
         bool
             Return True if chromosome is autosome
+
         """
         if cls.detected_genome is None:
             return (not cls.is_sex_chrom(name)) and (not cls.is_mt_chrom(name)) and (not ("GL" in name.upper())) and (
@@ -191,6 +196,7 @@ class Genome:
         -------
         bool
             Return True if chromosome is sex chromosome
+
         """
         if cls.detected_genome is None:
             return cls.canonical_chrom_name(name) in {"X", "Y", "SEX"}
@@ -215,6 +221,7 @@ class Genome:
         -------
         bool
             Return True if chromosome is mitochondrial chromosome
+
         """
         if cls.detected_genome is None:
             return cls.canonical_chrom_name(name) in {"M", "MT"}
@@ -292,9 +299,13 @@ class Genome:
         filename : str
             Name of the configuration file
 
+        Returns
+        -------
+        None
+
         """
         _logger.info("Reading configuration file '%s'." % filename)
-        exec (open(filename).read(), globals())
+        exec(open(filename).read(), globals())
         for g in import_reference_genomes:
             _logger.info("Importing reference genome data: '%s'." % g)
             cls.reference_genomes[g] = import_reference_genomes[g]

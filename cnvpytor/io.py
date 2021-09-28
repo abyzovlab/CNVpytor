@@ -702,10 +702,16 @@ class IO(Signals):
     def add_rd_chromosome(self, chr_name):
         """
         Add RD chromosome name to rd chromosomes list
+
         Parameters
         ----------
         chr_name : str
             Name of the chromosome.
+
+        Returns
+        -------
+        None
+
         """
         if not (chr_name in self.rd_chromosomes()):
             rd_chroms = self.rd_chromosomes()
@@ -741,7 +747,8 @@ class IO(Signals):
 
         Returns
         -------
-            None
+        None
+
         """
         if callset is None:
             if update:
@@ -966,7 +973,7 @@ class IO(Signals):
 
         Returns
         -------
-            None
+        None
 
         """
         chr_len = list(np.array(self.get_signal(None, None, "chromosome lengths")).astype("str"))
@@ -1006,7 +1013,7 @@ class IO(Signals):
 
         """
         chr_len = list(np.array(self.get_signal(None, None, "chromosome lengths")).astype("str"))
-        chr_len = list(zip(chr_len[::2], map(int,chr_len[1::2])))
+        chr_len = list(zip(chr_len[::2], map(int, chr_len[1::2])))
         return chr_len
 
     def is_chromosome_length_set(self, chromosome):
@@ -1075,6 +1082,27 @@ class IO(Signals):
         self.create_signal(None, bin_size, "RD level", np.array([mean, stdev]), flags=flags)
 
     def save_calls(self, chr_name, bin_size, signal, calls, flags):
+        """
+        Save calls
+
+        Parameters
+        ----------
+        chr_name : str
+            Chromosome name
+        bin_size : int
+            Bin size
+        signal : str
+            Signal name
+        calls : list of dict
+            List of calls
+        flags : int
+            Flag
+
+        Returns
+        -------
+        None
+
+        """
         keys = ["type", "start", "end", "size", "cnv", "p_val", "p_val_2", "p_val_3", "p_val_4", "Q0", "pN", "dG"]
         if signal == "calls combined":
             keys = ["type", "start", "end", "size", "cnv", "p_val", "lh_del", "lh_loh", "lh_dup", "Q0", "bins", "baf",
@@ -1090,6 +1118,26 @@ class IO(Signals):
         x = self.create_signal(chr_name, bin_size, signal, data, flags=flags)
 
     def read_calls(self, chr_name, bin_size, signal, flags):
+        """
+        Save calls
+
+        Parameters
+        ----------
+        chr_name : str
+            Chromosome name
+        bin_size : int
+            Bin size
+        signal : str
+            Signal name
+        flags : int
+            Flag
+
+        Returns
+        -------
+        calls : list of dict
+            List of calls
+
+        """
         data = self.get_signal(chr_name, bin_size, signal, flags=flags)
         keys = ["type", "start", "end", "size", "cnv", "p_val", "p_val_2", "p_val_3", "p_val_4", "Q0", "pN", "dG"]
         if signal == "calls combined":
@@ -1110,9 +1158,32 @@ class IO(Signals):
         return calls
 
     def add_meta_attribute(self, attribute, value):
+        """
+        Add meta attribute to the file
+
+        Parameters
+        ----------
+        attribute : str
+            Attribute name
+        value : str
+            Attribute value
+
+        Returns
+        -------
+        None
+
+        """
         self.file.attrs[attribute] = str(value)
 
-    def read_meta_attribute(self):
+    def print_meta_attribute(self):
+        """
+        Prints meta attributes
+
+        Returns
+        -------
+        None
+
+        """
         print()
         print("Filename '%s'" % self.filename)
         print("-----------" + "-" * len(self.filename))

@@ -93,7 +93,6 @@ def main():
     parser.add_argument('-altc', '--alt_corr', action='store_true',
                         help="Remove alt/ref bias")
 
-
     parser.add_argument('-plot', '--plot', type=str, nargs="+", help="plotting")
     parser.add_argument('-view', '--view', type=binsize_type,
                         help="Enters interactive ploting mode")
