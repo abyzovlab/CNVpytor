@@ -17,7 +17,13 @@ Run joint caller:
 > cnvpytor -root sample.pytor -call combined > calls.tsv
 ```
 
-Description of columns you can find in [Geting started](GettingStarted.md)
+Output format is illustrated here:
+
+<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/joint_caller_output.png">
+
+
+Full description of columns you can find in [Geting started](/GettingStarted.md).
+
 
 ## Filtering and exporting calls
 
