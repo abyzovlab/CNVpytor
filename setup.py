@@ -19,7 +19,7 @@ setup(
     url='https://github.com/abyzovlab/CNVpytor',
     install_requires=[
         'gnureadline',
-        'pathlib>=1.0'
+        'pathlib>=1.0',
         'requests>=2.0',
         'pysam>=0.15',
         'numpy>=1.16',
