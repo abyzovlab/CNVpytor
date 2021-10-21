@@ -3027,7 +3027,6 @@ class Root:
                                 gstat_rd.append(level[i])
                                 gstat_error.append(error[i])
                                 gstat_baf.append(baf_mean)
-                                print(c,segments[i][0] * bin_size + 1,baf_mean,rcounts[i])
                                 gstat_rc.append(rcounts[i])
                                 gstat_event.append({
                                     "c": c,
@@ -3125,15 +3124,18 @@ class Root:
 
             _logger.info("Detecting event type for %d events!" % len(gstat_event))
 
+            Nb = 3000
             points = int(1000 * (1 - min_cell_fraction))
             if points == 0:
                 points = 1
             x = np.linspace(min_cell_fraction, 1, points)
             master_lh = {}
             germline_lh = {}
+            beta_table = {}
             for ei in range(len(gstat_rd)):
                 master_lh[ei] = []
                 germline_lh[ei] = []
+                beta_table[ei] = beta.pdf(np.linspace(0,1,Nb), *gstat_rc[ei])
             for cn in range(max_copy_number, -1, -1):
                 for h1 in range(cn + 1):
                     h2 = cn - h1
@@ -3158,8 +3160,11 @@ class Root:
                         max_x = 0
                         for mi in range(len(mrd)):
                             if not np.isnan(mbaf[mi]):
-                                tmpl = normal(mrd[mi] * fitm, 1., gstat_rd[ei], gstat_error[ei]) * beta.pdf(0.5 + mbaf[
-                                        mi], *gstat_rc[ei])
+                                #tmpl = normal(mrd[mi] * fitm, 1., gstat_rd[ei], gstat_error[ei]) * beta.pdf(0.5 + mbaf[
+                                #        mi], *gstat_rc[ei])
+                                tmpl = normal(mrd[mi] * fitm, 1., gstat_rd[ei], gstat_error[ei]) * \
+                                       beta_table[ei][int(round((0.5 + mbaf[mi])*(Nb-1)))]
+
                                 slh += tmpl
                                 if tmpl > max_lh:
                                     max_lh = tmpl
