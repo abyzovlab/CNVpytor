@@ -17,7 +17,7 @@ with specified bin size. Bin size should be larger then 5kbp to have enough SNPs
 Run joint caller:
 
 ```
-> cnvpytor -root sample.pytor -call combined > calls.tsv
+> cnvpytor -root sample.pytor -call combined 100000 > calls.tsv
 ```
 
 Output format is illustrated here:
