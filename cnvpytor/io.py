@@ -50,6 +50,8 @@ class Signals(object):
         "RD mosaic call": "his_rd_p_%(chr)s_%(bin_size)d_partition%(rd_flag)s_mosaic_call",
         "RD mosaic segments 2d": "his_rd_p_%(chr)s_%(bin_size)d_partition%(rd_flag)s_mosaic_segments_2d",
         "RD mosaic call 2d": "his_rd_p_%(chr)s_%(bin_size)d_partition%(rd_flag)s_mosaic_call_2d",
+        "RD mosaic segments 2d phased": "his_rd_p_%(chr)s_%(bin_size)d_partition%(rd_flag)s_mosaic_segments_2d_phased",
+        "RD mosaic call 2d phased": "his_rd_p_%(chr)s_%(bin_size)d_partition%(rd_flag)s_mosaic_call_2d_phased",
         "RD level": "rd_level_%(bin_size)d%(flag)s",
         "GC": "%(chr)s_gc_%(bin_size)",
         "SNP pos": "%(chr)s_snp_pos",
@@ -81,6 +83,8 @@ class Signals(object):
         "SNP likelihood call": "snp_likelihood_%(chr)s_%(bin_size)d%(snp_flag)s_call",
         "SNP likelihood segments 2d": "snp_likelihood_%(chr)s_%(bin_size)d%(snp_flag)s_segments_2d",
         "SNP likelihood call 2d": "snp_likelihood_%(chr)s_%(bin_size)d%(snp_flag)s_call_2d",
+        "SNP read counts segments 2d phased": "snp_likelihood_%(chr)s_%(bin_size)d%(snp_flag)s_segments_2d_phased",
+        "SNP read counts call 2d phased": "snp_likelihood_%(chr)s_%(bin_size)d%(snp_flag)s_call_2d_phased",
         "SNP maf call": "snp_maf_%(chr)s_%(bin_size)d%(snp_flag)s_call",
         "SNP i1 call": "snp_i1_%(chr)s_%(bin_size)d%(snp_flag)s_call",
         "SNP i2 call": "snp_i2_%(chr)s_%(bin_size)d%(snp_flag)s_call",
@@ -1114,8 +1118,8 @@ class IO(Signals):
                 for model in call["models"]:
                     item.extend(model)
             data.append(item)
-        data = np.array(data, dtype=np.double)
-        x = self.create_signal(chr_name, bin_size, signal, data, flags=flags)
+        data2 = np.array(data, dtype=np.double)
+        x = self.create_signal(chr_name, bin_size, signal, data2, flags=flags)
 
     def read_calls(self, chr_name, bin_size, signal, flags):
         """

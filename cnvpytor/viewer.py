@@ -686,15 +686,17 @@ class Viewer(Show, Figure, HelpDescription):
 
     def rd_diff(self, file1, file2):
         bin_size = self.bin_size
+        flag_rd = (FLAG_USEMASK if self.rd_use_mask else 0)
+        mean, stdev = self.io[file1].rd_normal_level(bin_size, flag_rd | FLAG_GC_CORR)
         if self.reference_genome is None:
             _logger.warning("Missing reference genome required for gview.")
             return
         chroms = []
         for c, (l, t) in self.reference_genome["chromosomes"].items():
-            rd_chr = self.io[self.plot_file].rd_chromosome_name(c)
-            if self.io[self.plot_file].signal_exists(rd_chr, bin_size, "RD", 0) and \
-                    self.io[self.plot_file].signal_exists(rd_chr, bin_size, "RD", FLAG_GC_CORR) and \
-                    (Genome.is_autosome(c) or Genome.is_sex_chrom(c)):
+            rd_chr = self.io[file1].rd_chromosome_name(c)
+            if self.io[file1].signal_exists(rd_chr, bin_size, "RD", 0) and \
+                    self.io[file1].signal_exists(rd_chr, bin_size, "RD", FLAG_GC_CORR) and \
+                    (Genome.is_autosome(c) or Genome.is_sex_chrom(c)) and (len(self.chrom)==0 or rd_chr in self.chrom) :
                 chroms.append((rd_chr, l))
         self.new_figure(panel_count=len(chroms))
         for c, l in chroms:
@@ -709,7 +711,7 @@ class Viewer(Show, Figure, HelpDescription):
                 _logger.error(
                     "Data for bin size %d is missing in file '%s'!" % (bin_size, self.io[file2].filename))
                 return
-            flag_rd = (FLAG_USEMASK if self.rd_use_mask else 0)
+
             his_p_corr1 = self.io[file1].get_signal(c, bin_size, "RD", flag_rd | FLAG_GC_CORR)
             his_p_corr2 = self.io[file2].get_signal(c, bin_size, "RD", flag_rd | FLAG_GC_CORR)
             ax = self.next_panel()
@@ -726,8 +728,11 @@ class Viewer(Show, Figure, HelpDescription):
             n_bins = l // bin_size
             ax.set_xlim([-n_bins * 0.05, n_bins * 1.05])
             ax.grid()
-
-            plt.step(np.abs(his_p_corr1 / stat1[4] - his_p_corr2 / stat2[4]), "k")
+            if self.markersize == "auto":
+                plt.scatter(np.arange(len(his_p_corr1)),his_p_corr1 / stat1[4] - his_p_corr2 / stat2[4], marker='.', s=10, alpha=0.7)
+            else:
+                plt.scatter(np.arange(len(his_p_corr1)),his_p_corr1 / stat1[4] - his_p_corr2 / stat2[4], marker='.', s=self.markersize, alpha=0.7)
+            #plt.step(np.abs(his_p_corr1 / stat1[4] - his_p_corr2 / stat2[4]), "k")
         self.fig_show(suffix="rd_diff")
 
     def likelihood(self):
@@ -953,7 +958,9 @@ class Viewer(Show, Figure, HelpDescription):
                         if (c in self.chrom) or len(self.chrom) == 0:
                             flag = (FLAG_USEMASK if self.rd_use_mask else 0) | \
                                    (FLAG_GC_CORR if self.rd_use_gc_corr else 0) | \
-                                   (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0)
+                                   (FLAG_USEMASK if self.snp_use_mask else 0) | \
+                                   (FLAG_USEID if self.snp_use_id else 0) | \
+                                   (FLAG_USEHAP if self.snp_use_phase else 0)
                             if io.signal_exists(c, bin_size, "calls combined", flag):
                                 calls = io.read_calls(c, bin_size, "calls combined", flag)
                                 for call in calls:
@@ -1144,7 +1151,9 @@ class Viewer(Show, Figure, HelpDescription):
                         if (c in self.chrom) or len(self.chrom) == 0:
                             flag = (FLAG_USEMASK if self.rd_use_mask else 0) | \
                                    (FLAG_GC_CORR if self.rd_use_gc_corr else 0) | \
-                                   (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0)
+                                   (FLAG_USEMASK if self.snp_use_mask else 0) | \
+                                   (FLAG_USEID if self.snp_use_id else 0) | \
+                                   (FLAG_USEHAP if self.snp_use_phase else 0)
                             if io.signal_exists(c, bin_size, "calls combined", flag):
                                 calls = io.read_calls(c, bin_size, "calls combined", flag)
                                 for call in calls:
@@ -3411,7 +3420,7 @@ class Viewer(Show, Figure, HelpDescription):
 
                 if beta_distribution:
                     xx = np.linspace(0.2, 0.8, 200)
-                    ax.plot(xx, beta.pdf(xx, mean_rd / 2, mean_rd / 2) * len(bafP) / n_bins, c="black",
+                    ax.plot(xx, beta_fun.pdf(xx, mean_rd / 2, mean_rd / 2) * len(bafP) / n_bins, c="black",
                             label="Beta distribution")
                 ax.legend(bbox_to_anchor=(0, 1.02, 1, 0.2), loc="lower left", mode="expand", borderaxespad=0, ncol=3)
                 ax.set_xlabel("VAF")

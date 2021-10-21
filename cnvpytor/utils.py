@@ -8,7 +8,7 @@ import numpy as np
 from argparse import ArgumentTypeError
 from scipy.special import erf
 from scipy import stats
-from scipy.stats import norm
+from scipy.stats import norm, beta
 from scipy.optimize import curve_fit
 import logging
 import readline
@@ -420,6 +420,28 @@ def normal_overlap(m1, s1, m2, s2):
     return norm.cdf(roots[1], m1, s1) - norm.cdf(roots[0], m1, s1) + 1 - norm.cdf(roots[1], m2, s2) + norm.cdf(
         roots[0], m2, s2)
 
+def normal_overlap_approx(m1, s1, m2, s2):
+    """
+    Calculates two normal distributions overlap area.
+
+    Parameters
+    ----------
+    m1 : float
+        Mean value of the first distribution
+    s1 : float
+        Sigma of the first distribution
+    m2 : float
+        Mean value for second distribution
+    s2 : float
+        Sigma of the second distribution
+
+    Returns
+    -------
+    area : float
+        Area of overlap
+
+    """
+    return np.exp(-(m1-m2)**2/(s1**2+s2**2))
 
 def normal_merge(m1, s1, m2, s2):
     """
@@ -625,7 +647,7 @@ def calculate_gc_correction(his_rd_gc, mean, sigma, bin_size=1):
     return gc_corr
 
 
-def beta(k, m, p, phased=False):
+def beta_fun(k, m, p, phased=False):
     """
     Returns likelihood beta function f(p) where 0 <= p <= 1.
     Function is not normalized.
@@ -700,6 +722,26 @@ def likelihood_overlap(lk1, lk2):
     """
     return np.sum(np.min((lk1, lk2), axis=0))
 
+def beta_overlap(rc1, rc2, dx=0.001):
+    """
+    Returns approximative overlap area of two beta functions.
+
+    Parameters
+    ----------
+    rc1 : pair of int
+        First beta counts
+    rc2 : pair of int
+        Second beta counts
+
+    Returns
+    -------
+    overlap : float
+        Overlap area.
+
+    """
+    x = np.arange(0, 1. + dx, dx)
+    return np.trapz(np.min((beta.pdf(x, *rc1), beta.pdf(x, *rc2)), axis=0)) * dx
+
 
 def decode_position(s):
     """
@@ -767,6 +809,24 @@ def likelihood_baf_pval(likelihood):
     if ix == res // 2:
         p = 1.0
     return b, p
+
+def rcounts_baf_pval(rc):
+    """
+    Calculates baf level and p-value for given likelihood function.
+    Parameters
+    ----------
+    rc : (int, int)
+        Read counts
+
+    Returns
+    -------
+    b : float
+        BAF level (difference from 1/2)
+    p : float
+        p-value for event different than 1/2
+
+    """
+    return rc[1] / (rc[0]+rc[1]) - 0.5, beta.pdf(0.5, *rc)
 
 
 def likelihood_of_baf(likelihood, baf):

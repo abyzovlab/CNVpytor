@@ -5,6 +5,7 @@ class Root: main CNVpytor class
 from __future__ import absolute_import, print_function, division
 
 from .io import *
+from .utils import *
 from .bam import Bam
 from .vcf import Vcf
 from .fasta import Fasta
@@ -1680,6 +1681,7 @@ class Root:
         CNV caller based on RD likelihood merger (UNDER DEVELOPMENT).
 
         """
+        normal_overlap = normal_overlap_approx
         rd_gc_chromosomes = {}
         for c in self.io_gc.gc_chromosomes():
             rd_name = self.io.rd_chromosome_name(c)
@@ -1734,6 +1736,7 @@ class Root:
                                          0, mean)
 
                         while len(overlaps) > 0:
+                            _logger.debug("Iteration: %d" % iter)
                             maxo = max(overlaps)
                             if maxo < overlap_min:
                                 break
@@ -1761,6 +1764,7 @@ class Root:
                         _logger.info("Second stage. Number of segments: %d." % len(level))
 
                         while True:
+                            _logger.debug("Iteration: %d" % iter)
                             overlaps = [normal_overlap(level[i], error[i], level[j], error[j]) for i in
                                         range(len(level)) for j in range(i + 1, len(level)) if
                                         (segments[j][0] - segments[i][-1]) < max_distance * (
@@ -1899,6 +1903,7 @@ class Root:
                 if len(pos) > 0:
                     self.io.save_snp(snp_chr_name, pos, ref, alt, nref, nalt, gt, flag, qual, update=True,
                                      callset=callset)
+
         vcff.read_all_snp_positions(set_id_flag)
 
     def calculate_alt_ref_bias(self, chroms=[], use_mask=True, use_id=False):
@@ -1973,7 +1978,7 @@ class Root:
             alt_factor /= self.calculate_alt_ref_bias(chroms, use_mask, use_id)
             _logger.debug("Using alt counts correction factor %f" % alt_factor)
 
-        snp_flag = (FLAG_USEMASK if use_mask else 0) | (FLAG_USEID if use_id else 0)
+        snp_flag = (FLAG_USEMASK if use_mask else 0) | (FLAG_USEID if use_id else 0) | (FLAG_USEHAP if use_phase else 0)
         for c in self.io.snp_chromosomes():
             if len(chroms) == 0 or c in chroms:
                 _logger.info("Calculating BAF histograms for chromosome '%s'." % c)
@@ -2016,49 +2021,51 @@ class Root:
                         if gt[i] == 1 or gt[i] == 5 or gt[i] == 6:
                             for bs in bin_sizes:
                                 b = (pos[i] - 1) // bs
-                                if use_phase and (gt[i] == 5):
-                                    reads01[bs][b] += nref[i]
-                                    reads10[bs][b] += nalt[i]
-                                    count10[bs][b] += 1
-                                    snp_baf = 1.0 * nalt[i] / (nalt[i] + nref[i])
-                                    likelihood[bs][b] *= beta(nalt[i], nref[i], lh_x, phased=True)
-                                    s = np.sum(likelihood[bs][b])
-                                    if s != 0.0:
-                                        likelihood[bs][b] /= s
-                                elif use_phase and (gt[i] == 6):
-                                    reads01[bs][b] += nalt[i]
-                                    reads10[bs][b] += nref[i]
-                                    count01[bs][b] += 1
-                                    snp_baf = 1.0 * nref[i] / (nalt[i] + nref[i])
-                                    likelihood[bs][b] *= beta(nref[i], nalt[i], lh_x, phased=True)
-                                    s = np.sum(likelihood[bs][b])
-                                    if s != 0.0:
-                                        likelihood[bs][b] /= s
+                                if use_phase:
+                                    if (gt[i] == 5):
+                                        reads01[bs][b] += nref[i]
+                                        reads10[bs][b] += nalt[i]
+                                        count10[bs][b] += 1
+                                        snp_baf = 1.0 * nalt[i] / (nalt[i] + nref[i])
+                                        likelihood[bs][b] *= beta_fun(nalt[i], nref[i], lh_x, phased=True)
+                                        s = np.sum(likelihood[bs][b])
+                                        if s != 0.0:
+                                            likelihood[bs][b] /= s
+                                    if (gt[i] == 6):
+                                        reads01[bs][b] += nalt[i]
+                                        reads10[bs][b] += nref[i]
+                                        count01[bs][b] += 1
+                                        snp_baf = 1.0 * nref[i] / (nalt[i] + nref[i])
+                                        likelihood[bs][b] *= beta_fun(nref[i], nalt[i], lh_x, phased=True)
+                                        s = np.sum(likelihood[bs][b])
+                                        if s != 0.0:
+                                            likelihood[bs][b] /= s
                                 else:
                                     snp_baf = 1.0 * nalt[i] / (nalt[i] + nref[i])
                                     reads01[bs][b] += nalt[i]
                                     reads10[bs][b] += nref[i]
                                     count01[bs][b] += 1
                                     if reduce_noise:
-                                        likelihood[bs][b] *= beta(nalt[i] + (1 if nalt[i] < nref[i] else 0),
-                                                                  nref[i] + (1 if nref[i] < nalt[i] else 0), lh_x)
+                                        likelihood[bs][b] *= beta_fun(nalt[i] + (1 if nalt[i] < nref[i] else 0),
+                                                                      nref[i] + (1 if nref[i] < nalt[i] else 0), lh_x)
                                     else:
-                                        likelihood[bs][b] *= beta(nalt[i] * blw, nref[i] * blw, lh_x)
+                                        likelihood[bs][b] *= beta_fun(nalt[i] * blw, nref[i] * blw, lh_x)
                                     s = np.sum(likelihood[bs][b])
                                     if s != 0.0:
                                         likelihood[bs][b] /= s
 
-                                baf[bs][b] += snp_baf
-                                maf[bs][b] += 1.0 - snp_baf if snp_baf > 0.5 else snp_baf
+                                    baf[bs][b] += snp_baf
+                                    maf[bs][b] += 1.0 - snp_baf if snp_baf > 0.5 else snp_baf
                         else:
                             for bs in bin_sizes:
                                 b = (pos[i] - 1) // bs
-                                if use_phase and (gt[i] == 7):
-                                    count11[bs][b] += 1
-                                    reads11[bs][b] += nalt[i]
-                                    reads00[bs][b] += nref[i]
-                                elif use_phase and (gt[i] == 4):
-                                    count00[bs][b] += 1
+                                if use_phase:
+                                    if (gt[i] == 7):
+                                        count11[bs][b] += 1
+                                        reads11[bs][b] += nalt[i]
+                                        reads00[bs][b] += nref[i]
+                                    if (gt[i] == 4):
+                                        count00[bs][b] += 1
                                 else:
                                     count11[bs][b] += 1
                                     reads11[bs][b] += nalt[i]
@@ -2068,8 +2075,12 @@ class Root:
                     for i in range(max_bin[bs]):
                         count = count01[bs][i] + count10[bs][i]
                         if count > 0:
-                            baf[bs][i] /= count
-                            maf[bs][i] /= count
+                            if use_phase:
+                                baf[bs][i] = reads01[bs][i] / (reads01[bs][i]+reads10[bs][i])
+                                maf[bs][i] = 1.0 - baf[bs][i] if baf[bs][i]>0.5 else baf[bs][i]
+                            else:
+                                baf[bs][i] /= count
+                                maf[bs][i] /= count
                             max_lh = np.amax(likelihood[bs][i])
                             ix = np.where(likelihood[bs][i] == max_lh)[0][0]
                             i1[bs][i] = 1.0 * (res // 2 - 1 - ix) / res if ix <= (res // 2 - 1) else 1.0 * (
@@ -2760,14 +2771,14 @@ class Root:
         return ret
 
     def call_2d_phased(self, bin_sizes, chroms=[], event_type="both", print_calls=False, use_gc_corr=True,
-                       rd_use_mask=False,
-                       snp_use_mask=True, snp_use_id=False, max_copy_number=10, min_cell_fraction=0.0, baf_threshold=0,
-                       omin=None, mcount=None, max_distance=0.1, use_hom=False, anim=""):
+                       rd_use_mask=False, snp_use_mask=True, snp_use_id=False, max_copy_number=10,
+                       min_cell_fraction=0.0, baf_threshold=0.1, omin=None, mcount=None, max_distance=0.1, use_hom=False,
+                       anim=""):
         """
         CNV phased caller using combined RD and BAF sigal based on likelihood merger (UNDER DEVELOPMENT).
 
         """
-        snp_flag = (FLAG_USEMASK if snp_use_mask else 0) | (FLAG_USEID if snp_use_id else 0)
+        snp_flag = (FLAG_USEMASK if snp_use_mask else 0) | (FLAG_USEID if snp_use_id else 0) | FLAG_USEHAP
         rd_gc_chromosomes = {}
         for c in self.io_gc.gc_chromosomes():
             rd_name = self.io.rd_chromosome_name(c)
@@ -2797,7 +2808,7 @@ class Root:
             gstat_rd = []
             gstat_baf = []
             gstat_error = []
-            gstat_lh = []
+            gstat_rc = []
             gstat_n = []
             gstat_event = []
 
@@ -2850,17 +2861,18 @@ class Root:
                         snp_hets = self.io.get_signal(c, bin_size, "SNP bin count 0|1", snp_flag)
                         snp_hets += self.io.get_signal(c, bin_size, "SNP bin count 1|0", snp_flag)
                         snp_homs = self.io.get_signal(c, bin_size, "SNP bin count 1|1", snp_flag)
+                        snp_reads01 = self.io.get_signal(c, bin_size, "SNP bin reads 0|1", snp_flag)
+                        snp_reads10 = self.io.get_signal(c, bin_size, "SNP bin reads 1|0", snp_flag)
+                        snp_reads00 = self.io.get_signal(c, bin_size, "SNP bin reads 0|0", snp_flag)
+                        snp_reads11 = self.io.get_signal(c, bin_size, "SNP bin reads 1|1", snp_flag)
                         snp_count = np.copy(snp_hets)
                         if use_hom:
                             snp_count += snp_homs
 
-                        snp_bins = len(snp_likelihood)
-                        res = snp_likelihood[0].size
+                        snp_bins = len(snp_reads01)
                         bins = min(rd_bins, snp_bins)
 
-                        segments = [[i] for i in range(bins) if
-                                    snp_count[i] >= min_count and np.sum(snp_likelihood[i]) > 0.0 and np.isfinite(
-                                        rd[i])]
+                        segments = [[i] for i in range(bins) if snp_count[i] >= min_count and np.isfinite(rd[i])]
 
                         # Skip chromosome if less then 5 bins with signal:
                         if len(segments) < 5:
@@ -2877,17 +2889,16 @@ class Root:
                         level = list(level)
                         error = list(error)
 
-                        likelihood = [snp_likelihood[i] for i in range(bins) if
-                                      snp_count[i] >= min_count and np.sum(snp_likelihood[i]) > 0.0 and np.isfinite(
-                                          rd[i])]
+                        rcounts = [(int(snp_reads10[i]), int(snp_reads01[i])) for i in range(bins) if
+                                   snp_count[i] >= min_count and np.isfinite(rd[i])]
 
-                        overlaps = [normal_overlap(level[i], error[i], level[i + 1], error[i + 1]) * likelihood_overlap(
-                            likelihood[i], likelihood[i + 1]) for i in range(len(segments) - 1)]
+                        overlaps = [normal_overlap(level[i], error[i], level[i + 1], error[i + 1]) * beta_overlap(
+                            rcounts[i], rcounts[i + 1]) for i in range(len(segments) - 1)]
 
                         iter = 0
-                        if anim != "":
-                            anim_plot_rd_likelihood(level, error, likelihood, segments, bins, res, iter,
-                                                    anim + c + "_0_" + str(bin_size), 1, mean)
+                        #if anim != "":
+                        #    anim_plot_rd_likelihood(level, error, likelihood, segments, bins, res, iter,
+                        #                            anim + c + "_0_" + str(bin_size), 1, mean)
 
                         while len(overlaps) > 0:
                             maxo = max(overlaps)
@@ -2895,29 +2906,26 @@ class Root:
                                 break
                             i = overlaps.index(maxo)
                             nl, ne = normal_merge(level[i], error[i], level[i + 1], error[i + 1])
-                            nlh = likelihood[i] * likelihood[i + 1]
+                            nrc = (rcounts[i][0] + rcounts[i + 1][0], rcounts[i][1] + rcounts[i + 1][1])
                             level[i] = nl
                             error[i] = ne
-                            likelihood[i] = nlh / np.sum(nlh)
                             segments[i] += segments[i + 1]
+                            rcounts[i] = nrc
                             del level[i + 1]
                             del error[i + 1]
                             del segments[i + 1]
-                            del likelihood[i + 1]
+                            del rcounts[i + 1]
                             del overlaps[i]
                             if i < len(overlaps):
                                 overlaps[i] = normal_overlap(level[i], error[i], level[i + 1],
-                                                             error[i + 1]) * likelihood_overlap(likelihood[i],
-                                                                                                likelihood[i + 1])
-                            if i > 0:
-                                overlaps[i - 1] = normal_overlap(level[i - 1], error[i - 1], level[i],
-                                                                 error[i]) * likelihood_overlap(likelihood[i - 1],
-                                                                                                likelihood[i])
-                            iter = iter + 1
-                            if anim != "" and (iter % 5) == 0:
-                                anim_plot_rd_likelihood(level, error, likelihood, segments, bins, res, iter,
-                                                        anim + c + "_0_" + str(bin_size), maxo,
-                                                        mean)
+                                                             error[i + 1]) * beta_overlap(rcounts[i], rcounts[i + 1])
+                                if i > 0:
+                                    overlaps[i - 1] = normal_overlap(level[i - 1], error[i - 1], level[i],
+                                                            error[i]) * beta_overlap(rcounts[i - 1], rcounts[i])
+                                iter = iter + 1
+                                #if anim != "" and (iter % 5) == 0:
+                                #    anim_plot_rd_likelihood(level, error, likelihood, segments, bins, res, iter,
+                                #anim + c + "_0_" + str(bin_size), maxo, mean)
 
                         iter = 0
                         ons = -1
@@ -2925,8 +2933,8 @@ class Root:
                         _logger.info("Second stage. Number of segments: %d." % len(level))
 
                         while True:
-                            overlaps = [normal_overlap(level[i], error[i], level[j], error[j]) * likelihood_overlap(
-                                likelihood[i], likelihood[j]) for i in range(len(level)) for j in
+                            overlaps = [normal_overlap(level[i], error[i], level[j], error[j]) * beta_overlap(
+                                rcounts[i], rcounts[j]) for i in range(len(level)) for j in
                                         range(i + 1, len(level)) if
                                         (segments[j][0] - segments[i][-1]) < max_distance * (
                                                 len(segments[i]) + len(segments[j]))]
@@ -2941,19 +2949,19 @@ class Root:
 
                                 if (segments[j][0] - segments[i][-1]) < max_distance * (
                                         len(segments[i]) + len(segments[j])) and \
-                                        normal_overlap(level[i], error[i], level[j], error[j]) * likelihood_overlap(
-                                    likelihood[i], likelihood[j]) == maxo:
+                                        normal_overlap(level[i], error[i], level[j], error[j]) * beta_overlap(
+                                        rcounts[i], rcounts[j]) == maxo:
                                     nl, ne = normal_merge(level[i], error[i], level[j], error[j])
-                                    nlh = likelihood[i] * likelihood[j]
+                                    nrc = (rcounts[i][0] + rcounts[j][0], rcounts[i][1] + rcounts[j][1])
 
                                     level[i] = nl
                                     error[i] = ne
-                                    likelihood[i] = nlh / np.sum(nlh)
+                                    rcounts[i] = nrc
                                     segments[i] += segments[j]
                                     segments[i] = sorted(segments[i])
                                     del level[j]
                                     del error[j]
-                                    del likelihood[j]
+                                    del rcounts[j]
                                     del segments[j]
 
                                     if j >= len(segments):
@@ -2965,10 +2973,10 @@ class Root:
                                         i += 1
                                         j = i + 1
                             iter = iter + 1
-                            if anim != "":  # and (iter % 50) == 0:
-                                anim_plot_rd_likelihood(level, error, likelihood, segments, bins, res, iter,
-                                                        anim + c + "_1_" + str(bin_size), maxo,
-                                                        mean)
+                            #if anim != "":  # and (iter % 50) == 0:
+                            #    anim_plot_rd_likelihood(level, error, likelihood, segments, bins, res, iter,
+                            #                            anim + c + "_1_" + str(bin_size), maxo,
+                            #                            mean)
 
                             _logger.debug("Iteration: %d. Number of segments: %d." % (iter, len(level)))
                             if ons == len(segments):
@@ -2977,7 +2985,7 @@ class Root:
 
                         for i in range(len(segments)):
 
-                            baf_mean, baf_p = likelihood_baf_pval(likelihood[i])
+                            baf_mean, baf_p = rcounts_baf_pval(rcounts[i])
 
                             if Genome.is_autosome(c) and len(segments[i]) > 1:
                                 q0 = 0
@@ -2986,7 +2994,7 @@ class Root:
                                 hets = 0
                                 for bin in segments[i]:
                                     gstat_rd_all.append(rd[bin])
-                                    if baf_mean <= baf_threshold:
+                                    if abs(baf_mean) <= baf_threshold:
                                         gstat_rd0.append(rd[bin])
                                     srdp += qrd_p[bin]
                                     q0 += (qrd_p[bin] - qrd_u[bin])
@@ -3019,7 +3027,8 @@ class Root:
                                 gstat_rd.append(level[i])
                                 gstat_error.append(error[i])
                                 gstat_baf.append(baf_mean)
-                                gstat_lh.append(likelihood[i])
+                                print(c,segments[i][0] * bin_size + 1,baf_mean,rcounts[i])
+                                gstat_rc.append(rcounts[i])
                                 gstat_event.append({
                                     "c": c,
                                     "start": segments[i][0] * bin_size + 1,
@@ -3038,14 +3047,14 @@ class Root:
 
                                 gstat_n.append(len(segments[i]))
 
-                        self.io.create_signal(c, bin_size, "RD mosaic segments 2d",
+                        self.io.create_signal(c, bin_size, "RD mosaic segments 2d phased",
                                               data=segments_code(segments), flags=flag_rd)
-                        self.io.create_signal(c, bin_size, "RD mosaic call 2d",
+                        self.io.create_signal(c, bin_size, "RD mosaic call 2d phased",
                                               data=np.array([level, error], dtype="float32"), flags=flag_rd)
-                        self.io.create_signal(c, bin_size, "SNP likelihood segments 2d",
+                        self.io.create_signal(c, bin_size, "SNP read counts segments 2d phased",
                                               data=segments_code(segments), flags=snp_flag)
-                        self.io.create_signal(c, bin_size, "SNP likelihood call 2d",
-                                              data=np.array(likelihood, dtype="float32"), flags=snp_flag)
+                        self.io.create_signal(c, bin_size, "SNP read counts call 2d phased",
+                                              data=np.array(rcounts, dtype="float32"), flags=snp_flag)
 
             if len(gstat_rd0) == 0:
                 data = np.array(gstat_rd_all)
@@ -3077,39 +3086,39 @@ class Root:
             _logger.info("    * rd_mean  = %.4f" % mean)
             _logger.info("    * rd_std   = %.4f" % std)
 
-            # _logger.info("Checking bimodal hypothesis...")
-            # bim = fit_bimodal(bins[:-1], hist)
-            # if False and bim is not None:
-            #         #and bim[0][0] > 0 and bim[0][1] > 0 and bim[0][3] > 0 and bim[0][4] > 0:
-            #         #and np.sum(np.sqrt(np.diag(bim[1])) / np.array(bim[0])) < 10:
-            #     _logger.info("Fit successful:")
-            #     _logger.info("    * a1   = %.4f" % bim[0][0])
-            #     _logger.info("    * mean1   = %.4f" % bim[0][1])
-            #     _logger.info("    * std1   = %.4f" % bim[0][2])
-            #     _logger.info("    * a2   = %.4f" % bim[0][3])
-            #     _logger.info("    * mean2   = %.4f" % bim[0][4])
-            #     _logger.info("    * std2   = %.4f" % bim[0][5])
-            #     _logger.info("    * mean2/mean1   = %.4f" % (bim[0][4] / bim[0][1]))
-            #     if bim[0][4] / bim[0][1] > 1.75:
-            #         if bim[0][4] / bim[0][1] < 2.5:
-            #             _logger.info("Using both peaks to estimate normal levels")
-            #             fitm = (bim[0][0] * bim[0][1] + bim[0][3] * bim[0][4] / 2) / (bim[0][0] + bim[0][3])
-            #             fits = (bim[0][0] * bim[0][2] + bim[0][3] * bim[0][5] / 2) / (bim[0][0] + bim[0][3])
-            #         else:
-            #             _logger.info("Using first peak to estimate normal levels")
-            #             fitm = bim[0][1]
-            #             fits = bim[0][2]
-            #     else:
-            #         _logger.info("Ratio mean2/mean1 is smaller than expected. Using single peak fit values.")
-            #     # plt.hist(data, bins=bins, alpha=.5, label='RD in bins with BAF=1/2', edgecolor='blue', linewidth=1)
-            #     # plt.plot(np.linspace(0, rd_max, 400), bimodal(np.linspace(0, rd_max, 400), *bim[0]), color='red', lw=3,
-            #     #          label='Bimodal fit')
-            #     # plt.xlabel("RD")
-            #     # plt.ylabel("Number of bins")
-            #     # plt.legend()
-            #     # plt.show()
-            # else:
-            #     _logger.info("Fit was not successful. Rejecting hypothesis.")
+            _logger.info("Checking bimodal hypothesis...")
+            bim = fit_bimodal(bins[:-1], hist)
+            if False and bim is not None:
+                    #and bim[0][0] > 0 and bim[0][1] > 0 and bim[0][3] > 0 and bim[0][4] > 0:
+                    #and np.sum(np.sqrt(np.diag(bim[1])) / np.array(bim[0])) < 10:
+                _logger.info("Fit successful:")
+                _logger.info("    * a1   = %.4f" % bim[0][0])
+                _logger.info("    * mean1   = %.4f" % bim[0][1])
+                _logger.info("    * std1   = %.4f" % bim[0][2])
+                _logger.info("    * a2   = %.4f" % bim[0][3])
+                _logger.info("    * mean2   = %.4f" % bim[0][4])
+                _logger.info("    * std2   = %.4f" % bim[0][5])
+                _logger.info("    * mean2/mean1   = %.4f" % (bim[0][4] / bim[0][1]))
+                if bim[0][4] / bim[0][1] > 1.75:
+                    if bim[0][4] / bim[0][1] < 2.5:
+                        _logger.info("Using both peaks to estimate normal levels")
+                        fitm = (bim[0][0] * bim[0][1] + bim[0][3] * bim[0][4] / 2) / (bim[0][0] + bim[0][3])
+                        fits = (bim[0][0] * bim[0][2] + bim[0][3] * bim[0][5] / 2) / (bim[0][0] + bim[0][3])
+                    else:
+                        _logger.info("Using first peak to estimate normal levels")
+                        fitm = bim[0][1]
+                        fits = bim[0][2]
+                else:
+                    _logger.info("Ratio mean2/mean1 is smaller than expected. Using single peak fit values.")
+                # plt.hist(data, bins=bins, alpha=.5, label='RD in bins with BAF=1/2', edgecolor='blue', linewidth=1)
+                # plt.plot(np.linspace(0, rd_max, 400), bimodal(np.linspace(0, rd_max, 400), *bim[0]), color='red', lw=3,
+                #          label='Bimodal fit')
+                # plt.xlabel("RD")
+                # plt.ylabel("Number of bins")
+                # plt.legend()
+                # plt.show()
+            else:
+                _logger.info("Fit was not successful. Rejecting hypothesis.")
 
             _logger.info("Updating RD normal levels: mean = %.4f, stdev = %.4f !" % (fitm, fits))
             self.io.set_rd_normal_level(bin_size, fitm, fits, flags=flag_rd)
@@ -3126,7 +3135,7 @@ class Root:
                 master_lh[ei] = []
                 germline_lh[ei] = []
             for cn in range(max_copy_number, -1, -1):
-                for h1 in range(cn // 2 + 1):
+                for h1 in range(cn + 1):
                     h2 = cn - h1
                     # if h1 == 1 and h2 == 1:
                     #     continue
@@ -3141,7 +3150,7 @@ class Root:
                         mbaf = 0. * x
                     for ei in range(len(gstat_rd)):
                         g_lh = normal(g_mrd * fitm, 1., gstat_rd[ei], gstat_error[ei]) * \
-                               likelihood_of_baf(gstat_lh[ei], 0.5 + g_mbaf)
+                               beta.pdf(0.5 + g_mbaf, *gstat_rc[ei])
                         germline_lh[ei].append([cn, h1, h2, g_lh, 1.0])
 
                         slh = 0
@@ -3149,17 +3158,15 @@ class Root:
                         max_x = 0
                         for mi in range(len(mrd)):
                             if not np.isnan(mbaf[mi]):
-                                tmpl = normal(mrd[mi] * fitm, 1., gstat_rd[ei], gstat_error[ei]) * likelihood_of_baf(
-                                    gstat_lh[ei],
-                                    0.5 + mbaf[
-                                        mi])
+                                tmpl = normal(mrd[mi] * fitm, 1., gstat_rd[ei], gstat_error[ei]) * beta.pdf(0.5 + mbaf[
+                                        mi], *gstat_rc[ei])
                                 slh += tmpl
                                 if tmpl > max_lh:
                                     max_lh = tmpl
                                     max_x = x[mi]
 
                         master_lh[ei].append([cn, h1, h2, slh / len(x), max_x])
-                        # master_lh[ei].append([cn, h1, h2, max_lh, max_x])
+                        #master_lh[ei].append([cn, h1, h2, max_lh, max_x])
 
             for ei in range(len(gstat_rd)):
                 if event_type == "germline":
@@ -3200,10 +3207,12 @@ class Root:
                     else:
                         lh_loh += master_lh[ei][mi][3]
 
-                if gstat_baf[ei] <= baf_threshold and cnv < 1.01 and cnv > 0.99:
+                if abs(gstat_baf[ei]) <= baf_threshold and cnv < 1.01 and cnv > 0.99:
                     continue
-                if master_lh[ei][0][1] == 1 and master_lh[ei][0][2] == 1:
-                    continue
+
+                #if master_lh[ei][0][1] == 1 and master_lh[ei][0][2] == 1:
+                #    print(gstat_event[ei]["c"], gstat_event[ei]["start"], gstat_event[ei]["end"], "C2")
+                #    continue
 
                 ret[bin_size].append([etype, gstat_event[ei]["c"], gstat_event[ei]["start"], gstat_event[ei]["end"],
                                       gstat_event[ei]["size"], cnv, pval, lh_del, lh_loh, lh_dup,
@@ -3239,7 +3248,7 @@ class Root:
                     "segment": gstat_event[ei]["segment"],
                     "hets": gstat_event[ei]["hets"],
                     "homs": gstat_event[ei]["homs"],
-                    "models": master_lh[ei][:10]
+                    "models": master_lh[ei][:10] + [[0,0,0,0,0] for i in range(10-len(master_lh[ei][:10]))]
                 })
 
                 if print_calls:
@@ -3251,13 +3260,14 @@ class Root:
 
         return ret
 
-    def ls(self):
-        """
-        Print to stdout content of cnvpytor file
 
-        Returns
-        -------
-        None
+def ls(self):
+    """
+    Print to stdout content of cnvpytor file
 
-        """
-        self.io.ls()
+    Returns
+    -------
+    None
+
+    """
+    self.io.ls()

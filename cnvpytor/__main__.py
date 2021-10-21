@@ -359,7 +359,15 @@ def main():
                 else:
                     event_type = "both"
                     bins = list(map(binsize_type, args.call[1:]))
-                app.call_2d(bins, chroms=args.chrom, event_type=event_type, print_calls=True,
+                if args.use_phase:
+                    app.call_2d_phased(bins, chroms=args.chrom, event_type=event_type, print_calls=True,
+                            use_gc_corr=not args.no_gc_corr,
+                            rd_use_mask=args.use_mask_with_rd, snp_use_mask=not args.no_mask, snp_use_id=args.use_id,
+                            mcount=args.min_count, max_copy_number=args.max_copy_number,
+                            min_cell_fraction=args.min_cell_fraction, baf_threshold=args.baf_threshold,
+                            use_hom=args.use_hom, anim=args.animation)
+                else:
+                    app.call_2d(bins, chroms=args.chrom, event_type=event_type, print_calls=True,
                             use_gc_corr=not args.no_gc_corr,
                             rd_use_mask=args.use_mask_with_rd, snp_use_mask=not args.no_mask, snp_use_id=args.use_id,
                             mcount=args.min_count, max_copy_number=args.max_copy_number,
