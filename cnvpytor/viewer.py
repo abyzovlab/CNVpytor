@@ -2317,7 +2317,7 @@ class Viewer(Show, Figure, HelpDescription):
                 else:
                     plt.setp(ax.get_xticklabels(), visible=False)
 
-                ax.imshow(img, aspect='auto', extent=[0, l, 0, img.shape[1]-1])
+                ax.imshow(img, aspect='auto', extent=[0, l, 0, img.shape[0]-1])
                 # ax.xaxis.set_ticklabels([])
                 ax.yaxis.set_ticks([0, img.shape[0] / 4, img.shape[0] / 2, 3 * img.shape[0] / 4, img.shape[0] - 1],
                                    minor=[])
