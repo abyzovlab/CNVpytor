@@ -26,7 +26,9 @@ class ViewParams(object):
         "pN_range": [-1, 1],
         "dG_range": [-1, np.inf],
         "size_range": [0, np.inf],
+        "bins_range": [0, np.inf],
         "p_range": [0, np.inf],
+        "baf_range": [0,0.5],
         "annotate": False,
         "rd_range": [0, 6],
         "rd_manhattan_range": [0, 2],
@@ -164,10 +166,19 @@ class ViewParams(object):
             elif param == "Q0_range":
                 if len(args) > 1:
                     self.__setattr__(param, list(map(float, args[:2])))
+            elif param == "baf_range":
+                if len(args) > 1:
+                    self.__setattr__(param, list(map(float, args[:2])))
             elif param == "pN_range":
                 if len(args) > 1:
                     self.__setattr__(param, list(map(float, args[:2])))
             elif param == "size_range":
+                if len(args) > 1:
+                    if args[1] == "inf":
+                        self.__setattr__(param, [int(args[0]), np.inf])
+                    else:
+                        self.__setattr__(param, list(map(int, args[:2])))
+            elif param == "bins_range":
                 if len(args) > 1:
                     if args[1] == "inf":
                         self.__setattr__(param, [int(args[0]), np.inf])
@@ -907,7 +918,7 @@ class HelpDescription(object):
             p_default=str(default["Q0_range"]),
             p_affects="calls plot",
             p_example="set Q0_range 0 0.5\nunset Q0_range",
-            p_see="pN_range, size_range, dG_range, p_range"
+            p_see="pN_range, size_range, dG_range, p_range, baf_range, bins_range"
         ),
         "pN_range": help_format(
             topic="pN_range",
@@ -916,7 +927,7 @@ class HelpDescription(object):
             p_default=str(default["pN_range"]),
             p_affects="calls plot",
             p_example="set pN_range 0 0.5\nunset pN_range",
-            p_see="Q0_range, size_range, dG_range, p_range"
+            p_see="Q0_range, size_range, dG_range, p_range, baf_range, bins_range"
         ),
         "size_range": help_format(
             topic="size_range",
@@ -924,8 +935,17 @@ class HelpDescription(object):
             p_type="two integers or integer and 'inf' (for unlimited upper bound)",
             p_default=str(default["size_range"]),
             p_affects="calls plot",
-            p_example="set size_range 100000 10000000\nset dG_range 100000 inf\nunset size_range",
-            p_see="Q0_range, pN_range, p_range, dG_range"
+            p_example="set size_range 100000 10000000\nset size_range 100000 inf\nunset size_range",
+            p_see="Q0_range, pN_range, p_range, dG_range, baf_range, bins_range"
+        ),
+        "bins_range": help_format(
+            topic="bins_range",
+            p_desc="Range used to filter calls based on number of call bins with signal",
+            p_type="two integers or integer and 'inf' (for unlimited upper bound)",
+            p_default=str(default["bins_range"]),
+            p_affects="calls plot",
+            p_example="set size_range 2 100\nset bins_range 5 inf\nunset bins_range",
+            p_see="Q0_range, pN_range, p_range, dG_range, baf_range, size_range"
         ),
         "dG_range": help_format(
             topic="size_range",
@@ -934,7 +954,7 @@ class HelpDescription(object):
             p_default=str(default["dG_range"]),
             p_affects="calls plot",
             p_example="set dG_range 100000 10000000\nset dG_range 100000 inf\nunset dG_range",
-            p_see="Q0_range, pN_range, size_range, p_range"
+            p_see="Q0_range, pN_range, size_range, p_range, baf_range, bins_range"
         ),
         "p_range": help_format(
             topic="p_range",
@@ -943,9 +963,17 @@ class HelpDescription(object):
             p_default=str(default["p_range"]),
             p_affects="calls plot",
             p_example="set p_range 0 0.000001\nunset p_range",
-            p_see="Q0_range, pN_range, size_range, dG_range"
+            p_see="Q0_range, pN_range, size_range, dG_range, baf_range, bins_range"
         ),
-
+        "baf_range": help_format(
+            topic="baf_range",
+            p_desc="Range used to filter baf for calls",
+            p_type="two floats",
+            p_default=str(default["baf_range"]),
+            p_affects="calls plot",
+            p_example="set baf_range 0.4 0.5\nunset baf_range",
+            p_see="pN_range, size_range, dG_range, p_range, Q0_range, bins_range"
+        ),
         "dpi": help_format(
             topic="dpi",
             p_desc="Resolution (dots per inch) used for plotting.",

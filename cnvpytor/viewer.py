@@ -967,7 +967,9 @@ class Viewer(Show, Figure, HelpDescription):
                                     if in_interval(call["size"], self.size_range) \
                                             and in_interval(call["p_val"], self.p_range) \
                                             and in_interval(call["pN"], self.pN_range) \
-                                            and in_interval(call["Q0"], self.Q0_range):
+                                            and in_interval(call["Q0"], self.Q0_range) \
+                                            and in_interval(call["bins"], self.bins_range) \
+                                            and in_interval(abs(call["baf"]), self.baf_range):
 
                                         if n > 1:
                                             print("%s\t" % self.file_title(ix[i]), end="")
@@ -1160,7 +1162,9 @@ class Viewer(Show, Figure, HelpDescription):
                                     if in_interval(call["size"], self.size_range) \
                                             and in_interval(call["p_val"], self.p_range) \
                                             and in_interval(call["pN"], self.pN_range) \
-                                            and in_interval(call["Q0"], self.Q0_range):
+                                            and in_interval(call["Q0"], self.Q0_range) \
+                                            and in_interval(call["bins"], self.bins_range) \
+                                            and in_interval(abs(call["baf"]),self.baf_range):
                                         type = "duplication" if call["type"] == 1 else "deletion"
                                         if n > 1:
                                             print("%s\t" % self.file_title(i), end="")
@@ -1187,7 +1191,10 @@ class Viewer(Show, Figure, HelpDescription):
                                             if plot_start < 1:
                                                 plot_start = 1
                                             plot_end = call["end"] + call["size"]
-                                            self.multiple_regions(["%s:%d-%d" % (c, plot_start, plot_end)])
+                                            _logger.debug("Plotting region %s:%d-%d" % (c, plot_start, plot_end))
+                                            self.multiple_regions(["%s:%d-%d,%s:%d-%d,%s:%d-%d" \
+                                                                   % (c, plot_start, call["start"]-1, c, call["start"],
+                                                                      call["end"], c, call["end"]+1, plot_end)])
 
     def print_simple_merged_calls(self):
 
@@ -1894,8 +1901,8 @@ class Viewer(Show, Figure, HelpDescription):
         for i in range(len(panels)):
             ax = self.next_subpanel(sharex=True)
             if i == 0 and self.title:
-                ax.set_title(self.file_title(ix) + ": " + region, position=(0.01, 0.9),
-                             fontdict={'verticalalignment': 'top', 'horizontalalignment': 'left'},
+                ax.set_title(self.file_title(ix) + ": " + region.replace(",",", "), position=(0.01, 0.93),
+                             fontdict={'verticalalignment': 'bottom', 'horizontalalignment': 'left'},
                              color='C0')
 
             if panels[i] == "rd":
@@ -1926,11 +1933,17 @@ class Viewer(Show, Figure, HelpDescription):
                     his_p_mosaic_seg = segments_decode(his_p_mosaic_seg)
                     his_p_mosaic_call = io.get_signal(c, bin_size, "RD mosaic call",
                                                       flag_rd | FLAG_GC_CORR)
-                    his_p_mosaic_seg_2d = io.get_signal(c, bin_size, "RD mosaic segments 2d",
+                    if self.snp_use_phase:
+                        his_p_mosaic_seg_2d = io.get_signal(c, bin_size, "RD mosaic segments 2d phased",
                                                         flag_rd | FLAG_GC_CORR)
-                    his_p_mosaic_seg_2d = segments_decode(his_p_mosaic_seg_2d)
-                    his_p_mosaic_call_2d = io.get_signal(c, bin_size, "RD mosaic call 2d",
+                        his_p_mosaic_call_2d = io.get_signal(c, bin_size, "RD mosaic call 2d phased",
+                                                             flag_rd | FLAG_GC_CORR)
+                    else:
+                        his_p_mosaic_seg_2d = io.get_signal(c, bin_size, "RD mosaic segments 2d",
+                                                        flag_rd | FLAG_GC_CORR)
+                        his_p_mosaic_call_2d = io.get_signal(c, bin_size, "RD mosaic call 2d",
                                                          flag_rd | FLAG_GC_CORR)
+                    his_p_mosaic_seg_2d = segments_decode(his_p_mosaic_seg_2d)
                     his_p_mosaic = np.zeros_like(his_p) * np.nan
                     if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and ("rd_mosaic" in self.callers):
                         for seg, lev in zip(list(his_p_mosaic_seg), list(his_p_mosaic_call[0])):
@@ -2029,7 +2042,7 @@ class Viewer(Show, Figure, HelpDescription):
                             hpos.append((start_pos + pos[ix] - pos1) / bin_size)
                             if pos[ix] - pos1 > mdp:
                                 mdp = pos[ix] - pos1
-                            if gt[ix] % 4 != 2:
+                            if gt[ix] != 5:
                                 baf.append(1.0 * nalt[ix] / (nref[ix] + nalt[ix]))
                             else:
                                 baf.append(1.0 * nref[ix] / (nref[ix] + nalt[ix]))
@@ -2304,7 +2317,7 @@ class Viewer(Show, Figure, HelpDescription):
                 else:
                     plt.setp(ax.get_xticklabels(), visible=False)
 
-                ax.imshow(img, aspect='auto')
+                ax.imshow(img, aspect='auto', extent=[0, l, 0, img.shape[1]-1])
                 # ax.xaxis.set_ticklabels([])
                 ax.yaxis.set_ticks([0, img.shape[0] / 4, img.shape[0] / 2, 3 * img.shape[0] / 4, img.shape[0] - 1],
                                    minor=[])
@@ -2324,7 +2337,7 @@ class Viewer(Show, Figure, HelpDescription):
                                 edgecolors='face', marker=self.lh_marker)
 
                 for i in borders[:-1]:
-                    ax.axvline(i + 0.5, color="g", lw=1)
+                    ax.axvline(i + 1, color="g", lw=1)
                 self.fig.add_subplot(ax)
 
             elif panels[i] == "CN":
@@ -2339,15 +2352,15 @@ class Viewer(Show, Figure, HelpDescription):
                         if pos2 is None:
                             pos2 = 1000000000
 
-                    his_p = io.get_signal(c, bin_size, "RD", flag_rd)
+                    his_p = io.get_signal(c, bin_size, "RD p", flag_rd)
                     start_bin = (pos1 - 1) // bin_size
                     end_bin = pos2 // bin_size
                     if end_bin > len(his_p):
                         end_bin = len(his_p)
                     h1 = np.array([0] * (end_bin - start_bin))
                     h2 = np.array([0] * (end_bin - start_bin))
-                    h1[his_p != 0] = 1
-                    h2[his_p != 0] = 1
+                    h1[his_p[start_bin:end_bin] != 0] = 1
+                    h2[his_p[start_bin:end_bin] != 0] = 1
 
                     flag = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0) | (
                         FLAG_USEHAP if self.snp_use_phase else 0) | (
@@ -2355,7 +2368,8 @@ class Viewer(Show, Figure, HelpDescription):
                     flag_rd = FLAG_GC_CORR | (FLAG_USEMASK if self.rd_use_mask else 0)
                     if io.signal_exists(c, bin_size, "calls combined", flag):
                         calls = io.read_calls(c, bin_size, "calls combined", flag)
-                        segments = io.get_signal(c, bin_size, "RD mosaic segments 2d", flag_rd)
+                        segments = io.get_signal(c, bin_size, "RD mosaic segments 2d phased", FLAG_GC_CORR)
+                        print(segments)
                         segments = segments_decode(segments)
 
                         for call in calls:
