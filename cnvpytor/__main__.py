@@ -120,6 +120,9 @@ def main():
     parser.add_argument('-ls', '--ls', action='store_true', help='list pytor file(s) content')
     parser.add_argument('-gc_info', '--gc_info', action='store_true', help='list pytor file(s) gc content stat')
     parser.add_argument('-info', '--info', type=binsize_type, nargs="*", help='print statistics for pythor file(s)')
+    parser.add_argument('-qc', '--qc', type=binsize_type, nargs="*", help='print quality control statistics')
+    parser.add_argument('-rdqc', '--rd_qc', type=binsize_type, nargs="*",
+                        help='print quality control statistics without SNP data')
     parser.add_argument('-comp', '--compare', type=str, nargs="*", help='compere two regions: -comp reg1 reg2 [n_bins]')
     parser.add_argument('-genotype', '--genotype', type=str, nargs="*")
     parser.add_argument('-a', '--all', action='store_true', help='Genotype with all columns')
@@ -212,6 +215,7 @@ def main():
             show = Show(args.root)
             show.info(args.info)
 
+
         if args.genotype is not None:
             params = {"output_filename": args.plot_output_file,
                       "chrom": args.chrom,
@@ -222,6 +226,29 @@ def main():
                       }
             view = Viewer(args.root, params, force_agg=args.force_agg)
             view.genotype_prompt(list(map(binsize_type, args.genotype)), all=args.all)
+
+        if args.qc is not None:
+            params = {"bin_size": binsize_type(args.qc[-1]),
+                      "chrom": args.chrom,
+                      "snp_use_mask": not args.no_mask,
+                      "snp_use_id": args.use_id,
+                      "rd_use_mask": args.use_mask_with_rd,
+                      "rd_use_gc_corr": not args.no_gc_corr
+                      }
+            view = Viewer(args.root, params, force_agg=args.force_agg)
+            view.qc()
+
+        if args.rd_qc is not None:
+            params = {"bin_size": binsize_type(args.rd_qc[-1]),
+                      "chrom": args.chrom,
+                      "snp_use_mask": not args.no_mask,
+                      "snp_use_id": args.use_id,
+                      "rd_use_mask": args.use_mask_with_rd,
+                      "rd_use_gc_corr": not args.no_gc_corr
+                      }
+            view = Viewer(args.root, params, force_agg=args.force_agg)
+            view.qc(snp_qc=False)
+
 
         if args.compare is not None:
             params = {"bin_size": binsize_type(args.compare[-1]),

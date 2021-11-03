@@ -696,7 +696,8 @@ class Viewer(Show, Figure, HelpDescription):
             rd_chr = self.io[file1].rd_chromosome_name(c)
             if self.io[file1].signal_exists(rd_chr, bin_size, "RD", 0) and \
                     self.io[file1].signal_exists(rd_chr, bin_size, "RD", FLAG_GC_CORR) and \
-                    (Genome.is_autosome(c) or Genome.is_sex_chrom(c)) and (len(self.chrom)==0 or rd_chr in self.chrom) :
+                    (Genome.is_autosome(c) or Genome.is_sex_chrom(c)) and (
+                    len(self.chrom) == 0 or rd_chr in self.chrom):
                 chroms.append((rd_chr, l))
         self.new_figure(panel_count=len(chroms))
         for c, l in chroms:
@@ -729,10 +730,12 @@ class Viewer(Show, Figure, HelpDescription):
             ax.set_xlim([-n_bins * 0.05, n_bins * 1.05])
             ax.grid()
             if self.markersize == "auto":
-                plt.scatter(np.arange(len(his_p_corr1)),his_p_corr1 / stat1[4] - his_p_corr2 / stat2[4], marker='.', s=10, alpha=0.7)
+                plt.scatter(np.arange(len(his_p_corr1)), his_p_corr1 / stat1[4] - his_p_corr2 / stat2[4], marker='.',
+                            s=10, alpha=0.7)
             else:
-                plt.scatter(np.arange(len(his_p_corr1)),his_p_corr1 / stat1[4] - his_p_corr2 / stat2[4], marker='.', s=self.markersize, alpha=0.7)
-            #plt.step(np.abs(his_p_corr1 / stat1[4] - his_p_corr2 / stat2[4]), "k")
+                plt.scatter(np.arange(len(his_p_corr1)), his_p_corr1 / stat1[4] - his_p_corr2 / stat2[4], marker='.',
+                            s=self.markersize, alpha=0.7)
+            # plt.step(np.abs(his_p_corr1 / stat1[4] - his_p_corr2 / stat2[4]), "k")
         self.fig_show(suffix="rd_diff")
 
     def likelihood(self):
@@ -1164,8 +1167,7 @@ class Viewer(Show, Figure, HelpDescription):
                                             and in_interval(call["pN"], self.pN_range) \
                                             and in_interval(call["Q0"], self.Q0_range) \
                                             and in_interval(call["bins"], self.bins_range) \
-                                            and in_interval(abs(call["baf"]),self.baf_range):
-                                        type = "duplication" if call["type"] == 1 else "deletion"
+                                            and in_interval(abs(call["baf"]), self.baf_range):
                                         if n > 1:
                                             print("%s\t" % self.file_title(i), end="")
                                         if len(self.callers) > 1:
@@ -1193,8 +1195,10 @@ class Viewer(Show, Figure, HelpDescription):
                                             plot_end = call["end"] + call["size"]
                                             _logger.debug("Plotting region %s:%d-%d" % (c, plot_start, plot_end))
                                             self.multiple_regions(["%s:%d-%d,%s:%d-%d,%s:%d-%d" \
-                                                                   % (c, plot_start, call["start"]-1, c, call["start"],
-                                                                      call["end"], c, call["end"]+1, plot_end)])
+                                                                   % (
+                                                                       c, plot_start, call["start"] - 1, c,
+                                                                       call["start"],
+                                                                       call["end"], c, call["end"] + 1, plot_end)])
 
     def print_simple_merged_calls(self):
 
@@ -1901,7 +1905,7 @@ class Viewer(Show, Figure, HelpDescription):
         for i in range(len(panels)):
             ax = self.next_subpanel(sharex=True)
             if i == 0 and self.title:
-                ax.set_title(self.file_title(ix) + ": " + region.replace(",",", "), position=(0.01, 0.93),
+                ax.set_title(self.file_title(ix) + ": " + region.replace(",", ", "), position=(0.01, 0.93),
                              fontdict={'verticalalignment': 'bottom', 'horizontalalignment': 'left'},
                              color='C0')
 
@@ -1935,14 +1939,14 @@ class Viewer(Show, Figure, HelpDescription):
                                                       flag_rd | FLAG_GC_CORR)
                     if self.snp_use_phase:
                         his_p_mosaic_seg_2d = io.get_signal(c, bin_size, "RD mosaic segments 2d phased",
-                                                        flag_rd | FLAG_GC_CORR)
+                                                            flag_rd | FLAG_GC_CORR)
                         his_p_mosaic_call_2d = io.get_signal(c, bin_size, "RD mosaic call 2d phased",
                                                              flag_rd | FLAG_GC_CORR)
                     else:
                         his_p_mosaic_seg_2d = io.get_signal(c, bin_size, "RD mosaic segments 2d",
-                                                        flag_rd | FLAG_GC_CORR)
+                                                            flag_rd | FLAG_GC_CORR)
                         his_p_mosaic_call_2d = io.get_signal(c, bin_size, "RD mosaic call 2d",
-                                                         flag_rd | FLAG_GC_CORR)
+                                                             flag_rd | FLAG_GC_CORR)
                     his_p_mosaic_seg_2d = segments_decode(his_p_mosaic_seg_2d)
                     his_p_mosaic = np.zeros_like(his_p) * np.nan
                     if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and ("rd_mosaic" in self.callers):
@@ -2317,7 +2321,7 @@ class Viewer(Show, Figure, HelpDescription):
                 else:
                     plt.setp(ax.get_xticklabels(), visible=False)
 
-                ax.imshow(img, aspect='auto', extent=[0, l, 0, img.shape[0]-1])
+                ax.imshow(img, aspect='auto', extent=[0, l, 0, img.shape[0] - 1])
                 # ax.xaxis.set_ticklabels([])
                 ax.yaxis.set_ticks([0, img.shape[0] / 4, img.shape[0] / 2, 3 * img.shape[0] / 4, img.shape[0] - 1],
                                    minor=[])
@@ -3382,6 +3386,81 @@ class Viewer(Show, Figure, HelpDescription):
         ax.grid()
         self.fig_show(suffix="compare_rd")
 
+    def qc(self, snp_qc=True):
+        n = len(self.plot_files)
+        if snp_qc:
+            labels = ["filename", "meanRL", "dRL", "meanFL", "dFL", "meanRD", "dRD", "NdRD", "meanC", "dC", "NdC",
+                      "NdBAF",
+                      "ALT/REF"]
+        else:
+            labels = ["filename", "meanRL", "dRL", "meanFL", "dFL", "meanRD", "dRD", "NdRD"]
+        print(("{:}\t" * len(labels)).format(*tuple(labels)))
+        for i in range(n):
+            io = self.io[self.plot_files[i]]
+            flag_rd = (FLAG_USEMASK if self.rd_use_mask else 0) | (FLAG_GC_CORR if self.rd_use_gc_corr else 0)
+            mean, stdev = io.rd_normal_level(self.bin_size, flag_rd | FLAG_GC_CORR)
+            nstdev = stdev / np.sqrt(mean) if mean>0 else 0
+            rfd = io.get_signal(None, None, "read frg dist")
+            if rfd is None or len(rfd)==0:
+                mrl, stdrl, mfl, stdfl = 0, 0, 0, 0
+            else:
+                read_size = np.sum(rfd, axis=1)
+                frag_size = np.sum(rfd, axis=0)
+                mrl = np.sum(read_size * np.arange(read_size.size)) / np.sum(read_size)
+                mfl = np.sum(frag_size * np.arange(frag_size.size)) / np.sum(frag_size)
+                mrl2 = np.sum(read_size * np.arange(read_size.size) * np.arange(read_size.size)) / np.sum(read_size)
+                mfl2 = np.sum(frag_size * np.arange(frag_size.size) * np.arange(frag_size.size)) / np.sum(frag_size)
+                stdrl = np.sqrt(mrl2 - mrl * mrl)
+                stdfl = np.sqrt(mfl2 - mfl * mfl)
+
+            if snp_qc:
+                snp_chrs = io.snp_chromosomes()
+                cbafs = {}
+                counts = []
+                bafs = []
+                talt, tref = 0, 0
+
+                for c in snp_chrs:
+                    if c in self.chrom or len(self.chrom) == 0:
+                        pos, ref, alt, nref, nalt, gt, flag, qual = io.read_snp(c)
+                        maxc = max(nref) + max(nalt)
+                        for ix in range(len(pos)):
+                            if gt[ix] % 4 in [1, 2] and (not self.snp_use_id or (flag[ix] & 1)) and (
+                                    not self.snp_use_mask or (flag[ix] & 2)):
+                                tc = nref[ix] + nalt[ix]
+                                if tc > 0:
+                                    baf = nalt[ix] / tc
+                                    if tc not in cbafs:
+                                        cbafs[tc] = []
+                                    cbafs[tc].append(baf)
+                                    counts.append(tc)
+                                    bafs.append(baf)
+                                    talt += nalt[ix]
+                                    tref += nref[ix]
+                alt_ref_ratio = talt / tref if tref>0 else 0
+                if len(counts)>0:
+                    meanc = np.mean(counts)
+                    stdc = np.std(counts)
+                    nstdc = stdc / np.sqrt(meanc) if meanc>0 else 0
+                    maxc = 2 * np.mean(counts)
+                    bins = 20
+                    x = [[] for j in range(bins)]
+                    dbaf = []
+
+                    for count, baf in zip(counts, bafs):
+                        if count > (meanc / 2) and count < (3 * meanc / 2):
+                            dbaf.append(2 * (baf - 0.5) * np.sqrt(count))
+                    std_dbaf = np.std(dbaf)
+                else:
+                    meanc, stdc, nstdc, std_dbaf = 0, 0, 0, 0
+                print("%s\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f" % (io.filename.replace(".pytor",""), mrl,
+                                                                              stdrl, mfl, stdfl, mean, stdev, nstdev,
+                                                                              meanc, stdc, nstdc,
+                                                                              std_dbaf, alt_ref_ratio))
+            else:
+                print("%s\t%f\t%f\t%f\t%f\t%f\t%f\t%f" % (
+                        io.filename.replace(".pytor",""), mrl, stdrl, mfl, stdfl, mean, stdev, nstdev))
+
     def snp_dist(self, regions, callset=None, n_bins=100, gt_plot=[0, 1, 2, 3], titles=None, beta_distribution=False,
                  log_scale=False):
         nf = len(self.plot_files)
@@ -3476,6 +3555,95 @@ class Viewer(Show, Figure, HelpDescription):
             if stdout:
                 print("%s\t%f\t%f" % (regions[i], baf, bafP))
         return ret
+
+    def sample2sample(self, s1, s2, callset=None):
+        io = self.io[s1]
+        io2 = self.io[s2]
+        bin_size = self.bin_size
+        chroms = io.rd_chromosomes()
+        ret = []
+        for c in chroms:
+            _logger.info("Processing sample2sample %d vs %d, chrom %s" % (s1, s2, c))
+            if (c in self.chrom) or len(self.chrom) == 0:
+                flag = (FLAG_USEMASK if self.rd_use_mask else 0) | \
+                       (FLAG_GC_CORR if self.rd_use_gc_corr else 0) | \
+                       (FLAG_USEMASK if self.snp_use_mask else 0) | \
+                       (FLAG_USEID if self.snp_use_id else 0) | \
+                       (FLAG_USEHAP if self.snp_use_phase else 0)
+                snp_flag = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0) | (
+                    FLAG_USEHAP if self.snp_use_phase else 0)
+
+                if io.signal_exists(c, bin_size, "calls combined", flag):
+                    calls = io.read_calls(c, bin_size, "calls combined", flag)
+                    if len(calls) > 0:
+                        segments = segments_decode(
+                            io.get_signal(c, bin_size, "SNP likelihood segments 2d", snp_flag))
+                        pos1, ref1, alt1, nref1, nalt1, gt1, flag1, qual1 = io.read_snp(c, callset=callset)
+                        pos2, ref2, alt2, nref2, nalt2, gt2, flag2, qual2 = io2.read_snp(c, callset=callset)
+                        phase = {}
+                        for i in range(len(pos1)):
+                            if (nref1[i] + nalt1[i]) > 0 and ((gt1[i] % 4) in [1, 2]):
+                                phase[str(pos1[i]) + ref1[i] + alt1[i]] = 0
+                                if nalt1[i] > nref1[i]:
+                                    phase[str(pos1[i]) + ref1[i] + alt1[i]] = 1
+                        binned_snps = {}
+                        binned_snps_P = {}
+                        for i in range(len(pos2)):
+                            snpkey = str(pos2[i]) + ref2[i] + alt2[i]
+                            if ((gt2[i] % 4) in [1, 2]) and (snpkey in phase):
+                                bin = pos2[i] // bin_size
+
+                                if bin not in binned_snps:
+                                    binned_snps[bin] = []
+                                if phase[snpkey] == 0:
+                                    binned_snps[bin].append((nref2[i], nalt2[i]))
+                                else:
+                                    binned_snps[bin].append((nalt2[i], nref2[i]))
+                                if flag2[i] & 2:
+                                    if bin not in binned_snps_P:
+                                        binned_snps_P[bin] = []
+                                    if phase[snpkey] == 0:
+                                        binned_snps_P[bin].append((nref2[i], nalt2[i]))
+                                    else:
+                                        binned_snps_P[bin].append((nalt2[i], nref2[i]))
+
+                        for call in calls:
+                            if in_interval(call["size"], self.size_range) \
+                                    and in_interval(call["p_val"], self.p_range) \
+                                    and in_interval(call["pN"], self.pN_range) \
+                                    and in_interval(call["Q0"], self.Q0_range) \
+                                    and in_interval(call["bins"], self.bins_range) \
+                                    and in_interval(abs(call["baf"]), self.baf_range):
+                                type = {-1: "deletion", 0: "cnnloh", 1: "duplication"}[call["type"]]
+
+                                th1, th2 = 0, 0
+                                th1P, th2P = 0, 0
+                                for bin in segments[int(call["segment"])]:
+                                    if bin in binned_snps:
+                                        for h1, h2 in binned_snps[bin]:
+                                            th1 += h1
+                                            th2 += h2
+                                    if bin in binned_snps_P:
+                                        for h1, h2 in binned_snps_P[bin]:
+                                            th1P += h1
+                                            th2P += h2
+                                baf = th1 / (th1 + th2) if (th1 + th2) > 0 else 0
+                                bafP = th1P / (th1P + th2P) if (th1P + th2P) > 0 else 0
+                                ret.append(
+                                    [type, c, int(call["start"]), int(call["end"]), th1, th2, baf, th1P, th2P, bafP])
+        return ret
+
+    def sample2all(self, s):
+        l = []
+        for i in self.plot_files:
+            l.append(self.sample2sample(s, i))
+        for j in range(len(l[0])):
+            x = l[0][j]
+            print("%s\t%s:%d-%d" % (x[0], x[1], x[2], x[3]), end="")
+            for i in range(len(self.plot_files)):
+                print("\t%s\t%d\t%d\t%.5f\t%d\t%d\t%.5f" % tuple(
+                    [self.io[self.plot_files[i]].filename.replace(".pytor", "")] + l[i][j][4:]), end="")
+            print()
 
     def snp_compare(self, regions, ix1, ix2, callset=None, n_bins=100, titles=None, test_loh=False):
         regions = regions.split(" ")
