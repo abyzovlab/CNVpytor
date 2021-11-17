@@ -1121,7 +1121,6 @@ class Root:
                         dist_p, bins = np.histogram(his_p, bins=bins_auto)
                         dist_u, bins = np.histogram(his_u, bins=bins_auto)
                         gcat = self.io_gc.get_signal(snp_gc_chromosomes[c], None, "GC/AT")
-                        print(len(his_p), len(gcp_decompress(gcat, bin_ratio)))
                         dist_p_gc, xbins, ybins = np.histogram2d(his_p, gcp_decompress(gcat, bin_ratio),
                                                                  bins=(bins_auto, range(102)))
                         dist_p_auto += dist_p
@@ -2879,7 +2878,7 @@ class Root:
                             continue
 
                         level = [rd[i] for i in range(bins) if
-                                 snp_count[i] >= min_count and np.sum(snp_likelihood[i]) > 0.0 and np.isfinite(rd[i])]
+                                 snp_count[i] >= min_count and np.isfinite(rd[i])]
                         level = np.array(level)
                         error = np.sqrt(level) ** 2 + std ** 2
                         loc_fl = np.min(list(zip(np.abs(np.diff(level))[:-1], np.abs(np.diff(level))[1:])), axis=1)
@@ -2938,6 +2937,7 @@ class Root:
                                         range(i + 1, len(level)) if
                                         (segments[j][0] - segments[i][-1]) < max_distance * (
                                                 len(segments[i]) + len(segments[j]))]
+
                             if len(overlaps) == 0:
                                 break
 
@@ -2982,7 +2982,6 @@ class Root:
                             if ons == len(segments):
                                 break
                             ons = len(segments)
-
                         for i in range(len(segments)):
 
                             baf_mean, baf_p = rcounts_baf_pval(rcounts[i])
@@ -3043,7 +3042,6 @@ class Root:
                                     "homs": homs,
                                     "segment": i
                                 })
-
                                 gstat_n.append(len(segments[i]))
 
                         self.io.create_signal(c, bin_size, "RD mosaic segments 2d phased",
@@ -3135,7 +3133,7 @@ class Root:
             for ei in range(len(gstat_rd)):
                 master_lh[ei] = []
                 germline_lh[ei] = []
-                beta_table[ei] = beta.pdf(np.linspace(0,1,Nb), *gstat_rc[ei])
+                beta_table[ei] = betapdf(np.linspace(0,1,Nb), *gstat_rc[ei])
             for cn in range(max_copy_number, -1, -1):
                 for h1 in range(cn + 1):
                     h2 = cn - h1
@@ -3152,7 +3150,7 @@ class Root:
                         mbaf = 0. * x
                     for ei in range(len(gstat_rd)):
                         g_lh = normal(g_mrd * fitm, 1., gstat_rd[ei], gstat_error[ei]) * \
-                               beta.pdf(0.5 + g_mbaf, *gstat_rc[ei])
+                               betapdf(0.5 + g_mbaf, *gstat_rc[ei])
                         germline_lh[ei].append([cn, h1, h2, g_lh, 1.0])
 
                         slh = 0

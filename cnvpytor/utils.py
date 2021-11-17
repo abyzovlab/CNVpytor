@@ -722,6 +722,9 @@ def likelihood_overlap(lk1, lk2):
     """
     return np.sum(np.min((lk1, lk2), axis=0))
 
+def betapdf(x,a,b):
+    return beta.pdf(x,a+1, b+1)
+
 def beta_overlap(rc1, rc2, dx=0.001):
     """
     Returns approximative overlap area of two beta functions.
@@ -739,8 +742,13 @@ def beta_overlap(rc1, rc2, dx=0.001):
         Overlap area.
 
     """
+
     x = np.arange(0, 1. + dx, dx)
-    return np.trapz(np.min((beta.pdf(x, *rc1), beta.pdf(x, *rc2)), axis=0)) * dx
+    f1 = betapdf(x, *rc1)
+    f2 = betapdf(x, *rc2)
+    #r = np.trapz(np.min((f1,f2), axis=0)) * dx
+    r = np.sum(f1*f2)/(np.sum(f1)*np.sum(f2))
+    return np.sqrt(r) if r<1.0 else 1.0
 
 
 def decode_position(s):
@@ -826,7 +834,7 @@ def rcounts_baf_pval(rc):
         p-value for event different than 1/2
 
     """
-    return rc[1] / (rc[0]+rc[1]) - 0.5, beta.pdf(0.5, *rc)
+    return rc[1] / (rc[0]+rc[1]) - 0.5, betapdf(0.5, *rc)
 
 
 def likelihood_of_baf(likelihood, baf):

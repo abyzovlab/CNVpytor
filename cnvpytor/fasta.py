@@ -3,6 +3,8 @@
 class Fasta: reading fa.gz file
 
 """
+from __future__ import absolute_import, print_function, division
+
 from .genome import Genome
 import pysam
 import logging
