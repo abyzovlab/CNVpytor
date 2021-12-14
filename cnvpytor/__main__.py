@@ -8,6 +8,7 @@ from .viewer import *
 from .version import __version__
 from .fasta import *
 from .export import *
+from .trio import *
 import sys
 import os
 import logging
@@ -77,6 +78,8 @@ def main():
 
     parser.add_argument('-mask', '--mask', type=str, help="read fasta mask file and flag SNPs in P region")
     parser.add_argument('-mask_snps', '--mask_snps', action='store_true', help="flag SNPs in P region")
+    parser.add_argument('-trio_phase', '--trio_phase', action='store_true', help="Phase trio")
+    parser.add_argument('-parents', '--phase_parents', action='store_true', help="Phase parents")
     parser.add_argument('-mask_snvs', '--mask_snvs', type=str, help="flag SNVs in P region")
     parser.add_argument('-idvar', '--idvar', type=str, help="read vcf file and flag SNPs that exist in database file")
     parser.add_argument('-baf', '--baf', type=binsize_type, nargs="+",
@@ -346,6 +349,10 @@ def main():
         if args.mask_snvs:
             app = Root(args.root[0], max_cores=args.max_cores)
             app.mask_snps(callset=args.mask_snvs)
+
+        if args.trio_phase:
+            app = Trio(args.root)
+            app.trio_phase(parents=args.phase_parents)
 
         if args.stat:
             app = Root(args.root[0], max_cores=args.max_cores)

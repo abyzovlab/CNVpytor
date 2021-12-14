@@ -2771,7 +2771,7 @@ class Root:
 
     def call_2d_phased(self, bin_sizes, chroms=[], event_type="both", print_calls=False, use_gc_corr=True,
                        rd_use_mask=False, snp_use_mask=True, snp_use_id=False, max_copy_number=10,
-                       min_cell_fraction=0.0, baf_threshold=0.1, omin=None, mcount=None, max_distance=0.1, use_hom=False,
+                       min_cell_fraction=0.0, baf_threshold=0.01, omin=None, mcount=None, max_distance=0.1, use_hom=False,
                        anim=""):
         """
         CNV phased caller using combined RD and BAF sigal based on likelihood merger (UNDER DEVELOPMENT).
@@ -3210,7 +3210,7 @@ class Root:
                     else:
                         lh_loh += master_lh[ei][mi][3]
 
-                if abs(gstat_baf[ei]) <= baf_threshold and cnv < 1.01 and cnv > 0.99:
+                if abs(gstat_baf[ei]) == 0 and cnv < 1.01 and cnv > 0.99:
                     continue
 
                 #if master_lh[ei][0][1] == 1 and master_lh[ei][0][2] == 1:
