@@ -93,10 +93,10 @@ class Trio:
                         if k in fa and k in mo and fa[k][0]!=0 and mo[k][0]!=0:
                             if fa[k][0]==3 and mo[k][0] in [1,2]:
                                 resgt = 5
-                                _logger.debug("Phasing 5 (1/1 0/1). SNP: %s:%s" % (c, k))
+                                #_logger.debug("Phasing 5 (1/1 0/1). SNP: %s:%s" % (c, k))
                             elif mo[k][0]==3 and fa[k][0] in [1,2]:
                                 resgt = 6
-                                _logger.debug("Phasing 6 (0/1 1/1). SNP: %s:%s" % (c, k))
+                                #_logger.debug("Phasing 6 (0/1 1/1). SNP: %s:%s" % (c, k))
                             else:
                                 _logger.debug("Unable to phase. Not unique - skipping. SNP: %s:%s" % (c,k))
                         elif k in fa and fa[k][0]!=0:
