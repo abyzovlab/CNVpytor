@@ -107,6 +107,7 @@ class Trio:
                             #_logger.debug("Phasing 6 (0/0 ?/1). SNP: %s:%s" % (c, k))
                         else:
                             _logger.debug("Unable to phase. Not present in parents - skipping. SNP: %s:%s" % (c,k))
+                    resgt = ch[k][0]
                     if resgt != -1:
                         rpos.append(pos[i])
                         rref.append(ref[i])
@@ -132,10 +133,11 @@ class Trio:
                                 resgt = 5
                             elif k in ch and ch[k][0]==3:
                                 resgt = 5
-                            elif (k not in ch or ch[k][0]==0) and k in mo and mo[k][0]!=0:
+                            elif (k not in ch or ch[k][0]==0):
                                 resgt = 6
                             else:
-                                _logger.debug("Unable to phase. Not unique - skipping. SNP: %s:%s" % (c,k))
+                                _logger.debug("Unable to phase. Not unique. SNP: %s:%s" % (c,k))
+                        resgt = fa[k][0]
                         if resgt != -1:
                             rpos.append(pos1[i])
                             rref.append(ref1[i])
@@ -162,10 +164,11 @@ class Trio:
                                 resgt = 6
                             elif k in ch and ch[k][0]==3:
                                 resgt = 6
-                            elif (k not in ch or ch[k][0]==0) and k in fa and fa[k][0]!=0:
+                            elif (k not in ch or ch[k][0]==0):
                                 resgt = 5
                             else:
-                                _logger.debug("Unable to phase. Not unique - skipping. SNP: %s:%s" % (c,k))
+                                _logger.debug("Unable to phase. Not unique. SNP: %s:%s" % (c,k))
+                        resgt = mo[k][0]
                         if resgt != -1:
                             rpos.append(pos2[i])
                             rref.append(ref2[i])
