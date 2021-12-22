@@ -86,7 +86,7 @@ class Trio:
                 rpos, rref, ralt, rnref, rnalt, rgt, rflag, rqual = [], [], [], [], [], [], [], []
                 for i in range(len(pos)):
                     k = str(pos[i])+":"+ref[i]+">"+alt[i]
-                    resgt = -1
+                    resgt = ch[k][0]
                     if ch[k][0]==0 or ch[k][0]==3:
                         resgt = ch[k][0] + 4
                     else:
@@ -107,7 +107,6 @@ class Trio:
                             #_logger.debug("Phasing 6 (0/0 ?/1). SNP: %s:%s" % (c, k))
                         else:
                             _logger.debug("Unable to phase. Not present in parents - skipping. SNP: %s:%s" % (c,k))
-                    resgt = ch[k][0]
                     if resgt != -1:
                         rpos.append(pos[i])
                         rref.append(ref[i])
@@ -125,7 +124,7 @@ class Trio:
                     rpos, rref, ralt, rnref, rnalt, rgt, rflag, rqual = [], [], [], [], [], [], [], []
                     for i in range(len(pos1)):
                         k = str(pos1[i])+":"+ref1[i]+">"+alt1[i]
-                        resgt = -1
+                        resgt = fa[k][0]
                         if fa[k][0]==0 or fa[k][0]==3:
                             resgt = fa[k][0] + 4
                         else:
@@ -137,7 +136,6 @@ class Trio:
                                 resgt = 6
                             else:
                                 _logger.debug("Unable to phase. Not unique. SNP: %s:%s" % (c,k))
-                        resgt = fa[k][0]
                         if resgt != -1:
                             rpos.append(pos1[i])
                             rref.append(ref1[i])
@@ -156,7 +154,7 @@ class Trio:
                     rpos, rref, ralt, rnref, rnalt, rgt, rflag, rqual = [], [], [], [], [], [], [], []
                     for i in range(len(pos2)):
                         k = str(pos2[i])+":"+ref2[i]+">"+alt2[i]
-                        resgt = -1
+                        resgt = mo[k][0]
                         if mo[k][0]==0 or mo[k][0]==3:
                             resgt = mo[k][0] + 4
                         else:
@@ -168,7 +166,6 @@ class Trio:
                                 resgt = 5
                             else:
                                 _logger.debug("Unable to phase. Not unique. SNP: %s:%s" % (c,k))
-                        resgt = mo[k][0]
                         if resgt != -1:
                             rpos.append(pos2[i])
                             rref.append(ref2[i])
