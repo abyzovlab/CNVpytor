@@ -82,6 +82,7 @@ def main():
     parser.add_argument('-parents', '--phase_parents', action='store_true', help="Phase parents")
     parser.add_argument('-mask_snvs', '--mask_snvs', type=str, help="flag SNVs in P region")
     parser.add_argument('-idvar', '--idvar', type=str, help="read vcf file and flag SNPs that exist in database file")
+    parser.add_argument('-random_phase', '--random_phase', action='store_true', help="randomly phase SNPs")
     parser.add_argument('-baf', '--baf', type=binsize_type, nargs="+",
                         help="create BAF histograms for specified bin size (multiple bin sizes separate by space)")
     parser.add_argument('-nomask', '--no_mask', action='store_true', help="do not use P mask in BAF histograms")
@@ -349,6 +350,10 @@ def main():
         if args.mask_snvs:
             app = Root(args.root[0], max_cores=args.max_cores)
             app.mask_snps(callset=args.mask_snvs)
+
+        if args.random_phase:
+            app = Root(args.root[0], max_cores=args.max_cores)
+            app.random_phase()
 
         if args.trio_phase:
             app = Trio(args.root)

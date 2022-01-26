@@ -2223,14 +2223,17 @@ class Viewer(Show, Figure, HelpDescription):
                 ax.yaxis.set_ticklabels(["0", "1/4", "1/2", "3/4", "1"])
                 ax.set_ylabel("Allele frequency")
 
-                ax.set_ylim([0, 1])
+                ax.set_ylim(self.baf_range)
                 # ax.set_xlim([-l * 0.0, l * 1.0])
 
                 ax.yaxis.grid()
                 # ax.xaxis.grid()
-                ax.step(g_baf, self.baf_colors[0], label="BAF")
-                ax.step(g_maf, self.baf_colors[1], label="MAF")
-                ax.step(g_i1, self.baf_colors[2], label="I1")
+                if self.plot_baf:
+                    ax.step(g_baf, self.baf_colors[0], label="BAF")
+                if self.plot_maf:
+                    ax.step(g_maf, self.baf_colors[1], label="MAF")
+                if self.plot_dbaf:
+                    ax.step(g_i1, self.baf_colors[2], label="I1")
                 if self.legend:
                     ax.legend()
                 for i in borders[:-1]:
@@ -2329,6 +2332,7 @@ class Viewer(Show, Figure, HelpDescription):
                 ax.set_ylabel("Allele frequency")
                 # ax.xaxis.set_ticks(np.arange(0, len(gl), 50), minor=[])
                 # ax.set_xlim([-0.5, img.shape[1] - 0.5])
+                ax.set_ylim([self.baf_range[0]*img.shape[0], self.baf_range[1]*img.shape[0]])
                 if self.snp_call and ("baf_mosaic" in self.callers):
                     plt.scatter(call_pos, call_i1, s=self.lh_markersize, color=np.array(call_c), edgecolors='face',
                                 marker=self.lh_marker)
@@ -3520,6 +3524,41 @@ class Viewer(Show, Figure, HelpDescription):
                 ax.set_ylabel("Distribution")
 
         self.fig_show(suffix="snp_dist")
+
+    def baf_dist(self, regions, n_bins=100,  titles=None, log_scale=False, minbaf=0.4, maxbaf=0.6):
+        bin_size = self.bin_size
+        nf = len(self.plot_files)
+        regions = regions.split(" ")
+        nr = len(regions)
+        n = nf * nr
+        self.new_figure(panel_count=nf)
+        for ii in range(nf):
+            ax = self.next_panel()
+            for i in range(nr):
+                if titles is None:
+                    ax.set_title(self.file_title(self.plot_files[ii]), position=(0.01, 1.10),
+                                 fontdict={'verticalalignment': 'top', 'horizontalalignment': 'left'})
+                else:
+                    ax.set_title(titles[i], position=(0.01, 1.10),
+                                 fontdict={'verticalalignment': 'top', 'horizontalalignment': 'left'})
+                regs = decode_region(regions[i])
+                baf = []
+                mean_rd = 0
+                for c, (pos1, pos2) in regs:
+                    flag_snp = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0) | (
+                        FLAG_USEHAP if self.snp_use_phase else 0)
+                    cbaf = self.io[self.plot_files[ii]].get_signal(c, bin_size, "SNP baf", flag_snp)
+                    baf = baf + list(cbaf[pos1//bin_size:pos2//bin_size])
+                x_bins = np.arange(minbaf, maxbaf + 1. / (n_bins + 1), 1. / (n_bins + 1))
+                ax.hist(baf, bins=x_bins, label=regions[i], lw=3, alpha=0.3)
+            if log_scale:
+                plt.yscale('log', nonposy='clip')
+
+            ax.set_xlabel("AF")
+            ax.set_ylabel("Distribution")
+            ax.legend()
+
+        self.fig_show(suffix="baf_dist")
 
     def phased_baf(self, regions, callset=None, stdout=False):
         regions = regions.split(" ")

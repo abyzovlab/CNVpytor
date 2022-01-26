@@ -14,6 +14,7 @@ from .viewer import anim_plot_likelihood, anim_plot_rd, anim_plot_rd_likelihood
 import numpy as np
 import logging
 import os.path
+import random
 import matplotlib.pyplot as plt
 
 _logger = logging.getLogger("cnvpytor.root")
@@ -1905,6 +1906,32 @@ class Root:
 
         vcff.read_all_snp_positions(set_id_flag)
 
+    def random_phase(self, callset=None):
+        """ Phase SNPs using random haplotype.
+
+        Parameters
+        ----------
+        callset : str or None
+            It will assume SNP data if None. Otherwise it will assume SNV data
+            stored under the name provided by callset variable.
+
+        Returns
+        -------
+        None
+
+        """
+        for c in self.io.snp_chromosomes():
+            _logger.info("Phasing SNP data for chromosome '%s'." % c)
+            ch, fa, mo = {}, {}, {}
+            pos, ref, alt, nref, nalt, gt, flag, qual = self.io.read_snp(c, callset=callset)
+            for i in range(len(pos)):
+                if (gt[i] % 4) in [1, 2]:
+                    gt[i] = 5 + random.randint(0, 1)
+                else:
+                    gt[i] = (gt[i] % 4) + 4
+            _logger.info("Writing phased SNP data for chromosome '%s'." % c)
+            self.io.save_snp(c, pos, ref, alt, nref, nalt, gt, flag, qual, update=True, callset=callset)
+
     def calculate_alt_ref_bias(self, chroms=[], use_mask=True, use_id=False):
         """
         Calculates alt/ref bias based on whole genome statistics.
@@ -2075,8 +2102,8 @@ class Root:
                         count = count01[bs][i] + count10[bs][i]
                         if count > 0:
                             if use_phase:
-                                baf[bs][i] = reads01[bs][i] / (reads01[bs][i]+reads10[bs][i])
-                                maf[bs][i] = 1.0 - baf[bs][i] if baf[bs][i]>0.5 else baf[bs][i]
+                                baf[bs][i] = reads01[bs][i] / (reads01[bs][i] + reads10[bs][i])
+                                maf[bs][i] = 1.0 - baf[bs][i] if baf[bs][i] > 0.5 else baf[bs][i]
                             else:
                                 baf[bs][i] /= count
                                 maf[bs][i] /= count
@@ -2771,7 +2798,8 @@ class Root:
 
     def call_2d_phased(self, bin_sizes, chroms=[], event_type="both", print_calls=False, use_gc_corr=True,
                        rd_use_mask=False, snp_use_mask=True, snp_use_id=False, max_copy_number=10,
-                       min_cell_fraction=0.0, baf_threshold=0.01, omin=None, mcount=None, max_distance=0.1, use_hom=False,
+                       min_cell_fraction=0.0, baf_threshold=0.01, omin=None, mcount=None, max_distance=0.1,
+                       use_hom=False,
                        anim=""):
         """
         CNV phased caller using combined RD and BAF sigal based on likelihood merger (UNDER DEVELOPMENT).
@@ -2895,7 +2923,7 @@ class Root:
                             rcounts[i], rcounts[i + 1]) for i in range(len(segments) - 1)]
 
                         iter = 0
-                        #if anim != "":
+                        # if anim != "":
                         #    anim_plot_rd_likelihood(level, error, likelihood, segments, bins, res, iter,
                         #                            anim + c + "_0_" + str(bin_size), 1, mean)
 
@@ -2920,11 +2948,12 @@ class Root:
                                                              error[i + 1]) * beta_overlap(rcounts[i], rcounts[i + 1])
                                 if i > 0:
                                     overlaps[i - 1] = normal_overlap(level[i - 1], error[i - 1], level[i],
-                                                            error[i]) * beta_overlap(rcounts[i - 1], rcounts[i])
+                                                                     error[i]) * beta_overlap(rcounts[i - 1],
+                                                                                              rcounts[i])
                                 iter = iter + 1
-                                #if anim != "" and (iter % 5) == 0:
+                                # if anim != "" and (iter % 5) == 0:
                                 #    anim_plot_rd_likelihood(level, error, likelihood, segments, bins, res, iter,
-                                #anim + c + "_0_" + str(bin_size), maxo, mean)
+                                # anim + c + "_0_" + str(bin_size), maxo, mean)
 
                         iter = 0
                         ons = -1
@@ -2950,7 +2979,7 @@ class Root:
                                 if (segments[j][0] - segments[i][-1]) < max_distance * (
                                         len(segments[i]) + len(segments[j])) and \
                                         normal_overlap(level[i], error[i], level[j], error[j]) * beta_overlap(
-                                        rcounts[i], rcounts[j]) == maxo:
+                                    rcounts[i], rcounts[j]) == maxo:
                                     nl, ne = normal_merge(level[i], error[i], level[j], error[j])
                                     nrc = (rcounts[i][0] + rcounts[j][0], rcounts[i][1] + rcounts[j][1])
 
@@ -2973,7 +3002,7 @@ class Root:
                                         i += 1
                                         j = i + 1
                             iter = iter + 1
-                            #if anim != "":  # and (iter % 50) == 0:
+                            # if anim != "":  # and (iter % 50) == 0:
                             #    anim_plot_rd_likelihood(level, error, likelihood, segments, bins, res, iter,
                             #                            anim + c + "_1_" + str(bin_size), maxo,
                             #                            mean)
@@ -3086,8 +3115,8 @@ class Root:
             _logger.info("Checking bimodal hypothesis...")
             bim = fit_bimodal(bins[:-1], hist)
             if False and bim is not None:
-                    #and bim[0][0] > 0 and bim[0][1] > 0 and bim[0][3] > 0 and bim[0][4] > 0:
-                    #and np.sum(np.sqrt(np.diag(bim[1])) / np.array(bim[0])) < 10:
+                # and bim[0][0] > 0 and bim[0][1] > 0 and bim[0][3] > 0 and bim[0][4] > 0:
+                # and np.sum(np.sqrt(np.diag(bim[1])) / np.array(bim[0])) < 10:
                 _logger.info("Fit successful:")
                 _logger.info("    * a1   = %.4f" % bim[0][0])
                 _logger.info("    * mean1   = %.4f" % bim[0][1])
@@ -3133,7 +3162,7 @@ class Root:
             for ei in range(len(gstat_rd)):
                 master_lh[ei] = []
                 germline_lh[ei] = []
-                beta_table[ei] = betapdf(np.linspace(0,1,Nb), *gstat_rc[ei])
+                beta_table[ei] = betapdf(np.linspace(0, 1, Nb), *gstat_rc[ei])
             for cn in range(max_copy_number, -1, -1):
                 for h1 in range(cn + 1):
                     h2 = cn - h1
@@ -3158,10 +3187,10 @@ class Root:
                         max_x = 0
                         for mi in range(len(mrd)):
                             if not np.isnan(mbaf[mi]):
-                                #tmpl = normal(mrd[mi] * fitm, 1., gstat_rd[ei], gstat_error[ei]) * beta.pdf(0.5 + mbaf[
+                                # tmpl = normal(mrd[mi] * fitm, 1., gstat_rd[ei], gstat_error[ei]) * beta.pdf(0.5 + mbaf[
                                 #        mi], *gstat_rc[ei])
                                 tmpl = normal(mrd[mi] * fitm, 1., gstat_rd[ei], gstat_error[ei]) * \
-                                       beta_table[ei][int(round((0.5 + mbaf[mi])*(Nb-1)))]
+                                       beta_table[ei][int(round((0.5 + mbaf[mi]) * (Nb - 1)))]
 
                                 slh += tmpl
                                 if tmpl > max_lh:
@@ -3169,7 +3198,7 @@ class Root:
                                     max_x = x[mi]
 
                         master_lh[ei].append([cn, h1, h2, slh / len(x), max_x])
-                        #master_lh[ei].append([cn, h1, h2, max_lh, max_x])
+                        # master_lh[ei].append([cn, h1, h2, max_lh, max_x])
 
             for ei in range(len(gstat_rd)):
                 if event_type == "germline":
@@ -3213,7 +3242,7 @@ class Root:
                 if abs(gstat_baf[ei]) == 0 and cnv < 1.01 and cnv > 0.99:
                     continue
 
-                #if master_lh[ei][0][1] == 1 and master_lh[ei][0][2] == 1:
+                # if master_lh[ei][0][1] == 1 and master_lh[ei][0][2] == 1:
                 #    print(gstat_event[ei]["c"], gstat_event[ei]["start"], gstat_event[ei]["end"], "C2")
                 #    continue
 
@@ -3251,7 +3280,7 @@ class Root:
                     "segment": gstat_event[ei]["segment"],
                     "hets": gstat_event[ei]["hets"],
                     "homs": gstat_event[ei]["homs"],
-                    "models": master_lh[ei][:10] + [[0,0,0,0,0] for i in range(10-len(master_lh[ei][:10]))]
+                    "models": master_lh[ei][:10] + [[0, 0, 0, 0, 0] for i in range(10 - len(master_lh[ei][:10]))]
                 })
 
                 if print_calls:

@@ -18,6 +18,9 @@ class ViewParams(object):
         "rd_raw": True,
         "rd_corrected": True,
         "rd_partition": False,
+        "plot_baf": True,
+        "plot_maf": True,
+        "plot_dbaf":True,
         "rd_call": True,
         "rd_use_mask": False,
         "rd_use_gc_corr": True,
@@ -28,9 +31,9 @@ class ViewParams(object):
         "size_range": [0, np.inf],
         "bins_range": [0, np.inf],
         "p_range": [0, np.inf],
-        "baf_range": [0,0.5],
         "annotate": False,
         "rd_range": [0, 6],
+        "baf_range": [0, 1.0],
         "rd_manhattan_range": [0, 2],
         "rd_manhattan_call": False,
         "snp_use_mask": True,
@@ -166,9 +169,6 @@ class ViewParams(object):
             elif param == "Q0_range":
                 if len(args) > 1:
                     self.__setattr__(param, list(map(float, args[:2])))
-            elif param == "baf_range":
-                if len(args) > 1:
-                    self.__setattr__(param, list(map(float, args[:2])))
             elif param == "pN_range":
                 if len(args) > 1:
                     self.__setattr__(param, list(map(float, args[:2])))
@@ -194,6 +194,9 @@ class ViewParams(object):
                 if len(args) > 1:
                     self.__setattr__(param, list(map(float, args[:2])))
             elif param == "rd_range":
+                if len(args) > 1:
+                    self.__setattr__(param, list(map(float, args[:2])))
+            elif param == "baf_range":
                 if len(args) > 1:
                     self.__setattr__(param, list(map(float, args[:2])))
             elif param == "rd_manhattan_range":
@@ -544,6 +547,33 @@ class HelpDescription(object):
             p_affects="region plot, rd",
             p_example="set rd_call\nunset rd_call",
             p_see="rd_partition"
+        ),
+        "plot_baf": help_format(
+            topic="plot_baf",
+            p_desc="Enables plotting baf signal in baf plots",
+            p_type="bool",
+            p_default=str(default["plot_baf"]),
+            p_affects="region plot, baf",
+            p_example="set plot_baf\nunset plot_baf",
+            p_see="plot_maf, plot_dbaf, rd_call, rd_call_mosaic"
+        ),
+        "plot_maf": help_format(
+            topic="plot_maf",
+            p_desc="Enables plotting maf signal in baf plots",
+            p_type="bool",
+            p_default=str(default["plot_maf"]),
+            p_affects="region plot, baf",
+            p_example="set plot_maf\nunset plot_maf",
+            p_see="plot_baf, plot_dbaf, rd_call, rd_call_mosaic"
+        ),
+        "plot_dbaf": help_format(
+            topic="plot_dbaf",
+            p_desc="Enables plotting dbaf signal in baf plots",
+            p_type="bool",
+            p_default=str(default["plot_dbaf"]),
+            p_affects="region plot, baf",
+            p_example="set plot_dbaf\nunset plot_dbaf",
+            p_see="plot_maf, plot_baf, rd_partition, rd_call, rd_call_mosaic"
         ),
         "rd_raw": help_format(
             topic="rd_raw",
