@@ -642,8 +642,10 @@ def calculate_gc_correction(his_rd_gc, mean, sigma, bin_size=1):
     rd = np.repeat((np.arange(1, max_bin * bin_size, bin_size)[:max_bin - 1]).reshape((max_bin - 1, 1)), 101, axis=1)
     np.seterr(divide='ignore', invalid='ignore')
     gc_corr = np.sum(rd * his, axis=0) / np.sum(his, axis=0)
-    gc_corr[np.isnan(gc_corr)] = 1.0
+    no_stat = np.isnan(gc_corr)
+    gc_corr[no_stat] = 1
     gc_corr = gc_corr / (np.sum(gc_corr * np.sum(his, axis=0)) / np.sum(np.sum(his, axis=0)))
+    gc_corr[no_stat] = 1
     return gc_corr
 
 
