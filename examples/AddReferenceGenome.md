@@ -18,7 +18,7 @@ To create GC file we need sequence of the reference genome in fasta.gz file:
 This command will produce _MGSCv37_gc_file.pytor_ file that contains information about 
 GC content in 100-base-pair bins.
 
-For reference genomes where we have strict mask in the same format as 100 Genomes Project 
+For reference genomes where we have strict mask in the same format as 1000 Genomes Project 
 [strict mask](http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1000_genomes_project/working/20160622_genome_mask_GRCh38/),
 we can create mask file using command:
 
