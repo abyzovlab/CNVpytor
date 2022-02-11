@@ -2,7 +2,7 @@
 
 For GC correction and 1000 genome strict mask filtering CNVpytor uses information 
 related to the reference genome. With installation two reference genomes are
-available: hg19 (GRCh37) and hg28 (GRCh38).
+available: hg19 (GRCh37) and hg38 (GRCh38).
 
 If we want to use CNVpytor for other species or different reference genome for human first we have 
 to create GC and mask file (optional).
