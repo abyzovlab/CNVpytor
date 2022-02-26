@@ -312,10 +312,10 @@ class Root:
             rg_name = np.array(self.io.get_signal(None, None, "reference genome")).astype("str")[0]
             if "mask_file" in Genome.reference_genomes[rg_name]:
                 _logger.info("Strict mask for reference genome '%s' found in database." % rg_name)
-                self.io_mask = IO(Genome.reference_genomes[rg_name]["mask_file"])
+                self.io_mask = IO(Genome.reference_genomes[rg_name]["mask_file"], ro=True)
             if "gc_file" in Genome.reference_genomes[rg_name]:
                 _logger.info("GC content for reference genome '%s' found in database." % rg_name)
-                self.io_gc = IO(Genome.reference_genomes[rg_name]["gc_file"])
+                self.io_gc = IO(Genome.reference_genomes[rg_name]["gc_file"], ro=True)
                 self.rd_stat()
 
     def vcf(self, vcf_files, chroms=[], sample='', no_counts=False, ad_tag="AD", gt_tag="GT", filter=True,
