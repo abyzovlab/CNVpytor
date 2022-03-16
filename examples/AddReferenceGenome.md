@@ -2,7 +2,7 @@
 
 For GC correction and 1000 genome strict mask filtering CNVpytor uses information 
 related to the reference genome. With installation two reference genomes are
-available: hg19 (GRCh37) and hg28 (GRCh38).
+available: hg19 (GRCh37) and hg38 (GRCh38).
 
 If we want to use CNVpytor for other species or different reference genome for human first we have 
 to create GC and mask file (optional).
@@ -18,7 +18,7 @@ To create GC file we need sequence of the reference genome in fasta.gz file:
 This command will produce _MGSCv37_gc_file.pytor_ file that contains information about 
 GC content in 100-base-pair bins.
 
-For reference genomes where we have strict mask in the same format as 100 Genomes Project 
+For reference genomes where we have strict mask in the same format as 1000 Genomes Project 
 [strict mask](http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1000_genomes_project/working/20160622_genome_mask_GRCh38/),
 we can create mask file using command:
 
