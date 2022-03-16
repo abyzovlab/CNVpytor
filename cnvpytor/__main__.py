@@ -385,8 +385,28 @@ def main():
         if args.call:
             app = Root(args.root[0], max_cores=args.max_cores)
             if args.call[0] == "baf":
-                app.call_baf([binsize_type(x) for x in args.call[1:]], chroms=args.chrom, use_id=args.use_id,
-                             use_mask=not args.no_mask, mcount=args.min_count, anim=args.animation)
+                if args.call[1] in ["mosaic", "germline"]:
+                    event_type = args.call[1]
+                    bins = list(map(binsize_type, args.call[2:]))
+                else:
+                    event_type = "both"
+                    bins = list(map(binsize_type, args.call[1:]))
+                if args.use_phase:
+                    app.call_baf_phased(bins, chroms=args.chrom, event_type=event_type, print_calls=True,
+                            use_gc_corr=not args.no_gc_corr,
+                            rd_use_mask=args.use_mask_with_rd, snp_use_mask=not args.no_mask, snp_use_id=args.use_id,
+                            mcount=args.min_count, max_copy_number=args.max_copy_number,
+                            min_cell_fraction=args.min_cell_fraction, baf_threshold=args.baf_threshold,
+                            use_hom=args.use_hom, anim=args.animation)
+                else:
+                    app.call_baf(bins, chroms=args.chrom, event_type=event_type, print_calls=True,
+                            use_gc_corr=not args.no_gc_corr,
+                            rd_use_mask=args.use_mask_with_rd, snp_use_mask=not args.no_mask, snp_use_id=args.use_id,
+                            mcount=args.min_count, max_copy_number=args.max_copy_number,
+                            min_cell_fraction=args.min_cell_fraction, baf_threshold=args.baf_threshold,
+                            use_hom=args.use_hom, anim=args.animation)
+                #app.call_baf_old([binsize_type(x) for x in args.call[1:]], chroms=args.chrom, use_id=args.use_id,
+                #             use_mask=not args.no_mask, mcount=args.min_count, anim=args.animation)
             elif args.call[0] == "mosaic":
                 app.call_mosaic(list(map(binsize_type, args.call[1:])), chroms=args.chrom,
                                 use_gc_corr=not args.no_gc_corr,

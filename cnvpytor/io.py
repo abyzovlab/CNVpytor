@@ -1108,7 +1108,7 @@ class IO(Signals):
 
         """
         keys = ["type", "start", "end", "size", "cnv", "p_val", "p_val_2", "p_val_3", "p_val_4", "Q0", "pN", "dG"]
-        if signal == "calls combined":
+        if signal == "calls combined" or signal == "calls baf":
             keys = ["type", "start", "end", "size", "cnv", "p_val", "lh_del", "lh_loh", "lh_dup", "Q0", "bins", "baf",
                     "rd_p_val", "baf_p_val", "segment", "hets", "homs", "pN", "pNS", "pP"]
         data = []
