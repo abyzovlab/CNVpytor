@@ -4145,6 +4145,7 @@ class Viewer(Show, Figure, HelpDescription):
             ax.set_yticklabels(pchr)
             if self.rd_range[1] < 30:
                 ax.set_xticks(range(int(self.rd_range[0]), int(self.rd_range[1]), 1))
+            ax.set_xlim([self.rd_range[0], self.rd_range[1]])
             ax.grid(True)
         self.fig_show(suffix="rd_stat_violin")
 
@@ -4178,8 +4179,49 @@ class Viewer(Show, Figure, HelpDescription):
             ax.set_yticklabels(rchr)
             if self.rd_range[1] < 30:
                 ax.set_xticks(range(int(self.rd_range[0]), int(self.rd_range[1]), 1))
+            ax.set_xlim([self.rd_range[0], self.rd_range[1]])
             ax.grid(True)
         self.fig_show(suffix="rd_stat_violin")
+
+    def rd_stat_fit_factor(self, regions, factor_range=[0.5, 10], df=0.01):
+        chroms = []
+        for c, (l, t) in self.reference_genome["chromosomes"].items():
+            rd_chr = self.io[self.plot_files[0]].rd_chromosome_name(c)
+            if (len(self.chrom) == 0 or (rd_chr in self.chrom) or (c in self.chrom)) and rd_chr is not None:
+                chroms.append(rd_chr)
+        n = len(self.plot_files)
+        ix = self.plot_files
+        ret = []
+        for i in range(n):
+            io = self.io[ix[i]]
+            allrd = []
+            flag_rd = (FLAG_USEMASK if self.rd_use_mask else 0) | (FLAG_GC_CORR if self.rd_use_gc_corr else 0)
+            mean, stdev = io.rd_normal_level(self.bin_size, flag_rd)
+            rchr = []
+            means = []
+            for region in regions:
+                regs = decode_region(region, max_size=1000000000)
+                rchr.append(region)
+                crd = np.array([])
+                for reg in regs:
+                    rd = io.get_signal(reg[0], self.bin_size, "RD", flag_rd) * 2 / mean
+                    crd = np.append(crd, rd[reg[1][0] // self.bin_size:reg[1][1] // self.bin_size])
+                allrd.append(crd)
+                means.append(np.mean(crd))
+            def min_int(f):
+                t=np.tensordot(means, f, axes=0)
+                return np.sum((np.round(t)-t)**2,axis=0)
+            fac = min(np.linspace(factor_range[0], factor_range[1], int((factor_range[1]-factor_range[0])/df)), key=lambda x: min_int(x))
+            ret.append(fac)
+        return ret
+
+
+
+
+
+
+
+
 
     def read_fragment_dist(self):
         n = len(self.plot_files)
