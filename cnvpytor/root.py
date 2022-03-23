@@ -3331,6 +3331,47 @@ class Root:
         """
         CNV caller using combined RD and phased BAF sigal based on likelihood merger (UNDER DEVELOPMENT).
 
+        Parameters
+        ----------
+        bin_sizes : list of int
+            List of histogram bin sizes
+        chroms : list of str
+            List of chromosomes. Calculates for all available if empty.
+        event_type : str
+            String "mosaic", "germline" or "both"
+        print_calls : bool
+            Print to stdout list of calls if true.
+        use_gc_corr : bool
+            Use GC corrected signal if True. Default: True.
+        rd_use_mask : bool
+            Use P-mask filter for RD if True. Default: False.
+        snp_use_mask : bool
+            Use P-mask filter for SNP if True. Default: True.
+        snp_use_id : bool
+            Use ID filter for SNP if True. Default: False.
+        max_copy_number : int
+            Maximal copy number model
+        min_cell_fraction : float
+            Minimal cell fraction used for estimate most likely copy number model.
+        baf_threshold : float
+            Ignores calls with BAF change smaller then this threshold value.
+        omin : None or float
+            Algorithm ends when maximal likelihood overlap decrease below this value.
+            If None, 0.05 multiple hypotesis p-value.
+        mcount : None or int
+            Minimal number of SNPs to use bin.
+        max_distance: float
+        use_hom : bool
+            For bins without HETs estimate likelihood using number of HOMs if True.
+            Use this option for calling germline deletions and CNNLOHs.
+            Function calculate_baf should be run using the same parameter.
+        anim : str
+            If not empty string it will generate plot after each itteretion (debuging purpose)
+
+        Returns
+        -------
+        None
+
         """
         snp_flag = (FLAG_USEMASK if snp_use_mask else 0) | (FLAG_USEID if snp_use_id else 0) | FLAG_USEHAP
         rd_gc_chromosomes = {}
@@ -3826,6 +3867,15 @@ class Root:
                        anim=""):
         """
         CNV caller using phased BAF sigal based on likelihood merger (UNDER DEVELOPMENT).
+
+        Parameters
+        ----------
+
+
+
+
+
+
 
         """
         snp_flag = (FLAG_USEMASK if snp_use_mask else 0) | (FLAG_USEID if snp_use_id else 0) | FLAG_USEHAP

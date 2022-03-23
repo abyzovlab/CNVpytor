@@ -2332,7 +2332,7 @@ class Viewer(Show, Figure, HelpDescription):
                 ax.set_ylabel("Allele frequency")
                 # ax.xaxis.set_ticks(np.arange(0, len(gl), 50), minor=[])
                 # ax.set_xlim([-0.5, img.shape[1] - 0.5])
-                ax.set_ylim([self.baf_range[0]*img.shape[0], self.baf_range[1]*img.shape[0]])
+                ax.set_ylim([self.baf_range[0] * img.shape[0], self.baf_range[1] * img.shape[0]])
                 if self.snp_call and ("baf_mosaic" in self.callers):
                     plt.scatter(call_pos, call_i1, s=self.lh_markersize, color=np.array(call_c), edgecolors='face',
                                 marker=self.lh_marker)
@@ -3403,9 +3403,9 @@ class Viewer(Show, Figure, HelpDescription):
             io = self.io[self.plot_files[i]]
             flag_rd = (FLAG_USEMASK if self.rd_use_mask else 0) | (FLAG_GC_CORR if self.rd_use_gc_corr else 0)
             mean, stdev = io.rd_normal_level(self.bin_size, flag_rd | FLAG_GC_CORR)
-            nstdev = stdev / np.sqrt(mean) if mean>0 else 0
+            nstdev = stdev / np.sqrt(mean) if mean > 0 else 0
             rfd = io.get_signal(None, None, "read frg dist")
-            if rfd is None or len(rfd)==0:
+            if rfd is None or len(rfd) == 0:
                 mrl, stdrl, mfl, stdfl = 0, 0, 0, 0
             else:
                 read_size = np.sum(rfd, axis=1)
@@ -3441,11 +3441,11 @@ class Viewer(Show, Figure, HelpDescription):
                                     bafs.append(baf)
                                     talt += nalt[ix]
                                     tref += nref[ix]
-                alt_ref_ratio = talt / tref if tref>0 else 0
-                if len(counts)>0:
+                alt_ref_ratio = talt / tref if tref > 0 else 0
+                if len(counts) > 0:
                     meanc = np.mean(counts)
                     stdc = np.std(counts)
-                    nstdc = stdc / np.sqrt(meanc) if meanc>0 else 0
+                    nstdc = stdc / np.sqrt(meanc) if meanc > 0 else 0
                     maxc = 2 * np.mean(counts)
                     bins = 20
                     x = [[] for j in range(bins)]
@@ -3457,13 +3457,13 @@ class Viewer(Show, Figure, HelpDescription):
                     std_dbaf = np.std(dbaf)
                 else:
                     meanc, stdc, nstdc, std_dbaf = 0, 0, 0, 0
-                print("%s\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f" % (io.filename.replace(".pytor",""), mrl,
+                print("%s\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f" % (io.filename.replace(".pytor", ""), mrl,
                                                                               stdrl, mfl, stdfl, mean, stdev, nstdev,
                                                                               meanc, stdc, nstdc,
                                                                               std_dbaf, alt_ref_ratio))
             else:
                 print("%s\t%f\t%f\t%f\t%f\t%f\t%f\t%f" % (
-                        io.filename.replace(".pytor",""), mrl, stdrl, mfl, stdfl, mean, stdev, nstdev))
+                    io.filename.replace(".pytor", ""), mrl, stdrl, mfl, stdfl, mean, stdev, nstdev))
 
     def snp_dist(self, regions, callset=None, n_bins=100, gt_plot=[0, 1, 2, 3], titles=None, beta_distribution=False,
                  log_scale=False):
@@ -3525,7 +3525,7 @@ class Viewer(Show, Figure, HelpDescription):
 
         self.fig_show(suffix="snp_dist")
 
-    def baf_dist(self, regions, n_bins=100,  titles=None, log_scale=False, minbaf=0.4, maxbaf=0.6):
+    def baf_dist(self, regions, n_bins=100, titles=None, log_scale=False, minbaf=0.4, maxbaf=0.6):
         bin_size = self.bin_size
         nf = len(self.plot_files)
         regions = regions.split(" ")
@@ -3548,7 +3548,7 @@ class Viewer(Show, Figure, HelpDescription):
                     flag_snp = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0) | (
                         FLAG_USEHAP if self.snp_use_phase else 0)
                     cbaf = self.io[self.plot_files[ii]].get_signal(c, bin_size, "SNP baf", flag_snp)
-                    baf = baf + list(cbaf[pos1//bin_size:pos2//bin_size])
+                    baf = baf + list(cbaf[pos1 // bin_size:pos2 // bin_size])
                 x_bins = np.arange(minbaf, maxbaf + 1. / (n_bins + 1), 1. / (n_bins + 1))
                 ax.hist(baf, bins=x_bins, label=regions[i], lw=3, alpha=0.3)
             if log_scale:
@@ -4144,7 +4144,40 @@ class Viewer(Show, Figure, HelpDescription):
             ax.set_yticks(pos)
             ax.set_yticklabels(pchr)
             if self.rd_range[1] < 30:
-                ax.set_xticks(range(0, int(self.rd_range[1]), 2))
+                ax.set_xticks(range(int(self.rd_range[0]), int(self.rd_range[1]), 1))
+            ax.grid(True)
+        self.fig_show(suffix="rd_stat_violin")
+
+    def rd_stat_violin(self, regions, factor=1):
+        chroms = []
+        for c, (l, t) in self.reference_genome["chromosomes"].items():
+            rd_chr = self.io[self.plot_files[0]].rd_chromosome_name(c)
+            if (len(self.chrom) == 0 or (rd_chr in self.chrom) or (c in self.chrom)) and rd_chr is not None:
+                chroms.append(rd_chr)
+        n = len(self.plot_files)
+        ix = self.plot_files
+        self.new_figure(panel_count=n)
+        for i in range(n):
+            ax = self.next_panel()
+            io = self.io[ix[i]]
+            allrd = []
+            flag_rd = (FLAG_USEMASK if self.rd_use_mask else 0) | (FLAG_GC_CORR if self.rd_use_gc_corr else 0)
+            mean, stdev = io.rd_normal_level(self.bin_size, flag_rd)
+            rchr = []
+            for region in regions:
+                regs = decode_region(region, max_size=1000000000)
+                rchr.append(region)
+                crd = np.array([])
+                for reg in regs:
+                    rd = io.get_signal(reg[0], self.bin_size, "RD", flag_rd) * 2 * factor / mean
+                    crd = np.append(crd, rd[reg[1][0] // self.bin_size:reg[1][1] // self.bin_size])
+                allrd.append(crd)
+            pos = list(range(len(allrd), 0, -1))
+            ax.violinplot(allrd, pos, showmeans=False, showmedians=True, showextrema=False, vert=False)
+            ax.set_yticks(pos)
+            ax.set_yticklabels(rchr)
+            if self.rd_range[1] < 30:
+                ax.set_xticks(range(int(self.rd_range[0]), int(self.rd_range[1]), 1))
             ax.grid(True)
         self.fig_show(suffix="rd_stat_violin")
 
