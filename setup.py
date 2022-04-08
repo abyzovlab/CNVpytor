@@ -19,7 +19,6 @@ setup(
     url='https://github.com/abyzovlab/CNVpytor',
     install_requires=[
         'gnureadline',
-        'pathlib>=1.0',
         'requests>=2.0',
         'pysam>=0.15',
         'numpy>=1.16',
@@ -28,6 +27,11 @@ setup(
         'h5py>=2.9',
         'xlsxwriter>=1.3',
     ],
+    extras_require={
+        ':python_version < "3.4"': [
+            'pathlib>=1.0',
+        ],
+    },
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Programming Language :: Python :: 2',

@@ -28,6 +28,11 @@ setup(
         'h5py>=2.9',
         'xlsxwriter>=1.3',
     ],
+    extras_require={
+        ':python_version < "3.4"': [
+            'pathlib>=1.0',
+        ],
+    },
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Programming Language :: Python :: 2',
