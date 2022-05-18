@@ -988,7 +988,7 @@ class HelpDescription(object):
         ),
         "p_range": help_format(
             topic="p_range",
-            p_desc="Range used to filter size of calls",
+            p_desc="Range used to filter calls based on e-value (e-val1)",
             p_type="two floats",
             p_default=str(default["p_range"]),
             p_affects="calls plot",
