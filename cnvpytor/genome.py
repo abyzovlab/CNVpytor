@@ -88,6 +88,19 @@ class Genome:
         cname = name.upper().replace("CHROMOSOME", "").replace("CHROM", "").replace("CHR", "")
         if cname == "MT":
             cname = "M"
+        if cname.startswith('NC_'):
+            try:
+                chrom_num = int(float(cname[3:]))
+                if chrom_num <= 22:
+                    cname = str(chrom_num)
+                elif chrom_num == 23:
+                    cname = 'X'
+                elif chrom_num == 24:
+                    cname = 'Y'
+                elif chrom_num == 12920:
+                    cname = 'M'
+            except ValueError:
+                cname = cname
         return cname
 
     @staticmethod
