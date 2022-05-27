@@ -2140,7 +2140,7 @@ class Root:
                     self.io.create_signal(c, bs, "SNP i2", i2[bs].astype("float32"), snp_flag)
 
     def call_baf_old(self, bin_sizes, chroms=[], use_mask=True, use_id=False, odec=0.9, omin=None, mcount=None,
-                 max_distance=0.1, anim=""):
+                     max_distance=0.1, anim=""):
         """ CNV caller based on BAF likelihood mearger (UNDER CONSTRUCTION).
 
         """
@@ -2264,8 +2264,8 @@ class Root:
                                           data=np.array(likelihood, dtype="float32"), flags=snp_flag)
 
     def call_baf(self, bin_sizes, chroms=[], event_type="both", print_calls=False, use_gc_corr=True, rd_use_mask=False,
-                snp_use_mask=True, snp_use_id=False, max_copy_number=10, min_cell_fraction=0.0, baf_threshold=0,
-                omin=None, mcount=None, max_distance=0.1, use_hom=False, anim=""):
+                 snp_use_mask=True, snp_use_id=False, max_copy_number=10, min_cell_fraction=0.0, baf_threshold=0,
+                 omin=None, mcount=None, max_distance=0.1, use_hom=False, anim=""):
         """
         CNV caller using unphased BAF sigal based on likelihood merger.
         CNV will be called based of BAF signal only and genotyped based on both RD and BAF.
@@ -2452,7 +2452,7 @@ class Root:
                             del likelihood[i + 1]
                             del overlaps[i]
                             if i < len(overlaps):
-                                overlaps[i] =  likelihood_overlap(likelihood[i], likelihood[i + 1])
+                                overlaps[i] = likelihood_overlap(likelihood[i], likelihood[i + 1])
                             if i > 0:
                                 overlaps[i - 1] = likelihood_overlap(likelihood[i - 1], likelihood[i])
                             iter = iter + 1
@@ -2578,13 +2578,13 @@ class Root:
 
                                 gstat_n.append(len(segments[i]))
 
-                        self.io.create_signal(c, bin_size, "RD mosaic segments 2d",
+                        self.io.create_signal(c, bin_size, "RD mosaic segments baf",
                                               data=segments_code(segments), flags=flag_rd)
-                        self.io.create_signal(c, bin_size, "RD mosaic call 2d",
+                        self.io.create_signal(c, bin_size, "RD mosaic call baf",
                                               data=np.array([level, error], dtype="float32"), flags=flag_rd)
-                        self.io.create_signal(c, bin_size, "SNP likelihood segments 2d",
+                        self.io.create_signal(c, bin_size, "SNP likelihood segments baf",
                                               data=segments_code(segments), flags=snp_flag)
-                        self.io.create_signal(c, bin_size, "SNP likelihood call 2d",
+                        self.io.create_signal(c, bin_size, "SNP likelihood call baf",
                                               data=np.array(likelihood, dtype="float32"), flags=snp_flag)
 
             if len(gstat_rd0) == 0:
@@ -3325,8 +3325,8 @@ class Root:
 
     def call_2d_phased(self, bin_sizes, chroms=[], event_type="both", print_calls=False, use_gc_corr=True,
                        rd_use_mask=False, snp_use_mask=True, snp_use_id=False, max_copy_number=10,
-                       min_cell_fraction=0.0, baf_threshold=0.01, omin=None, mcount=None, max_distance=0.1,
-                       use_hom=False,
+                       min_cell_fraction=0.0, baf_threshold=0.01, omin=None, mcount=None, max_distance=0.3,
+                       use_hom=False, correct_hap_flips=True,
                        anim=""):
         """
         CNV caller using combined RD and phased BAF sigal based on likelihood merger (UNDER DEVELOPMENT).
@@ -3365,6 +3365,9 @@ class Root:
             For bins without HETs estimate likelihood using number of HOMs if True.
             Use this option for calling germline deletions and CNNLOHs.
             Function calculate_baf should be run using the same parameter.
+        correct_hap_flips : bool
+            During second stage of merging algorithm it will try to switch haplotype phasing in order to
+            correct artificial haplotype flips. List of flipped bins will be stored.
         anim : str
             If not empty string it will generate plot after each itteretion (debuging purpose)
 
@@ -3528,12 +3531,23 @@ class Root:
 
                         _logger.info("Second stage. Number of segments: %d." % len(level))
 
+                        hap_flipped_bins = set({})
+
                         while True:
-                            overlaps = [normal_overlap(level[i], error[i], level[j], error[j]) * beta_overlap(
-                                rcounts[i], rcounts[j]) for i in range(len(level)) for j in
-                                        range(i + 1, len(level)) if
-                                        (segments[j][0] - segments[i][-1]) < max_distance * (
-                                                len(segments[i]) + len(segments[j]))]
+                            if correct_hap_flips:
+                                overlaps = [normal_overlap(level[i], error[i], level[j], error[j]) * max(
+                                    beta_overlap(rcounts[i], rcounts[j]),
+                                    beta_overlap(rcounts[i], (rcounts[j][1], rcounts[j][0]))) for i in range(len(level))
+                                            for j in
+                                            range(i + 1, len(level)) if
+                                            (segments[j][0] - segments[i][-1] - 1) < max_distance * (
+                                                    len(segments[i]) + len(segments[j]))]
+                            else:
+                                overlaps = [normal_overlap(level[i], error[i], level[j], error[j]) * beta_overlap(
+                                    rcounts[i], rcounts[j]) for i in range(len(level)) for j in
+                                            range(i + 1, len(level)) if
+                                            (segments[j][0] - segments[i][-1] - 1) < max_distance * (
+                                                    len(segments[i]) + len(segments[j]))]
 
                             if len(overlaps) == 0:
                                 break
@@ -3544,12 +3558,24 @@ class Root:
                             i, j = 0, 1
                             while i < len(segments) - 1:
 
-                                if (segments[j][0] - segments[i][-1]) < max_distance * (
+                                if (segments[j][0] - segments[i][-1] - 1) < max_distance * (
                                         len(segments[i]) + len(segments[j])) and \
-                                        normal_overlap(level[i], error[i], level[j], error[j]) * beta_overlap(
-                                    rcounts[i], rcounts[j]) == maxo:
+                                        (normal_overlap(level[i], error[i], level[j], error[j]) * beta_overlap(
+                                            rcounts[i], rcounts[j]) == maxo or (
+                                                 correct_hap_flips and normal_overlap(level[i], error[i], level[j],
+                                                                                      error[j]) * beta_overlap(
+                                             rcounts[i], (rcounts[j][1], rcounts[j][0])) == maxo)):
                                     nl, ne = normal_merge(level[i], error[i], level[j], error[j])
                                     nrc = (rcounts[i][0] + rcounts[j][0], rcounts[i][1] + rcounts[j][1])
+                                    if correct_hap_flips and (
+                                            normal_overlap(level[i], error[i], level[j], error[j]) * beta_overlap(
+                                            rcounts[i], (rcounts[j][1], rcounts[j][0])) == maxo):
+                                        nrc = (rcounts[i][0] + rcounts[j][1], rcounts[i][1] + rcounts[j][0])
+                                        for fb in segments[j]:
+                                            if fb in hap_flipped_bins:
+                                                hap_flipped_bins.remove(fb)
+                                            else:
+                                                hap_flipped_bins.add(fb)
 
                                     level[i] = nl
                                     error[i] = ne
@@ -3649,6 +3675,11 @@ class Root:
                                               data=segments_code(segments), flags=snp_flag)
                         self.io.create_signal(c, bin_size, "SNP read counts call 2d phased",
                                               data=np.array(rcounts, dtype="float32"), flags=snp_flag)
+                        if correct_hap_flips:
+                            self.io.create_signal(c, bin_size, "SNP 2d call flipped bins",
+                                              data=np.array(sorted(list(hap_flipped_bins)), dtype="float32"),
+                                              flags=snp_flag)
+
 
             if len(gstat_rd0) == 0:
                 data = np.array(gstat_rd_all)
@@ -3861,10 +3892,10 @@ class Root:
         return ret
 
     def call_baf_phased(self, bin_sizes, chroms=[], event_type="both", print_calls=False, use_gc_corr=True,
-                       rd_use_mask=False, snp_use_mask=True, snp_use_id=False, max_copy_number=10,
-                       min_cell_fraction=0.0, baf_threshold=0.01, omin=None, mcount=None, max_distance=0.1,
-                       use_hom=False,
-                       anim=""):
+                        rd_use_mask=False, snp_use_mask=True, snp_use_id=False, max_copy_number=10,
+                        min_cell_fraction=0.0, baf_threshold=0.01, omin=None, mcount=None, max_distance=0.3,
+                        use_hom=False, correct_hap_flips=True,
+                        anim=""):
         """
         CNV caller using phased BAF sigal based on likelihood merger (UNDER DEVELOPMENT).
 
@@ -3924,7 +3955,8 @@ class Root:
                     flag_rd = (FLAG_GC_CORR if use_gc_corr else 0) | (FLAG_USEMASK if rd_use_mask else 0)
                     if self.io.signal_exists(c, bin_size, "RD stat", flag_stat) and \
                             self.io.signal_exists(c, bin_size, "RD", flag_rd):
-                        _logger.info("Calculating phased baf calls using bin size %d for chromosome '%s'." % (bin_size, c))
+                        _logger.info(
+                            "Calculating phased baf calls using bin size %d for chromosome '%s'." % (bin_size, c))
                         stat = self.io.get_signal(c, bin_size, "RD stat", flag_stat)
                         mean = stat[4]
                         std = stat[5]
@@ -4030,11 +4062,20 @@ class Root:
 
                         _logger.info("Second stage. Number of segments: %d." % len(level))
 
+                        hap_flipped_bins = set({})
+
                         while True:
-                            overlaps = [beta_overlap(rcounts[i], rcounts[j]) for i in range(len(level))
-                                        for j in range(i + 1, len(level)) if
-                                        (segments[j][0] - segments[i][-1]) < max_distance * (
-                                                len(segments[i]) + len(segments[j]))]
+                            if correct_hap_flips:
+                                overlaps = [max(beta_overlap(rcounts[i], rcounts[j]),
+                                                beta_overlap(rcounts[i], (rcounts[j][1], rcounts[j][0]))) for i in
+                                            range(len(level)) for j in range(i + 1, len(level)) if
+                                            (segments[j][0] - segments[i][-1] - 1) < max_distance * (
+                                                    len(segments[i]) + len(segments[j]))]
+                            else:
+                                overlaps = [beta_overlap(rcounts[i], rcounts[j]) for i in range(len(level))
+                                            for j in range(i + 1, len(level)) if
+                                            (segments[j][0] - segments[i][-1] - 1) < max_distance * (
+                                                    len(segments[i]) + len(segments[j]))]
 
                             if len(overlaps) == 0:
                                 break
@@ -4045,16 +4086,26 @@ class Root:
                             i, j = 0, 1
                             while i < len(segments) - 1:
 
-                                if (segments[j][0] - segments[i][-1]) < max_distance * (
+                                if (segments[j][0] - segments[i][-1] - 1) < max_distance * (
                                         len(segments[i]) + len(segments[j])) and \
-                                        beta_overlap(rcounts[i], rcounts[j]) == maxo:
+                                        (beta_overlap(rcounts[i], rcounts[j]) == maxo or (correct_hap_flips and (
+                                                beta_overlap(rcounts[i], (rcounts[j][1], rcounts[j][0])) == maxo))):
                                     nl, ne = normal_merge(level[i], error[i], level[j], error[j])
-                                    nrc = (rcounts[i][0] + rcounts[j][0], rcounts[i][1] + rcounts[j][1])
 
+                                    nrc = (rcounts[i][0] + rcounts[j][0], rcounts[i][1] + rcounts[j][1])
+                                    if correct_hap_flips and (
+                                            beta_overlap(rcounts[i], (rcounts[j][1], rcounts[j][0])) == maxo):
+                                        nrc = (rcounts[i][0] + rcounts[j][1], rcounts[i][1] + rcounts[j][0])
+                                        for fb in segments[j]:
+                                            if fb in hap_flipped_bins:
+                                                hap_flipped_bins.remove(fb)
+                                            else:
+                                                hap_flipped_bins.add(fb)
                                     level[i] = nl
                                     error[i] = ne
                                     rcounts[i] = nrc
                                     segments[i] += segments[j]
+
                                     segments[i] = sorted(segments[i])
                                     del level[j]
                                     del error[j]
@@ -4141,14 +4192,18 @@ class Root:
                                 })
                                 gstat_n.append(len(segments[i]))
 
-                        self.io.create_signal(c, bin_size, "RD mosaic segments 2d phased",
+                        self.io.create_signal(c, bin_size, "RD mosaic segments baf phased",
                                               data=segments_code(segments), flags=flag_rd)
-                        self.io.create_signal(c, bin_size, "RD mosaic call 2d phased",
+                        self.io.create_signal(c, bin_size, "RD mosaic call baf phased",
                                               data=np.array([level, error], dtype="float32"), flags=flag_rd)
-                        self.io.create_signal(c, bin_size, "SNP read counts segments 2d phased",
+                        self.io.create_signal(c, bin_size, "SNP read counts segments baf phased",
                                               data=segments_code(segments), flags=snp_flag)
-                        self.io.create_signal(c, bin_size, "SNP read counts call 2d phased",
+                        self.io.create_signal(c, bin_size, "SNP read counts call baf phased",
                                               data=np.array(rcounts, dtype="float32"), flags=snp_flag)
+                        if correct_hap_flips:
+                            self.io.create_signal(c, bin_size, "SNP baf call flipped bins",
+                                              data=np.array(sorted(list(hap_flipped_bins)), dtype="float32"),
+                                              flags=snp_flag)
 
             if len(gstat_rd0) == 0:
                 data = np.array(gstat_rd_all)

@@ -20,11 +20,12 @@ class ViewParams(object):
         "rd_partition": False,
         "plot_baf": True,
         "plot_maf": True,
-        "plot_dbaf":True,
+        "plot_dbaf": True,
         "rd_call": True,
         "rd_use_mask": False,
         "rd_use_gc_corr": True,
         "callers": ["rd_mean_shift"],
+        "flip_correction_caller": None,
         "Q0_range": [-1, 1],
         "pN_range": [-1, 1],
         "dG_range": [-1, np.inf],
@@ -43,7 +44,7 @@ class ViewParams(object):
         "markersize": "auto",
         "lh_markersize": 20,
         "lh_marker": "_",
-        "rd_colors": ["grey", "black", "red", "green", "blue", "cyan"],
+        "rd_colors": ["grey", "black", "red", "green", "blue", "cyan", "brown"],
         "legend": False,
         "title": True,
         "snp_colors": ["orange", "brown", "green", "blue", "yellow", "red", "orange", "brown"],
@@ -98,6 +99,7 @@ class ViewParams(object):
             self.command_tree["set"]["callers"][caller] = self.command_tree["set"]["callers"]
         self.command_tree["set"]["grid"] = {"auto": None, "horizontal": None, "vertical": None}
         self.command_tree["set"]["subgrid"] = {"auto": None, "horizontal": None, "vertical": None}
+        self.command_tree["set"]["flip_correction_caller"] = {"baf_mosaic": None, "combined_mosaic": None}
         self.interactive = True
 
     def set_param(self, param, args):
@@ -220,6 +222,9 @@ class ViewParams(object):
             elif param == "plot_files":
                 self.__setattr__(param, list(map(int, args)))
             elif param == "style":
+                if len(args) > 0:
+                    self.__setattr__(param, args[0])
+            elif param == "flip_correction_caller":
                 if len(args) > 0:
                     self.__setattr__(param, args[0])
             elif param in self.params and self.params[param] is not True:
@@ -686,11 +691,11 @@ class HelpDescription(object):
         "rd_colors": help_format(
             topic="rd_colors",
             p_desc="Colors used in rd plot.\n" +
-                   "Colors correspond to following signals: raw, gc corrected, partition, call, mosaic call",
+                   "Colors correspond to following signals: raw, gc corrected, partition, call, mosaic 2d call, mosaic baf call",
             p_type="list of strings",
             p_default=str(default["rd_colors"]),
             p_affects="rd, region plot with rd panel",
-            p_example="set rd_colors red grey green black blue cyan\nunset rd_colors\nset rd_colors.1 red",
+            p_example="set rd_colors red grey green black blue cyan orange\nunset rd_colors\nset rd_colors.1 red",
             p_see="markersize, snp_colors, baf_colors, lh_colors"
         ),
         "legend": help_format(
@@ -884,6 +889,19 @@ class HelpDescription(object):
             p_affects="print",
             p_example="set print_filename filename.tsv\nunset print_filename",
             p_see="print, callers"
+        ),
+        "flip_correction_caller": help_format(
+            topic="flip_correction_caller",
+            p_desc="Use haplotype switch correction for phased SNP plots." +
+                   "Takes one of following values (caller name):\n" +
+                   "    * baf_mosaic\n" +
+                   "    * combined_mosaic\n" +
+                   "    * None (default)",
+            p_type="str",
+            p_default=str(default["flip_correction_caller"]),
+            p_affects="region plot",
+            p_example="set flip_correction_caller baf_mosaic\nunset flip_correction_caller",
+            p_see="snp_use_phase, callers"
         ),
         "callers": help_format(
             topic="callers",

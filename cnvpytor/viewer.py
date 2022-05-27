@@ -1916,6 +1916,7 @@ class Viewer(Show, Figure, HelpDescription):
                 g_p_call = [0]
                 g_p_call_mosaic = [0]
                 g_p_call_mosaic_2d = [0]
+                g_p_call_mosaic_baf = [0]
                 mean, stdev = 0, 0
                 borders = []
                 pos_x = []
@@ -1942,13 +1943,24 @@ class Viewer(Show, Figure, HelpDescription):
                                                             flag_rd | FLAG_GC_CORR)
                         his_p_mosaic_call_2d = io.get_signal(c, bin_size, "RD mosaic call 2d phased",
                                                              flag_rd | FLAG_GC_CORR)
+                        his_p_mosaic_seg_baf = io.get_signal(c, bin_size, "RD mosaic segments baf phased",
+                                                            flag_rd | FLAG_GC_CORR)
+                        his_p_mosaic_call_baf = io.get_signal(c, bin_size, "RD mosaic call baf phased",
+                                                             flag_rd | FLAG_GC_CORR)
                     else:
                         his_p_mosaic_seg_2d = io.get_signal(c, bin_size, "RD mosaic segments 2d",
                                                             flag_rd | FLAG_GC_CORR)
                         his_p_mosaic_call_2d = io.get_signal(c, bin_size, "RD mosaic call 2d",
                                                              flag_rd | FLAG_GC_CORR)
+                        his_p_mosaic_seg_baf = io.get_signal(c, bin_size, "RD mosaic segments baf",
+                                                            flag_rd | FLAG_GC_CORR)
+                        his_p_mosaic_call_baf = io.get_signal(c, bin_size, "RD mosaic call baf",
+                                                             flag_rd | FLAG_GC_CORR)
+
                     his_p_mosaic_seg_2d = segments_decode(his_p_mosaic_seg_2d)
+                    his_p_mosaic_seg_baf = segments_decode(his_p_mosaic_seg_baf)
                     his_p_mosaic = np.zeros_like(his_p) * np.nan
+
                     if his_p_mosaic_call is not None and len(his_p_mosaic_call) > 0 and ("rd_mosaic" in self.callers):
                         for seg, lev in zip(list(his_p_mosaic_seg), list(his_p_mosaic_call[0])):
                             for segi in seg:
@@ -1959,6 +1971,12 @@ class Viewer(Show, Figure, HelpDescription):
                         for seg, lev in zip(list(his_p_mosaic_seg_2d), list(his_p_mosaic_call_2d[0])):
                             for segi in seg:
                                 his_p_mosaic_2d[segi] = lev
+                    his_p_mosaic_baf = np.zeros_like(his_p) * np.nan
+                    if his_p_mosaic_call_baf is not None and len(his_p_mosaic_call_baf) > 0 and (
+                            "baf_mosaic" in self.callers):
+                        for seg, lev in zip(list(his_p_mosaic_seg_baf), list(his_p_mosaic_call_baf[0])):
+                            for segi in seg:
+                                his_p_mosaic_baf[segi] = lev
                     start_bin = (pos1 - 1) // bin_size
                     end_bin = pos2 // bin_size
                     bins = len(list(his_p[start_bin:end_bin]))
@@ -1977,6 +1995,9 @@ class Viewer(Show, Figure, HelpDescription):
                     if his_p_mosaic_call_2d is not None and len(his_p_mosaic_call_2d) > 0 and self.rd_call and (
                             "combined_mosaic" in self.callers):
                         g_p_call_mosaic_2d.extend(list(his_p_mosaic_2d[start_bin:end_bin]))
+                    if his_p_mosaic_call_baf is not None and len(his_p_mosaic_call_baf) > 0 and self.rd_call and (
+                            "baf_mosaic" in self.callers):
+                        g_p_call_mosaic_baf.extend(list(his_p_mosaic_baf[start_bin:end_bin]))
                     borders.append(len(g_p) - 1)
 
                 def format_func(value, tick_number):
@@ -2019,6 +2040,8 @@ class Viewer(Show, Figure, HelpDescription):
                     plt.step(g_p_call_mosaic, self.rd_colors[4], label="mosaic cnv calls")
                 if len(g_p_call_mosaic_2d) > 1:
                     plt.step(g_p_call_mosaic_2d, self.rd_colors[5], label="combined cnv calls")
+                if len(g_p_call_mosaic_baf) > 1:
+                    plt.step(g_p_call_mosaic_baf, self.rd_colors[6], label="combined cnv calls")
                 for i in borders[:-1]:
                     ax.axvline(i, color="g", lw=1)
                 if self.legend:
@@ -2041,12 +2064,23 @@ class Viewer(Show, Figure, HelpDescription):
                     pos, ref, alt, nref, nalt, gt, flag, qual = io.read_snp(c)
                     ix = 0
                     mdp = 0
+                    fbins = set({})
+                    if self.snp_use_phase and self.flip_correction_caller is not None:
+                        if self.flip_correction_caller=="combined_mosaic":
+                            fbins = io.get_signal(c, bin_size, "SNP 2d call flipped bins", snp_flag)
+                        else:
+                            fbins = io.get_signal(c, bin_size, "SNP baf call flipped bins", snp_flag)
+                        fbins = set(map(int,fbins))
+
                     while ix < len(pos) and pos[ix] <= pos2:
                         if pos[ix] >= pos1 and (nref[ix] + nalt[ix]) != 0 and ((not self.snp_use_id) or (flag[ix] & 1)):
                             hpos.append((start_pos + pos[ix] - pos1) / bin_size)
                             if pos[ix] - pos1 > mdp:
                                 mdp = pos[ix] - pos1
-                            if gt[ix] != 5:
+                            phase1 = gt[ix] != 5
+                            if (pos[ix]//bin_size) in fbins:
+                                phase1 = not phase1
+                            if phase1:
                                 baf.append(1.0 * nalt[ix] / (nref[ix] + nalt[ix]))
                             else:
                                 baf.append(1.0 * nref[ix] / (nref[ix] + nalt[ix]))
@@ -2260,6 +2294,13 @@ class Viewer(Show, Figure, HelpDescription):
                         if pos2 is None:
                             pos2 = 1000000000
                     likelihood = io.get_signal(c, bin_size, "SNP likelihood", snp_flag)
+                    if self.snp_use_phase and self.flip_correction_caller is not None:
+                        if self.flip_correction_caller=="combined_mosaic":
+                            fbins = io.get_signal(c, bin_size, "SNP 2d call flipped bins", snp_flag)
+                        else:
+                            fbins = io.get_signal(c, bin_size, "SNP baf call flipped bins", snp_flag)
+                        for bin in fbins:
+                            likelihood[int(bin)]=np.flip(likelihood[int(bin)])
                     start_bin = (pos1 - 1) // bin_size
                     end_bin = pos2 // bin_size
                     bins = len(list(likelihood[start_bin:end_bin]))
@@ -2267,8 +2308,8 @@ class Viewer(Show, Figure, HelpDescription):
                     gl.extend(list(likelihood[start_bin:end_bin]))
                     borders.append(len(gl) - 1)
                     if self.snp_call and ("baf_mosaic" in self.callers):
-                        likelihood_call = io.get_signal(c, bin_size, "SNP likelihood call", snp_flag)
-                        segments = segments_decode(io.get_signal(c, bin_size, "SNP likelihood segments", snp_flag))
+                        likelihood_call = io.get_signal(c, bin_size, "SNP likelihood call baf", snp_flag)
+                        segments = segments_decode(io.get_signal(c, bin_size, "SNP likelihood segments baf", snp_flag))
 
                         for s, lh in zip(segments, likelihood_call):
                             i1, i2, p = likelihood_pixels_pval(lh)
@@ -4037,6 +4078,82 @@ class Viewer(Show, Figure, HelpDescription):
                     ("%s:%d-%d" + (len(bin_sizes) * "\t%.4f\t%e\t%e\t%.4f\t%.4f\t%d\t%.4f\t%d\t%d\t%.4f\t%e")) % tuple(
                         r))
         return ret
+
+    def genotype_phased_calls_from_sample(self, filename, caller="combined_mosaic"):
+        rio = IO(filename, ro=True)
+        chromosomes = rio.snp_chromosomes()
+        bin_size = self.bin_size
+        for c in chromosomes:
+            flag = (FLAG_USEMASK if self.rd_use_mask else 0) | \
+                   (FLAG_GC_CORR if self.rd_use_gc_corr else 0) | \
+                   (FLAG_USEMASK if self.snp_use_mask else 0) | \
+                   (FLAG_USEID if self.snp_use_id else 0) | FLAG_USEHAP
+            flag_rd = (FLAG_USEMASK if self.rd_use_mask else 0) | (FLAG_GC_CORR if self.rd_use_gc_corr else 0)
+            flag_snp = (FLAG_USEMASK if self.snp_use_mask else 0) | \
+                   (FLAG_USEID if self.snp_use_id else 0) | FLAG_USEHAP
+            signal = "calls combined" if caller=="combined_mosaic" else "calls baf"
+            if rio.signal_exists(c, bin_size, signal, flag):
+                calls = rio.read_calls(c, bin_size, signal, flag)
+                if caller == "combined_mosaic":
+                    segments = segments_decode(rio.get_signal(c, bin_size, "SNP read counts segments 2d phased", flag_snp))
+                    fbins = rio.get_signal(c, bin_size, "SNP 2d call flipped bins", flag_snp)
+                else:
+                    segments = segments_decode(rio.get_signal(c, bin_size, "SNP read counts segments baf phased", flag_snp))
+                    fbins = rio.get_signal(c, bin_size, "SNP baf call flipped bins", flag_snp)
+
+                fbins = set(map(int, fbins))
+
+                rds = []
+                nlevels = []
+                r10 = []
+                r01 = []
+                for ix in self.plot_files:
+                    rds.append(self.io[ix].get_signal(c, bin_size, "RD", flag_rd))
+                    nlevels.append(self.io[ix].rd_normal_level(self.bin_size, flag_rd)[0])
+                    r10.append(self.io[ix].get_signal(c, bin_size, "SNP bin reads 1|0", flag_snp))
+                    r01.append(self.io[ix].get_signal(c, bin_size, "SNP bin reads 0|1", flag_snp))
+
+
+                for call in calls:
+                    if in_interval(call["size"], self.size_range) \
+                            and in_interval(call["p_val"], self.p_range) \
+                            and in_interval(call["pN"], self.pN_range) \
+                            and in_interval(call["Q0"], self.Q0_range) \
+                            and in_interval(call["bins"], self.bins_range) \
+                            and in_interval(abs(call["baf"]), self.baf_range):
+                        keys = ["start", "end", "size", "cnv", "p_val", "lh_del", "lh_loh",
+                                "lh_dup", "Q0", "pN", "pNS", "pP", "bins", "bins", "baf",
+                                "rd_p_val", "baf_p_val", "hets", "homs"]
+                        type = {-1: "deletion", 0: "cnnloh", 1: "duplication"}[call["type"]]
+                        data = [type, c] + [call[k] for k in keys]
+                        data[14] = bin_size
+                        for m in range(2):
+                            data += call["models"][m]
+
+                        seg = int(call["segment"])
+
+                        print(("%s\t%s:%d-%d\t%d\t%.4f\t%e\t%e\t%e\t%e" + \
+                               "\t%.4f\t%.4f\t%.4f\t%.4f\t" + "%d\t%d\t%.4f\t%e\t%e\t%d\t%d\t%d\t" + \
+                               "CN%d/CN%d\t%e\t%.4f\t%d\tCN%d/CN%d\t%e\t%.4f") % tuple(data), end="")
+                        for i in range(len(self.plot_files)):
+                            mean_rd = 0
+                            t10 = 0
+                            t01 = 0
+                            for bin in segments[seg]:
+                                mean_rd+=rds[i][bin]
+                                if bin in fbins:
+                                    t10 += r01[i][bin]
+                                    t01 += r10[i][bin]
+                                else:
+                                    t01 += r01[i][bin]
+                                    t10 += r10[i][bin]
+                            mean_rd /= len(segments[seg])*nlevels[i]/2
+                            print("\t%.4f\t%.4f" % (mean_rd,t01/(t01+t10)-0.5), end="")
+                        print()
+
+
+
+
 
     def genotype_prompt(self, bin_sizes=[], all=False):
         done = False

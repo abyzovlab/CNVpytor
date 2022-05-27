@@ -50,8 +50,12 @@ class Signals(object):
         "RD mosaic call": "his_rd_p_%(chr)s_%(bin_size)d_partition%(rd_flag)s_mosaic_call",
         "RD mosaic segments 2d": "his_rd_p_%(chr)s_%(bin_size)d_partition%(rd_flag)s_mosaic_segments_2d",
         "RD mosaic call 2d": "his_rd_p_%(chr)s_%(bin_size)d_partition%(rd_flag)s_mosaic_call_2d",
+        "RD mosaic segments baf": "his_rd_p_%(chr)s_%(bin_size)d_partition%(rd_flag)s_mosaic_segments_baf",
+        "RD mosaic call baf": "his_rd_p_%(chr)s_%(bin_size)d_partition%(rd_flag)s_mosaic_call_baf",
         "RD mosaic segments 2d phased": "his_rd_p_%(chr)s_%(bin_size)d_partition%(rd_flag)s_mosaic_segments_2d_phased",
         "RD mosaic call 2d phased": "his_rd_p_%(chr)s_%(bin_size)d_partition%(rd_flag)s_mosaic_call_2d_phased",
+        "RD mosaic segments baf phased": "his_rd_p_%(chr)s_%(bin_size)d_partition%(rd_flag)s_mosaic_segments_baf_phased",
+        "RD mosaic call baf phased": "his_rd_p_%(chr)s_%(bin_size)d_partition%(rd_flag)s_mosaic_call_baf_phased",
         "RD level": "rd_level_%(bin_size)d%(flag)s",
         "GC": "%(chr)s_gc_%(bin_size)",
         "SNP pos": "%(chr)s_snp_pos",
@@ -83,8 +87,14 @@ class Signals(object):
         "SNP likelihood call": "snp_likelihood_%(chr)s_%(bin_size)d%(snp_flag)s_call",
         "SNP likelihood segments 2d": "snp_likelihood_%(chr)s_%(bin_size)d%(snp_flag)s_segments_2d",
         "SNP likelihood call 2d": "snp_likelihood_%(chr)s_%(bin_size)d%(snp_flag)s_call_2d",
+        "SNP likelihood segments baf": "snp_likelihood_%(chr)s_%(bin_size)d%(snp_flag)s_segments_baf",
+        "SNP likelihood call baf": "snp_likelihood_%(chr)s_%(bin_size)d%(snp_flag)s_call_baf",
         "SNP read counts segments 2d phased": "snp_likelihood_%(chr)s_%(bin_size)d%(snp_flag)s_segments_2d_phased",
         "SNP read counts call 2d phased": "snp_likelihood_%(chr)s_%(bin_size)d%(snp_flag)s_call_2d_phased",
+        "SNP 2d call flipped bins": "snp_%(chr)s_%(bin_size)d%(snp_flag)s_call_2d_flipped_bins",
+        "SNP read counts segments baf phased": "snp_likelihood_%(chr)s_%(bin_size)d%(snp_flag)s_segments_baf_phased",
+        "SNP read counts call baf phased": "snp_likelihood_%(chr)s_%(bin_size)d%(snp_flag)s_call_baf_phased",
+        "SNP baf call flipped bins": "snp_%(chr)s_%(bin_size)d%(snp_flag)s_call_baf_flipped_bins",
         "SNP maf call": "snp_maf_%(chr)s_%(bin_size)d%(snp_flag)s_call",
         "SNP i1 call": "snp_i1_%(chr)s_%(bin_size)d%(snp_flag)s_call",
         "SNP i2 call": "snp_i2_%(chr)s_%(bin_size)d%(snp_flag)s_call",
@@ -1144,7 +1154,7 @@ class IO(Signals):
         """
         data = self.get_signal(chr_name, bin_size, signal, flags=flags)
         keys = ["type", "start", "end", "size", "cnv", "p_val", "p_val_2", "p_val_3", "p_val_4", "Q0", "pN", "dG"]
-        if signal == "calls combined":
+        if signal in {"calls combined", "calls baf"}:
             keys = ["type", "start", "end", "size", "cnv", "p_val", "lh_del", "lh_loh", "lh_dup", "Q0", "bins", "baf",
                     "rd_p_val", "baf_p_val", "segment", "hets", "homs", "pN", "pNS", "pP"]
         calls = []
