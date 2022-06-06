@@ -290,43 +290,7 @@ CNVpytor is not just command line tool but also Python package.
 For more details check [API Documentation](https://abyzovlab.github.io/CNVpytor/) or 
 see examples in [Jupyter notebook](examples/CNVpytor.ipynb).
 
-## JBrowse plugin for CNVpytor
-A JBrowse plugin is developed that does on-fly analysis of read depth from VCF file.
-https://github.com/abyzovlab/CNVpytorVCF
 
-## Export
-### 1. CNVpytor data visualization using JBrowse
-#### JBrowse version and plugins
-JBrowse version: https://github.com/GMOD/jbrowse/archive/1.16.6-release.tar.gz
-
- Plugins: 
- - multibigwig (https://github.com/elsiklab/multibigwig )
- - multiscalebigwig (https://github.com/cmdcolin/multiscalebigwig)
-
-**Note:** The JBrowse development version is required as integration of different jbrowse plugins are needed.
-
-#### Usage
-To generate cnvpytor file for JBrowse visualization:
-```
-cnvpytor -root [pytor files] -export jbrowse [optional argument: output path]
-
-Default export directory name: 
- - For single pytor file input:  jbrowse_[pytor file name]
- - For multiple pytor file input: cnvpytor_jbrowse_export
-```
-The above command creates all the necessary files that are required to visualize the cnvpytor data. 
-
-To view cnvpytor file using JBrowse, users need to install JBrowse and required plugins (See JBrowse version and plugins section).
-`
-http://localhost/jbrowse/?data=[export directory] 
-`
-
-``` 
-# Example usage
-cnvpytor -root test.pytor -export jbrowse
-http://localhost/jbrowse/?data=jbrowse_test
-```
-[See More](GettingStarted.md#visualize-cnvpytor-data-inside-jbrowse)
 ## Bugs
 
 Please report any bugs that you find on GitHub:
