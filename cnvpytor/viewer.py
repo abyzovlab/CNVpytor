@@ -12,6 +12,7 @@ from .annotator import *
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.colors as colors
+import matplotlib.ticker as ticker
 from scipy.cluster import hierarchy
 from scipy.stats import beta
 
@@ -2507,7 +2508,10 @@ class Viewer(Show, Figure, HelpDescription):
                     else:
                         plt.setp(ax.get_xticklabels(which="both"), visible=False)
                     yticks = np.arange(self.rd_manhattan_range[0], self.rd_manhattan_range[1], 0.5)
-                    ax.yaxis.set_ticklabels([str(int(2 * t)) for t in yticks])
+                    yicks_labels = [str(int(2 * t)) for t in yticks]
+                    ax.yaxis.set_major_locator(ticker.FixedLocator(yticks))
+                    ax.yaxis.set_major_formatter(ticker.FixedFormatter(yicks_labels))
+                    # ax.yaxis.set_ticklabels([str(int(2 * t)) for t in yticks])
                     ax.yaxis.set_ticks(yticks * mean)
                     ax.set_ylabel("RD [CN]")
                     ax.set_ylim([self.rd_manhattan_range[0] * mean, self.rd_manhattan_range[1] * mean])

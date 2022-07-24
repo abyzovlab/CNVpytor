@@ -50,6 +50,22 @@ class Genome:
             "ensembl_api_region": "https://rest.ensembl.org/overlap/region/human/{region}?content-type=application/json;feature=gene;"
         },
         "chm13": {
+            "name": "CHM13 v2.0",
+            "species": "human",
+            "chromosomes": OrderedDict([
+                ("chr1", (248387328, "A")), ("chr2", (242696752, "A")), ("chr3", (201105948, "A")),
+                ("chr4", (193574945, "A")), ("chr5", (182045439, "A")), ("chr6", (172126628, "A")),
+                ("chr7", (160567428, "A")), ("chr8", (146259331, "A")), ("chr9", (150617247, "A")),
+                ("chr10", (134758134, "A")), ("chr11", (135127769, "A")), ("chr12", (133324548, "A")),
+                ("chr13", (113566686, "A")), ("chr14", (101161492, "A")), ("chr15", (99753195, "A")),
+                ("chr16", (96330374, "A")), ("chr17", (84276897, "A")), ("chr18", (80542538, "A")),
+                ("chr19", (61707364, "A")), ("chr20", (66210255, "A")), ("chr21", (45090682, "A")),
+                ("chr22", (51324926, "A")), ("chrX", (154259566, "S")), ("chrY", (62460029, "S")),
+                ("chrMT", (16569, "M"))
+            ]),
+            "gc_file": pkg_resources.resource_filename('cnvpytor', 'data') + "/gc_chm13v2.0.pytor",
+        },
+        "chm13v1.1": {
             "name": "CHM13 v1.1 + hg38 chrY",
             "species": "human",
             "chromosomes": OrderedDict([
@@ -63,7 +79,7 @@ class Genome:
                 ("chr22", (51324926, "A")), ("chrX", (154259566, "S")), ("chrY", (57227415, "S")),
                 ("chrMT", (16569, "M"))
             ]),
-            "gc_file": pkg_resources.resource_filename('cnvpytor', 'data') + "/gc_chm13.pytor",
+            "gc_file": pkg_resources.resource_filename('cnvpytor', 'data') + "/gc_chm13v1.1.pytor",
         }
     }
 
