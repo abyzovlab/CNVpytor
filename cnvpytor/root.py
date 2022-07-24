@@ -3470,7 +3470,8 @@ class Root:
                         snp_bins = len(snp_reads01)
                         bins = min(rd_bins, snp_bins)
 
-                        segments = [[i] for i in range(bins) if snp_count[i] >= min_count and np.isfinite(rd[i])]
+                        segments = [[i] for i in range(bins) if snp_count[i] >= min_count and np.isfinite(rd[i]) and
+                                    (snp_reads10[i]+snp_reads01[i])>0]
 
                         # Skip chromosome if less then 5 bins with signal:
                         if len(segments) < 5:
