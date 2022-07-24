@@ -3471,14 +3471,14 @@ class Root:
                         bins = min(rd_bins, snp_bins)
 
                         segments = [[i] for i in range(bins) if snp_count[i] >= min_count and np.isfinite(rd[i]) and
-                                    (snp_reads10[i]+snp_reads01[i])>0]
+                                    (snp_reads10[i] + snp_reads01[i]) > 0]
 
                         # Skip chromosome if less then 5 bins with signal:
                         if len(segments) < 5:
                             continue
 
-                        level = [rd[i] for i in range(bins) if
-                                 snp_count[i] >= min_count and np.isfinite(rd[i])]
+                        level = [rd[i] for i in range(bins) if snp_count[i] >= min_count and np.isfinite(rd[i]) and (
+                                snp_reads10[i] + snp_reads01[i]) > 0]
                         level = np.array(level)
                         error = np.sqrt(level) ** 2 + std ** 2
                         loc_fl = np.min(list(zip(np.abs(np.diff(level))[:-1], np.abs(np.diff(level))[1:])), axis=1)
@@ -3489,7 +3489,8 @@ class Root:
                         error = list(error)
 
                         rcounts = [(int(snp_reads10[i]), int(snp_reads01[i])) for i in range(bins) if
-                                   snp_count[i] >= min_count and np.isfinite(rd[i])]
+                                   snp_count[i] >= min_count and np.isfinite(rd[i]) and (
+                                           snp_reads10[i] + snp_reads01[i]) > 0]
 
                         overlaps = [normal_overlap(level[i], error[i], level[i + 1], error[i + 1]) * beta_overlap(
                             rcounts[i], rcounts[i + 1]) for i in range(len(segments) - 1)]
@@ -3570,7 +3571,7 @@ class Root:
                                     nrc = (rcounts[i][0] + rcounts[j][0], rcounts[i][1] + rcounts[j][1])
                                     if correct_hap_flips and (
                                             normal_overlap(level[i], error[i], level[j], error[j]) * beta_overlap(
-                                            rcounts[i], (rcounts[j][1], rcounts[j][0])) == maxo):
+                                        rcounts[i], (rcounts[j][1], rcounts[j][0])) == maxo):
                                         nrc = (rcounts[i][0] + rcounts[j][1], rcounts[i][1] + rcounts[j][0])
                                         for fb in segments[j]:
                                             if fb in hap_flipped_bins:
@@ -3678,9 +3679,8 @@ class Root:
                                               data=np.array(rcounts, dtype="float32"), flags=snp_flag)
                         if correct_hap_flips:
                             self.io.create_signal(c, bin_size, "SNP 2d call flipped bins",
-                                              data=np.array(sorted(list(hap_flipped_bins)), dtype="float32"),
-                                              flags=snp_flag)
-
+                                                  data=np.array(sorted(list(hap_flipped_bins)), dtype="float32"),
+                                                  flags=snp_flag)
 
             if len(gstat_rd0) == 0:
                 data = np.array(gstat_rd_all)
@@ -4005,14 +4005,16 @@ class Root:
                         snp_bins = len(snp_reads01)
                         bins = min(rd_bins, snp_bins)
 
-                        segments = [[i] for i in range(bins) if snp_count[i] >= min_count and np.isfinite(rd[i])]
+                        segments = [[i] for i in range(bins) if snp_count[i] >= min_count and np.isfinite(rd[i]) and
+                                    (snp_reads10[i] + snp_reads01[i]) > 0]
 
                         # Skip chromosome if less then 5 bins with signal:
                         if len(segments) < 5:
                             continue
 
                         level = [rd[i] for i in range(bins) if
-                                 snp_count[i] >= min_count and np.isfinite(rd[i])]
+                                 snp_count[i] >= min_count and np.isfinite(rd[i]) and
+                                 (snp_reads10[i] + snp_reads01[i]) > 0]
                         level = np.array(level)
                         error = np.sqrt(level) ** 2 + std ** 2
                         loc_fl = np.min(list(zip(np.abs(np.diff(level))[:-1], np.abs(np.diff(level))[1:])), axis=1)
@@ -4023,7 +4025,8 @@ class Root:
                         error = list(error)
 
                         rcounts = [(int(snp_reads10[i]), int(snp_reads01[i])) for i in range(bins) if
-                                   snp_count[i] >= min_count and np.isfinite(rd[i])]
+                                   snp_count[i] >= min_count and np.isfinite(rd[i]) and
+                                   (snp_reads10[i] + snp_reads01[i]) > 0]
 
                         overlaps = [beta_overlap(rcounts[i], rcounts[i + 1])
                                     for i in range(len(segments) - 1)]
@@ -4203,8 +4206,8 @@ class Root:
                                               data=np.array(rcounts, dtype="float32"), flags=snp_flag)
                         if correct_hap_flips:
                             self.io.create_signal(c, bin_size, "SNP baf call flipped bins",
-                                              data=np.array(sorted(list(hap_flipped_bins)), dtype="float32"),
-                                              flags=snp_flag)
+                                                  data=np.array(sorted(list(hap_flipped_bins)), dtype="float32"),
+                                                  flags=snp_flag)
 
             if len(gstat_rd0) == 0:
                 data = np.array(gstat_rd_all)
