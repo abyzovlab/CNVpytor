@@ -36,6 +36,7 @@ class ViewParams(object):
         "rd_range": [0, 6],
         "baf_range": [0, 1.0],
         "rd_manhattan_range": [0, 2],
+        "rd_manhattan_log_scale": False,
         "rd_manhattan_call": False,
         "snp_use_mask": True,
         "snp_use_id": False,
@@ -552,6 +553,15 @@ class HelpDescription(object):
             p_affects="region plot, rd",
             p_example="set rd_call\nunset rd_call",
             p_see="rd_partition"
+        ),
+        "rd_manhattan_log_scale": help_format(
+            topic="rd_manhattan_log_scale",
+            p_desc="Enables log scale in manhattan RD plot",
+            p_type="bool",
+            p_default=str(default["rd_manhattan_log_scale"]),
+            p_affects="manhattan plot",
+            p_example="set rd_manhattan_log_scale\nunset rd_manhattan_log_scale",
+            p_see="rd_manhattan_range"
         ),
         "plot_baf": help_format(
             topic="plot_baf",

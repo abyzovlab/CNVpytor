@@ -2507,14 +2507,27 @@ class Viewer(Show, Figure, HelpDescription):
                         ax.xaxis.set_ticklabels(xticks_labels, minor=True)
                     else:
                         plt.setp(ax.get_xticklabels(which="both"), visible=False)
-                    yticks = np.arange(self.rd_manhattan_range[0], self.rd_manhattan_range[1], 0.5)
-                    yicks_labels = [str(int(2 * t)) for t in yticks]
-                    ax.yaxis.set_major_locator(ticker.FixedLocator(yticks))
-                    ax.yaxis.set_major_formatter(ticker.FixedFormatter(yicks_labels))
-                    # ax.yaxis.set_ticklabels([str(int(2 * t)) for t in yticks])
-                    ax.yaxis.set_ticks(yticks * mean)
-                    ax.set_ylabel("RD [CN]")
-                    ax.set_ylim([self.rd_manhattan_range[0] * mean, self.rd_manhattan_range[1] * mean])
+
+                    if self.rd_manhattan_log_scale:
+                        ycns=np.arange(self.rd_manhattan_range[0], self.rd_manhattan_range[1], 1)
+                        yticks = 2**ycns
+                        yticks_labels = [str(t) for t in ycns]
+                        ax.set_yscale("log")
+                        ax.yaxis.set_major_locator(ticker.FixedLocator(yticks*mean))
+                        ax.yaxis.set_major_formatter(ticker.FixedFormatter(yticks_labels))
+                        ax.get_yaxis().set_major_formatter(ticker.ScalarFormatter())
+                        ax.yaxis.set_ticks(yticks * mean)
+                        ax.yaxis.set_ticklabels(yticks_labels)
+                        ax.set_ylim([2**self.rd_manhattan_range[0] * mean, 2**self.rd_manhattan_range[1] * mean])
+                        ax.set_ylabel("Log2 RD (normalized)")
+                    else:
+                        yticks = np.arange(self.rd_manhattan_range[0], self.rd_manhattan_range[1], 0.5)
+                        yticks_labels = [str(int(2 * t)) for t in yticks]
+                        ax.yaxis.set_major_locator(ticker.FixedLocator(yticks))
+                        ax.yaxis.set_major_formatter(ticker.FixedFormatter(yticks_labels))
+                        ax.yaxis.set_ticks(yticks * mean)
+                        ax.set_ylim([self.rd_manhattan_range[0] * mean, self.rd_manhattan_range[1] * mean])
+                        ax.set_ylabel("RD [CN]")
                     ax.grid()
                     self.fig.add_subplot(ax)
 
