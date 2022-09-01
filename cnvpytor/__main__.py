@@ -69,6 +69,8 @@ def main():
     parser.add_argument('-maxcn', '--max_copy_number', type=int, help="maximal copy number", default=10)
     parser.add_argument('-mindbaf', '--baf_threshold', type=float, help="threshold for change in BAF level",
                         default=0.0)
+    parser.add_argument('-oth', '--overlap_threshold', type=float, help="likelihood overlap threshold",
+                        default=None)
     parser.add_argument('-mincf', '--min_cell_fraction', type=float, help="minimal cell fraction", default=0.0)
 
     parser.add_argument('-pileup', '--pileup_bam', nargs="+", type=str, help="calculate SNP counts from bam files")
@@ -397,14 +399,14 @@ def main():
                             rd_use_mask=args.use_mask_with_rd, snp_use_mask=not args.no_mask, snp_use_id=args.use_id,
                             mcount=args.min_count, max_copy_number=args.max_copy_number,
                             min_cell_fraction=args.min_cell_fraction, baf_threshold=args.baf_threshold,
-                            use_hom=args.use_hom, anim=args.animation)
+                            omin=args.overlap_threshold, use_hom=args.use_hom, anim=args.animation)
                 else:
                     app.call_baf(bins, chroms=args.chrom, event_type=event_type, print_calls=True,
                             use_gc_corr=not args.no_gc_corr,
                             rd_use_mask=args.use_mask_with_rd, snp_use_mask=not args.no_mask, snp_use_id=args.use_id,
                             mcount=args.min_count, max_copy_number=args.max_copy_number,
                             min_cell_fraction=args.min_cell_fraction, baf_threshold=args.baf_threshold,
-                            use_hom=args.use_hom, anim=args.animation)
+                            omin=args.overlap_threshold, use_hom=args.use_hom, anim=args.animation)
                 #app.call_baf_old([binsize_type(x) for x in args.call[1:]], chroms=args.chrom, use_id=args.use_id,
                 #             use_mask=not args.no_mask, mcount=args.min_count, anim=args.animation)
             elif args.call[0] == "mosaic":
@@ -424,14 +426,14 @@ def main():
                             rd_use_mask=args.use_mask_with_rd, snp_use_mask=not args.no_mask, snp_use_id=args.use_id,
                             mcount=args.min_count, max_copy_number=args.max_copy_number,
                             min_cell_fraction=args.min_cell_fraction, baf_threshold=args.baf_threshold,
-                            use_hom=args.use_hom, anim=args.animation)
+                            omin=args.overlap_threshold, use_hom=args.use_hom, anim=args.animation)
                 else:
                     app.call_2d(bins, chroms=args.chrom, event_type=event_type, print_calls=True,
                             use_gc_corr=not args.no_gc_corr,
                             rd_use_mask=args.use_mask_with_rd, snp_use_mask=not args.no_mask, snp_use_id=args.use_id,
                             mcount=args.min_count, max_copy_number=args.max_copy_number,
                             min_cell_fraction=args.min_cell_fraction, baf_threshold=args.baf_threshold,
-                            use_hom=args.use_hom, anim=args.animation)
+                            omin=args.overlap_threshold, use_hom=args.use_hom, anim=args.animation)
             else:
                 app.call(list(map(binsize_type, args.call)), chroms=args.chrom, print_calls=True,
                          use_gc_corr=not args.no_gc_corr, use_mask=args.use_mask_with_rd)
