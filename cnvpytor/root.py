@@ -2111,7 +2111,7 @@ class Root:
                             ix = np.where(likelihood[bs][i] == max_lh)[0][0]
                             i1[bs][i] = 1.0 * (res // 2 - 1 - ix) / res if ix <= (res // 2 - 1) else 1.0 * (
                                     ix - res // 2 + 1) / res
-                            i2[bs][i] = likelihood[bs][i][res // 2 - 1] / max_lh
+                            i2[bs][i] = likelihood[bs][i][res // 2 - 1] / max_lh if max_lh!=0 else 0
                         elif use_hom:
                             likelihood[bs][i] = lh_x * 0. + 1 / res
                             likelihood[bs][i][0] = 0.5 * (count11[bs][i] + count00[bs][i])
@@ -2122,17 +2122,17 @@ class Root:
                             ix = np.where(likelihood[bs][i] == max_lh)[0][0]
                             i1[bs][i] = 1.0 * (res // 2 - 1 - ix) / res if ix <= (res // 2 - 1) else 1.0 * (
                                     ix - res // 2 + 1) / res
-                            i2[bs][i] = likelihood[bs][i][res // 2 - 1] / max_lh
+                            i2[bs][i] = likelihood[bs][i][res // 2 - 1] / max_lh if max_lh!=0 else 0
 
                     _logger.info("Saving BAF histograms with bin size %d for chromosome '%s'." % (bs, c))
-                    self.io.create_signal(c, bs, "SNP bin count 0|0", count00[bs].astype("uint16"), snp_flag)
-                    self.io.create_signal(c, bs, "SNP bin count 0|1", count01[bs].astype("uint16"), snp_flag)
-                    self.io.create_signal(c, bs, "SNP bin count 1|0", count10[bs].astype("uint16"), snp_flag)
-                    self.io.create_signal(c, bs, "SNP bin count 1|1", count11[bs].astype("uint16"), snp_flag)
-                    self.io.create_signal(c, bs, "SNP bin reads 0|0", reads00[bs].astype("uint16"), snp_flag)
-                    self.io.create_signal(c, bs, "SNP bin reads 0|1", reads01[bs].astype("uint16"), snp_flag)
-                    self.io.create_signal(c, bs, "SNP bin reads 1|0", reads10[bs].astype("uint16"), snp_flag)
-                    self.io.create_signal(c, bs, "SNP bin reads 1|1", reads11[bs].astype("uint16"), snp_flag)
+                    self.io.create_signal(c, bs, "SNP bin count 0|0", count00[bs].astype("uint64"), snp_flag)
+                    self.io.create_signal(c, bs, "SNP bin count 0|1", count01[bs].astype("uint64"), snp_flag)
+                    self.io.create_signal(c, bs, "SNP bin count 1|0", count10[bs].astype("uint64"), snp_flag)
+                    self.io.create_signal(c, bs, "SNP bin count 1|1", count11[bs].astype("uint64"), snp_flag)
+                    self.io.create_signal(c, bs, "SNP bin reads 0|0", reads00[bs].astype("uint64"), snp_flag)
+                    self.io.create_signal(c, bs, "SNP bin reads 0|1", reads01[bs].astype("uint64"), snp_flag)
+                    self.io.create_signal(c, bs, "SNP bin reads 1|0", reads10[bs].astype("uint64"), snp_flag)
+                    self.io.create_signal(c, bs, "SNP bin reads 1|1", reads11[bs].astype("uint64"), snp_flag)
                     self.io.create_signal(c, bs, "SNP baf", baf[bs].astype("float32"), snp_flag)
                     self.io.create_signal(c, bs, "SNP maf", maf[bs].astype("float32"), snp_flag)
                     self.io.create_signal(c, bs, "SNP likelihood", likelihood[bs].astype("float32"), snp_flag)
