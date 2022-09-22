@@ -69,6 +69,8 @@ def main():
     parser.add_argument('-maxcn', '--max_copy_number', type=int, help="maximal copy number", default=10)
     parser.add_argument('-mindbaf', '--baf_threshold', type=float, help="threshold for change in BAF level",
                         default=0.0)
+    parser.add_argument('-bafres', '--baf_resolution', type=int, help="Resolution for unphased BAF likelihood",
+                        default=200)
     parser.add_argument('-oth', '--overlap_threshold', type=float, help="likelihood overlap threshold",
                         default=None)
     parser.add_argument('-mincf', '--min_cell_fraction', type=float, help="minimal cell fraction", default=0.0)
@@ -377,7 +379,7 @@ def main():
         if args.baf:
             app = Root(args.root[0], max_cores=args.max_cores)
             app.calculate_baf(args.baf, chroms=args.chrom, use_mask=not args.no_mask, use_id=args.use_id,
-                              use_phase=args.use_phase, reduce_noise=args.reduce_noise, blw=args.baf_likelihood_width,
+                              use_phase=args.use_phase, res=args.baf_resolution, reduce_noise=args.reduce_noise, blw=args.baf_likelihood_width,
                               use_hom=args.use_hom, alt_ref_correct=args.alt_corr)
         if args.partition:
             app = Root(args.root[0], max_cores=args.max_cores)
