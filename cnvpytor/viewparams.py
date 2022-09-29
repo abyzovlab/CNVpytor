@@ -333,6 +333,7 @@ class HelpDescription(object):
         "print": {"calls", "merged_calls"},
         "ls": None,
         "meta": None,
+        "report": None,
         "compare": None
     }
 
@@ -513,6 +514,12 @@ class HelpDescription(object):
             p_desc="Print meta information",
             p_usage="ls",
             p_see="show"
+        ),
+        "report": help_format(
+            topic="report",
+            p_desc="create a single pytor file report (specified by plot_file) as pdf",
+            p_usage="report filename.pdf",
+            p_see="ls, info"
         ),
         "bin_size": help_format(
             topic="bin_size",

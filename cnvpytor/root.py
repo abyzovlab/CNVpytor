@@ -3903,12 +3903,6 @@ class Root:
         Parameters
         ----------
 
-
-
-
-
-
-
         """
         snp_flag = (FLAG_USEMASK if snp_use_mask else 0) | (FLAG_USEID if snp_use_id else 0) | FLAG_USEHAP
         rd_gc_chromosomes = {}

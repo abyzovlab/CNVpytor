@@ -15,6 +15,7 @@ import matplotlib.colors as colors
 import matplotlib.ticker as ticker
 from scipy.cluster import hierarchy
 from scipy.stats import beta
+from io import BytesIO
 
 import numpy as np
 import logging
@@ -265,16 +266,19 @@ class Figure(ViewParams):
         plt.subplots_adjust(bottom=bottom, top=top, wspace=wspace, hspace=hspace, left=left, right=right)
         if self.output_filename != "":
             image_filename = self.output_filename
-            if add_sufix:
-                image_filename = self._image_filename(suffix)
-            if image_filename is not None:
-                try:
-                    plt.savefig(image_filename, dpi=self.dpi)
-                except:
-                    _logger.warning("Figure is not saved due to an error!")
-                plt.close(self.fig)
+            if isinstance(image_filename,BytesIO):
+                plt.savefig(image_filename, format="png", bbox_inches='tight', dpi=self.dpi)
             else:
-                _logger.warning("Figure is not saved!")
+                if add_sufix:
+                    image_filename = self._image_filename(suffix)
+                if image_filename is not None:
+                    try:
+                        plt.savefig(image_filename, dpi=self.dpi)
+                    except:
+                        _logger.warning("Figure is not saved due to an error!")
+                else:
+                    _logger.warning("Figure is not saved!")
+            plt.close(self.fig)
         elif self.interactive:
             plt.show(block=False)
             plt.draw()
@@ -494,6 +498,9 @@ class Viewer(Show, Figure, HelpDescription):
                 elif f[0] == "info":
                     if n > 1:
                         self.info(list(map(binsize_type, f[1:])))
+                elif f[0] == "report":
+                    if n > 1:
+                        self.single_file_report(f[1])
                 elif f[0] == "print":
                     if f[1] == "calls":
                         if self.print_filename == "":
@@ -4349,30 +4356,78 @@ class Viewer(Show, Figure, HelpDescription):
             ret.append(fac)
         return ret
 
-
-
-
-
-
-
-
-
     def read_fragment_dist(self):
         n = len(self.plot_files)
         ix = self.plot_files
         self.new_figure(panel_count=n)
         for i in range(n):
-            self.new_subgrid(2, hspace=0.2, wspace=0.2)
+            self.new_subgrid(2, grid=(2,1), hspace=0.2, wspace=0.2)
             io = self.io[ix[i]]
             rfd = io.get_signal(None, None, "read frg dist")
             rd = np.sum(rfd, axis=1)
             fd = np.sum(rfd, axis=0)
             ax = self.next_subpanel()
+            ax.set_xlabel("Read length")
+            ax.set_ylabel("Distribution")
             ax.plot(rd)
             ax = self.next_subpanel()
+            ax.set_xlabel("Fragment length")
+            ax.set_ylabel("Distribution")
             ax.plot(fd)
 
         self.fig_show(suffix="read_fragment_dist")
+
+    def single_file_report(self, filename):
+        from .report import Report
+        from io import BytesIO
+        report = Report()
+        report.add_page()
+        io=self.io[self.plot_file]
+        rfd = io.get_signal(None, None, "read frg dist")
+        rd = np.sum(rfd, axis=1)
+        fd = np.sum(rfd, axis=0)
+        mrl = np.sum(rd * np.arange(rd.size)) / np.sum(rd)
+        mfl = np.sum(fd * np.arange(fd.size)) / np.sum(fd)
+        mrl2 = np.sum(rd * np.arange(rd.size) * np.arange(rd.size)) / np.sum(rd)
+        mfl2 = np.sum(fd * np.arange(fd.size) * np.arange(fd.size)) / np.sum(fd)
+        sdr = 100. * np.sqrt(mrl2 - mrl * mrl) / mrl
+        sdf = 100. * np.sqrt(mfl2 - mfl * mfl) / mfl
+        report.add_title("General information")
+        if self.reference_genome is not None:
+            rg = self.reference_genome["name"] + " (" + self.reference_genome["species"] + ")"
+        else:
+            rg = "Not detected"
+        report.add_paragraph('Filename: {:}\n\nReference genome: {:}\n\nRead size: {:.2f} +- {:.2f}\n\nFragment size: {:.2f} +- {:.2f}'.format(io.filename, rg,  mrl, sdr, mfl, sdf))
+
+        report.add_title("Coverage (based on 100bp bins)")
+        bs=100
+        for flag in [FLAG_AUTO, FLAG_SEX, FLAG_MT]:
+            if io.signal_exists(None, bs, "RD stat", flags=flag):
+                stat = io.get_signal(None, bs, "RD stat", flags=flag)
+                type = {FLAG_AUTO:"Autosomes", FLAG_SEX:"X/Y chromosomes", FLAG_MT:"Mitochondria"}[flag]
+                report.add_paragraph("{:}: {:.2f} +- {:.2f}".format(type, stat[4]*mrl/100, stat[5]*mrl/100))
+
+
+        report.add_title("Global plot")
+        bio = BytesIO()
+        self.output_filename = bio
+        self.panel_size = [12,8]
+        self.marker_size = 1
+        self.title = False
+        self.global_plot()
+        report.add_plot(bio)
+        report.add_page()
+        report.add_title("RL/FL distribution")
+        bio = BytesIO()
+        self.panel_size = [12, 4]
+        self.output_filename = bio
+        self.read_fragment_dist()
+        report.add_plot(bio)
+
+        report.output(filename, 'F')
+
+
+
 
 
 def anim_plot_likelihood(likelihood, segments, n, res, iter, prefix, maxp, minp):

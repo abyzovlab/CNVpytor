@@ -127,6 +127,7 @@ def main():
 
     parser.add_argument('-ls', '--ls', action='store_true', help='list pytor file(s) content')
     parser.add_argument('-gc_info', '--gc_info', action='store_true', help='list pytor file(s) gc content stat')
+    parser.add_argument('-rg_info', '--rg_info', action='store_true', help='list loaded reference gnomes')
     parser.add_argument('-info', '--info', type=binsize_type, nargs="*", help='print statistics for pythor file(s)')
     parser.add_argument('-qc', '--qc', type=binsize_type, nargs="*", help='print quality control statistics')
     parser.add_argument('-rdqc', '--rd_qc', type=binsize_type, nargs="*",
@@ -185,6 +186,9 @@ def main():
         Genome.load_reference_genomes(args.reference_genomes_conf)
     elif os.path.exists(os.path.expanduser('~/.cnvpytor/reference_genomes_conf.py')):
         Genome.load_reference_genomes(os.path.expanduser('~/.cnvpytor/reference_genomes_conf.py'))
+
+    if args.rg_info:
+        Genome.print_reference_genomes()
 
     if args.root is not None:
 

@@ -354,3 +354,40 @@ class Genome:
         for g in import_reference_genomes:
             _logger.info("Importing reference genome data: '%s'." % g)
             cls.reference_genomes[g] = import_reference_genomes[g]
+
+    @classmethod
+    def available_reference_genomes(cls):
+        """
+        Returns available reference genome keys
+
+        Returns
+        -------
+        None
+
+        """
+        return [rg for rg in cls.reference_genomes]
+
+    @classmethod
+    def print_reference_genomes(cls):
+        """
+        Prints loaded reference genomes
+
+        Returns
+        -------
+        None
+
+        """
+        print("Available reference genomes:")
+        for rg in cls.reference_genomes:
+            print(f"* {rg}")
+            print(f"\tName: {cls.reference_genomes[rg]['name']}")
+            print(f"\tSpecies: {cls.reference_genomes[rg]['species']}")
+            print(f"\tChromosomes: {len(cls.reference_genomes[rg]['chromosomes'])}")
+            print(f"\tGC file specified: {'Yes' if 'gc_file' in cls.reference_genomes[rg] else 'Not'}")
+            print(f"\tMask file specified: {'Yes' if 'mask_file' in cls.reference_genomes[rg] else 'Not'}")
+            print(f"\tEnsembl API link specified: {'Yes' if 'ensembl_api_region' in cls.reference_genomes[rg] else 'Not'}")
+
+
+
+
+
