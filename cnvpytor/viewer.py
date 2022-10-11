@@ -825,7 +825,7 @@ class Viewer(Show, Figure, HelpDescription):
                     ax.yaxis.set_major_locator(ticker.FixedLocator(yticks))
                     ax.yaxis.set_major_formatter(ticker.FixedFormatter(yticks))
                 else:
-                    ax.xaxis.set_major_locator(plt.MaxNLocator(8))
+                    ax.yaxis.set_major_locator(plt.MaxNLocator(8))
                 ax.set_ylim([self.rd_manhattan_range[0]-2, self.rd_manhattan_range[1]])
 
                 ax.set_ylabel("RD Difference")
