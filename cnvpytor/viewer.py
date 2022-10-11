@@ -817,15 +817,17 @@ class Viewer(Show, Figure, HelpDescription):
                 plt.setp(ax.get_xticklabels(which="both"), visible=False)
 
             if self.rd_manhattan_log_scale:
-                pass
+                ax.set_yscale("log")
+                ax.set_ylabel("Log2 RD (Difference")
             else:
-                yticks = np.arange(-4, 4, 0.5)
-                # yticks_labels = [str(int(2 * t)) for t in yticks]
-                ax.yaxis.set_major_locator(ticker.FixedLocator(yticks))
-                ax.yaxis.set_major_formatter(ticker.FixedFormatter(yticks))
-                # ax.yaxis.set_ticks(yticks * mean)
-                # ax.set_ylim([self.rd_manhattan_range[0] * mean, self.rd_manhattan_range[1] * mean])
-                ax.set_ylim(-4, 4)
+                yticks = np.arange(self.rd_manhattan_range[0]-2, self.rd_manhattan_range[1], 0.5)
+                if len(yticks) < 9:
+                    ax.yaxis.set_major_locator(ticker.FixedLocator(yticks))
+                    ax.yaxis.set_major_formatter(ticker.FixedFormatter(yticks))
+                else:
+                    ax.xaxis.set_major_locator(plt.MaxNLocator(8))
+                ax.set_ylim([self.rd_manhattan_range[0]-2, self.rd_manhattan_range[1]])
+
                 ax.set_ylabel("RD Difference")
             # ax.grid()
             # ax.yaxis.grid()
