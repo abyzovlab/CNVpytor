@@ -509,7 +509,11 @@ class Viewer(Show, Figure, HelpDescription):
                             self.print_calls_file()
                     elif f[1] == "joint_calls" or f[1] == "merged_calls":
                         self.print_simple_merged_calls()
-
+                elif f[0].upper() == 'RD_DIFF':
+                    if len(f) < 2:
+                        print("\n Usage: rd_diff 0 1 \n")
+                    else:
+                        self.rd_diff_v2(int(f[1]), int(f[2]))
                 else:
                     try:
                         if f[0] not in ["rdstat", "snp"]:
@@ -745,6 +749,91 @@ class Viewer(Show, Figure, HelpDescription):
                             s=self.markersize, alpha=0.7)
             # plt.step(np.abs(his_p_corr1 / stat1[4] - his_p_corr2 / stat2[4]), "k")
         self.fig_show(suffix="rd_diff")
+
+    def rd_diff_v2(self, file1, file2):
+        bin_size = self.bin_size
+        flag_rd = (FLAG_USEMASK if self.rd_use_mask else 0)
+        chroms = []
+        for c, (l, t) in self.reference_genome["chromosomes"].items():
+            rd_chr = self.io[file1].rd_chromosome_name(c)
+            if self.io[file1].signal_exists(rd_chr, bin_size, "RD", 0) and \
+                    self.io[file1].signal_exists(rd_chr, bin_size, "RD", FLAG_GC_CORR) and \
+                    (Genome.is_autosome(c) or Genome.is_sex_chrom(c)) and \
+                    (len(self.chrom) == 0 or (rd_chr in self.chrom) or (c in self.chrom)) and rd_chr is not None:
+                chroms.append((rd_chr, l))
+
+        panels = 1
+        self.new_figure(panel_count=panels)
+        self.new_subgrid(panels, hspace=0.05, wspace=0.05)
+
+        for i in range(panels):
+            ax = self.next_subpanel(sharex=True)
+
+            file1_title = self.file_title(self.plot_files[file1])
+            file2_title = self.file_title(self.plot_files[file2])
+            file_title = f"{file1_title} vs {file2_title}"
+            if i == 0 and self.title:
+                ax.set_title(file_title, position=(0.01, 0.9),  color='C0', fontdict={'verticalalignment':'top',
+                                                                                      'horizontalalignment':'left'})
+
+            start = 0
+            xticks = [0]
+            xticks_minor = []
+            xticks_labels = []
+
+            for c, l in chroms:
+                flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
+                stat1 = self.io[file1].get_signal(None, bin_size, "RD stat", flag)
+                stat2 = self.io[file2].get_signal(None, bin_size, "RD stat", flag)
+                if stat1 is None:
+                    _logger.error("Data for bin size %d is missing in file '%s'!" % (bin_size, self.io[file1].filename))
+                    return
+                if stat2 is None:
+                    _logger.error("Data for bin size %d is missing in file '%s'!" % (bin_size, self.io[file2].filename))
+                    return
+                his_p_corr1 = self.io[file1].get_signal(c, bin_size, "RD", flag_rd | FLAG_GC_CORR)
+                his_p_corr2 = self.io[file2].get_signal(c, bin_size, "RD", flag_rd | FLAG_GC_CORR)
+
+                pos = range(start, start + len(his_p_corr1))
+                diff_values = his_p_corr1 / stat1[4] - his_p_corr2 / stat2[4]
+                if self.markersize == "auto":
+                    plt.plot(pos, diff_values, ls='', marker='.', markersize=1)
+                else:
+                    plt.plot(pos, diff_values, ls='', marker='.', markersize=self.markersize)
+
+                xticks_minor.append(start + len(his_p_corr1) // 2)
+                xticks_labels.append(Genome.canonical_chrom_name(c))
+                start += l // bin_size + 1
+                xticks.append(start)
+
+            ax.set_xlim([0, start])
+            ax.xaxis.set_ticks(xticks)
+            ax.xaxis.set_ticklabels([""] * len(xticks))
+
+            if i == (panels - 1):
+                ax.xaxis.set_ticks(xticks_minor, minor=True)
+                ax.xaxis.set_ticklabels(xticks_labels, minor=True)
+            else:
+                plt.setp(ax.get_xticklabels(which="both"), visible=False)
+
+            if self.rd_manhattan_log_scale:
+                pass
+            else:
+                yticks = np.arange(-4, 4, 0.5)
+                # yticks_labels = [str(int(2 * t)) for t in yticks]
+                ax.yaxis.set_major_locator(ticker.FixedLocator(yticks))
+                ax.yaxis.set_major_formatter(ticker.FixedFormatter(yticks))
+                # ax.yaxis.set_ticks(yticks * mean)
+                # ax.set_ylim([self.rd_manhattan_range[0] * mean, self.rd_manhattan_range[1] * mean])
+                ax.set_ylim(-4, 4)
+                ax.set_ylabel("RD Difference")
+            # ax.grid()
+            # ax.yaxis.grid()
+            ax.xaxis.grid()
+            self.fig.add_subplot(ax)
+
+        self.fig_show(suffix="rd_diff")
+
 
     def likelihood(self):
         bin_size = self.bin_size
