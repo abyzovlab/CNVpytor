@@ -16,6 +16,7 @@ import matplotlib.ticker as ticker
 from scipy.cluster import hierarchy
 from scipy.stats import beta
 from io import BytesIO
+from vcf import  CreateVCF
 
 import numpy as np
 import logging
@@ -1125,76 +1126,10 @@ class Viewer(Show, Figure, HelpDescription):
                 rix[fc] += 1
             workbook.close()
         elif format == "vcf":
-            samples = []
-            for call in calls:
-                sample = call[0]
-                if sample not in samples:
-                    samples.append(sample)
-            header = """##fileformat=VCFv4.1
-##fileDate={date}
-##reference={rg}
-##source=CNVpytor
-##INFO=<ID=END,Number=1,Type=Integer,Description="End position of the variant described in this record">
-##INFO=<ID=IMPRECISE,Number=0,Type=Flag,Description="Imprecise structural variation">
-##INFO=<ID=SVLEN,Number=1,Type=Integer,Description="Difference in length between REF and ALT alleles">
-##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">
-##INFO=<ID=pytorRD,Number=1,Type=Float,Description="Normalized RD">
-##INFO=<ID=pytorP1,Number=1,Type=Float,Description="e-val by t-test">
-##INFO=<ID=pytorP2,Number=1,Type=Float,Description="e-val by Gaussian tail">
-##INFO=<ID=pytorP3,Number=1,Type=Float,Description="e-val by t-test (middle)">
-##INFO=<ID=pytorP4,Number=1,Type=Float,Description="e-val by Gaussian tail (middle)">
-##INFO=<ID=pytorQ0,Number=1,Type=Float,Description="Fraction of reads with 0 mapping quality">
-##INFO=<ID=pytorPN,Number=1,Type=Integer,Description="Fraction of N bases">
-##INFO=<ID=pytorDG,Number=1,Type=Integer,Description="Distance to nearest gap in reference genome">
-##INFO=<ID=pytorCL,Number=1,Type=Integer,Description="Caller method">
-##INFO=<ID=SAMPLES,Number=.,Type=String,Description="Sample genotyped to have the variant">
-##ALT=<ID=DEL,Description="Deletion">
-##ALT=<ID=DUP,Description="Duplication">
-##ALT=<ID=LOH,Description="Copy number neutral loss of heterozygosity">
-##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">;
-##FORMAT=<ID=CN,Number=1,Type=Integer,Description="Copy number genotype for imprecise events">
-#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t{samples}"""
-            if self.reference_genome:
-                rg = self.reference_genome["name"]
-            else:
-                rg = "unknown"
-            header = header.format(date=datetime.date.today().strftime("%Y-%m-%d"), rg=rg, samples="\t".join(samples))
-            ii = 0
-            with open(self.print_filename, 'w') as f:
-                print(header, file=f)
-                for call in calls:
-                    ii += 1
-                    id = "CNVpytor_" + {"deletion": "del", "duplication": "dup", "cnnloh": "loh"}[call[2]] + str(ii)
-                    alt = {"deletion": "<DEL>", "duplication": "<DUP>", "cnnloh": "<LOH>"}[call[2]]
-                    info = "END=" + str(int(call[5])) + ";IMPRECISE;SVLEN=" + str(int(call[6])) + ";SVTYPE=" + alt[1:4]
-                    info += ";pytorRD=" + str(call[7])
-                    info += ";pytorP1=" + str(call[8])
-                    info += ";pytorP2=" + str(call[9])
-                    info += ";pytorP3=" + str(call[10])
-                    info += ";pytorP4=" + str(call[11])
-                    info += ";pytorQ0=" + str(call[12])
-                    info += ";pytorPN=" + str(call[13])
-                    info += ";pytorDG=" + str(call[14])
-                    info += ";pytorCL=" + call[1]
-                    format = "GT:CN"
-                    row = [call[3], int(call[4]), id, ".", alt, ".", "PASS", info, format]
-                    for sample in samples:
-                        if sample == call[0]:
-                            if call[2] == "deletion" and call[7] < 0.25:
-                                row.append("1/1:0")
-                            elif call[2] == "deletion" and call[7] > 0.25:
-                                row.append("0/1:0")
-                            elif call[2] == "duplication" and call[7] <= 1.75:
-                                row.append("0/1:2")
-                            elif call[2] == "duplication" and call[7] > 1.75 and call[7] <= 2.25:
-                                row.append("1/1:2")
-                            elif call[2] == "duplication" and call[7] > 2.25:
-                                row.append("./1:%.2f" % call[7])
-                            else:
-                                row.append("./.:.")
-                        else:
-                            row.append("./.:.")
-                    print(*row, sep="\t", file=f)
+            date = datetime.date.today().strftime("%Y-%m-%d")
+            vcf_obj = CreateVCF(self.print_filename, self.reference_genome, date)
+            vcf_obj.insert_records(calls)
+
         if self.plot:
             for call in calls:
                 plot_start = call[4] - call[6]
