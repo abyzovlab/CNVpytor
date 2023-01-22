@@ -7,7 +7,6 @@ import pysam
 import logging
 import numpy as np
 from .utils import int1, gt_from_list, gt_from_str
-
 _logger = logging.getLogger("cnvpytor.vcf")
 
 
@@ -662,3 +661,141 @@ class Vcf:
         except ValueError:
             _logger.error("Variant file reading problem. Probably index file is missing or corrupted.")
             exit(0)
+
+
+class CreateVCF:
+    def __init__(self, filename, reference_genome, c_date):
+        """
+        Create a VCF file
+
+        Parameters
+        ----------
+        filename : str
+            Name of the VCF file.
+        reference_genome: dict
+            reference genome dct
+        c_date : date
+            current date
+        """
+        self.filename = filename
+        self.reference_genome = reference_genome
+        try:
+            self.vcf = pysam.VariantFile(filename, "w",  header = self.vcf_header(current_date=c_date))
+        except IOError:
+            _logger.error("Problem opening file '%s'!" % filename)
+            exit(0)
+        except ValueError:
+            _logger.error("Problem opening file '%s'!" % filename)
+            exit(0)
+
+    def vcf_header(self, current_date):
+        if self.reference_genome:
+            rg = self.reference_genome["name"]
+        else:
+            rg = "unknown"
+
+        # Create a VCF header
+        vcfh = pysam.VariantHeader()
+
+        # add source
+        vcfh.add_line(f"##fileDate={current_date}")
+        vcfh.add_line(f"##reference={rg}")
+        vcfh.add_line("##source=CNVpytor")
+        # INFO
+        vcfh.add_meta('INFO', items=[('ID', "END"), ('Number', 1), ('Type', 'Integer'),
+                                     ('Description', 'End position of the variant described in this record')])
+        vcfh.add_meta('INFO', items=[('ID', "IMPRECISE"), ('Number', 0), ('Type', 'Flag'),
+                                     ('Description', 'Imprecise structural variation')])
+        vcfh.add_meta('INFO', items=[('ID', "SVLEN"), ('Number', 1), ('Type', 'Integer'),
+                                     ('Description', 'Difference in length between REF and ALT alleles')])
+        vcfh.add_meta('INFO', items=[('ID', "SVTYPE"), ('Number', 1), ('Type', 'String'),
+                                     ('Description', 'Type of structural variant')])
+        vcfh.add_meta('INFO', items=[('ID', "pytorRD"), ('Number', 1), ('Type', 'Float'),
+                                     ('Description', 'Normalized RD')])
+        vcfh.add_meta('INFO', items=[('ID', "pytorP1"), ('Number', 1), ('Type', 'Float'),
+                                     ('Description', 'e-val by t-test')])
+        vcfh.add_meta('INFO', items=[('ID', "pytorP2"), ('Number', 1), ('Type', 'Float'),
+                                     ('Description', 'e-val by Gaussian tail')])
+        vcfh.add_meta('INFO', items=[('ID', "pytorP3"), ('Number', 1), ('Type', 'Float'),
+                                     ('Description', 'e-val by t-test (middle)')])
+        vcfh.add_meta('INFO', items=[('ID', "pytorP4"), ('Number', 1), ('Type', 'Float'),
+                                     ('Description', 'Type of structural variant')])
+        vcfh.add_meta('INFO', items=[('ID', "pytorQ0"), ('Number', 1), ('Type', 'Float'),
+                                     ('Description', 'Fraction of reads with 0 mapping quality')])
+        vcfh.add_meta('INFO', items=[('ID', "pytorPN"), ('Number', 1), ('Type', 'Integer'),
+                                     ('Description', 'Fraction of N bases')])
+        vcfh.add_meta('INFO', items=[('ID', "pytorDG"), ('Number', 1), ('Type', 'Integer'),
+                                     ('Description', 'Distance to nearest gap in reference genome')])
+        vcfh.add_meta('INFO', items=[('ID', "pytorCL"), ('Number', 1), ('Type', 'String'),
+                                     ('Description', 'Caller method')])
+        vcfh.add_meta('INFO', items=[('ID', "SAMPLES"), ('Number', 1), ('Type', 'String'),
+                                      ('Description', 'Sample genotyped to have the variant')])
+
+        # vcfh.alts({'ID': 'Del', 'Description': 'Deletion'})
+        # ALT
+        vcfh.add_meta('ALT', items=[('ID', "DEL"), ('Description', 'Deletion')])
+
+        vcfh.add_meta('ALT', items=[('ID', "DUP"), ('Description', 'Duplication')])
+        vcfh.add_meta('ALT', items=[('ID', "LOH"), ('Description', 'Copy number neutral loss of heterozygosity')])
+        # FORMAT
+        vcfh.add_meta('FORMAT', items=[('ID', "GT"), ('Number', 1), ('Type', 'String'), ('Description', 'Genotype')])
+        vcfh.add_meta('FORMAT', items=[('ID', "CN"), ('Number', 1), ('Type', 'Float'),
+                                       ('Description', 'Copy number genotype for imprecise events')])
+
+        # add reference genome
+        for c, (l, t) in self.reference_genome["chromosomes"].items():
+            vcfh.contigs.add(c, length=l)
+
+        return vcfh
+
+    def insert_records(self, calls):
+        samples = []
+        for call in calls:
+            sample = call[0]
+            if sample not in samples:
+                self.vcf.header.add_sample(sample)
+                samples.append(sample)
+
+        for idx, call in enumerate(calls):
+
+            record_id = "CNVpytor_" + {"deletion": "del", "duplication": "dup", "cnnloh": "loh"}[call[2]] + str(idx)
+            alt = {"deletion": "<DEL>", "duplication": "<DUP>", "cnnloh": "<LOH>"}[call[2]]
+
+            info_dct = {"END": int(call[5]), "IMPRECISE": True, "SVLEN": int(call[6]), "SVTYPE": alt[1:4],
+                        "pytorRD": call[7], "pytorP1": call[8], "pytorP2": call[9], "pytorP3": call[10],
+                        "pytorP4": call[11], "pytorQ0": call[12], "pytorPN": int(call[13]), "pytorDG": int(call[14]),
+                        "pytorCL": call[1]}
+
+            start_loci = int(call[4])
+            if start_loci != 1:
+                start_loci = start_loci-1
+            r = self.vcf.new_record(contig=str(call[3]), start=start_loci, stop=int(call[5]), alleles=('.', alt),
+                                    id=record_id, filter="PASS", info=info_dct)
+
+            # add sample information
+            for sample in samples:
+                if sample == call[0]:
+                    if call[2] == "deletion" and call[7] < 0.25:
+                        r.samples[sample]['GT'] = (1, 1)
+                        r.samples[sample]['CN'] = 0
+                    elif call[2] == "deletion" and call[7] > 0.25:
+                        r.samples[sample]['GT'] = (0, 1)
+                        r.samples[sample]['CN'] = 0
+                    elif call[2] == "duplication" and call[7] <= 1.75:
+                        r.samples[sample]['GT'] = (0, 1)
+                        r.samples[sample]['CN'] = 2
+                    elif call[2] == "duplication" and 1.75 < call[7] <= 2.25:
+                        r.samples[sample]['GT'] = (1, 1)
+                        r.samples[sample]['CN'] = 2
+                    elif call[2] == "duplication" and call[7] > 2.25:
+                        r.samples[sample]['GT'] = (None, 1)
+                        r.samples[sample]['CN'] = round(call[7], 2)
+                    else:
+                        r.samples[sample]['GT'] = (None, None)
+                        r.samples[sample]['CN'] = None
+
+            self.vcf.write(r)
+
+        # Close the VCF file
+        self.vcf.close()
+

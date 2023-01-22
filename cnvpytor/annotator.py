@@ -25,8 +25,11 @@ class Annotator:
         biotypes : list of str
             List of biotypes to annotate
         """
-        self.reference_genome = reference_genome
-        self.url_template = reference_genome["ensembl_api_region"]
+        if 'ensembl_api_region' in reference_genome:
+            self.url_template = reference_genome["ensembl_api_region"]
+        else:
+            _logger.error("ensembl_api_region tag is missing for %s reference genome" % (self.reference_genome["name"]))
+            self.url_template = None
         self.biotypes = biotypes
 
     def get_info(self, region):
