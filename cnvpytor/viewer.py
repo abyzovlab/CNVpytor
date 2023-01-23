@@ -16,7 +16,7 @@ import matplotlib.ticker as ticker
 from scipy.cluster import hierarchy
 from scipy.stats import beta
 from io import BytesIO
-from vcf import  CreateVCF
+from .vcf import  CreateVCF
 
 import numpy as np
 import logging
