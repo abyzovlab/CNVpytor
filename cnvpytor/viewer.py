@@ -1104,6 +1104,7 @@ class Viewer(Show, Figure, HelpDescription):
                     print(*call, sep="\t", file=f)
         elif format == "xlsx":
             import xlsxwriter
+
             workbook = xlsxwriter.Workbook(self.print_filename, {'nan_inf_to_errors': True})
             files_callers = []
             sheets = {}

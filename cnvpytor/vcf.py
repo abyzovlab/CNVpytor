@@ -743,21 +743,26 @@ class CreateVCF:
                                        ('Description', 'Copy number genotype for imprecise events')])
 
         # add reference genome
-        for c, (l, t) in self.reference_genome["chromosomes"].items():
-            vcfh.contigs.add(c, length=l)
+        # for c, (l, t) in self.reference_genome["chromosomes"].items():
+        #    vcfh.contigs.add(c, length=l)
 
         return vcfh
 
     def insert_records(self, calls):
         samples = []
+        chr_list = []
         for call in calls:
+            call_chr = str(call[3])
             sample = call[0]
             if sample not in samples:
                 self.vcf.header.add_sample(sample)
                 samples.append(sample)
 
-        for idx, call in enumerate(calls):
+            if call_chr not in chr_list:
+                chr_list.append(call_chr)
+                self.vcf.header.contigs.add(call_chr)
 
+        for idx, call in enumerate(calls):
             record_id = "CNVpytor_" + {"deletion": "del", "duplication": "dup", "cnnloh": "loh"}[call[2]] + str(idx)
             alt = {"deletion": "<DEL>", "duplication": "<DUP>", "cnnloh": "<LOH>"}[call[2]]
 
@@ -769,7 +774,7 @@ class CreateVCF:
             start_loci = int(call[4])
             if start_loci != 1:
                 start_loci = start_loci-1
-            r = self.vcf.new_record(contig=str(call[3]), start=start_loci, stop=int(call[5]), alleles=('.', alt),
+            r = self.vcf.new_record(contig=call_chr, start=start_loci, stop=int(call[5]), alleles=('.', alt),
                                     id=record_id, filter="PASS", info=info_dct)
 
             # add sample information
