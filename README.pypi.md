@@ -1,45 +1,38 @@
 ![CNVpytor Logo](https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/cnvpytor/imgs/cnvpytor_w_640.png)
 
+[3D printable CNVpytor logo (stl file)](https://github.com/abyzovlab/CNVpytor/blob/master/imgs/CNVpytor.stl)
+
 # CNVpytor - a python extension of CNVnator
 
 CNVpytor is a Python package and command line tool for CNV/CNA analysis from depth-of-coverage by mapped reads developed in Abyzov Lab, Mayo Clinic.
 
-**NEW: CNVpytor release ver 1.0 is available to install!**
+Follow [CNVpytor Twitter account](https://twitter.com/cnvpytor).
+
+
+### Citing CNVpytor
+
+CNVpytor: a tool for copy number variation detection and analysis from read depth and allele imbalance in whole-genome sequencing
+<br />Milovan Suvakov, Arijit Panda, Colin Diesh, Ian Holmes, Alexej Abyzov, GigaScience, Volume 10, Issue 11, November 2021, giab074
+[https://doi.org/10.1093/gigascience/giab074](https://doi.org/10.1093/gigascience/giab074)
 
 ## Learn how to use CNVpytor in 10 minutes
 
-* [Geting started](https://github.com/abyzovlab/CNVpytor/blob/master/GettingStarted.md) with command line interface
-* [Jupyter notebook](https://github.com/abyzovlab/CNVpytor/blob/master/examples/CNVpytor.ipynb): How to use CNVpytor from Python 
-* [Google Colab](https://github.com/abyzovlab/CNVpytor/blob/master/examples/Colab.ipynb): With CEPH trio example dataset 
+* [Geting started](GettingStarted.md) with command line interface
+* [Jupyter notebook](examples/PythonLibraryGuide.ipynb): How to use CNVpytor from Python
+* [Google Colab](examples/Colab.ipynb): With CEPH trio example dataset
 * [Video Tutorial](https://www.youtube.com/watch?v=RJMQtrD0SuE): 3-minute YT demo
 
 ## Gallery
 
 | | |
 |---|---|
-| Manhattan plot ([see example](https://github.com/abyzovlab/CNVpytor/blob/master/examples/manhattan.md))| Circular plot ([see example](https://github.com/abyzovlab/CNVpytor/blob/master/examples/circular.md))|
+| Manhattan plot ([see example](examples/manhattan.md))| Circular plot ([see example](examples/circular.md))|
 |<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/manhattan.png" width="512px">|<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/circular.png" width="512px">|
-| Region plot ([see example](https://github.com/abyzovlab/CNVpytor/blob/master/examples/region.md))| Compare regions ([see example](https://github.com/abyzovlab/CNVpytor/blob/master/examples/compare.md))|
+| Region plot ([see example](examples/region.md))| Compare regions ([see example](examples/compare.md))|
 |<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/region.png" width="512px">|<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/compare.png" width="512px">|
+| Merging and annotating calls ([see example](examples/merging.md))|Call somatic CNAs ([see example](examples/JointCaller.md))|
+|<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/merging.png" width="512px">|<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/joint_caller.png" width="512px">
 
-## Dependencies
-
-* requests>=2.0
-* gnureadline
-* pathlib>=1.0
-* pysam>=0.15
-* numpy>=1.16
-* scipy>=1.1
-* matplotlib>=2.2
-* h5py>=2.9
-* xlsxwriter>=1.3
-* pathlib>=1.0
-
-Optional:
-
-* pyBigWig - for JBrowse export functionality
-* ROOT - for CNVnator root import/export functionality
-* seaborn - for additional plotting styles 
 
 ## Install
 

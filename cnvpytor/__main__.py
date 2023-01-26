@@ -419,6 +419,13 @@ def main():
                 app.call_mosaic(list(map(binsize_type, args.call[1:])), chroms=args.chrom,
                                 use_gc_corr=not args.no_gc_corr,
                                 use_mask=args.use_mask_with_rd, anim=args.animation)
+            elif args.call[0] == "subclones":
+                bins = list(map(binsize_type, args.call[1:]))
+                app.call_subclones2(bins, chroms=args.chrom, cnv_calls="calls combined", print_calls=True,
+                            use_gc_corr=not args.no_gc_corr, rd_use_mask=args.use_mask_with_rd,
+                            snp_use_mask=not args.no_mask, snp_use_id=args.use_id,
+                            max_copy_number=args.max_copy_number,
+                            min_cell_fraction=args.min_cell_fraction, baf_threshold=args.baf_threshold)
             elif args.call[0] == "combined":
                 if args.call[1] in ["mosaic", "germline"]:
                     event_type = args.call[1]

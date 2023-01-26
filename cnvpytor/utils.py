@@ -495,6 +495,29 @@ def normal(x, a, x0, sigma):
     """
     return a * np.exp(-(x - x0) ** 2 / (2 * sigma ** 2)) / np.sqrt(2 * np.pi) / sigma
 
+def lognormal(x, a, x0, sigma):
+    """
+    Log normal distribution.
+
+    Parameters
+    ----------
+    x : float
+        Variable.
+    a : float
+        Area.
+    x0 : float
+        Mean value.
+    sigma : float
+        Sigma.
+
+    Returns
+    -------
+    : float
+        Value of distribution in x.
+
+    """
+    return np.log(a) - (x - x0) ** 2 / (2 * sigma ** 2) - np.log(np.sqrt(2 * np.pi) / sigma)
+
 
 def bimodal(x, a1, x01, sigma1, a2, x02, sigma2):
     return normal(x, a1, x01, sigma1) + normal(x, a2, x02, sigma2)
@@ -860,6 +883,55 @@ def likelihood_of_baf(likelihood, baf):
         return likelihood[bin] * (1 - fr) + likelihood[bin + 1] * fr
     else:
         return likelihood[bin]
+
+def likelihood_of_baf_narray(likelihood, baf):
+    """
+    Calculates likelihood for given baf array
+    Parameters
+    ----------
+    likelihood
+    baf
+
+    Returns
+    -------
+    lhv : float
+        likelihood value
+
+    """
+    ret = np.array([likelihood_of_baf(likelihood, ibaf) for ibaf in baf])
+
+    #res = likelihood.size
+    #bin = (baf * (res - 1)).astype(int)
+    #bin[bin>res-1]=res-1
+    #fr = baf * (res - 1) - bin
+    #likelihood = np.append(likelihood,[likelihood[-1]])
+    #ret=likelihood[bin] * (1 - fr) + likelihood[bin + 1] * fr
+    #ret[np.isnan(baf)]=0
+    return ret
+
+def log_likelihood_of_baf_narray(likelihood, baf):
+    """
+    Calculates likelihood for given baf array
+    Parameters
+    ----------
+    likelihood
+    baf
+
+    Returns
+    -------
+    lhv : float
+        likelihood value
+
+    """
+    res = likelihood.size
+    bin = (baf * (res - 1)).astype(int)
+    bin[bin>res-1]=res-1
+    fr = baf * (res - 1) - bin
+    likelihood = np.append(likelihood,[likelihood[-1]])
+    ret=likelihood[bin] * (1 - fr) + likelihood[bin + 1] * fr
+    ret = np.log(ret)
+    ret[np.isinf(ret)]=-1e100
+    return ret
 
 
 def likelihood_pixels_pval(likelihood):
