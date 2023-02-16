@@ -2413,8 +2413,8 @@ class Viewer(Show, Figure, HelpDescription):
 
                 ax.imshow(img, aspect='auto', extent=[0, l, 0, img.shape[0]])
                 # ax.xaxis.set_ticklabels([])
-                ax.yaxis.set_ticks([0, img.shape[0] / 4, img.shape[0] / 2, 3 * img.shape[0] / 4, img.shape[0]],
-                                   ["1", "3/4", "1/2", "1/4", "0"])
+                ax.yaxis.set_ticks([0, img.shape[0] / 4, img.shape[0] / 2, 3 * img.shape[0] / 4, img.shape[0]])
+                ax.yaxis.set_ticklabels(["1", "3/4", "1/2", "1/4", "0"])
                 ax.set_ylabel("Allele frequency")
                 # ax.xaxis.set_ticks(np.arange(0, len(gl), 50), minor=[])
                 # ax.set_xlim([-0.5, img.shape[1] - 0.5])
@@ -2707,8 +2707,8 @@ class Viewer(Show, Figure, HelpDescription):
                     img[0, :] = 0
                     img[-1, :] = 0
                     ax.imshow(img, aspect='auto', extent=[0, img.shape[1], 0, img.shape[0]])
-                    ax.yaxis.set_ticks([0, img.shape[0] / 4, img.shape[0] / 2, 3 * img.shape[0] / 4, img.shape[0] - 1],
-                                       ["1", "3/4", "1/2", "1/4", "0"])
+                    ax.yaxis.set_ticks([0, img.shape[0] / 4, img.shape[0] / 2, 3 * img.shape[0] / 4, img.shape[0] - 1])
+                    ax.yaxis.set_ticklabels(["1", "3/4", "1/2", "1/4", "0"])
                     ax.set_ylabel("BAF")
                     ax.set_xlim([0, start])
                     ax.xaxis.set_ticks(xticks)
