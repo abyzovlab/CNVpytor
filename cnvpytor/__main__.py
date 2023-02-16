@@ -71,6 +71,8 @@ def main():
                         default=0.0)
     parser.add_argument('-bafres', '--baf_resolution', type=int, help="Resolution for unphased BAF likelihood",
                         default=200)
+    parser.add_argument('-nolh', '--no_save_likelihood', action='store_true',
+                        help="do not save likelihood histograms (reduce size of pytor file)")
     parser.add_argument('-oth', '--overlap_threshold', type=float, help="likelihood overlap threshold",
                         default=None)
     parser.add_argument('-mincf', '--min_cell_fraction', type=float, help="minimal cell fraction", default=0.0)
@@ -384,7 +386,7 @@ def main():
             app = Root(args.root[0], max_cores=args.max_cores)
             app.calculate_baf(args.baf, chroms=args.chrom, use_mask=not args.no_mask, use_id=args.use_id,
                               use_phase=args.use_phase, res=args.baf_resolution, reduce_noise=args.reduce_noise, blw=args.baf_likelihood_width,
-                              use_hom=args.use_hom, alt_ref_correct=args.alt_corr)
+                              use_hom=args.use_hom, alt_ref_correct=args.alt_corr, save_likelihood=not args.no_save_likelihood)
         if args.partition:
             app = Root(args.root[0], max_cores=args.max_cores)
             app.partition(args.partition, chroms=args.chrom, use_gc_corr=not args.no_gc_corr,
@@ -421,7 +423,7 @@ def main():
                                 use_mask=args.use_mask_with_rd, anim=args.animation)
             elif args.call[0] == "subclones":
                 bins = list(map(binsize_type, args.call[1:]))
-                app.call_subclones2(bins, chroms=args.chrom, cnv_calls="calls combined", print_calls=True,
+                app.call_subclones(bins, chroms=args.chrom, cnv_calls="calls combined", print_calls=True,
                             use_gc_corr=not args.no_gc_corr, rd_use_mask=args.use_mask_with_rd,
                             snp_use_mask=not args.no_mask, snp_use_id=args.use_id,
                             max_copy_number=args.max_copy_number,

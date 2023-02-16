@@ -479,6 +479,10 @@ class IO(Signals):
         if not (signame in self.file):
             _logger.debug("Signal '%s' does not exist in file '%s'!" % (signame, self.filename))
             return []
+        if signal=="SNP likelihood":
+            x=np.array(self.file[signame])
+            return  np.concatenate((x,np.flip(x[:,:-1],axis=1)),axis=1)
+
         return np.array(self.file[signame])
 
     def _flush(self):

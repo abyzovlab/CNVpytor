@@ -266,7 +266,7 @@ class Figure(ViewParams):
         plt.subplots_adjust(bottom=bottom, top=top, wspace=wspace, hspace=hspace, left=left, right=right)
         if self.output_filename != "":
             image_filename = self.output_filename
-            if isinstance(image_filename,BytesIO):
+            if isinstance(image_filename, BytesIO):
                 plt.savefig(image_filename, format="png", bbox_inches='tight', dpi=self.dpi)
             else:
                 if add_sufix:
@@ -621,6 +621,44 @@ class Viewer(Show, Figure, HelpDescription):
         else:
             plt.show()
 
+    def get_likelihood_for_plotting(self, io, bin_size, chrom, res=60):
+        """
+        Returns likelihood for ploting. If it is not stored in pytor file it will emulate using positiona of maxima.
+
+        Parameters
+        ----------
+        ix : int
+            IO file index
+        bin_size : int
+            bin size
+        chrom : str
+            chromosome
+
+        Returns
+        -------
+        likelihood : np.array
+            Likelihood array
+        """
+        snp_flag = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0) | (
+            FLAG_USEHAP if self.snp_use_phase else 0)
+        if io.signal_exists(chrom, bin_size, "SNP likelihood", snp_flag):
+            return io.get_signal(chrom, bin_size, "SNP likelihood", snp_flag)
+
+        likelihood = None
+        if self.snp_use_phase:
+            baf = io.get_signal(chrom, bin_size, "SNP baf", snp_flag)
+            bin = np.expand_dims((baf * (res - 2)).astype('int'), axis=1)
+            likelihood = np.zeros((bin.size, res - 1))
+            np.put_along_axis(likelihood, bin, 255, axis=1)
+        else:
+            baf = io.get_signal(chrom, bin_size, "SNP i1", snp_flag) + 0.5
+            bin = np.expand_dims((baf * (res - 2)).astype('int'), axis=1)
+            likelihood = np.zeros((bin.size, res - 1))
+            np.put_along_axis(likelihood, bin, 255, axis=1)
+            np.put_along_axis(likelihood, (res - 2) - bin, 255, axis=1)
+
+        return likelihood
+
     def rd(self):
         bin_size = self.bin_size
         if self.reference_genome is None:
@@ -759,12 +797,12 @@ class Viewer(Show, Figure, HelpDescription):
         else:
             for c, (l, t) in self.reference_genome["chromosomes"].items():
                 snp_chr = self.io[self.plot_file].snp_chromosome_name(c)
-                if self.io[self.plot_file].signal_exists(snp_chr, bin_size, "SNP likelihood", snp_flag) and (
+                if self.io[self.plot_file].signal_exists(snp_chr, bin_size, "SNP baf", snp_flag) and (
                         Genome.is_autosome(c) or Genome.is_sex_chrom(c)):
                     chroms.append(snp_chr)
         self.new_figure(panel_count=len(chroms))
         for c in chroms:
-            likelihood = self.io[self.plot_file].get_signal(c, bin_size, "SNP likelihood", snp_flag)
+            likelihood = self.get_likelihood_for_plotting(self.io[self.plot_file], bin_size, c)
             img = np.array(likelihood).transpose()
             ax = self.next_panel()
             ax.set_title(c, position=(0.01, 0.9), fontdict={'verticalalignment': 'top', 'horizontalalignment': 'left'},
@@ -1952,18 +1990,18 @@ class Viewer(Show, Figure, HelpDescription):
                         his_p_mosaic_call_2d = io.get_signal(c, bin_size, "RD mosaic call 2d phased",
                                                              flag_rd | FLAG_GC_CORR)
                         his_p_mosaic_seg_baf = io.get_signal(c, bin_size, "RD mosaic segments baf phased",
-                                                            flag_rd | FLAG_GC_CORR)
-                        his_p_mosaic_call_baf = io.get_signal(c, bin_size, "RD mosaic call baf phased",
                                                              flag_rd | FLAG_GC_CORR)
+                        his_p_mosaic_call_baf = io.get_signal(c, bin_size, "RD mosaic call baf phased",
+                                                              flag_rd | FLAG_GC_CORR)
                     else:
                         his_p_mosaic_seg_2d = io.get_signal(c, bin_size, "RD mosaic segments 2d",
                                                             flag_rd | FLAG_GC_CORR)
                         his_p_mosaic_call_2d = io.get_signal(c, bin_size, "RD mosaic call 2d",
                                                              flag_rd | FLAG_GC_CORR)
                         his_p_mosaic_seg_baf = io.get_signal(c, bin_size, "RD mosaic segments baf",
-                                                            flag_rd | FLAG_GC_CORR)
-                        his_p_mosaic_call_baf = io.get_signal(c, bin_size, "RD mosaic call baf",
                                                              flag_rd | FLAG_GC_CORR)
+                        his_p_mosaic_call_baf = io.get_signal(c, bin_size, "RD mosaic call baf",
+                                                              flag_rd | FLAG_GC_CORR)
 
                     his_p_mosaic_seg_2d = segments_decode(his_p_mosaic_seg_2d)
                     his_p_mosaic_seg_baf = segments_decode(his_p_mosaic_seg_baf)
@@ -2074,11 +2112,11 @@ class Viewer(Show, Figure, HelpDescription):
                     mdp = 0
                     fbins = set({})
                     if self.snp_use_phase and self.flip_correction_caller is not None:
-                        if self.flip_correction_caller=="combined_mosaic":
+                        if self.flip_correction_caller == "combined_mosaic":
                             fbins = io.get_signal(c, bin_size, "SNP 2d call flipped bins", snp_flag)
                         else:
                             fbins = io.get_signal(c, bin_size, "SNP baf call flipped bins", snp_flag)
-                        fbins = set(map(int,fbins))
+                        fbins = set(map(int, fbins))
 
                     while ix < len(pos) and pos[ix] <= pos2:
                         if pos[ix] >= pos1 and (nref[ix] + nalt[ix]) != 0 and ((not self.snp_use_id) or (flag[ix] & 1)):
@@ -2086,7 +2124,7 @@ class Viewer(Show, Figure, HelpDescription):
                             if pos[ix] - pos1 > mdp:
                                 mdp = pos[ix] - pos1
                             phase1 = gt[ix] != 5
-                            if (pos[ix]//bin_size) in fbins:
+                            if (pos[ix] // bin_size) in fbins:
                                 phase1 = not phase1
                             if phase1:
                                 baf.append(1.0 * nalt[ix] / (nref[ix] + nalt[ix]))
@@ -2301,14 +2339,14 @@ class Viewer(Show, Figure, HelpDescription):
                         pos2 = io.get_chromosome_length(c)
                         if pos2 is None:
                             pos2 = 1000000000
-                    likelihood = io.get_signal(c, bin_size, "SNP likelihood", snp_flag)
+                    likelihood = self.get_likelihood_for_plotting(io, bin_size, c)
                     if self.snp_use_phase and self.flip_correction_caller is not None:
-                        if self.flip_correction_caller=="combined_mosaic":
+                        if self.flip_correction_caller == "combined_mosaic":
                             fbins = io.get_signal(c, bin_size, "SNP 2d call flipped bins", snp_flag)
                         else:
                             fbins = io.get_signal(c, bin_size, "SNP baf call flipped bins", snp_flag)
                         for bin in fbins:
-                            likelihood[int(bin)]=np.flip(likelihood[int(bin)])
+                            likelihood[int(bin)] = np.flip(likelihood[int(bin)])
                     start_bin = (pos1 - 1) // bin_size
                     end_bin = pos2 // bin_size
                     bins = len(list(likelihood[start_bin:end_bin]))
@@ -2373,11 +2411,10 @@ class Viewer(Show, Figure, HelpDescription):
                 else:
                     plt.setp(ax.get_xticklabels(), visible=False)
 
-                ax.imshow(img, aspect='auto', extent=[0, l, 0, img.shape[0] - 1])
+                ax.imshow(img, aspect='auto', extent=[0, l, 0, img.shape[0]])
                 # ax.xaxis.set_ticklabels([])
-                ax.yaxis.set_ticks([0, img.shape[0] / 4, img.shape[0] / 2, 3 * img.shape[0] / 4, img.shape[0] - 1],
-                                   minor=[])
-                ax.yaxis.set_ticklabels(["1", "3/4", "1/2", "1/4", "0"])
+                ax.yaxis.set_ticks([0, img.shape[0] / 4, img.shape[0] / 2, 3 * img.shape[0] / 4, img.shape[0]],
+                                   ["1", "3/4", "1/2", "1/4", "0"])
                 ax.set_ylabel("Allele frequency")
                 # ax.xaxis.set_ticks(np.arange(0, len(gl), 50), minor=[])
                 # ax.set_xlim([-0.5, img.shape[1] - 0.5])
@@ -2516,16 +2553,16 @@ class Viewer(Show, Figure, HelpDescription):
                         plt.setp(ax.get_xticklabels(which="both"), visible=False)
 
                     if self.rd_manhattan_log_scale:
-                        ycns=np.arange(self.rd_manhattan_range[0], self.rd_manhattan_range[1], 1)
-                        yticks = 2**ycns
+                        ycns = np.arange(self.rd_manhattan_range[0], self.rd_manhattan_range[1], 1)
+                        yticks = 2 ** ycns
                         yticks_labels = [str(t) for t in ycns]
                         ax.set_yscale("log")
-                        ax.yaxis.set_major_locator(ticker.FixedLocator(yticks*mean))
+                        ax.yaxis.set_major_locator(ticker.FixedLocator(yticks * mean))
                         ax.yaxis.set_major_formatter(ticker.FixedFormatter(yticks_labels))
                         ax.get_yaxis().set_major_formatter(ticker.ScalarFormatter())
                         ax.yaxis.set_ticks(yticks * mean)
                         ax.yaxis.set_ticklabels(yticks_labels)
-                        ax.set_ylim([2**self.rd_manhattan_range[0] * mean, 2**self.rd_manhattan_range[1] * mean])
+                        ax.set_ylim([2 ** self.rd_manhattan_range[0] * mean, 2 ** self.rd_manhattan_range[1] * mean])
                         ax.set_ylabel("Log2 RD (normalized)")
                     else:
                         yticks = np.arange(self.rd_manhattan_range[0], self.rd_manhattan_range[1], 0.5)
@@ -2651,7 +2688,7 @@ class Viewer(Show, Figure, HelpDescription):
                     xticks_labels = []
                     gl = []
                     for c, l in chroms:
-                        likelihood = io.get_signal(c, bin_size, "SNP likelihood", snp_flag)
+                        likelihood = self.get_likelihood_for_plotting(io, bin_size, c)
                         lh = list(likelihood)
                         size = l // bin_size + 1
                         if len(lh) < size:
@@ -2669,10 +2706,9 @@ class Viewer(Show, Figure, HelpDescription):
                     img = np.array(gl).transpose()
                     img[0, :] = 0
                     img[-1, :] = 0
-                    ax.imshow(img, aspect='auto')
+                    ax.imshow(img, aspect='auto', extent=[0, img.shape[1], 0, img.shape[0]])
                     ax.yaxis.set_ticks([0, img.shape[0] / 4, img.shape[0] / 2, 3 * img.shape[0] / 4, img.shape[0] - 1],
-                                       minor=[])
-                    ax.yaxis.set_ticklabels(["1", "3/4", "1/2", "1/4", "0"])
+                                       ["1", "3/4", "1/2", "1/4", "0"])
                     ax.set_ylabel("BAF")
                     ax.set_xlim([0, start])
                     ax.xaxis.set_ticks(xticks)
@@ -4114,15 +4150,17 @@ class Viewer(Show, Figure, HelpDescription):
                    (FLAG_USEID if self.snp_use_id else 0) | FLAG_USEHAP
             flag_rd = (FLAG_USEMASK if self.rd_use_mask else 0) | (FLAG_GC_CORR if self.rd_use_gc_corr else 0)
             flag_snp = (FLAG_USEMASK if self.snp_use_mask else 0) | \
-                   (FLAG_USEID if self.snp_use_id else 0) | FLAG_USEHAP
-            signal = "calls combined" if caller=="combined_mosaic" else "calls baf"
+                       (FLAG_USEID if self.snp_use_id else 0) | FLAG_USEHAP
+            signal = "calls combined" if caller == "combined_mosaic" else "calls baf"
             if rio.signal_exists(c, bin_size, signal, flag):
                 calls = rio.read_calls(c, bin_size, signal, flag)
                 if caller == "combined_mosaic":
-                    segments = segments_decode(rio.get_signal(c, bin_size, "SNP read counts segments 2d phased", flag_snp))
+                    segments = segments_decode(
+                        rio.get_signal(c, bin_size, "SNP read counts segments 2d phased", flag_snp))
                     fbins = rio.get_signal(c, bin_size, "SNP 2d call flipped bins", flag_snp)
                 else:
-                    segments = segments_decode(rio.get_signal(c, bin_size, "SNP read counts segments baf phased", flag_snp))
+                    segments = segments_decode(
+                        rio.get_signal(c, bin_size, "SNP read counts segments baf phased", flag_snp))
                     fbins = rio.get_signal(c, bin_size, "SNP baf call flipped bins", flag_snp)
 
                 fbins = set(map(int, fbins))
@@ -4136,7 +4174,6 @@ class Viewer(Show, Figure, HelpDescription):
                     nlevels.append(self.io[ix].rd_normal_level(self.bin_size, flag_rd)[0])
                     r10.append(self.io[ix].get_signal(c, bin_size, "SNP bin reads 1|0", flag_snp))
                     r01.append(self.io[ix].get_signal(c, bin_size, "SNP bin reads 0|1", flag_snp))
-
 
                 for call in calls:
                     if in_interval(call["size"], self.size_range) \
@@ -4164,20 +4201,16 @@ class Viewer(Show, Figure, HelpDescription):
                             t10 = 0
                             t01 = 0
                             for bin in segments[seg]:
-                                mean_rd+=rds[i][bin]
+                                mean_rd += rds[i][bin]
                                 if bin in fbins:
                                     t10 += r01[i][bin]
                                     t01 += r10[i][bin]
                                 else:
                                     t01 += r01[i][bin]
                                     t10 += r10[i][bin]
-                            mean_rd /= len(segments[seg])*nlevels[i]/2
-                            print("\t%.4f\t%.4f" % (mean_rd,t01/(t01+t10)-0.5), end="")
+                            mean_rd /= len(segments[seg]) * nlevels[i] / 2
+                            print("\t%.4f\t%.4f" % (mean_rd, t01 / (t01 + t10) - 0.5), end="")
                         print()
-
-
-
-
 
     def genotype_prompt(self, bin_sizes=[], all=False):
         done = False
@@ -4349,10 +4382,13 @@ class Viewer(Show, Figure, HelpDescription):
                     crd = np.append(crd, rd[reg[1][0] // self.bin_size:reg[1][1] // self.bin_size])
                 allrd.append(crd)
                 means.append(np.mean(crd))
+
             def min_int(f):
-                t=np.tensordot(means, f, axes=0)
-                return np.sum((np.round(t)-t)**2,axis=0)
-            fac = min(np.linspace(factor_range[0], factor_range[1], int((factor_range[1]-factor_range[0])/df)), key=lambda x: min_int(x))
+                t = np.tensordot(means, f, axes=0)
+                return np.sum((np.round(t) - t) ** 2, axis=0)
+
+            fac = min(np.linspace(factor_range[0], factor_range[1], int((factor_range[1] - factor_range[0]) / df)),
+                      key=lambda x: min_int(x))
             ret.append(fac)
         return ret
 
@@ -4361,7 +4397,7 @@ class Viewer(Show, Figure, HelpDescription):
         ix = self.plot_files
         self.new_figure(panel_count=n)
         for i in range(n):
-            self.new_subgrid(2, grid=(2,1), hspace=0.2, wspace=0.2)
+            self.new_subgrid(2, grid=(2, 1), hspace=0.2, wspace=0.2)
             io = self.io[ix[i]]
             rfd = io.get_signal(None, None, "read frg dist")
             rd = np.sum(rfd, axis=1)
@@ -4382,7 +4418,7 @@ class Viewer(Show, Figure, HelpDescription):
         from io import BytesIO
         report = Report()
         report.add_page()
-        io=self.io[self.plot_file]
+        io = self.io[self.plot_file]
         rfd = io.get_signal(None, None, "read frg dist")
         rd = np.sum(rfd, axis=1)
         fd = np.sum(rfd, axis=0)
@@ -4397,21 +4433,22 @@ class Viewer(Show, Figure, HelpDescription):
             rg = self.reference_genome["name"] + " (" + self.reference_genome["species"] + ")"
         else:
             rg = "Not detected"
-        report.add_paragraph('Filename: {:}\n\nReference genome: {:}\n\nRead size: {:.2f} +- {:.2f}\n\nFragment size: {:.2f} +- {:.2f}'.format(io.filename, rg,  mrl, sdr, mfl, sdf))
+        report.add_paragraph(
+            'Filename: {:}\n\nReference genome: {:}\n\nRead size: {:.2f} +- {:.2f}\n\nFragment size: {:.2f} +- {:.2f}'.format(
+                io.filename, rg, mrl, sdr, mfl, sdf))
 
         report.add_title("Coverage (based on 100bp bins)")
-        bs=100
+        bs = 100
         for flag in [FLAG_AUTO, FLAG_SEX, FLAG_MT]:
             if io.signal_exists(None, bs, "RD stat", flags=flag):
                 stat = io.get_signal(None, bs, "RD stat", flags=flag)
-                type = {FLAG_AUTO:"Autosomes", FLAG_SEX:"X/Y chromosomes", FLAG_MT:"Mitochondria"}[flag]
-                report.add_paragraph("{:}: {:.2f} +- {:.2f}".format(type, stat[4]*mrl/100, stat[5]*mrl/100))
-
+                type = {FLAG_AUTO: "Autosomes", FLAG_SEX: "X/Y chromosomes", FLAG_MT: "Mitochondria"}[flag]
+                report.add_paragraph("{:}: {:.2f} +- {:.2f}".format(type, stat[4] * mrl / 100, stat[5] * mrl / 100))
 
         report.add_title("Global plot")
         bio = BytesIO()
         self.output_filename = bio
-        self.panel_size = [12,8]
+        self.panel_size = [12, 8]
         self.marker_size = 1
         self.title = False
         self.global_plot()
@@ -4425,8 +4462,6 @@ class Viewer(Show, Figure, HelpDescription):
         report.add_plot(bio)
 
         report.output(filename, 'F')
-
-
 
 
 
