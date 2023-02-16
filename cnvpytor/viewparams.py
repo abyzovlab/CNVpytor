@@ -5,6 +5,7 @@ Class ViewParams: parameters and description for Viewer class
 from __future__ import absolute_import, print_function, division
 
 from .genome import *
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import logging
 
@@ -69,7 +70,8 @@ class ViewParams(object):
         "output_filename": "",
         "print_filename": "",
         "contrast": 20,
-        "min_segment_size": 0
+        "min_segment_size": 0,
+        "matplotlib_use" : None
     }
 
     def __init__(self, params):
@@ -225,6 +227,9 @@ class ViewParams(object):
             elif param == "style":
                 if len(args) > 0:
                     self.__setattr__(param, args[0])
+            elif param == "matplotlib_use":
+                if len(args) > 0:
+                    self.__setattr__(param, args[0])
             elif param == "flip_correction_caller":
                 if len(args) > 0:
                     self.__setattr__(param, args[0])
@@ -260,7 +265,8 @@ class ViewParams(object):
                 self.__setattr__(param, False)
             else:
                 self.__setattr__(param, self.default[param])
-            print("    * %s: %s" % (param, str(self.params[param])))
+            if self.interactive:
+                print("    * %s: %s" % (param, str(self.params[param])))
 
     @property
     def params(self):
@@ -289,12 +295,11 @@ class ViewParams(object):
                 value = binsize_type(value)
             except (ArgumentTypeError, ValueError):
                 _logger.warning("bin_size should be integer divisible by 100")
-        if name == 'style':
+        elif name == 'style':
             if value in plt.style.available:
                 plt.style.use("default")
                 plt.style.use(value)
-
-        if name == 'xkcd':
+        elif name == 'xkcd':
             if value:
                 self.style = "classic"
                 from matplotlib import patheffects
@@ -304,6 +309,8 @@ class ViewParams(object):
             elif hasattr(self, name) and self.xkcd:
                 plt.rcdefaults()
                 self.style = 'classic'
+        elif name == 'matplotlib_use' and value is not None:
+            mpl.use(value)
 
         super(ViewParams, self).__setattr__(name, value)
 
@@ -825,6 +832,15 @@ class HelpDescription(object):
             p_affects="all plots",
             p_example="set style seaborn\nunset style",
             p_see="xkcd, chrom, output_filename"
+        ),
+        "matplotlib_use": help_format(
+            topic="matplotlib_use",
+            p_desc="Change matplotlib backend.",
+            p_type="str",
+            p_default=str(default["matplotlib_use"]),
+            p_affects="all plots",
+            p_example="set matplotlib_use agg",
+            p_see="style, xkcd, chrom, output_filename"
         ),
         "grid": help_format(
             topic="grid",
