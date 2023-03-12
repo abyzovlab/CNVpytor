@@ -680,7 +680,7 @@ class CreateVCF:
         self.filename = filename
         self.reference_genome = reference_genome
         try:
-            self.vcf = pysam.VariantFile(filename, "w",  header = self.vcf_header(current_date=c_date))
+            self.vcf = pysam.VariantFile(filename, "w",  header=self.vcf_header(current_date=c_date))
         except IOError:
             _logger.error("Problem opening file '%s'!" % filename)
             exit(0)
@@ -785,16 +785,16 @@ class CreateVCF:
                         r.samples[sample]['CN'] = 0
                     elif call[2] == "deletion" and call[7] > 0.25:
                         r.samples[sample]['GT'] = (0, 1)
-                        r.samples[sample]['CN'] = 0
+                        r.samples[sample]['CN'] = 1
                     elif call[2] == "duplication" and call[7] <= 1.75:
                         r.samples[sample]['GT'] = (0, 1)
-                        r.samples[sample]['CN'] = 2
+                        r.samples[sample]['CN'] = 3
                     elif call[2] == "duplication" and 1.75 < call[7] <= 2.25:
-                        r.samples[sample]['GT'] = (1, 1)
-                        r.samples[sample]['CN'] = 2
+                        r.samples[sample]['GT'] = (None, 1)
+                        r.samples[sample]['CN'] = 4
                     elif call[2] == "duplication" and call[7] > 2.25:
                         r.samples[sample]['GT'] = (None, 1)
-                        r.samples[sample]['CN'] = round(call[7], 2)
+                        r.samples[sample]['CN'] = round(call[7] * 2)
                     else:
                         r.samples[sample]['GT'] = (None, None)
                         r.samples[sample]['CN'] = None
