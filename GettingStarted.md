@@ -258,7 +258,7 @@ CNV size, e-val1, q0, pN and dG:
 
 ```
 > cnvpytor -root file.pytor [file2.pytor ...] -view 10000
-cnvpytor> set caller combined_mosaic # IMPORTANT, default caller is mean shift
+cnvpytor> set callers combined_mosaic # IMPORTANT, default caller is mean shift
 cnvpytor> set Q0_range -1 0.5        # filter calls with more than half not uniquely mapped reads
 cnvpytor> set p_range 0 0.0001       # filter non-confident calls 
 cnvpytor> set p_N 0 0.5              # filter calls with more than 50% Ns in reference genome 
