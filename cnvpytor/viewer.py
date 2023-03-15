@@ -621,7 +621,7 @@ class Viewer(Show, Figure, HelpDescription):
         else:
             plt.show()
 
-    def get_likelihood_for_plotting(self, io, bin_size, chrom, res=60):
+    def get_likelihood_for_plotting(self, io, bin_size, chrom, res=200):
         """
         Returns likelihood for ploting. If it is not stored in pytor file it will emulate using positiona of maxima.
 
@@ -652,10 +652,14 @@ class Viewer(Show, Figure, HelpDescription):
             np.put_along_axis(likelihood, bin, 255, axis=1)
         else:
             baf = io.get_signal(chrom, bin_size, "SNP i1", snp_flag) + 0.5
+            mask = ~np.isnan(baf)
             bin = np.expand_dims((baf * (res - 2)).astype('int'), axis=1)
             likelihood = np.zeros((bin.size, res - 1))
-            np.put_along_axis(likelihood, bin, 255, axis=1)
-            np.put_along_axis(likelihood, (res - 2) - bin, 255, axis=1)
+            #print(likelihood.shape,baf.shape,bin.shape,mask.shape)
+            lhs = likelihood[mask,:]
+            np.put_along_axis(lhs, bin[mask], 255, axis=1)
+            np.put_along_axis(lhs, (res - 2) - bin[mask], 255, axis=1)
+            likelihood[mask,:] = lhs
 
         return likelihood
 

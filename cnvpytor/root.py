@@ -2041,6 +2041,7 @@ class Root:
                     likelihood[bs] = np.ones((max_bin[bs], res - 1)).astype("float") / (res - 1)
                     i1[bs] = np.zeros(max_bin[bs])
                     i2[bs] = np.zeros(max_bin[bs])
+                    i1[bs][:] = np.nan
 
                 for i in range(len(pos)):
                     if (nalt[i] + nref[i]) > 0 and (not use_id or (flag[i] & 1)) and (not use_mask or (flag[i] & 2)):
@@ -3014,6 +3015,7 @@ class Root:
                 _logger.warning("No bins with BAF=0.5! Using all bins for RD normalisation.")
             else:
                 data = np.array(gstat_rd0)
+
             dmin = np.min(data)
             dmax = np.max(data)
             p1 = np.percentile(data, 1)
