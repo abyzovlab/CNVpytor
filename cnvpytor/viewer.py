@@ -1128,7 +1128,15 @@ class Viewer(Show, Figure, HelpDescription):
             workbook.close()
         elif format == "vcf":
             date = datetime.date.today().strftime("%Y-%m-%d")
-            vcf_obj = CreateVCF(self.print_filename, self.reference_genome, date)
+            n = len(self.plot_files)
+            ix = self.plot_files
+            chr_len_dct = {}
+            for i in range(n):
+                io = self.io[ix[i]]
+                chr_len = dict(io.get_chromosome_lengths())
+                chr_len_dct.update(chr_len)
+
+            vcf_obj = CreateVCF(self.print_filename, self.reference_genome, chr_len_dct, date)
             vcf_obj.insert_records(calls)
 
         if self.plot:

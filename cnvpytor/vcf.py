@@ -664,7 +664,7 @@ class Vcf:
 
 
 class CreateVCF:
-    def __init__(self, filename, reference_genome, c_date):
+    def __init__(self, filename, reference_genome, chromosome_length_dct, c_date):
         """
         Create a VCF file
 
@@ -674,11 +674,14 @@ class CreateVCF:
             Name of the VCF file.
         reference_genome: dict
             reference genome dct
+        chromosome_length_dct: dict
+            chromosome length dct; format name: length
         c_date : date
             current date
         """
         self.filename = filename
         self.reference_genome = reference_genome
+        self.chromosome_length_dct = chromosome_length_dct
         try:
             self.vcf = pysam.VariantFile(filename, "w",  header=self.vcf_header(current_date=c_date))
         except IOError:
@@ -748,6 +751,10 @@ class CreateVCF:
 
         return vcfh
 
+    def insert_all_contigs(self):
+        for c, c_length in self.chr_len_dict.items():
+            self.vcf.header.contigs.add(c, length=c_length)
+
     def insert_records(self, calls):
         samples = []
         chr_list = []
@@ -760,22 +767,31 @@ class CreateVCF:
 
             if call_chr not in chr_list:
                 chr_list.append(call_chr)
-                self.vcf.header.contigs.add(call_chr)
+                if call_chr in self.chromosome_length_dct:
+                    self.vcf.header.contigs.add(call_chr, length=self.chromosome_length_dct[call_chr])
+                else:
+                    self.vcf.header.contigs.add(call_chr)
 
         for idx, call in enumerate(calls):
+            if len(call) == 0:
+                continue
+
             record_id = "CNVpytor_" + {"deletion": "del", "duplication": "dup", "cnnloh": "loh"}[call[2]] + str(idx)
             alt = {"deletion": "<DEL>", "duplication": "<DUP>", "cnnloh": "<LOH>"}[call[2]]
 
-            info_dct = {"END": int(call[5]), "IMPRECISE": True, "SVLEN": int(call[6]), "SVTYPE": alt[1:4],
+            call_chr = str(call[3])
+            start_loci = int(call[4])
+            stop_loci = int(call[5])
+            if start_loci != 1:
+                start_loci = start_loci - 1
+
+            info_dct = {"END": stop_loci, "IMPRECISE": True, "SVLEN": int(call[6]), "SVTYPE": alt[1:4],
                         "pytorRD": call[7], "pytorP1": call[8], "pytorP2": call[9], "pytorP3": call[10],
                         "pytorP4": call[11], "pytorQ0": call[12], "pytorPN": int(call[13]), "pytorDG": int(call[14]),
                         "pytorCL": call[1]}
 
-            start_loci = int(call[4])
-            if start_loci != 1:
-                start_loci = start_loci-1
-            r = self.vcf.new_record(contig=call_chr, start=start_loci, stop=int(call[5]), alleles=('.', alt),
-                                    id=record_id, filter="PASS", info=info_dct)
+            r = self.vcf.new_record(contig=call_chr, start=start_loci, stop=stop_loci, alleles=('.', alt), id=record_id,
+                                    filter="PASS", info=info_dct)
 
             # add sample information
             for sample in samples:
