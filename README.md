@@ -22,6 +22,12 @@ CNVpytor: a tool for copy number variation detection and analysis from read dept
 * [Google Colab](examples/Colab.ipynb): With CEPH trio example dataset
 * [Video Tutorial](https://www.youtube.com/watch?v=RJMQtrD0SuE): 3-minute YT demo
 
+#### pytor file support in igv.js and igv-webapp
+ - [Demo Video](https://www.youtube.com/watch?v=YfO9lhs2AAk) 
+ - Links
+   - https://github.com/igvteam/igv.js/wiki/cnvpytor
+   - https://igv.org/app/ 
+
 ## Gallery
 
 | | |
