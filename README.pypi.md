@@ -17,20 +17,20 @@ CNVpytor: a tool for copy number variation detection and analysis from read dept
 
 ## Learn how to use CNVpytor in 10 minutes
 
-* [Geting started](GettingStarted.md) with command line interface
-* [Jupyter notebook](examples/PythonLibraryGuide.ipynb): How to use CNVpytor from Python
-* [Google Colab](examples/Colab.ipynb): With CEPH trio example dataset
+* [Geting started](https://github.com/abyzovlab/CNVpytor/blob/master/GettingStarted.md) with command line interface
+* [Jupyter notebook](https://github.com/abyzovlab/CNVpytor/blob/master/examples/PythonLibraryGuide.ipynb): How to use CNVpytor from Python
+* [Google Colab](https://github.com/abyzovlab/CNVpytor/blob/master/examples/Colab.ipynb): With CEPH trio example dataset
 * [Video Tutorial](https://www.youtube.com/watch?v=RJMQtrD0SuE): 3-minute YT demo
 
 ## Gallery
 
 | | |
 |---|---|
-| Manhattan plot ([see example](examples/manhattan.md))| Circular plot ([see example](examples/circular.md))|
+| Manhattan plot ([see example](https://github.com/abyzovlab/CNVpytor/blob/master/examples/manhattan.md))| Circular plot ([see example](https://github.com/abyzovlab/CNVpytor/blob/master/examples/circular.md))|
 |<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/manhattan.png" width="512px">|<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/circular.png" width="512px">|
-| Region plot ([see example](examples/region.md))| Compare regions ([see example](examples/compare.md))|
+| Region plot ([see example](https://github.com/abyzovlab/CNVpytor/blob/master/examples/region.md))| Compare regions ([see example](https://github.com/abyzovlab/CNVpytor/blob/master/examples/compare.md))|
 |<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/region.png" width="512px">|<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/compare.png" width="512px">|
-| Merging and annotating calls ([see example](examples/merging.md))|Call somatic CNAs ([see example](examples/JointCaller.md))|
+| Merging and annotating calls ([see example](https://github.com/abyzovlab/CNVpytor/blob/master/examples/merging.md))|Call somatic CNAs ([see example](https://github.com/abyzovlab/CNVpytor/blob/master/examples/JointCaller.md))|
 |<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/merging.png" width="512px">|<img src="https://raw.githubusercontent.com/abyzovlab/CNVpytor/master/imgs/joint_caller.png" width="512px">
 
 
