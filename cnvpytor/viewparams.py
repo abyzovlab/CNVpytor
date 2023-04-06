@@ -46,6 +46,7 @@ class ViewParams(object):
         "markersize": "auto",
         "lh_markersize": 20,
         "lh_marker": "_",
+        "lh_lite":False,
         "rd_colors": ["grey", "black", "red", "green", "blue", "cyan", "brown"],
         "legend": False,
         "title": True,
@@ -702,6 +703,15 @@ class HelpDescription(object):
             p_affects="region plot, rd",
             p_example="set snp_call\nunset snp_call",
             p_see="rd_call, rd_call_mosaic"
+        ),
+        "lh_lite": help_format(
+            topic="lh_lite",
+            p_desc="Enables plotting lite likelihood. Should be used when -baf step is performed with -nolh option",
+            p_type="bool",
+            p_default=str(default["lh_lite"]),
+            p_affects="region plot, rd",
+            p_example="set lh_lite\nunset lh_lite",
+            p_see="snp_call, rd_call_mosaic"
         ),
         "markersize": help_format(
             topic="markersize",

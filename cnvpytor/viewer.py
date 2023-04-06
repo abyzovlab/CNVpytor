@@ -24,6 +24,7 @@ import traceback
 import os
 import sys
 import datetime
+from packaging import version
 
 _logger = logging.getLogger("cnvpytor.viewer")
 
@@ -39,6 +40,10 @@ class Reader:
 
         """
         self.io = [IO(f, ro=True) for f in files]
+        for io in self.io:
+            if version.parse(io.file.attrs['Version']) < version.parse("1.3"):
+                _logger.warning(
+                    "File: '%s'. Version of cnvpytor created file < 1.3. Redo -baf step to ensure compatibility." % io.filename)
 
 
 class Show(Reader):
@@ -623,7 +628,7 @@ class Viewer(Show, Figure, HelpDescription):
 
     def get_likelihood_for_plotting(self, io, bin_size, chrom, res=200):
         """
-        Returns likelihood for ploting. If it is not stored in pytor file it will emulate using positiona of maxima.
+        Returns likelihood for ploting. If it is not stored in pytor file it will emulate using positiona of maxima if lh_lite is set.
 
         Parameters
         ----------
@@ -643,6 +648,8 @@ class Viewer(Show, Figure, HelpDescription):
             FLAG_USEHAP if self.snp_use_phase else 0)
         if io.signal_exists(chrom, bin_size, "SNP likelihood", snp_flag):
             return io.get_signal(chrom, bin_size, "SNP likelihood", snp_flag)
+        elif not self.lh_lite:
+            return []
 
         likelihood = None
         if self.snp_use_phase:
@@ -655,11 +662,10 @@ class Viewer(Show, Figure, HelpDescription):
             mask = ~np.isnan(baf)
             bin = np.expand_dims((baf * (res - 2)).astype('int'), axis=1)
             likelihood = np.zeros((bin.size, res - 1))
-            #print(likelihood.shape,baf.shape,bin.shape,mask.shape)
-            lhs = likelihood[mask,:]
+            lhs = likelihood[mask, :]
             np.put_along_axis(lhs, bin[mask], 255, axis=1)
             np.put_along_axis(lhs, (res - 2) - bin[mask], 255, axis=1)
-            likelihood[mask,:] = lhs
+            likelihood[mask, :] = lhs
 
         return likelihood
 
@@ -2406,36 +2412,40 @@ class Viewer(Show, Figure, HelpDescription):
                         return ""
 
                 img = np.array(gl).transpose()
-                l = img.shape[1]
-                if i == len(panels) - 1:
-                    ax.xaxis.set_major_formatter(plt.FuncFormatter(format_func))
-                    ax.xaxis.set_major_locator(plt.MaxNLocator(5))
-                    ax.set_xlim([-l * 0.0, (l - 1) * 1.0])
-                    # ax.xaxis.grid()
+                if img.size != 0:
+                    l = img.shape[1]
+                    if i == len(panels) - 1:
+                        ax.xaxis.set_major_formatter(plt.FuncFormatter(format_func))
+                        ax.xaxis.set_major_locator(plt.MaxNLocator(5))
+                        ax.set_xlim([-l * 0.0, (l - 1) * 1.0])
+                        # ax.xaxis.grid()
+                    else:
+                        plt.setp(ax.get_xticklabels(), visible=False)
+
+                    ax.imshow(img, aspect='auto', extent=[0, l, 0, img.shape[0]])
+                    ax.yaxis.set_ticks([0, img.shape[0] / 4, img.shape[0] / 2, 3 * img.shape[0] / 4, img.shape[0]])
+                    ax.yaxis.set_ticklabels(["1", "3/4", "1/2", "1/4", "0"])
+                    ax.set_ylabel("Allele frequency")
+                    ax.set_ylim([self.baf_range[0] * img.shape[0], self.baf_range[1] * img.shape[0]])
+                    if self.snp_call and ("baf_mosaic" in self.callers):
+                        plt.scatter(call_pos, call_i1, s=self.lh_markersize, color=np.array(call_c), edgecolors='face',
+                                    marker=self.lh_marker)
+                        plt.scatter(call_pos, call_i2, s=self.lh_markersize, color=np.array(call_c), edgecolors='face',
+                                    marker=self.lh_marker)
+                    if self.snp_call and ("combined_mosaic" in self.callers):
+                        plt.scatter(call_pos_2d, call_i1_2d, s=self.lh_markersize, color=np.array(call_c_2d),
+                                    edgecolors='face', marker=self.lh_marker)
+                        plt.scatter(call_pos_2d, call_i2_2d, s=self.lh_markersize, color=np.array(call_c_2d),
+                                    edgecolors='face', marker=self.lh_marker)
+
+                    for i in borders[:-1]:
+                        ax.axvline(i + 1, color="g", lw=1)
                 else:
-                    plt.setp(ax.get_xticklabels(), visible=False)
-
-                ax.imshow(img, aspect='auto', extent=[0, l, 0, img.shape[0]])
-                # ax.xaxis.set_ticklabels([])
-                ax.yaxis.set_ticks([0, img.shape[0] / 4, img.shape[0] / 2, 3 * img.shape[0] / 4, img.shape[0]])
-                ax.yaxis.set_ticklabels(["1", "3/4", "1/2", "1/4", "0"])
-                ax.set_ylabel("Allele frequency")
-                # ax.xaxis.set_ticks(np.arange(0, len(gl), 50), minor=[])
-                # ax.set_xlim([-0.5, img.shape[1] - 0.5])
-                ax.set_ylim([self.baf_range[0] * img.shape[0], self.baf_range[1] * img.shape[0]])
-                if self.snp_call and ("baf_mosaic" in self.callers):
-                    plt.scatter(call_pos, call_i1, s=self.lh_markersize, color=np.array(call_c), edgecolors='face',
-                                marker=self.lh_marker)
-                    plt.scatter(call_pos, call_i2, s=self.lh_markersize, color=np.array(call_c), edgecolors='face',
-                                marker=self.lh_marker)
-                if self.snp_call and ("combined_mosaic" in self.callers):
-                    plt.scatter(call_pos_2d, call_i1_2d, s=self.lh_markersize, color=np.array(call_c_2d),
-                                edgecolors='face', marker=self.lh_marker)
-                    plt.scatter(call_pos_2d, call_i2_2d, s=self.lh_markersize, color=np.array(call_c_2d),
-                                edgecolors='face', marker=self.lh_marker)
-
-                for i in borders[:-1]:
-                    ax.axvline(i + 1, color="g", lw=1)
+                    ax.set_ylim([0, 10])
+                    x1, x2 = ax.get_xlim()
+                    ax.text((x1 + x2) / 2, 5, 'No data for likelihood. Try with lh_lite parameter.',
+                            horizontalalignment='center', verticalalignment='center', weight='bold', fontsize=12,
+                            bbox={'facecolor': 'red', 'alpha': 0.3, 'pad': 10})
                 self.fig.add_subplot(ax)
 
             elif panels[i] == "CN":
@@ -2708,21 +2718,30 @@ class Viewer(Show, Figure, HelpDescription):
                         xticks.append(start)
 
                     img = np.array(gl).transpose()
-                    img[0, :] = 0
-                    img[-1, :] = 0
-                    ax.imshow(img, aspect='auto', extent=[0, img.shape[1], 0, img.shape[0]])
-                    ax.yaxis.set_ticks([0, img.shape[0] / 4, img.shape[0] / 2, 3 * img.shape[0] / 4, img.shape[0] - 1])
-                    ax.yaxis.set_ticklabels(["1", "3/4", "1/2", "1/4", "0"])
-                    ax.set_ylabel("BAF")
-                    ax.set_xlim([0, start])
-                    ax.xaxis.set_ticks(xticks)
-                    ax.xaxis.set_ticklabels([""] * len(xticks))
-                    if i == (len(panels) - 1):
-                        ax.xaxis.set_ticks(xticks_minor, minor=True)
-                        ax.xaxis.set_ticklabels(xticks_labels, minor=True)
+                    if img.size != 0:
+                        img[0, :] = 0
+                        img[-1, :] = 0
+                        ax.imshow(img, aspect='auto', extent=[0, img.shape[1], 0, img.shape[0]])
+                        ax.yaxis.set_ticks(
+                            [0, img.shape[0] / 4, img.shape[0] / 2, 3 * img.shape[0] / 4, img.shape[0] - 1])
+                        ax.yaxis.set_ticklabels(["1", "3/4", "1/2", "1/4", "0"])
+                        ax.set_ylabel("BAF")
+                        ax.set_xlim([0, start])
+                        ax.xaxis.set_ticks(xticks)
+                        ax.xaxis.set_ticklabels([""] * len(xticks))
+                        if i == (len(panels) - 1):
+                            ax.xaxis.set_ticks(xticks_minor, minor=True)
+                            ax.xaxis.set_ticklabels(xticks_labels, minor=True)
+                        else:
+                            plt.setp(ax.get_xticklabels(minor=True), visible=False)
+                        ax.xaxis.grid()
                     else:
-                        plt.setp(ax.get_xticklabels(minor=True), visible=False)
-                    ax.xaxis.grid()
+                        ax.set_ylim([0, 10])
+                        x1, x2 = ax.get_xlim()
+                        ax.text((x1 + x2) / 2, 5, 'No data for likelihood. Try with lh_lite parameter.',
+                                horizontalalignment='center', verticalalignment='center', weight='bold', fontsize=12,
+                                bbox={'facecolor': 'red', 'alpha': 0.3, 'pad': 10})
+
                     self.fig.add_subplot(ax)
 
         self.fig_show(suffix="global")
@@ -4466,7 +4485,6 @@ class Viewer(Show, Figure, HelpDescription):
         report.add_plot(bio)
 
         report.output(filename, 'F')
-
 
 
 def anim_plot_likelihood(likelihood, segments, n, res, iter, prefix, maxp, minp):
