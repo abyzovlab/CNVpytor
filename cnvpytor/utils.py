@@ -420,6 +420,7 @@ def normal_overlap(m1, s1, m2, s2):
     return norm.cdf(roots[1], m1, s1) - norm.cdf(roots[0], m1, s1) + 1 - norm.cdf(roots[1], m2, s2) + norm.cdf(
         roots[0], m2, s2)
 
+
 def normal_overlap_approx(m1, s1, m2, s2):
     """
     Calculates two normal distributions overlap area.
@@ -441,7 +442,8 @@ def normal_overlap_approx(m1, s1, m2, s2):
         Area of overlap
 
     """
-    return np.exp(-(m1-m2)**2/(s1**2+s2**2))
+    return np.exp(-(m1 - m2) ** 2 / (s1 ** 2 + s2 ** 2))
+
 
 def normal_merge(m1, s1, m2, s2):
     """
@@ -494,6 +496,30 @@ def normal(x, a, x0, sigma):
 
     """
     return a * np.exp(-(x - x0) ** 2 / (2 * sigma ** 2)) / np.sqrt(2 * np.pi) / sigma
+
+
+def lognormal(x, a, x0, sigma):
+    """
+    Log normal distribution.
+
+    Parameters
+    ----------
+    x : float
+        Variable.
+    a : float
+        Area.
+    x0 : float
+        Mean value.
+    sigma : float
+        Sigma.
+
+    Returns
+    -------
+    : float
+        Value of distribution in x.
+
+    """
+    return np.log(a) - (x - x0) ** 2 / (2 * sigma ** 2) - np.log(np.sqrt(2 * np.pi) / sigma)
 
 
 def bimodal(x, a1, x01, sigma1, a2, x02, sigma2):
@@ -724,8 +750,10 @@ def likelihood_overlap(lk1, lk2):
     """
     return np.sum(np.min((lk1, lk2), axis=0))
 
-def betapdf(x,a,b):
-    return beta.pdf(x,a+1, b+1)
+
+def betapdf(x, a, b):
+    return beta.pdf(x, a + 1, b + 1)
+
 
 def beta_overlap(rc1, rc2, dx=0.001):
     """
@@ -748,9 +776,9 @@ def beta_overlap(rc1, rc2, dx=0.001):
     x = np.arange(0, 1. + dx, dx)
     f1 = betapdf(x, *rc1)
     f2 = betapdf(x, *rc2)
-    #r = np.trapz(np.min((f1,f2), axis=0)) * dx
-    r = np.sum(f1*f2)/(np.sum(f1)*np.sum(f2))
-    return np.sqrt(r) if r<1.0 else 1.0
+    # r = np.trapz(np.min((f1,f2), axis=0)) * dx
+    r = np.sum(f1 * f2) / (np.sum(f1) * np.sum(f2))
+    return np.sqrt(r) if r < 1.0 else 1.0
 
 
 def decode_position(s):
@@ -811,7 +839,7 @@ def likelihood_baf_pval(likelihood):
     ix = np.where(likelihood == max_lh)[0][0]
     if ix > res // 2:
         ix = res - 1 - ix
-    b = 1.0 * (res // 2 - ix) / (res + 1)
+    b = 1.0 * (res // 2 - ix) / (res - 1)
 
     ix1 = (res // 2 + ix) // 2
     ix2 = res - 1 - ix1
@@ -819,6 +847,7 @@ def likelihood_baf_pval(likelihood):
     if ix == res // 2:
         p = 1.0
     return b, p
+
 
 def rcounts_baf_pval(rc):
     """
@@ -836,7 +865,7 @@ def rcounts_baf_pval(rc):
         p-value for event different than 1/2
 
     """
-    return rc[1] / (rc[0]+rc[1]) - 0.5, betapdf(0.5, *rc)
+    return rc[1] / (rc[0] + rc[1]) - 0.5, betapdf(0.5, *rc)
 
 
 def likelihood_of_baf(likelihood, baf):
@@ -860,6 +889,57 @@ def likelihood_of_baf(likelihood, baf):
         return likelihood[bin] * (1 - fr) + likelihood[bin + 1] * fr
     else:
         return likelihood[bin]
+
+
+def likelihood_of_baf_narray(likelihood, baf):
+    """
+    Calculates likelihood for given baf array
+    Parameters
+    ----------
+    likelihood
+    baf
+
+    Returns
+    -------
+    lhv : float
+        likelihood value
+
+    """
+    ret = np.array([likelihood_of_baf(likelihood, ibaf) for ibaf in baf])
+
+    # res = likelihood.size
+    # bin = (baf * (res - 1)).astype(int)
+    # bin[bin>res-1]=res-1
+    # fr = baf * (res - 1) - bin
+    # likelihood = np.append(likelihood,[likelihood[-1]])
+    # ret=likelihood[bin] * (1 - fr) + likelihood[bin + 1] * fr
+    # ret[np.isnan(baf)]=0
+    return ret
+
+
+def log_likelihood_of_baf_narray(likelihood, baf):
+    """
+    Calculates likelihood for given baf array
+    Parameters
+    ----------
+    likelihood
+    baf
+
+    Returns
+    -------
+    lhv : float
+        likelihood value
+
+    """
+    res = likelihood.size
+    bin = (baf * (res - 1)).astype(int)
+    bin[bin > res - 1] = res - 1
+    fr = baf * (res - 1) - bin
+    likelihood = np.append(likelihood, [likelihood[-1]])
+    ret = likelihood[bin] * (1 - fr) + likelihood[bin + 1] * fr
+    ret = np.log(ret)
+    ret[np.isinf(ret)] = -1e100
+    return ret
 
 
 def likelihood_pixels_pval(likelihood):
@@ -1057,3 +1137,99 @@ def gt_from_list(l, phased):
         return 3 + x
     else:
         return 1 + int(phased) * haps[0] + x
+
+
+def calculate_likelihood(io, bin_size, chrom, snp_use_mask=True, snp_use_id=False, snp_use_phase=False, res=200,
+                         reduce_noise=False, blw=0.8, use_hom=False):
+    """
+    Calculates likelihood on fly.
+
+    Parameters
+    ----------
+    io : cnvpytor.IO
+        IO file
+    bin_size : int
+        bin size
+    chrom : str
+        chromosome
+    use_mask : bool
+        Use P-mask filter if True. Default: True.
+    use_id : bool
+        Use id flag filter if True. Default: False.
+    use_phase : bool
+        Use phasing information if True and available. Default: False.
+    res: int
+        Likelihood function resolution. Default: 200.
+    reduce_noise: bool
+        Reduce noise by increasing smaller count by one. It can change final BAF level.
+    blw : bool
+        Exponent used in beta distribution
+    use_hom : bool
+        For bins without HETs estimate likelihood using number of HOMs if True.
+        Use this option for calling germline deletions and CNNLOHs.
+
+
+    Returns
+    -------
+    likelihood : np.array
+        Likelihood array
+    """
+
+    _logger.info("Calculating likelihood for chromosome '%s'." % chrom)
+    pos, ref, alt, nref, nalt, gt, flag, qual = io.read_snp(chrom)
+    lh_x = np.linspace(0, 1, res - 1)
+    max_bin = (pos[-1] - 1) // bin_size + 1
+    likelihood = np.ones((max_bin, res - 1)).astype("float") / (res - 1)
+    count00 = np.zeros(max_bin)
+    count01 = np.zeros(max_bin)
+    count10 = np.zeros(max_bin)
+    count11 = np.zeros(max_bin)
+    for i in range(len(pos)):
+        if (nalt[i] + nref[i]) > 0 and (not use_id or (flag[i] & 1)) and (not use_mask or (flag[i] & 2)):
+            if gt[i] == 1 or gt[i] == 5 or gt[i] == 6:
+                b = (pos[i] - 1) // bin_size
+                if use_phase:
+                    if (gt[i] == 5):
+                        count10[b] += 1
+                        likelihood[b] *= beta_fun(nalt[i], nref[i], lh_x, phased=True)
+                        s = np.sum(likelihood[b])
+                        if s != 0.0:
+                            likelihood[b] /= s
+                    if (gt[i] == 6):
+                        count01[b] += 1
+                        likelihood[b] *= beta_fun(nref[i], nalt[i], lh_x, phased=True)
+                        s = np.sum(likelihood[b])
+                        if s != 0.0:
+                            likelihood[b] /= s
+                else:
+                    count01[b] += 1
+                    if reduce_noise:
+                        likelihood[b] *= beta_fun(nalt[i] + (1 if nalt[i] < nref[i] else 0),
+                                                      nref[i] + (1 if nref[i] < nalt[i] else 0), lh_x)
+                    else:
+                        likelihood[b] *= beta_fun(nalt[i] * blw, nref[i] * blw, lh_x)
+                    s = np.sum(likelihood[b])
+                    if s != 0.0:
+                        likelihood[b] /= s
+            else:
+                b = (pos[i] - 1) // bin_size
+                if use_phase:
+                    if (gt[i] == 7):
+                        count11[b] += 1
+                    if (gt[i] == 4):
+                        count00[b] += 1
+                else:
+                    count11[b] += 1
+
+    for i in range(max_bin):
+        if (count01[i] + count10[i])==0 and use_hom:
+            likelihood[i] = lh_x * 0. + 1 / res
+            likelihood[i][0] = 0.5 * (count11[i] + count00[i])
+            likelihood[i][-1] = 0.5 * (count11[i] + count00[i])
+            s = np.sum(likelihood[i])
+            likelihood[i] /= s
+
+    return likelihood
+
+
+

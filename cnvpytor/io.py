@@ -479,6 +479,10 @@ class IO(Signals):
         if not (signame in self.file):
             _logger.debug("Signal '%s' does not exist in file '%s'!" % (signame, self.filename))
             return []
+        if signal=="SNP likelihood":
+            x=np.array(self.file[signame])
+            return  np.concatenate((x,np.flip(x[:,:-1],axis=1)),axis=1)
+
         return np.array(self.file[signame])
 
     def _flush(self):
@@ -731,7 +735,7 @@ class IO(Signals):
             rd_chroms = self.rd_chromosomes()
             rd_chroms.append(chr_name)
             self.create_signal(None, None, "RD chromosomes", np.array([np.string_(x) for x in rd_chroms]))
-            _logger.debug("Chromosome '%s' added to 'RD chromosomes' list" % c)
+            _logger.debug("Chromosome '%s' added to 'RD chromosomes' list" % chr_name)
 
     def save_snp(self, chr_name, pos, ref, alt, nref, nalt, gt, flag, qual, update=False, callset=None,
                  chromosome_length=None):

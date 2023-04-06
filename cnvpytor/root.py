@@ -1966,7 +1966,7 @@ class Root:
         return alt_ref_ratio
 
     def calculate_baf(self, bin_sizes, chroms=[], use_mask=True, use_id=False, use_phase=False, res=200,
-                      reduce_noise=False, blw=0.8, use_hom=False, alt_ref_correct=False):
+                      reduce_noise=False, blw=0.8, use_hom=False, alt_ref_correct=False, save_likelihood=True):
         """
         Calculates BAF histograms and store data into cnvpytor file.
 
@@ -2023,7 +2023,9 @@ class Root:
                 likelihood = {}
                 i1 = {}
                 i2 = {}
-                lh_x = np.arange(1.0 / res, 1., 1.0 / res)
+                # lh_x = np.arange(1.0 / res, 1., 1.0 / res)
+                lh_x = np.linspace(0, 1, res - 1)
+
                 for bs in bin_sizes:
                     max_bin[bs] = (pos[-1] - 1) // bs + 1
                     count00[bs] = np.zeros(max_bin[bs])
@@ -2039,6 +2041,7 @@ class Root:
                     likelihood[bs] = np.ones((max_bin[bs], res - 1)).astype("float") / (res - 1)
                     i1[bs] = np.zeros(max_bin[bs])
                     i2[bs] = np.zeros(max_bin[bs])
+                    i1[bs][:] = np.nan
 
                 for i in range(len(pos)):
                     if (nalt[i] + nref[i]) > 0 and (not use_id or (flag[i] & 1)) and (not use_mask or (flag[i] & 2)):
@@ -2109,9 +2112,9 @@ class Root:
                                 maf[bs][i] /= count
                             max_lh = np.amax(likelihood[bs][i])
                             ix = np.where(likelihood[bs][i] == max_lh)[0][0]
-                            i1[bs][i] = 1.0 * (res // 2 - 1 - ix) / res if ix <= (res // 2 - 1) else 1.0 * (
-                                    ix - res // 2 + 1) / res
-                            i2[bs][i] = likelihood[bs][i][res // 2 - 1] / max_lh if max_lh!=0 else 0
+                            i1[bs][i] = 1.0 * (res // 2 - 1 - ix) / (res - 2) if ix <= (res // 2 - 1) else 1.0 * (
+                                    ix - res // 2 + 1) / (res - 2)
+                            i2[bs][i] = likelihood[bs][i][res // 2 - 1] / max_lh if max_lh != 0 else 0
                         elif use_hom:
                             likelihood[bs][i] = lh_x * 0. + 1 / res
                             likelihood[bs][i][0] = 0.5 * (count11[bs][i] + count00[bs][i])
@@ -2120,9 +2123,9 @@ class Root:
                             likelihood[bs][i] /= s
                             max_lh = np.amax(likelihood[bs][i])
                             ix = np.where(likelihood[bs][i] == max_lh)[0][0]
-                            i1[bs][i] = 1.0 * (res // 2 - 1 - ix) / res if ix <= (res // 2 - 1) else 1.0 * (
-                                    ix - res // 2 + 1) / res
-                            i2[bs][i] = likelihood[bs][i][res // 2 - 1] / max_lh if max_lh!=0 else 0
+                            i1[bs][i] = 1.0 * (res // 2 - 1 - ix) / (res - 2) if ix <= (res // 2 - 1) else 1.0 * (
+                                    ix - res // 2 + 1) / (res - 2)
+                            i2[bs][i] = likelihood[bs][i][res // 2 - 1] / max_lh if max_lh != 0 else 0
 
                     _logger.info("Saving BAF histograms with bin size %d for chromosome '%s'." % (bs, c))
                     self.io.create_signal(c, bs, "SNP bin count 0|0", count00[bs].astype("uint64"), snp_flag)
@@ -2135,137 +2138,15 @@ class Root:
                     self.io.create_signal(c, bs, "SNP bin reads 1|1", reads11[bs].astype("uint64"), snp_flag)
                     self.io.create_signal(c, bs, "SNP baf", baf[bs].astype("float32"), snp_flag)
                     self.io.create_signal(c, bs, "SNP maf", maf[bs].astype("float32"), snp_flag)
-                    self.io.create_signal(c, bs, "SNP likelihood", likelihood[bs].astype("float32"), snp_flag)
+                    if save_likelihood:
+                        self.io.create_signal(c, bs, "SNP likelihood", likelihood[bs].astype("float32")[:, :res // 2],
+                                              snp_flag)
                     self.io.create_signal(c, bs, "SNP i1", i1[bs].astype("float32"), snp_flag)
                     self.io.create_signal(c, bs, "SNP i2", i2[bs].astype("float32"), snp_flag)
 
-    def call_baf_old(self, bin_sizes, chroms=[], use_mask=True, use_id=False, odec=0.9, omin=None, mcount=None,
-                     max_distance=0.1, anim=""):
-        """ CNV caller based on BAF likelihood mearger (UNDER CONSTRUCTION).
-
-        """
-
-        for bin_size in bin_sizes:
-            if omin is None:
-                overlap_min = 1e-7 * bin_size
-            else:
-                overlap_min = omin
-            if mcount is None:
-                min_count = bin_size // 10000
-            else:
-                min_count = mcount
-
-            snp_flag = (FLAG_USEMASK if use_mask else 0) | (FLAG_USEID if use_id else 0)
-            for c in self.io.snp_chromosomes():
-                if len(chroms) == 0 or c in chroms and self.io.signal_exists(c, bin_size, "SNP likelihood", snp_flag):
-                    # _logger.info(
-                    #    "Caling CNV-s by merging BAF likelihood with bin size %d for chromosome '%s'." % (bin_size, c))
-                    likelihood = list(self.io.get_signal(c, bin_size, "SNP likelihood", snp_flag).astype("float64"))
-                    snp_hets = self.io.get_signal(c, bin_size, "SNP bin count 0|1", snp_flag)
-                    snp_hets += self.io.get_signal(c, bin_size, "SNP bin count 1|0", snp_flag)
-
-                    bins = len(likelihood)
-                    res = likelihood[0].size
-                    segments = [[i] for i in range(bins) if
-                                snp_hets[i] >= min_count and np.sum(likelihood[i]) > 0.0]
-                    likelihood = [likelihood[i] for i in range(bins) if
-                                  snp_hets[i] >= min_count and np.sum(likelihood[i]) > 0.0]
-                    overlaps = [likelihood_overlap(likelihood[i], likelihood[i + 1]) for i in range(len(segments) - 1)]
-
-                    iter = 0
-                    while len(overlaps) > 0:
-                        maxo = max(overlaps)
-                        mino = max(maxo * odec, overlap_min)
-                        if maxo < overlap_min:
-                            break
-                        i = 0
-                        while i < len(overlaps):
-                            if overlaps[i] > mino:
-                                nlh = likelihood[i] * likelihood[i + 1]
-                                likelihood[i] = nlh / np.sum(nlh)
-                                segments[i] += segments[i + 1]
-                                del likelihood[i + 1]
-                                del segments[i + 1]
-                                del overlaps[i]
-                                if i < len(overlaps):
-                                    overlaps[i] = likelihood_overlap(likelihood[i], likelihood[i + 1])
-                                if i > 0:
-                                    overlaps[i - 1] = likelihood_overlap(likelihood[i - 1], likelihood[i])
-                            else:
-                                i = i + 1
-
-                        iter = iter + 1
-                        if anim != "":
-                            anim_plot_likelihood(likelihood, segments, bins, res, iter,
-                                                 anim + c + "_0_" + str(bin_size), maxo, mino)
-
-                    overlaps = [[
-                        likelihood_overlap(likelihood[i], likelihood[j])
-                        if (segments[j][0] - segments[i][-1]) < max_distance * (
-                                len(segments[i]) + len(segments[j])) and i < j
-                        else 0 for j in range(len(segments))]
-                        for i in range(len(segments))]
-
-                    iter = 0
-                    ons = -1
-
-                    while True:
-                        overlaps = [likelihood_overlap(likelihood[i], likelihood[j]) for i in range(len(likelihood))
-                                    for j in range(i + 1, len(likelihood)) if
-                                    (segments[j][0] - segments[i][-1]) < max_distance * (
-                                            len(segments[i]) + len(segments[j]))]
-                        if len(overlaps) == 0:
-                            break
-                        maxo = max(overlaps)
-                        mino = max(maxo * odec, overlap_min)
-                        if maxo < overlap_min:
-                            break
-                        i, j = 0, 1
-                        while i < len(segments) - 1:
-                            #                            if overlaps[i][j] > mino:
-                            if likelihood_overlap(likelihood[i], likelihood[j]) > mino and (
-                                    segments[j][0] - segments[i][-1]) < max_distance * (
-                                    len(segments[i]) + len(segments[j])):
-                                nlh = likelihood[i] * likelihood[j]
-                                likelihood[i] = nlh / np.sum(nlh)
-                                segments[i] += segments[j]
-                                segments[i] = sorted(segments[i])
-                                del likelihood[j]
-                                del segments[j]
-
-                                if j >= len(segments):
-                                    i += 1
-                                    j = i + 1
-                            else:
-                                j += 1
-                                if j >= len(segments):
-                                    i += 1
-                                    j = i + 1
-                        iter = iter + 1
-                        if anim != "":
-                            anim_plot_likelihood(likelihood, segments, bins, res, iter,
-                                                 anim + c + "_1_" + str(bin_size), maxo, mino)
-
-                        if ons == len(segments):
-                            break
-                        ons = len(segments)
-
-                    for i in range(len(segments)):
-                        i1, i2 = likelihood_baf_pval(likelihood[i])
-
-                        print(c + ":" + str(segments[i][0] * bin_size + 1) + "-" + str(
-                            segments[i][-1] * bin_size + bin_size),
-                              (segments[i][-1] - segments[i][0] + 1) * bin_size, bin_size, len(segments[i]),
-                              i1, i2)
-
-                    self.io.create_signal(c, bin_size, "SNP likelihood segments",
-                                          data=segments_code(segments), flags=snp_flag)
-                    self.io.create_signal(c, bin_size, "SNP likelihood call",
-                                          data=np.array(likelihood, dtype="float32"), flags=snp_flag)
-
     def call_baf(self, bin_sizes, chroms=[], event_type="both", print_calls=False, use_gc_corr=True, rd_use_mask=False,
                  snp_use_mask=True, snp_use_id=False, max_copy_number=10, min_cell_fraction=0.0, baf_threshold=0,
-                 omin=None, mcount=None, max_distance=0.1, use_hom=False, anim=""):
+                 omin=None, mcount=None, max_distance=0.1, use_hom=False, res=200, anim=""):
         """
         CNV caller using unphased BAF sigal based on likelihood merger.
         CNV will be called based of BAF signal only and genotyped based on both RD and BAF.
@@ -2349,7 +2230,7 @@ class Root:
 
             for c in self.io.rd_chromosomes():
                 if (c in rd_gc_chromosomes or not use_gc_corr) and (c in rd_mask_chromosomes or not rd_use_mask) and (
-                        self.io.signal_exists(c, bin_size, "SNP likelihood", snp_flag)) and (
+                        self.io.signal_exists(c, bin_size, "SNP baf", snp_flag)) and (
                         len(chroms) == 0 or (c in chroms)):
                     flag_stat = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
                     flag_auto = FLAG_AUTO
@@ -2391,8 +2272,13 @@ class Root:
                                 else:
                                     P_per_bin[p1i] += p2f - p1f
 
-                        snp_likelihood = list(
-                            self.io.get_signal(c, bin_size, "SNP likelihood", snp_flag).astype("float64"))
+                        if self.io.signal_exists(c, bin_size, "SNP likelihood", snp_flag):
+                            snp_likelihood = list(
+                                self.io.get_signal(c, bin_size, "SNP likelihood", snp_flag).astype("float64"))
+                        else:
+                            snp_likelihood = list(
+                                calculate_likelihood(self.io, bin_size, c, snp_use_mask, snp_use_id, False, res, False,
+                                                     0.8, use_hom))
                         snp_hets = self.io.get_signal(c, bin_size, "SNP bin count 0|1", snp_flag)
                         snp_hets += self.io.get_signal(c, bin_size, "SNP bin count 1|0", snp_flag)
                         snp_homs = self.io.get_signal(c, bin_size, "SNP bin count 1|1", snp_flag)
@@ -2792,7 +2678,7 @@ class Root:
 
     def call_2d(self, bin_sizes, chroms=[], event_type="both", print_calls=False, use_gc_corr=True, rd_use_mask=False,
                 snp_use_mask=True, snp_use_id=False, max_copy_number=10, min_cell_fraction=0.0, baf_threshold=0,
-                omin=None, mcount=None, max_distance=0.1, use_hom=False, anim=""):
+                omin=None, mcount=None, max_distance=0.1, use_hom=False, res=200, anim=""):
         """
         CNV caller using combined RD and unphased BAF sigal based on likelihood merger.
 
@@ -2875,7 +2761,7 @@ class Root:
 
             for c in self.io.rd_chromosomes():
                 if (c in rd_gc_chromosomes or not use_gc_corr) and (c in rd_mask_chromosomes or not rd_use_mask) and (
-                        self.io.signal_exists(c, bin_size, "SNP likelihood", snp_flag)) and (
+                        self.io.signal_exists(c, bin_size, "SNP baf", snp_flag)) and (
                         len(chroms) == 0 or (c in chroms)):
                     flag_stat = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
                     flag_auto = FLAG_AUTO
@@ -2916,9 +2802,14 @@ class Root:
                                         P_per_bin[pix] = 1
                                 else:
                                     P_per_bin[p1i] += p2f - p1f
+                        if self.io.signal_exists(c, bin_size, "SNP likelihood", snp_flag):
+                            snp_likelihood = list(
+                                self.io.get_signal(c, bin_size, "SNP likelihood", snp_flag).astype("float64"))
+                        else:
+                            snp_likelihood = list(
+                                calculate_likelihood(self.io, bin_size, c, snp_use_mask, snp_use_id, False, res, False,
+                                                     0.8, use_hom))
 
-                        snp_likelihood = list(
-                            self.io.get_signal(c, bin_size, "SNP likelihood", snp_flag).astype("float64"))
                         snp_hets = self.io.get_signal(c, bin_size, "SNP bin count 0|1", snp_flag)
                         snp_hets += self.io.get_signal(c, bin_size, "SNP bin count 1|0", snp_flag)
                         snp_homs = self.io.get_signal(c, bin_size, "SNP bin count 1|1", snp_flag)
@@ -3124,6 +3015,7 @@ class Root:
                 _logger.warning("No bins with BAF=0.5! Using all bins for RD normalisation.")
             else:
                 data = np.array(gstat_rd0)
+
             dmin = np.min(data)
             dmax = np.max(data)
             p1 = np.percentile(data, 1)
@@ -3412,7 +3304,7 @@ class Root:
 
             for c in self.io.rd_chromosomes():
                 if (c in rd_gc_chromosomes or not use_gc_corr) and (c in rd_mask_chromosomes or not rd_use_mask) and (
-                        self.io.signal_exists(c, bin_size, "SNP likelihood", snp_flag)) and (
+                        self.io.signal_exists(c, bin_size, "SNP bin reads 0|1", snp_flag)) and (
                         len(chroms) == 0 or (c in chroms)):
                     flag_stat = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
                     flag_auto = FLAG_AUTO
@@ -3454,8 +3346,6 @@ class Root:
                                 else:
                                     P_per_bin[p1i] += p2f - p1f
 
-                        snp_likelihood = list(
-                            self.io.get_signal(c, bin_size, "SNP likelihood", snp_flag).astype("float64"))
                         snp_hets = self.io.get_signal(c, bin_size, "SNP bin count 0|1", snp_flag)
                         snp_hets += self.io.get_signal(c, bin_size, "SNP bin count 1|0", snp_flag)
                         snp_homs = self.io.get_signal(c, bin_size, "SNP bin count 1|1", snp_flag)
@@ -3940,7 +3830,7 @@ class Root:
 
             for c in self.io.rd_chromosomes():
                 if (c in rd_gc_chromosomes or not use_gc_corr) and (c in rd_mask_chromosomes or not rd_use_mask) and (
-                        self.io.signal_exists(c, bin_size, "SNP likelihood", snp_flag)) and (
+                        self.io.signal_exists(c, bin_size, "SNP bin reads 0|1", snp_flag)) and (
                         len(chroms) == 0 or (c in chroms)):
                     flag_stat = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
                     flag_auto = FLAG_AUTO
@@ -3983,8 +3873,6 @@ class Root:
                                 else:
                                     P_per_bin[p1i] += p2f - p1f
 
-                        snp_likelihood = list(
-                            self.io.get_signal(c, bin_size, "SNP likelihood", snp_flag).astype("float64"))
                         snp_hets = self.io.get_signal(c, bin_size, "SNP bin count 0|1", snp_flag)
                         snp_hets += self.io.get_signal(c, bin_size, "SNP bin count 1|0", snp_flag)
                         snp_homs = self.io.get_signal(c, bin_size, "SNP bin count 1|1", snp_flag)
@@ -4412,6 +4300,531 @@ class Root:
                 self.io.save_calls(c, bin_size, "calls baf", chrcalls[c], flags=(snp_flag | flag_rd))
 
         return ret
+
+    def call_subclones(self, bin_sizes, chroms=[], cnv_calls="calls combined", print_calls=False, use_gc_corr=True,
+                       rd_use_mask=False, snp_use_mask=True, snp_use_id=False, max_copy_number=10,
+                       min_cell_fraction=0.0, baf_threshold=0):
+        """
+        Group CNV calls in subclones.
+
+        Parameters
+        ----------
+        bin_sizes : list of int
+            List of histogram bin sizes
+        chroms : list of str
+            List of chromosomes. Calculates for all available if empty.
+        print_calls : bool
+            Print to stdout list of calls if true.
+        use_gc_corr : bool
+            Use GC corrected signal if True. Default: True.
+        rd_use_mask : bool
+            Use P-mask filter for RD if True. Default: False.
+        snp_use_mask : bool
+            Use P-mask filter for SNP if True. Default: True.
+        snp_use_id : bool
+            Use ID filter for SNP if True. Default: False.
+        max_copy_number : int
+            Maximal copy number model
+        min_cell_fraction : float
+            Minimal cell fraction used for estimate most likely copy number model.
+        baf_threshold : float
+            Ignores calls with BAF change smaller then this threshold value.
+        Returns
+        -------
+        None
+
+        """
+
+        snp_flag = (FLAG_USEMASK if snp_use_mask else 0) | (FLAG_USEID if snp_use_id else 0)
+        rd_flag = (FLAG_GC_CORR if use_gc_corr else 0) | (FLAG_USEMASK if rd_use_mask else 0)
+
+        rd_gc_chromosomes = {}
+        for c in self.io_gc.gc_chromosomes():
+            rd_name = self.io.rd_chromosome_name(c)
+            if not rd_name is None:
+                rd_gc_chromosomes[rd_name] = c
+
+        rd_mask_chromosomes = {}
+        for c in self.io_mask.mask_chromosomes():
+            rd_name = self.io.rd_chromosome_name(c)
+            if not rd_name is None:
+                rd_mask_chromosomes[rd_name] = c
+
+        calls = []
+
+        ret = {}
+        for bin_size in bin_sizes:
+            ret[bin_size] = []
+            all_calls = []
+            mean, stdev = self.io.rd_normal_level(bin_size, rd_flag)
+            ploidy = 2
+            mean /= ploidy / 2
+            stdev /= ploidy / 2
+            baf0_lh = 1
+            for c in self.io.rd_chromosomes():
+                if (c in rd_gc_chromosomes or not use_gc_corr) and (c in rd_mask_chromosomes or not rd_use_mask) and (
+                        self.io.signal_exists(c, bin_size, "SNP likelihood call 2d", snp_flag)) and (
+                        len(chroms) == 0 or (c in chroms)):
+
+                    calls = self.io.read_calls(c, bin_size, cnv_calls, flags=(snp_flag | rd_flag))
+                    if len(calls) > 0:
+                        segments = self.io.get_signal(c, bin_size, "RD mosaic segments 2d", flags=rd_flag)
+                        segments = segments_decode(segments)
+                        level, error = self.io.get_signal(c, bin_size, "RD mosaic call 2d", flags=rd_flag)
+                        lh = self.io.get_signal(c, bin_size, "SNP likelihood call 2d", flags=snp_flag)
+                        lh_res = lh.shape[1]
+                        lh_res2 = lh_res // 2
+
+                        for i in calls:
+                            seg = int(i['segment'])
+                            i['chrom'] = c
+                            i['segments'] = segments[seg]
+                            i['level'] = level[seg]
+                            i['error'] = error[seg]
+                            i['lh'] = np.array(lh[seg])
+
+                            if (i['baf'] >= baf_threshold or i['baf'] <= -baf_threshold) and i['bins'] > 5:
+                                all_calls.append(i)
+                            if (abs(i['baf']) < baf_threshold):
+                                baf0_lh *= lh[seg]
+                                baf0_lh /= np.sum(baf0_lh)
+            # if baf0_lh.size!=1:
+            #    for call in all_calls:
+            #        call['lh']=np.convolve(call['lh'],baf0_lh)[lh_res2:-lh_res2]
+            #        call['lh']/=np.sum(call['lh'])
+            # plt.plot(call["lh"], label="LH")
+            # plt.show()
+            print(len(all_calls))
+            points = int(101 * (1 - min_cell_fraction))
+            if points == 0:
+                points = 1
+            x = np.linspace(min_cell_fraction, 1.0, points)
+            models = []
+            for cn in range(max_copy_number, -1, -1):
+                for h1 in range(cn // 2 + 1):
+                    h2 = cn - h1
+                    if h1 != 1 or h2 != 1:
+                        models.append((h1, h2))
+            Nm = len(models)
+
+            for call in all_calls:
+                model_lh = []
+                for cn in range(max_copy_number, -1, -1):
+                    for h1 in range(cn // 2 + 1):
+                        h2 = cn - h1
+                        if h1 != 1 or h2 != 1:
+                            mrd = (1 - x) * ploidy / 2 + x * cn / 2
+                            np.seterr(divide='ignore')
+                            if cn > 0:
+                                mbaf = 0.5 - ((1 - x) * ploidy / 2 + x * h1) / (ploidy - ploidy * x + (h1 + h2) * x)
+                                print(mbaf)
+                            else:
+                                mbaf = 0. * x
+
+                            model_lh.append(2. ** (-abs(ploidy - cn)) * normal(mrd * mean, 1e10, call['level'],
+                                                                               call[
+                                                                                   'error']) * likelihood_of_baf_narray(
+                                call['lh'], 0.5 + mbaf))
+
+                            # model_lh.append(2. ** (-abs(ploidy - cn)) * likelihood_of_baf_narray(call['lh'], 0.5 + mbaf))
+                call['model_lh'] = np.array(model_lh)
+                call['model_lh'] /= np.sum(call['model_lh'])
+                call['model_lhc'] = np.sum(call['model_lh'], axis=0)
+                call['model_lhc'] /= np.sum(call['model_lhc'])
+
+                # model_lh = np.array(model_lh)
+                # model_lh /= np.sum(model_lh)
+                # print(call['chrom'],model_lh,np.sum(model_lh))
+                #
+                # for ix in range(len(models)):
+                #     plt.subplot(len(models),1,ix+1)
+                #     plt.plot(x,model_lh[ix])
+                # plt.show()
+
+            def distance(m1, m2):
+                maxl = -1
+                maxij = None
+                for i in range(Nm):
+                    for j in range(Nm):
+                        ml = np.sum(np.min([m1[i], m2[j]], axis=0))
+                        if ml > maxl:
+                            maxl = ml
+                            maxij = (i, j)
+                if maxij is not None:
+                    maxij = (models[maxij[0]], models[maxij[1]])
+                dist = np.nan
+                if maxl > 0:
+                    dist = np.log(1 + 1. / maxl)
+                if np.isinf(dist):
+                    dist = np.nan
+                return maxij, dist
+
+            def fast_distance(m1, m2):
+                i = np.argmax(np.sum(m1, axis=1))
+                j = np.argmax(np.sum(m2, axis=1))
+                ml = np.sum(np.min([m1[i], m2[j]], axis=0))
+                maxl = ml
+                maxij = (models[i], models[j])
+                dist = np.nan
+                if maxl > 1e-600:
+                    dist = np.log(1 + 1. / maxl)
+                return maxij, dist
+
+            def fast_distance2(m1, m2):
+                m1s = np.sum(m1, axis=0)
+                m2s = np.sum(m2, axis=0)
+                ml = np.sum(np.min([m1s, m2s], axis=0))
+                maxl = ml
+                maxij = (models[0], models[0])
+                dist = np.nan
+                if maxl > 1e-600:
+                    dist = np.log(1 + 1. / maxl)
+                if np.isinf(dist):
+                    dist = np.nan
+                return maxij, dist
+
+            for c1 in all_calls:
+                # print(c1)
+                print("%s:%d-%d" % (c1["chrom"], int(c1["start"]), int(c1["end"])))
+                # print("%s:%d-%d" % (c1["chrom"],int(c1["start"]),int(c1["end"])))
+                x = np.linspace(min_cell_fraction, 1.0, points)
+                mss = np.sum(c1["model_lh"], axis=0)
+                # for i in range(Nm):
+                #    plt.plot(x,c1["model_lh"][i],label=str(models[i]))
+                #    plt.legend()
+                # plt.show()
+                # for c2 in all_calls:
+                # print("%s:%d-%d" % (c1["chrom"],int(c1["start"]),int(c1["end"])),"%s:%d-%d" % (c2["chrom"],int(c2["start"]),int(c2["end"])))
+                # print("  *",distance(c1["model_lh"],c2["model_lh"]))
+
+            print("Calculating distance matrix")
+            # dist_matrix = [[distance(c1["model_lh"],c2["model_lh"])[1] if c1!=c2 else 0 for c2 in all_calls] for c1 in all_calls]
+            dist_matrix = [[fast_distance2(c1["model_lh"], c2["model_lh"])[1] if c1 != c2 else 0 for c2 in all_calls]
+                           for c1 in all_calls]
+            labels = ["%s:%d-%d (%d %.2f %.2f)" % (
+                c["chrom"], int(c["start"]), int(c["end"]), int(c["bins"]), c["cnv"], c["baf"]) for c in all_calls]
+
+            import scipy.cluster.hierarchy as spc
+            import scipy.spatial.distance as ssd
+            # pdist = spc.distance.pdist(dist_matrix)
+            dist_matrix = np.array(dist_matrix)
+            tmax = np.nanmax(dist_matrix)
+            dist_matrix[np.isnan(dist_matrix)] = tmax + 1.0
+            dist_matrix[np.isinf(dist_matrix)] = tmax + 1.0
+
+            plt.imshow(dist_matrix, aspect='auto')
+            plt.colorbar()
+            plt.show()
+
+            Z = spc.linkage(ssd.squareform(dist_matrix), method='complete')
+            cids = spc.fcluster(Z, t=Z[-1][2] * 0.66, criterion='distance')
+            # cids=spc.fcluster(Z, t=100, criterion='distance')
+            dn = spc.dendrogram(Z, labels=labels, orientation="left", leaf_font_size=8)  # leaf_rotation=90,
+            plt.show()
+
+            Nc = max(cids)
+            cl_calls = [[] for i in range(Nc)]
+            for c, cid in zip(all_calls, cids):
+                c["subclone"] = cid
+                cl_calls[cid - 1].append(c)
+            cl_lh = []
+            for cid in range(Nc):
+                tlh = np.ones_like(x)
+                for c in cl_calls[cid]:
+                    tlh *= np.sum(c["model_lh"], axis=0)
+                    tlh /= np.sum(tlh)
+                cf = x[np.argmax(tlh)]
+                for c in cl_calls[cid]:
+                    maxl = -1
+                    maxi = None
+                    for i in range(Nm):
+                        ml = np.sum(np.min([c["model_lh"][i], tlh], axis=0))
+                        if ml > maxl:
+                            maxl = ml
+                            maxi = i
+                    if maxi is None:
+                        c["subclonal_h1"] = 0
+                        c["subclonal_h2"] = 0
+                        c["subclonal_cf"] = cf
+                        c["subclonal_lh"] = 0
+                    else:
+                        c["subclonal_h1"] = models[maxi][0]
+                        c["subclonal_h2"] = models[maxi][1]
+                        c["subclonal_cf"] = cf
+                        c["subclonal_lh"] = maxl
+                cl_lh.append(tlh)
+                plt.plot(x, tlh, label=str(cid + 1))
+
+            for cid in range(Nc):
+                for c in cl_calls[cid]:
+                    reg = "%s:%d-%d" % (c["chrom"], int(c["start"]), int(c["end"]))
+                    reg = reg + " " * (25 - len(reg))
+                    mod = "|%2d %2d %2d  %10.2e  %.3f |" % tuple(c["models"][0])
+                    print("%d  %s %2d %2d  %.3f  %10.2e " % (
+                        cid + 1, reg, c["subclonal_h1"], c["subclonal_h2"], c["subclonal_cf"], c["subclonal_lh"]), mod,
+                          "%.3f  %.3f  %d" % (c["cnv"], c["baf"], int(c["end"]) - int(c["start"]) + 1))
+                print()
+
+            plt.legend()
+            plt.show()
+
+    def call_subclones2(self, bin_sizes, chroms=[], cnv_calls="calls combined", print_calls=False, use_gc_corr=True,
+                        rd_use_mask=False, snp_use_mask=True, snp_use_id=False, max_copy_number=10,
+                        min_cell_fraction=0.0, baf_threshold=0):
+        """
+        Group CNV calls in subclones.
+
+        Parameters
+        ----------
+        bin_sizes : list of int
+            List of histogram bin sizes
+        chroms : list of str
+            List of chromosomes. Calculates for all available if empty.
+        print_calls : bool
+            Print to stdout list of calls if true.
+        use_gc_corr : bool
+            Use GC corrected signal if True. Default: True.
+        rd_use_mask : bool
+            Use P-mask filter for RD if True. Default: False.
+        snp_use_mask : bool
+            Use P-mask filter for SNP if True. Default: True.
+        snp_use_id : bool
+            Use ID filter for SNP if True. Default: False.
+        max_copy_number : int
+            Maximal copy number model
+        min_cell_fraction : float
+            Minimal cell fraction used for estimate most likely copy number model.
+        baf_threshold : float
+            Ignores calls with BAF change smaller then this threshold value.
+        Returns
+        -------
+        None
+
+        """
+
+        snp_flag = (FLAG_USEMASK if snp_use_mask else 0) | (FLAG_USEID if snp_use_id else 0)
+        rd_flag = (FLAG_GC_CORR if use_gc_corr else 0) | (FLAG_USEMASK if rd_use_mask else 0)
+
+        rd_gc_chromosomes = {}
+        for c in self.io_gc.gc_chromosomes():
+            rd_name = self.io.rd_chromosome_name(c)
+            if not rd_name is None:
+                rd_gc_chromosomes[rd_name] = c
+
+        rd_mask_chromosomes = {}
+        for c in self.io_mask.mask_chromosomes():
+            rd_name = self.io.rd_chromosome_name(c)
+            if not rd_name is None:
+                rd_mask_chromosomes[rd_name] = c
+
+        calls = []
+
+        ret = {}
+        for bin_size in bin_sizes:
+            ret[bin_size] = []
+            all_calls = []
+            mean, stdev = self.io.rd_normal_level(bin_size, rd_flag)
+            ploidy = 2
+            mean /= ploidy / 2
+            stdev /= ploidy / 2
+            baf0_lh = 1
+            for c in self.io.rd_chromosomes():
+                if (c in rd_gc_chromosomes or not use_gc_corr) and (c in rd_mask_chromosomes or not rd_use_mask) and (
+                        self.io.signal_exists(c, bin_size, "SNP likelihood call 2d", snp_flag)) and (
+                        len(chroms) == 0 or (c in chroms)):
+
+                    calls = self.io.read_calls(c, bin_size, cnv_calls, flags=(snp_flag | rd_flag))
+                    if len(calls) > 0:
+                        segments = self.io.get_signal(c, bin_size, "RD mosaic segments 2d", flags=rd_flag)
+                        segments = segments_decode(segments)
+                        level, error = self.io.get_signal(c, bin_size, "RD mosaic call 2d", flags=rd_flag)
+                        lh = self.io.get_signal(c, bin_size, "SNP likelihood call 2d", flags=snp_flag)
+                        lh_res = lh.shape[1]
+                        lh_res2 = lh_res // 2
+
+                        for i in calls:
+                            seg = int(i['segment'])
+                            i['chrom'] = c
+                            i['segments'] = segments[seg]
+                            i['level'] = level[seg]
+                            i['error'] = error[seg]
+                            i['lh'] = np.array(lh[seg])
+                            if (i['baf'] >= baf_threshold or i['baf'] <= -baf_threshold) and i['bins'] > 5:
+                                all_calls.append(i)
+                            if (abs(i['baf']) < baf_threshold):
+                                baf0_lh *= lh[seg]
+                                baf0_lh /= np.sum(baf0_lh)
+            # if baf0_lh.size!=1:
+            #    for call in all_calls:
+            #        call['lh']=np.convolve(call['lh'],baf0_lh)[lh_res2:-lh_res2]
+            #        call['lh']/=np.sum(call['lh'])
+            print(len(all_calls))
+            points = int(1001 * (1 - min_cell_fraction))
+            if points == 0:
+                points = 1
+            x = np.linspace(min_cell_fraction, 1.0, points)
+            models = []
+            for cn in range(max_copy_number, -1, -1):
+                for h1 in range(cn // 2 + 1):
+                    h2 = cn - h1
+                    if h1 != ploidy / 2 or h2 != ploidy / 2:
+                        models.append((h1, h2))
+            Nm = len(models)
+
+            for call in all_calls:
+                model_lh = []
+                for cn in range(max_copy_number, -1, -1):
+                    for h1 in range(cn // 2 + 1):
+                        h2 = cn - h1
+                        if h1 != ploidy / 2 or h2 != ploidy / 2:
+                            mrd = (1 - x) * ploidy / 2 + x * cn / 2
+                            np.seterr(divide='ignore')
+                            if cn > 0:
+                                mbaf = 0.5 - ((1 - x) * ploidy / 2 + x * h1) / (ploidy - ploidy * x + (h1 + h2) * x)
+                            else:
+                                mbaf = 0. * x
+                            # -2*abs(ploidy-cn)
+                            model_lh.append(lognormal(mrd * mean, 1., call['level'],
+                                                      call['error']) + log_likelihood_of_baf_narray(call['lh'],
+                                                                                                    0.5 + mbaf))
+                call['model_lh'] = np.array(model_lh)
+                call['model_lh'] -= np.max(call['model_lh'])
+
+                # model_lh = np.array(model_lh)
+                # model_lh /= np.sum(model_lh)
+                # print(call['chrom'],model_lh,np.sum(model_lh))
+                #
+                # for ix in range(len(models)):
+                #     plt.subplot(len(models),1,ix+1)
+                #     plt.plot(x,model_lh[ix])
+                # plt.show()
+
+            def distance(m1, m2):
+                maxl = -1
+                maxij = None
+                for i in range(Nm):
+                    for j in range(Nm):
+                        ml = np.sum(np.min([m1[i], m2[j]], axis=0))
+                        if ml > maxl:
+                            maxl = ml
+                            maxij = (i, j)
+                if maxij is not None:
+                    maxij = (models[maxij[0]], models[maxij[1]])
+                dist = np.nan
+                if maxl > 0:
+                    dist = np.log(1 + 1. / maxl)
+                if np.isinf(dist):
+                    dist = np.nan
+                return maxij, dist
+
+            def fast_distance(m1, m2):
+                i = np.argmax(np.sum(m1, axis=1))
+                j = np.argmax(np.sum(m2, axis=1))
+                ml = np.sum(np.min([m1[i], m2[j]], axis=0))
+                maxl = ml
+                maxij = (models[i], models[j])
+                dist = np.nan
+                if maxl > 1e-600:
+                    dist = np.log(1 + 1. / maxl)
+                return maxij, dist
+
+            def fast_distance2(m1, m2):
+                m1s = np.max(m1, axis=0)
+                m2s = np.max(m2, axis=0)
+                ml = np.max(np.min([m1s, m2s], axis=0))
+                print(ml)
+                maxij = (models[0], models[0])
+                dist = -ml
+                return maxij, dist
+
+            for c1 in all_calls:
+                # print(c1)
+                print("%s:%d-%d" % (c1["chrom"], int(c1["start"]), int(c1["end"])))
+                # print("%s:%d-%d" % (c1["chrom"],int(c1["start"]),int(c1["end"])))
+                # plt.plot(x,c1["model_lhc"])
+                # plt.show()
+                # for c2 in all_calls:
+                # print("%s:%d-%d" % (c1["chrom"],int(c1["start"]),int(c1["end"])),"%s:%d-%d" % (c2["chrom"],int(c2["start"]),int(c2["end"])))
+                # print("  *",distance(c1["model_lh"],c2["model_lh"]))
+
+            print("Calculating distance matrix")
+            # dist_matrix = [[distance(c1["model_lh"],c2["model_lh"])[1] if c1!=c2 else 0 for c2 in all_calls] for c1 in all_calls]
+            dist_matrix = np.array(
+                [[fast_distance2(c1["model_lh"], c2["model_lh"])[1] if c1 != c2 else 0 for c2 in all_calls] for c1 in
+                 all_calls])
+            dist_matrix -= np.min(dist_matrix)
+            dist_matrix[dist_matrix > 500] = 500
+            for i in range(len(all_calls)):
+                dist_matrix[i][i] = 0.0
+
+            labels = ["%s:%d-%d (%d %.2f %.2f)" % (
+                c["chrom"], int(c["start"]), int(c["end"]), int(c["bins"]), c["cnv"], c["baf"]) for c in all_calls]
+
+            import scipy.cluster.hierarchy as spc
+            import scipy.spatial.distance as ssd
+            # pdist = spc.distance.pdist(dist_matrix)
+            dist_matrix = np.array(dist_matrix)
+            tmax = np.nanmax(dist_matrix)
+            dist_matrix[np.isnan(dist_matrix)] = tmax + 1.0
+            dist_matrix[np.isinf(dist_matrix)] = tmax + 1.0
+
+            plt.imshow(dist_matrix, aspect='auto')
+            plt.colorbar()
+            plt.show()
+
+            Z = spc.linkage(ssd.squareform(dist_matrix), method='complete')
+            cids = spc.fcluster(Z, t=Z[-1][2] * 0.66, criterion='distance')
+            # cids=spc.fcluster(Z, t=30, criterion='distance')
+            dn = spc.dendrogram(Z, labels=labels, orientation="left", leaf_font_size=8)  # leaf_rotation=90,
+            plt.show()
+
+            Nc = max(cids)
+            cl_calls = [[] for i in range(Nc)]
+            for c, cid in zip(all_calls, cids):
+                c["subclone"] = cid
+                cl_calls[cid - 1].append(c)
+            cl_lh = []
+            for cid in range(Nc):
+                tlh = np.zeros_like(x)
+                for c in cl_calls[cid]:
+                    tlh += np.max(c["model_lh"], axis=0)
+                tlh -= np.max(tlh)
+                cf = x[np.argmax(tlh)]
+                for c in cl_calls[cid]:
+                    maxl = -1e100
+                    maxi = None
+                    for i in range(Nm):
+                        ml = np.max(np.min([c["model_lh"][i], tlh], axis=0))
+                        if ml > maxl:
+                            maxl = ml
+                            maxi = i
+                    if maxi is None:
+                        c["subclonal_h1"] = 0
+                        c["subclonal_h2"] = 0
+                        c["subclonal_cf"] = cf
+                        c["subclonal_lh"] = 0
+                    else:
+                        c["subclonal_h1"] = models[maxi][0]
+                        c["subclonal_h2"] = models[maxi][1]
+                        c["subclonal_cf"] = cf
+                        c["subclonal_lh"] = maxl
+                cl_lh.append(tlh)
+                tmp = np.exp(tlh - np.max(tlh))
+                tmp /= np.sum(tmp)
+                plt.plot(x, tmp, label=str(cid + 1))
+
+            for cid in range(Nc):
+                for c in cl_calls[cid]:
+                    reg = "%s:%d-%d" % (c["chrom"], int(c["start"]), int(c["end"]))
+                    reg = reg + " " * (25 - len(reg))
+                    mod = "|%2d %2d %2d  %10.2e  %.3f |" % tuple(c["models"][0])
+                    print("%d  %s %2d %2d  %.3f  %10.2e " % (
+                        cid + 1, reg, c["subclonal_h1"], c["subclonal_h2"], c["subclonal_cf"], c["subclonal_lh"]), mod,
+                          "%.3f  %.3f  %d" % (c["cnv"], c["baf"], int(c["end"]) - int(c["start"]) + 1))
+                print()
+
+            plt.legend()
+            plt.show()
 
 
 def ls(self):
