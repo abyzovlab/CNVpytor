@@ -2139,7 +2139,7 @@ class Root:
                     self.io.create_signal(c, bs, "SNP baf", baf[bs].astype("float32"), snp_flag)
                     self.io.create_signal(c, bs, "SNP maf", maf[bs].astype("float32"), snp_flag)
                     if save_likelihood:
-                        self.io.create_signal(c, bs, "SNP likelihood", likelihood[bs].astype("float32")[:, :res // 2],
+                        self.io.create_signal(c, bs, "SNP likelihood half", likelihood[bs].astype("float32")[:, :res // 2],
                                               snp_flag)
                     self.io.create_signal(c, bs, "SNP i1", i1[bs].astype("float32"), snp_flag)
                     self.io.create_signal(c, bs, "SNP i2", i2[bs].astype("float32"), snp_flag)

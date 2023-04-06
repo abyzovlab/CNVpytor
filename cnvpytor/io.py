@@ -73,6 +73,7 @@ class Signals(object):
         "SNP baf": "snp_baf_%(chr)s_%(bin_size)d%(snp_flag)s",
         "SNP maf": "snp_maf_%(chr)s_%(bin_size)d%(snp_flag)s",
         "SNP likelihood": "snp_likelihood_%(chr)s_%(bin_size)d%(snp_flag)s",
+        "SNP likelihood half": "snp_likelihood_half_%(chr)s_%(bin_size)d%(snp_flag)s",
         "SNP i1": "snp_i1_%(chr)s_%(bin_size)d%(snp_flag)s",
         "SNP i2": "snp_i2_%(chr)s_%(bin_size)d%(snp_flag)s",
         "SNP i3": "snp_i3_%(chr)s_%(bin_size)d%(snp_flag)s",
@@ -378,7 +379,11 @@ class IO(Signals):
         signame = self.signal_name(chr_name, bin_size, signal, flags, name)
         if not signame:
             return False
-        return signame in self.file
+        if signal == "SNP likelihood":
+            signame_half = self.signal_name(chr_name, bin_size, "SNP likelihood half", flags, name)
+            return (signame in self.file) or (signame_half in self.file)
+        else:
+            return signame in self.file
 
     def create_signal(self, chr_name, bin_size, signal, data, flags=0, name=''):
         """
@@ -476,13 +481,18 @@ class IO(Signals):
         signame = self.signal_name(chr_name, bin_size, signal, flags, name)
         if not signame:
             return None
+        print(signal)
+        if signal=="SNP likelihood":
+            signame_half = self.signal_name(chr_name, bin_size, "SNP likelihood half", flags, name)
+            print(signal)
+            if signame_half in self.file:
+                x=np.array(self.file[signame_half])
+                return  np.concatenate((x,np.flip(x[:,:-1],axis=1)),axis=1)
+
         if not (signame in self.file):
             _logger.debug("Signal '%s' does not exist in file '%s'!" % (signame, self.filename))
             return []
-        if signal=="SNP likelihood":
-            x=np.array(self.file[signame])
-            return  np.concatenate((x,np.flip(x[:,:-1],axis=1)),axis=1)
-
+        print(signal)
         return np.array(self.file[signame])
 
     def _flush(self):
