@@ -1213,7 +1213,7 @@ def calculate_likelihood(io, bin_size, chrom, snp_use_mask=True, snp_use_id=Fals
                         likelihood[b] /= s
             else:
                 b = (pos[i] - 1) // bin_size
-                if use_phase:
+                if snp_use_phase:
                     if (gt[i] == 7):
                         count11[b] += 1
                     if (gt[i] == 4):
