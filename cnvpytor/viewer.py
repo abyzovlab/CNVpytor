@@ -25,7 +25,6 @@ import traceback
 import os
 import sys
 import datetime
-from packaging import version
 
 _logger = logging.getLogger("cnvpytor.viewer")
 
@@ -41,10 +40,6 @@ class Reader:
 
         """
         self.io = [IO(f, ro=True) for f in files]
-        for io in self.io:
-            if version.parse(io.file.attrs['Version']) < version.parse("1.3"):
-                _logger.warning(
-                    "File: '%s'. Version of cnvpytor created file < 1.3. Redo -baf step to ensure compatibility." % io.filename)
 
 
 class Show(Reader):
