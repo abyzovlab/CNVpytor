@@ -481,10 +481,9 @@ class IO(Signals):
         signame = self.signal_name(chr_name, bin_size, signal, flags, name)
         if not signame:
             return None
-        print(signal)
+
         if signal=="SNP likelihood":
             signame_half = self.signal_name(chr_name, bin_size, "SNP likelihood half", flags, name)
-            print(signal)
             if signame_half in self.file:
                 x=np.array(self.file[signame_half])
                 return  np.concatenate((x,np.flip(x[:,:-1],axis=1)),axis=1)
@@ -492,7 +491,6 @@ class IO(Signals):
         if not (signame in self.file):
             _logger.debug("Signal '%s' does not exist in file '%s'!" % (signame, self.filename))
             return []
-        print(signal)
         return np.array(self.file[signame])
 
     def _flush(self):
