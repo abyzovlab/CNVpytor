@@ -1185,10 +1185,10 @@ def calculate_likelihood(io, bin_size, chrom, snp_use_mask=True, snp_use_id=Fals
     count10 = np.zeros(max_bin)
     count11 = np.zeros(max_bin)
     for i in range(len(pos)):
-        if (nalt[i] + nref[i]) > 0 and (not use_id or (flag[i] & 1)) and (not use_mask or (flag[i] & 2)):
+        if (nalt[i] + nref[i]) > 0 and (not snp_use_id or (flag[i] & 1)) and (not snp_use_mask or (flag[i] & 2)):
             if gt[i] == 1 or gt[i] == 5 or gt[i] == 6:
                 b = (pos[i] - 1) // bin_size
-                if use_phase:
+                if snp_use_phase:
                     if (gt[i] == 5):
                         count10[b] += 1
                         likelihood[b] *= beta_fun(nalt[i], nref[i], lh_x, phased=True)
