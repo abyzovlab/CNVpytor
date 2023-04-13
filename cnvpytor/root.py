@@ -2818,7 +2818,6 @@ class Root:
                             snp_count += snp_homs
 
                         snp_bins = len(snp_likelihood)
-                        res = snp_likelihood[0].size
                         bins = min(rd_bins, snp_bins)
 
                         segments = [[i] for i in range(bins) if
@@ -2849,7 +2848,7 @@ class Root:
 
                         iter = 0
                         if anim != "":
-                            anim_plot_rd_likelihood(level, error, likelihood, segments, bins, res, iter,
+                            anim_plot_rd_likelihood(level, error, likelihood, segments, bins, snp_likelihood[0].size, iter,
                                                     anim + c + "_0_" + str(bin_size), 1, mean)
 
                         while len(overlaps) > 0:
@@ -2878,7 +2877,7 @@ class Root:
                                                                                                 likelihood[i])
                             iter = iter + 1
                             if anim != "" and (iter % 5) == 0:
-                                anim_plot_rd_likelihood(level, error, likelihood, segments, bins, res, iter,
+                                anim_plot_rd_likelihood(level, error, likelihood, segments, bins, snp_likelihood[0].size, iter,
                                                         anim + c + "_0_" + str(bin_size), maxo,
                                                         mean)
 
@@ -2929,7 +2928,7 @@ class Root:
                                         j = i + 1
                             iter = iter + 1
                             if anim != "":  # and (iter % 50) == 0:
-                                anim_plot_rd_likelihood(level, error, likelihood, segments, bins, res, iter,
+                                anim_plot_rd_likelihood(level, error, likelihood, segments, bins, snp_likelihood[0].size, iter,
                                                         anim + c + "_1_" + str(bin_size), maxo,
                                                         mean)
 

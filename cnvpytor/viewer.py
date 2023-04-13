@@ -2458,15 +2458,15 @@ class Viewer(Show, Figure, HelpDescription):
                     ax.set_ylabel("Allele frequency")
                     ax.set_ylim([self.baf_range[0] * img.shape[0], self.baf_range[1] * img.shape[0]])
                     if self.snp_call and ("baf_mosaic" in self.callers):
-                        plt.scatter(call_pos, call_i1, s=self.lh_markersize, color=np.array(call_c), edgecolors='face',
+                        plt.scatter(call_pos, call_i1, s=self.lh_markersize, color=np.array(call_c),
                                     marker=self.lh_marker)
-                        plt.scatter(call_pos, call_i2, s=self.lh_markersize, color=np.array(call_c), edgecolors='face',
+                        plt.scatter(call_pos, call_i2, s=self.lh_markersize, color=np.array(call_c),
                                     marker=self.lh_marker)
                     if self.snp_call and ("combined_mosaic" in self.callers):
                         plt.scatter(call_pos_2d, call_i1_2d, s=self.lh_markersize, color=np.array(call_c_2d),
-                                    edgecolors='face', marker=self.lh_marker)
+                                    marker=self.lh_marker)
                         plt.scatter(call_pos_2d, call_i2_2d, s=self.lh_markersize, color=np.array(call_c_2d),
-                                    edgecolors='face', marker=self.lh_marker)
+                                    marker=self.lh_marker)
 
                     for i in borders[:-1]:
                         ax.axvline(i + 1, color="g", lw=1)
@@ -2504,10 +2504,9 @@ class Viewer(Show, Figure, HelpDescription):
                         FLAG_USEHAP if self.snp_use_phase else 0) | (
                                FLAG_USEMASK if self.rd_use_mask else 0) | FLAG_GC_CORR
                     flag_rd = FLAG_GC_CORR | (FLAG_USEMASK if self.rd_use_mask else 0)
-                    if io.signal_exists(c, bin_size, "calls combined", flag):
+                    if ("combined_mosaic" in self.callers) and io.signal_exists(c, bin_size, "RD mosaic segments 2d", flag_rd):
                         calls = io.read_calls(c, bin_size, "calls combined", flag)
-                        segments = io.get_signal(c, bin_size, "RD mosaic segments 2d phased", FLAG_GC_CORR)
-                        print(segments)
+                        segments = io.get_signal(c, bin_size, "RD mosaic segments 2d", FLAG_GC_CORR)
                         segments = segments_decode(segments)
 
                         for call in calls:
