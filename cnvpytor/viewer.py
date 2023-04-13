@@ -2497,8 +2497,8 @@ class Viewer(Show, Figure, HelpDescription):
                         end_bin = len(his_p)
                     h1 = np.array([0] * (end_bin - start_bin))
                     h2 = np.array([0] * (end_bin - start_bin))
-                    h1[his_p[start_bin:end_bin] != 0] = 1
-                    h2[his_p[start_bin:end_bin] != 0] = 1
+                    h1[his_p[start_bin:end_bin] != 0] = 0
+                    h2[his_p[start_bin:end_bin] != 0] = 0
 
                     flag = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0) | (
                         FLAG_USEHAP if self.snp_use_phase else 0) | (
@@ -2512,8 +2512,9 @@ class Viewer(Show, Figure, HelpDescription):
                         for call in calls:
                             for b in segments[int(call["segment"])]:
                                 if b < end_bin and b >= start_bin:
-                                    h1[b - start_bin] = call["models"][0][1]
-                                    h2[b - start_bin] = call["models"][0][2]
+                                    if (call["models"][0][1]!=1) or (call["models"][0][2]!=1):
+                                        h1[b - start_bin] = call["models"][0][1]
+                                        h2[b - start_bin] = call["models"][0][2]
                     gh1.extend(list(h1))
                     gh2.extend(list(h2))
                     borders.append(len(gh1) - 1)
