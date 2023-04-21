@@ -8,6 +8,19 @@ CNVpytor is a Python package and command line tool for CNV/CNA analysis from dep
 
 Follow [CNVpytor Twitter account](https://twitter.com/cnvpytor).
 
+### New in version 1.3.1
+
+What's new:
+ - Reduced Pytor file size by compressing the BAF likelihood matrix
+ - Option to avoid storing the full BAF likelihood matrix (-nolh), drastically reducing the final Pytor file size to less than 50 MB
+ - If the full BAF likelihood matrix is not stored in Pytor file, during -call step likelihood will be calculated during run time
+ - Introduced plotting parameter "lh_lite," used when the full BAF likelihood matrix is not present in the Pytor file
+ - Implemented log scale for Manhattan plot (#126)
+ - Added plot RD difference/ratio between two samples (#151) 
+ - Updated the code for VCF output
+ - Included an error log for missing annotation links in reference genome settings
+ - Added matplotlib_use parameter to set the Matplotlib backend
+
 
 ### Citing CNVpytor
 
