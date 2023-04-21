@@ -2514,13 +2514,17 @@ class Viewer(Show, Figure, HelpDescription):
                                 if b < end_bin and b >= start_bin:
                                     if (call["models"][0][1]!=1) or (call["models"][0][2]!=1):
                                         h1[b - start_bin] = call["models"][0][1]
-                                        h2[b - start_bin] = call["models"][0][2]
+                                        h2[b - start_bin] = -call["models"][0][2]
                     gh1.extend(list(h1))
                     gh2.extend(list(h2))
                     borders.append(len(gh1) - 1)
                 x = range(len(gh1))
                 plt.gca().get_xaxis().get_major_formatter().set_useOffset(False)
-                plt.stackplot(x, gh1, gh2, baseline='sym')
+                #plt.stackplot(x, gh1, gh2, baseline='zero')
+                plt.bar(x,gh1)
+                plt.bar(x,gh2)
+                plt.gca().yaxis.grid()
+
 
                 def format_func(value, tick_number):
                     ix = int(value)
