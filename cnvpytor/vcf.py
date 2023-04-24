@@ -745,10 +745,6 @@ class CreateVCF:
         vcfh.add_meta('FORMAT', items=[('ID', "CN"), ('Number', 1), ('Type', 'Float'),
                                        ('Description', 'Copy number genotype for imprecise events')])
 
-        # add reference genome
-        # for c, (l, t) in self.reference_genome["chromosomes"].items():
-        #    vcfh.contigs.add(c, length=l)
-
         return vcfh
 
     def insert_all_contigs(self):
@@ -790,7 +786,7 @@ class CreateVCF:
                         "pytorP4": call[11], "pytorQ0": call[12], "pytorPN": int(call[13]), "pytorDG": int(call[14]),
                         "pytorCL": call[1]}
 
-            r = self.vcf.new_record(contig=call_chr, start=start_loci, stop=stop_loci, alleles=('.', alt), id=record_id,
+            r = self.vcf.new_record(contig=call_chr, start=start_loci, stop=stop_loci, alleles=('N', alt), id=record_id,
                                     filter="PASS", info=info_dct)
 
             # add sample information
