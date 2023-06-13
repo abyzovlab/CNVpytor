@@ -163,7 +163,7 @@ class Figure(ViewParams):
         if grid == "auto":
             grid = self.grid
         plt.clf()
-        plt.rcParams["font.size"] = 8
+        plt.rcParams["font.size"] = self.font_size
         self.fig = plt.figure(1, dpi=self.dpi, facecolor='w', edgecolor='k')
         if title is not None:
             self.fig.suptitle(title, fontsize=16)
@@ -569,7 +569,7 @@ class Viewer(Show, Figure, HelpDescription):
         stat_list = []
         n_cols = sum(map(int, cond))
         ix = 1
-        plt.rcParams["font.size"] = 8
+        plt.rcParams["font.size"] = self.font_size
         self.fig = plt.figure(1, figsize=(4 * n_cols, 8), dpi=90, facecolor='w', edgecolor='k')
         for t, c, flag in zip(["Autosomes", "X/Y", "Mitochondria"], cond, [FLAG_AUTO, FLAG_SEX, FLAG_MT]):
             if c:
@@ -1786,8 +1786,8 @@ class Viewer(Show, Figure, HelpDescription):
             plt.imshow(cmap, aspect='auto')
             for i in ends[:-1]:
                 plt.axvline(x=i - 0.5, color='red', linewidth=0.5)
-            ax.set_yticks([])
-            ax.set_yticklabels([])
+            ax.set_yticks(range(n))
+            ax.set_yticklabels([self.file_title(self.plot_files[i]) for i in range(n)])
             ax.set_xticks((np.array(starts) + np.array(ends)) / 2)
             chroms = list(map(Genome.canonical_chrom_name, chroms))
             ax.set_xticklabels(chroms)
@@ -2856,7 +2856,7 @@ class Viewer(Show, Figure, HelpDescription):
 
     def rd_baf(self, hist=True):
         plt.clf()
-        plt.rcParams["font.size"] = 8
+        plt.rcParams["font.size"] = self.font_size
         self.fig = plt.figure(1, figsize=(12, 8), facecolor='w', edgecolor='k')
         n = len(self.plot_files)
         ix = self.plot_files
@@ -2924,7 +2924,7 @@ class Viewer(Show, Figure, HelpDescription):
 
     def dispersion(self, legend=True):
         plt.clf()
-        plt.rcParams["font.size"] = 8
+        plt.rcParams["font.size"] = self.font_size
         self.fig = plt.figure(1, facecolor='w', edgecolor='k')
         if self.output_filename != "":
             self.fig.set_figheight(8)
@@ -2983,7 +2983,7 @@ class Viewer(Show, Figure, HelpDescription):
         ix = self.plot_files
         if plot:
             plt.clf()
-            plt.rcParams["font.size"] = 8
+            plt.rcParams["font.size"] = self.font_size
             if self.grid == "auto":
                 sx, sy = self._panels_shape(n)
             else:
@@ -3053,7 +3053,7 @@ class Viewer(Show, Figure, HelpDescription):
 
         if plot:
             plt.clf()
-            plt.rcParams["font.size"] = 8
+            plt.rcParams["font.size"] = self.font_size
             if self.grid == "auto":
                 sx, sy = self._panels_shape(n)
             else:
@@ -3149,7 +3149,7 @@ class Viewer(Show, Figure, HelpDescription):
 
         if plot:
             plt.clf()
-            plt.rcParams["font.size"] = 8
+            plt.rcParams["font.size"] = self.font_size
             if self.grid == "auto":
                 sx, sy = self._panels_shape(n)
             else:

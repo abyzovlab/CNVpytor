@@ -44,6 +44,7 @@ class ViewParams(object):
         "snp_use_phase": False,
         "snp_call": True,
         "markersize": "auto",
+        "font_size": "8",
         "lh_markersize": 20,
         "lh_marker": "_",
         "lh_lite":False,
@@ -148,6 +149,9 @@ class ViewParams(object):
                         self.__setattr__(param, "auto")
                     else:
                         self.__setattr__(param, float(args[0]))
+            elif param == "font_size":
+                if len(args) > 0:
+                    self.__setattr__(param, float(args[0]))
             elif param == "lh_markersize":
                 if len(args) > 0:
                     self.__setattr__(param, float(args[0]))
@@ -720,7 +724,16 @@ class HelpDescription(object):
             p_default=str(default["markersize"]),
             p_affects="manhattan, snp, region plot with snp panel",
             p_example="set markersize 10\nset markersize auto",
-            p_see="rd_colors, snp_colors, baf_colors, lh_colors"
+            p_see="rd_colors, snp_colors, baf_colors, lh_colors, font_size"
+        ),
+        "font_size": help_format(
+            topic="font_size",
+            p_desc="Size of font used in all plots (e.g. manhattan, snp).",
+            p_type="float or str",
+            p_default=str(default["font_size"]),
+            p_affects="manhattan, snp, region plot with snp panel",
+            p_example="set font_size 10\nset font_size 8",
+            p_see="rd_colors, snp_colors, baf_colors, lh_colors, markersize"
         ),
         "rd_colors": help_format(
             topic="rd_colors",
