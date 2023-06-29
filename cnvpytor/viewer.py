@@ -1188,7 +1188,7 @@ class Viewer(Show, Figure, HelpDescription):
                 if plot_start < 1:
                     plot_start = 1
                 plot_end = call[5] + call[6]
-                self.multiple_regions(["%s:%d-%d" % (c, plot_start, plot_end)])
+                self.multiple_regions(["%s:%d-%d" % (call[3], plot_start, plot_end)])
 
     def print_calls(self):
         bin_size = self.bin_size
