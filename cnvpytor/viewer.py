@@ -1,6 +1,6 @@
 """ cnvpytor.viewer
 
-Class Viewer: ploting CNVpytor data
+Class Viewer: plotting CNVpytor data
 """
 from __future__ import absolute_import, print_function, division
 
@@ -628,7 +628,7 @@ class Viewer(Show, Figure, HelpDescription):
 
     def get_likelihood_for_plotting(self, io, bin_size, chrom, res=200):
         """
-        Returns likelihood for ploting. If it is not stored in pytor file it will emulate using positiona of maxima if lh_lite is set.
+        Returns likelihood for plotting. If it is not stored in pytor file it will emulate using position of maxima if lh_lite is set.
 
         Parameters
         ----------
@@ -1131,7 +1131,7 @@ class Viewer(Show, Figure, HelpDescription):
                                             row += call["models"][m]
 
                                         if self.annotate:
-                                            row.append(annotator.get_info("%s:%d-%d" % (data[3], data[4], data[5])))
+                                            row.append(annotator.get_info("%s:%d-%d" % (call[3], call[4], call[5])))
                                         ret.append(row)
         return ret
 
@@ -1188,7 +1188,7 @@ class Viewer(Show, Figure, HelpDescription):
                 if plot_start < 1:
                     plot_start = 1
                 plot_end = call[5] + call[6]
-                self.multiple_regions(["%s:%d-%d" % (c, plot_start, plot_end)])
+                self.multiple_regions(["%s:%d-%d" % (call[3], plot_start, plot_end)])
 
     def print_calls(self):
         bin_size = self.bin_size
@@ -1783,7 +1783,7 @@ class Viewer(Show, Figure, HelpDescription):
         if plot == "cmap":
             self.new_figure(panel_count=1, grid=(1, 1), panel_size=(24, 0.24 * n))
             ax = self.next_panel()
-            plt.imshow(cmap, aspect='auto')
+            plt.imshow(cmap, aspect='auto', interpolation='none')
             for i in ends[:-1]:
                 plt.axvline(x=i - 0.5, color='red', linewidth=0.5)
             ax.set_yticks(range(n))
@@ -1798,7 +1798,7 @@ class Viewer(Show, Figure, HelpDescription):
             corr = np.corrcoef(
                 np.concatenate((cmap[:, :, 0].transpose(), cmap[:, :, 1].transpose(), cmap[:, :, 2].transpose()),
                                axis=0))
-            plt.imshow(corr, aspect='auto', vmin=-1, vmax=1)
+            plt.imshow(corr, aspect='auto', interpolation='none', vmin=-1, vmax=1)
             plt.colorbar()
             starts3 = np.concatenate((np.array(starts), np.array(starts) + ends[-1], np.array(starts) + 2 * ends[-1]))
             ends3 = np.concatenate((np.array(ends), np.array(ends) + ends[-1], np.array(ends) + 2 * ends[-1]))
@@ -1818,7 +1818,7 @@ class Viewer(Show, Figure, HelpDescription):
             x = np.concatenate((cmap[:, :, 0], cmap[:, :, 1], cmap[:, :, 2]),
                                axis=1)
             corr = np.corrcoef(x)
-            plt.imshow(corr, aspect='auto', vmin=-1, vmax=1)
+            plt.imshow(corr, aspect='auto', interpolation='none', vmin=-1, vmax=1)
             plt.colorbar()
             ax = plt.gca()
 
@@ -1923,7 +1923,7 @@ class Viewer(Show, Figure, HelpDescription):
         if plot == "cmap":
             self.new_figure(panel_count=1, grid=(1, 1), panel_size=(24, 0.24 * n))
             ax = self.next_panel()
-            plt.imshow(cmap, aspect='auto')
+            plt.imshow(cmap, aspect='auto', interpolation='none')
             for i in ends[:-1]:
                 plt.axvline(x=i - 0.5, color='red', linewidth=0.5)
             ax.set_yticks([])
@@ -1937,7 +1937,7 @@ class Viewer(Show, Figure, HelpDescription):
             corr = np.corrcoef(
                 np.concatenate((cmap[:, :, 0].transpose(), cmap[:, :, 1].transpose(), cmap[:, :, 2].transpose()),
                                axis=0))
-            plt.imshow(corr, aspect='auto', vmin=-1, vmax=1)
+            plt.imshow(corr, aspect='auto', interpolation='none', vmin=-1, vmax=1)
             plt.colorbar()
             starts3 = np.concatenate((np.array(starts), np.array(starts) + ends[-1], np.array(starts) + 2 * ends[-1]))
             ends3 = np.concatenate((np.array(ends), np.array(ends) + ends[-1], np.array(ends) + 2 * ends[-1]))
@@ -1957,7 +1957,7 @@ class Viewer(Show, Figure, HelpDescription):
             x = np.concatenate((cmap[:, :, 0], cmap[:, :, 1], cmap[:, :, 2]),
                                axis=1)
             corr = np.corrcoef(x)
-            plt.imshow(corr, aspect='auto', vmin=-1, vmax=1)
+            plt.imshow(corr, aspect='auto', interpolation='none', vmin=-1, vmax=1)
             plt.colorbar()
             ax = plt.gca()
 
