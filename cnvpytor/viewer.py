@@ -335,7 +335,7 @@ class Viewer(Show, Figure, HelpDescription):
         files : list of str
             List of cnvpytor filenames
         params : dict
-            List of parameters different than default to be passed to ViewParams class.
+            List of parameters different from default to be passed to ViewParams class.
 
         """
         _logger.debug("Viewer class init: files [%s], params %s." % (", ".join(files), str(params)))
@@ -628,7 +628,8 @@ class Viewer(Show, Figure, HelpDescription):
 
     def get_likelihood_for_plotting(self, io, bin_size, chrom, res=200):
         """
-        Returns likelihood for plotting. If it is not stored in pytor file it will emulate using position of maxima if lh_lite is set.
+        Returns likelihood for plotting. If it is not stored in pytor file it will emulate using position of maxima
+        if lh_lite is set.
 
         Parameters
         ----------
@@ -879,7 +880,6 @@ class Viewer(Show, Figure, HelpDescription):
             self.fig.add_subplot(ax)
 
         self.fig_show(suffix="rd_diff")
-
 
     def likelihood(self):
         bin_size = self.bin_size
@@ -4519,6 +4519,55 @@ class Viewer(Show, Figure, HelpDescription):
         report.add_plot(bio)
 
         report.output(filename, 'F')
+
+    def sort_samples(self, region, ascending=True):
+        regs1 = decode_region(region)
+        chrom, (start_pos, end_pos) = regs1[0]
+
+        index_dct = {}
+        for file_index in self.plot_files:
+            chrom = self.io[file_index].rd_chromosome_name(chrom)
+            chr_len = self.io[file_index].get_chromosome_length(chrom)
+            if chr_len is not None and end_pos == 1000000000:
+                end_pos = chr_len
+            flag_rd = (FLAG_GC_CORR if self.rd_use_gc_corr else 0) | (FLAG_USEMASK if self.rd_use_mask else 0)
+            stat = self.io[file_index].get_signal(chrom, self.bin_size, "RD stat", flag_rd | FLAG_AUTO)
+            if stat is None or len(stat) == 0:
+                stat = self.io[file_index].get_signal(chrom, self.bin_size, "RD stat", flag_rd | FLAG_SEX)
+            his_p = self.io[file_index].get_signal(chrom, self.bin_size, "RD", flag_rd)
+            bin1 = (start_pos - 1) // self.bin_size
+            bin2 = (end_pos - 1) // self.bin_size
+            rc = 0
+            rc2 = 0
+            if bin1 == bin2:
+                try:
+                    rc = (end_pos - start_pos + 1) * his_p[bin1] / self.bin_size
+                    rc2 = (end_pos - start_pos + 1) * his_p[bin1] * his_p[bin1] / self.bin_size
+                except IndexError:
+                    pass
+            else:
+                try:
+                    rc += (bin1 * self.bin_size - start_pos + 1 + self.bin_size) * his_p[bin1] / self.bin_size
+                    rc += (end_pos - bin2 * self.bin_size) * his_p[bin2] / self.bin_size
+                    rc2 += (bin1 * self.bin_size - start_pos + 1 + self.bin_size) * his_p[bin1] * his_p[bin1] / self.bin_size
+                    rc2 += (end_pos - bin2 * self.bin_size) * his_p[bin2] * his_p[bin2] / self.bin_size
+                except IndexError:
+                    pass
+                for ix in range(bin1 + 1, bin2):
+                    try:
+                        rc += his_p[ix]
+                        rc2 += his_p[ix] * his_p[ix]
+                    except IndexError:
+                        pass
+
+            index_dct[file_index] = 2. * rc / (stat[4] * (end_pos - start_pos + 1) / self.bin_size)
+
+        # sorting data dictionary with read depth values
+        sorted_index_dct = dict(sorted(index_dct.items(), key=lambda item: item[1], reverse=not ascending))
+        # setting up the order for the plot files
+        self.plot_files = list(sorted_index_dct.keys())
+
+        return sorted_index_dct
 
 
 def anim_plot_likelihood(likelihood, segments, n, res, iter, prefix, maxp, minp):
