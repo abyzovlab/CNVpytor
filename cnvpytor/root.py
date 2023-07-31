@@ -2754,6 +2754,7 @@ class Root:
             gstat_rd_all = []
             gstat_rd = []
             gstat_baf = []
+            gstat_baf_rd = []
             gstat_error = []
             gstat_lh = []
             gstat_n = []
@@ -2978,6 +2979,7 @@ class Root:
                                         pP += P_per_bin[bin]
                                     pP /= size
 
+                                gstat_baf_rd.append((baf_mean,level[i]))
                                 gstat_rd.append(level[i])
                                 gstat_error.append(error[i])
                                 gstat_baf.append(baf_mean)
@@ -3000,6 +3002,7 @@ class Root:
 
                                 gstat_n.append(len(segments[i]))
 
+
                         self.io.create_signal(c, bin_size, "RD mosaic segments 2d",
                                               data=segments_code(segments), flags=flag_rd)
                         self.io.create_signal(c, bin_size, "RD mosaic call 2d",
@@ -3008,6 +3011,14 @@ class Root:
                                               data=segments_code(segments), flags=snp_flag)
                         self.io.create_signal(c, bin_size, "SNP likelihood call 2d",
                                               data=np.array(likelihood, dtype="float32"), flags=snp_flag)
+
+            plt.hist(gstat_baf,bins=np.linspace(0,1,101))
+            plt.show()
+            minbaf=min(gstat_baf)
+            gstat_rd0=[]
+            for b,r in gstat_baf_rd:
+                if b<(minbaf*1.5):
+                    gstat_rd0.append(r)
 
             if len(gstat_rd0) == 0:
                 data = np.array(gstat_rd_all)
