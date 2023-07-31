@@ -19,7 +19,7 @@ _logger = logging.getLogger("cnvpytor.utils")
 
 def gc_at_compress(gc, at):
     """
-    Commpress GC/AT content of 100bins using fact that #at+#gc=100 in large majority of bins.
+    Compress GC/AT content of 100bins using fact that #at+#gc=100 in large majority of bins.
     Transforms #at, #gc -> #at, 100-#at-#gc
 
     Parameters
@@ -98,7 +98,7 @@ binary_to_bp = {0: 'A', 3: 'T', 1: 'G', 2: 'C', 4: '.'}
 
 def snp_compress(pos, ref, alt, nref, nalt, gt, flag, qual):
     """
-    Commpress SNP information binary and return four arrays.
+    Compress SNP information binary and return four arrays.
 
     Parameters
     ----------
@@ -122,7 +122,7 @@ def snp_compress(pos, ref, alt, nref, nalt, gt, flag, qual):
     Returns
     -------
     snp_pos : numpy.ndarray
-        Diferences in positions.
+        Differences in positions.
     snp_counts : numpy.ndarray
         32 bits: ref count (16 bits), alt count (16 bits)
     snp_desc : numpy.ndarray
@@ -145,12 +145,12 @@ def snp_compress(pos, ref, alt, nref, nalt, gt, flag, qual):
 
 def snp_decompress(snp_pos, snp_desc, snp_counts, snp_qual):
     """
-    Decommpress SNP information binary.
+    Decompress SNP information binary.
 
     Parameters
     ----------
     snp_pos : numpy.ndarray
-        Diferences in positions.
+        Differences in positions.
     snp_counts : numpy.ndarray
         32 bits: ref count (16 bits), alt count (16 bits)
     snp_desc : numpy.ndarray
@@ -204,7 +204,7 @@ def snp_decompress(snp_pos, snp_desc, snp_counts, snp_qual):
 
 def mask_compress(mask):
     """
-    Commpress strict mask P value intervals.
+    Compress strict mask P value intervals.
 
     Parameters
     ----------
@@ -224,7 +224,7 @@ def mask_compress(mask):
 
 def mask_decompress(cmask):
     """
-    Decommpress strict mask P value intervals.
+    Decompress strict mask P value intervals.
 
     Parameters
     ----------
@@ -302,7 +302,7 @@ def segments_code(segments):
 
     Returns
     -------
-    aseg : numpy.ndarra
+    aseg : numpy.ndarray
 
     """
     max = 2 ** 32 - 1
@@ -862,7 +862,7 @@ def rcounts_baf_pval(rc):
     b : float
         BAF level (difference from 1/2)
     p : float
-        p-value for event different than 1/2
+        p-value for event different from 1/2
 
     """
     return rc[1] / (rc[0] + rc[1]) - 0.5, betapdf(0.5, *rc)
@@ -1017,7 +1017,7 @@ class PromptCompleter:
         Parameters
         ----------
         command_tree : dictionary
-            Example: command_tree = {"comannd1":None,"command2":{"subcommand2.1":None,subcommand2.1:None}}
+            Example: command_tree = {"command1":None,"command2":{"subcommand2.1":None,subcommand2.1:None}}
 
         """
         self.command_tree = command_tree
@@ -1171,7 +1171,7 @@ def calculate_likelihood(io, bin_size, chrom, snp_use_mask=True, snp_use_id=Fals
 
     Returns
     -------
-    likelihood : np.array
+    likelihood : numpy.array
         Likelihood array
     """
 
@@ -1185,10 +1185,10 @@ def calculate_likelihood(io, bin_size, chrom, snp_use_mask=True, snp_use_id=Fals
     count10 = np.zeros(max_bin)
     count11 = np.zeros(max_bin)
     for i in range(len(pos)):
-        if (nalt[i] + nref[i]) > 0 and (not use_id or (flag[i] & 1)) and (not use_mask or (flag[i] & 2)):
+        if (nalt[i] + nref[i]) > 0 and (not snp_use_id or (flag[i] & 1)) and (not snp_use_mask or (flag[i] & 2)):
             if gt[i] == 1 or gt[i] == 5 or gt[i] == 6:
                 b = (pos[i] - 1) // bin_size
-                if use_phase:
+                if snp_use_phase:
                     if (gt[i] == 5):
                         count10[b] += 1
                         likelihood[b] *= beta_fun(nalt[i], nref[i], lh_x, phased=True)
@@ -1213,7 +1213,7 @@ def calculate_likelihood(io, bin_size, chrom, snp_use_mask=True, snp_use_id=Fals
                         likelihood[b] /= s
             else:
                 b = (pos[i] - 1) // bin_size
-                if use_phase:
+                if snp_use_phase:
                     if (gt[i] == 7):
                         count11[b] += 1
                     if (gt[i] == 4):

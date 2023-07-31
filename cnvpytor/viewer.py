@@ -1,6 +1,6 @@
 """ cnvpytor.viewer
 
-Class Viewer: ploting CNVpytor data
+Class Viewer: plotting CNVpytor data
 """
 from __future__ import absolute_import, print_function, division
 
@@ -16,6 +16,7 @@ import matplotlib.ticker as ticker
 from scipy.cluster import hierarchy
 from scipy.stats import beta
 from io import BytesIO
+from .vcf import CreateVCF
 
 import numpy as np
 import logging
@@ -162,7 +163,7 @@ class Figure(ViewParams):
         if grid == "auto":
             grid = self.grid
         plt.clf()
-        plt.rcParams["font.size"] = 8
+        plt.rcParams["font.size"] = self.font_size
         self.fig = plt.figure(1, dpi=self.dpi, facecolor='w', edgecolor='k')
         if title is not None:
             self.fig.suptitle(title, fontsize=16)
@@ -334,7 +335,7 @@ class Viewer(Show, Figure, HelpDescription):
         files : list of str
             List of cnvpytor filenames
         params : dict
-            List of parameters different than default to be passed to ViewParams class.
+            List of parameters different from default to be passed to ViewParams class.
 
         """
         _logger.debug("Viewer class init: files [%s], params %s." % (", ".join(files), str(params)))
@@ -509,7 +510,11 @@ class Viewer(Show, Figure, HelpDescription):
                             self.print_calls_file()
                     elif f[1] == "joint_calls" or f[1] == "merged_calls":
                         self.print_simple_merged_calls()
-
+                elif f[0].upper() == 'RD_DIFF':
+                    if len(f) < 2:
+                        print("\n Usage: rd_diff 0 1 \n")
+                    else:
+                        self.rd_diff_v2(int(f[1]), int(f[2]))
                 else:
                     try:
                         if f[0] not in ["rdstat", "snp"]:
@@ -564,7 +569,7 @@ class Viewer(Show, Figure, HelpDescription):
         stat_list = []
         n_cols = sum(map(int, cond))
         ix = 1
-        plt.rcParams["font.size"] = 8
+        plt.rcParams["font.size"] = self.font_size
         self.fig = plt.figure(1, figsize=(4 * n_cols, 8), dpi=90, facecolor='w', edgecolor='k')
         for t, c, flag in zip(["Autosomes", "X/Y", "Mitochondria"], cond, [FLAG_AUTO, FLAG_SEX, FLAG_MT]):
             if c:
@@ -623,7 +628,8 @@ class Viewer(Show, Figure, HelpDescription):
 
     def get_likelihood_for_plotting(self, io, bin_size, chrom, res=200):
         """
-        Returns likelihood for ploting. If it is not stored in pytor file it will emulate using positiona of maxima if lh_lite is set.
+        Returns likelihood for plotting. If it is not stored in pytor file it will emulate using position of maxima
+        if lh_lite is set.
 
         Parameters
         ----------
@@ -787,6 +793,92 @@ class Viewer(Show, Figure, HelpDescription):
                 plt.scatter(np.arange(len(his_p_corr1)), his_p_corr1 / stat1[4] - his_p_corr2 / stat2[4], marker='.',
                             s=self.markersize, alpha=0.7)
             # plt.step(np.abs(his_p_corr1 / stat1[4] - his_p_corr2 / stat2[4]), "k")
+        self.fig_show(suffix="rd_diff")
+
+    def rd_diff_v2(self, file1, file2):
+        bin_size = self.bin_size
+        flag_rd = (FLAG_USEMASK if self.rd_use_mask else 0)
+        chroms = []
+        for c, (l, t) in self.reference_genome["chromosomes"].items():
+            rd_chr = self.io[file1].rd_chromosome_name(c)
+            if self.io[file1].signal_exists(rd_chr, bin_size, "RD", 0) and \
+                    self.io[file1].signal_exists(rd_chr, bin_size, "RD", FLAG_GC_CORR) and \
+                    (Genome.is_autosome(c) or Genome.is_sex_chrom(c)) and \
+                    (len(self.chrom) == 0 or (rd_chr in self.chrom) or (c in self.chrom)) and rd_chr is not None:
+                chroms.append((rd_chr, l))
+
+        panels = 1
+        self.new_figure(panel_count=panels)
+        self.new_subgrid(panels, hspace=0.05, wspace=0.05)
+
+        for i in range(panels):
+            ax = self.next_subpanel(sharex=True)
+
+            file1_title = self.file_title(self.plot_files[file1])
+            file2_title = self.file_title(self.plot_files[file2])
+            file_title = f"{file1_title} vs {file2_title}"
+            if i == 0 and self.title:
+                ax.set_title(file_title, position=(0.01, 0.9),  color='C0', fontdict={'verticalalignment':'top',
+                                                                                      'horizontalalignment':'left'})
+
+            start = 0
+            xticks = [0]
+            xticks_minor = []
+            xticks_labels = []
+
+            for c, l in chroms:
+                flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
+                stat1 = self.io[file1].get_signal(None, bin_size, "RD stat", flag)
+                stat2 = self.io[file2].get_signal(None, bin_size, "RD stat", flag)
+                if stat1 is None:
+                    _logger.error("Data for bin size %d is missing in file '%s'!" % (bin_size, self.io[file1].filename))
+                    return
+                if stat2 is None:
+                    _logger.error("Data for bin size %d is missing in file '%s'!" % (bin_size, self.io[file2].filename))
+                    return
+                his_p_corr1 = self.io[file1].get_signal(c, bin_size, "RD", flag_rd | FLAG_GC_CORR)
+                his_p_corr2 = self.io[file2].get_signal(c, bin_size, "RD", flag_rd | FLAG_GC_CORR)
+
+                pos = range(start, start + len(his_p_corr1))
+                diff_values = his_p_corr1 / stat1[4] - his_p_corr2 / stat2[4]
+                if self.markersize == "auto":
+                    plt.plot(pos, diff_values, ls='', marker='.', markersize=1)
+                else:
+                    plt.plot(pos, diff_values, ls='', marker='.', markersize=self.markersize)
+
+                xticks_minor.append(start + len(his_p_corr1) // 2)
+                xticks_labels.append(Genome.canonical_chrom_name(c))
+                start += l // bin_size + 1
+                xticks.append(start)
+
+            ax.set_xlim([0, start])
+            ax.xaxis.set_ticks(xticks)
+            ax.xaxis.set_ticklabels([""] * len(xticks))
+
+            if i == (panels - 1):
+                ax.xaxis.set_ticks(xticks_minor, minor=True)
+                ax.xaxis.set_ticklabels(xticks_labels, minor=True)
+            else:
+                plt.setp(ax.get_xticklabels(which="both"), visible=False)
+
+            if self.rd_manhattan_log_scale:
+                ax.set_yscale("log")
+                ax.set_ylabel("Log2 RD (Difference")
+            else:
+                yticks = np.arange(self.rd_manhattan_range[0]-2, self.rd_manhattan_range[1], 0.5)
+                if len(yticks) < 9:
+                    ax.yaxis.set_major_locator(ticker.FixedLocator(yticks))
+                    ax.yaxis.set_major_formatter(ticker.FixedFormatter(yticks))
+                else:
+                    ax.yaxis.set_major_locator(plt.MaxNLocator(8))
+                ax.set_ylim([self.rd_manhattan_range[0]-2, self.rd_manhattan_range[1]])
+
+                ax.set_ylabel("RD Difference")
+            # ax.grid()
+            # ax.yaxis.grid()
+            ax.xaxis.grid()
+            self.fig.add_subplot(ax)
+
         self.fig_show(suffix="rd_diff")
 
     def likelihood(self):
@@ -1039,7 +1131,7 @@ class Viewer(Show, Figure, HelpDescription):
                                             row += call["models"][m]
 
                                         if self.annotate:
-                                            row.append(annotator.get_info("%s:%d-%d" % (data[3], data[4], data[5])))
+                                            row.append(annotator.get_info("%s:%d-%d" % (call[3], call[4], call[5])))
                                         ret.append(row)
         return ret
 
@@ -1055,7 +1147,8 @@ class Viewer(Show, Figure, HelpDescription):
                     print(*call, sep="\t", file=f)
         elif format == "xlsx":
             import xlsxwriter
-            workbook = xlsxwriter.Workbook(self.print_filename)
+
+            workbook = xlsxwriter.Workbook(self.print_filename, {'nan_inf_to_errors': True})
             files_callers = []
             sheets = {}
             rix = {}
@@ -1077,83 +1170,25 @@ class Viewer(Show, Figure, HelpDescription):
                 rix[fc] += 1
             workbook.close()
         elif format == "vcf":
-            samples = []
-            for call in calls:
-                sample = call[0]
-                if sample not in samples:
-                    samples.append(sample)
-            header = """##fileformat=VCFv4.1
-##fileDate={date}
-##reference={rg}
-##source=CNVpytor
-##INFO=<ID=END,Number=1,Type=Integer,Description="End position of the variant described in this record">
-##INFO=<ID=IMPRECISE,Number=0,Type=Flag,Description="Imprecise structural variation">
-##INFO=<ID=SVLEN,Number=1,Type=Integer,Description="Difference in length between REF and ALT alleles">
-##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">
-##INFO=<ID=pytorRD,Number=1,Type=Float,Description="Normalized RD">
-##INFO=<ID=pytorP1,Number=1,Type=Float,Description="e-val by t-test">
-##INFO=<ID=pytorP2,Number=1,Type=Float,Description="e-val by Gaussian tail">
-##INFO=<ID=pytorP3,Number=1,Type=Float,Description="e-val by t-test (middle)">
-##INFO=<ID=pytorP4,Number=1,Type=Float,Description="e-val by Gaussian tail (middle)">
-##INFO=<ID=pytorQ0,Number=1,Type=Float,Description="Fraction of reads with 0 mapping quality">
-##INFO=<ID=pytorPN,Number=1,Type=Integer,Description="Fraction of N bases">
-##INFO=<ID=pytorDG,Number=1,Type=Integer,Description="Distance to nearest gap in reference genome">
-##INFO=<ID=pytorCL,Number=1,Type=Integer,Description="Caller method">
-##INFO=<ID=SAMPLES,Number=.,Type=String,Description="Sample genotyped to have the variant">
-##ALT=<ID=DEL,Description="Deletion">
-##ALT=<ID=DUP,Description="Duplication">
-##ALT=<ID=LOH,Description="Copy number neutral loss of heterozygosity">
-##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">;
-##FORMAT=<ID=CN,Number=1,Type=Integer,Description="Copy number genotype for imprecise events">
-#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t{samples}"""
-            if self.reference_genome:
-                rg = self.reference_genome["name"]
-            else:
-                rg = "unknown"
-            header = header.format(date=datetime.date.today().strftime("%Y-%m-%d"), rg=rg, samples="\t".join(samples))
-            ii = 0
-            with open(self.print_filename, 'w') as f:
-                print(header, file=f)
-                for call in calls:
-                    ii += 1
-                    id = "CNVpytor_" + {"deletion": "del", "duplication": "dup", "cnnloh": "loh"}[call[2]] + str(ii)
-                    alt = {"deletion": "<DEL>", "duplication": "<DUP>", "cnnloh": "<LOH>"}[call[2]]
-                    info = "END=" + str(int(call[5])) + ";IMPRECISE;SVLEN=" + str(int(call[6])) + ";SVTYPE=" + alt[1:4]
-                    info += ";pytorRD=" + str(call[7])
-                    info += ";pytorP1=" + str(call[8])
-                    info += ";pytorP2=" + str(call[9])
-                    info += ";pytorP3=" + str(call[10])
-                    info += ";pytorP4=" + str(call[11])
-                    info += ";pytorQ0=" + str(call[12])
-                    info += ";pytorPN=" + str(call[13])
-                    info += ";pytorDG=" + str(call[14])
-                    info += ";pytorCL=" + call[1]
-                    format = "GT:CN"
-                    row = [call[3], int(call[4]), id, ".", alt, ".", "PASS", info, format]
-                    for sample in samples:
-                        if sample == call[0]:
-                            if call[2] == "deletion" and call[7] < 0.25:
-                                row.append("1/1:0")
-                            elif call[2] == "deletion" and call[7] > 0.25:
-                                row.append("0/1:0")
-                            elif call[2] == "duplication" and call[7] <= 1.75:
-                                row.append("0/1:2")
-                            elif call[2] == "duplication" and call[7] > 1.75 and call[7] <= 2.25:
-                                row.append("1/1:2")
-                            elif call[2] == "duplication" and call[7] > 2.25:
-                                row.append("./1:%.2f" % call[7])
-                            else:
-                                row.append("./.:.")
-                        else:
-                            row.append("./.:.")
-                    print(*row, sep="\t", file=f)
+            date = datetime.date.today().strftime("%Y-%m-%d")
+            n = len(self.plot_files)
+            ix = self.plot_files
+            chr_len_dct = {}
+            for i in range(n):
+                io = self.io[ix[i]]
+                chr_len = dict(io.get_chromosome_lengths())
+                chr_len_dct.update(chr_len)
+
+            vcf_obj = CreateVCF(self.print_filename, self.reference_genome, chr_len_dct, date)
+            vcf_obj.insert_records(calls)
+
         if self.plot:
             for call in calls:
                 plot_start = call[4] - call[6]
                 if plot_start < 1:
                     plot_start = 1
                 plot_end = call[5] + call[6]
-                self.multiple_regions(["%s:%d-%d" % (c, plot_start, plot_end)])
+                self.multiple_regions(["%s:%d-%d" % (call[3], plot_start, plot_end)])
 
     def print_calls(self):
         bin_size = self.bin_size
@@ -1748,11 +1783,11 @@ class Viewer(Show, Figure, HelpDescription):
         if plot == "cmap":
             self.new_figure(panel_count=1, grid=(1, 1), panel_size=(24, 0.24 * n))
             ax = self.next_panel()
-            plt.imshow(cmap, aspect='auto')
+            plt.imshow(cmap, aspect='auto', interpolation='none')
             for i in ends[:-1]:
                 plt.axvline(x=i - 0.5, color='red', linewidth=0.5)
-            ax.set_yticks([])
-            ax.set_yticklabels([])
+            ax.set_yticks(range(n))
+            ax.set_yticklabels([self.file_title(self.plot_files[i]) for i in range(n)])
             ax.set_xticks((np.array(starts) + np.array(ends)) / 2)
             chroms = list(map(Genome.canonical_chrom_name, chroms))
             ax.set_xticklabels(chroms)
@@ -1763,7 +1798,7 @@ class Viewer(Show, Figure, HelpDescription):
             corr = np.corrcoef(
                 np.concatenate((cmap[:, :, 0].transpose(), cmap[:, :, 1].transpose(), cmap[:, :, 2].transpose()),
                                axis=0))
-            plt.imshow(corr, aspect='auto', vmin=-1, vmax=1)
+            plt.imshow(corr, aspect='auto', interpolation='none', vmin=-1, vmax=1)
             plt.colorbar()
             starts3 = np.concatenate((np.array(starts), np.array(starts) + ends[-1], np.array(starts) + 2 * ends[-1]))
             ends3 = np.concatenate((np.array(ends), np.array(ends) + ends[-1], np.array(ends) + 2 * ends[-1]))
@@ -1783,7 +1818,7 @@ class Viewer(Show, Figure, HelpDescription):
             x = np.concatenate((cmap[:, :, 0], cmap[:, :, 1], cmap[:, :, 2]),
                                axis=1)
             corr = np.corrcoef(x)
-            plt.imshow(corr, aspect='auto', vmin=-1, vmax=1)
+            plt.imshow(corr, aspect='auto', interpolation='none', vmin=-1, vmax=1)
             plt.colorbar()
             ax = plt.gca()
 
@@ -1888,7 +1923,7 @@ class Viewer(Show, Figure, HelpDescription):
         if plot == "cmap":
             self.new_figure(panel_count=1, grid=(1, 1), panel_size=(24, 0.24 * n))
             ax = self.next_panel()
-            plt.imshow(cmap, aspect='auto')
+            plt.imshow(cmap, aspect='auto', interpolation='none')
             for i in ends[:-1]:
                 plt.axvline(x=i - 0.5, color='red', linewidth=0.5)
             ax.set_yticks([])
@@ -1902,7 +1937,7 @@ class Viewer(Show, Figure, HelpDescription):
             corr = np.corrcoef(
                 np.concatenate((cmap[:, :, 0].transpose(), cmap[:, :, 1].transpose(), cmap[:, :, 2].transpose()),
                                axis=0))
-            plt.imshow(corr, aspect='auto', vmin=-1, vmax=1)
+            plt.imshow(corr, aspect='auto', interpolation='none', vmin=-1, vmax=1)
             plt.colorbar()
             starts3 = np.concatenate((np.array(starts), np.array(starts) + ends[-1], np.array(starts) + 2 * ends[-1]))
             ends3 = np.concatenate((np.array(ends), np.array(ends) + ends[-1], np.array(ends) + 2 * ends[-1]))
@@ -1922,7 +1957,7 @@ class Viewer(Show, Figure, HelpDescription):
             x = np.concatenate((cmap[:, :, 0], cmap[:, :, 1], cmap[:, :, 2]),
                                axis=1)
             corr = np.corrcoef(x)
-            plt.imshow(corr, aspect='auto', vmin=-1, vmax=1)
+            plt.imshow(corr, aspect='auto', interpolation='none', vmin=-1, vmax=1)
             plt.colorbar()
             ax = plt.gca()
 
@@ -2423,15 +2458,15 @@ class Viewer(Show, Figure, HelpDescription):
                     ax.set_ylabel("Allele frequency")
                     ax.set_ylim([self.baf_range[0] * img.shape[0], self.baf_range[1] * img.shape[0]])
                     if self.snp_call and ("baf_mosaic" in self.callers):
-                        plt.scatter(call_pos, call_i1, s=self.lh_markersize, color=np.array(call_c), edgecolors='face',
+                        plt.scatter(call_pos, call_i1, s=self.lh_markersize, color=np.array(call_c),
                                     marker=self.lh_marker)
-                        plt.scatter(call_pos, call_i2, s=self.lh_markersize, color=np.array(call_c), edgecolors='face',
+                        plt.scatter(call_pos, call_i2, s=self.lh_markersize, color=np.array(call_c),
                                     marker=self.lh_marker)
                     if self.snp_call and ("combined_mosaic" in self.callers):
                         plt.scatter(call_pos_2d, call_i1_2d, s=self.lh_markersize, color=np.array(call_c_2d),
-                                    edgecolors='face', marker=self.lh_marker)
+                                    marker=self.lh_marker)
                         plt.scatter(call_pos_2d, call_i2_2d, s=self.lh_markersize, color=np.array(call_c_2d),
-                                    edgecolors='face', marker=self.lh_marker)
+                                    marker=self.lh_marker)
 
                     for i in borders[:-1]:
                         ax.axvline(i + 1, color="g", lw=1)
@@ -2462,30 +2497,34 @@ class Viewer(Show, Figure, HelpDescription):
                         end_bin = len(his_p)
                     h1 = np.array([0] * (end_bin - start_bin))
                     h2 = np.array([0] * (end_bin - start_bin))
-                    h1[his_p[start_bin:end_bin] != 0] = 1
-                    h2[his_p[start_bin:end_bin] != 0] = 1
+                    h1[his_p[start_bin:end_bin] != 0] = 0
+                    h2[his_p[start_bin:end_bin] != 0] = 0
 
                     flag = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0) | (
                         FLAG_USEHAP if self.snp_use_phase else 0) | (
                                FLAG_USEMASK if self.rd_use_mask else 0) | FLAG_GC_CORR
                     flag_rd = FLAG_GC_CORR | (FLAG_USEMASK if self.rd_use_mask else 0)
-                    if io.signal_exists(c, bin_size, "calls combined", flag):
+                    if ("combined_mosaic" in self.callers) and io.signal_exists(c, bin_size, "RD mosaic segments 2d", flag_rd):
                         calls = io.read_calls(c, bin_size, "calls combined", flag)
-                        segments = io.get_signal(c, bin_size, "RD mosaic segments 2d phased", FLAG_GC_CORR)
-                        print(segments)
+                        segments = io.get_signal(c, bin_size, "RD mosaic segments 2d", FLAG_GC_CORR)
                         segments = segments_decode(segments)
 
                         for call in calls:
                             for b in segments[int(call["segment"])]:
                                 if b < end_bin and b >= start_bin:
-                                    h1[b - start_bin] = call["models"][0][1]
-                                    h2[b - start_bin] = call["models"][0][2]
+                                    if (call["models"][0][1]!=1) or (call["models"][0][2]!=1):
+                                        h1[b - start_bin] = call["models"][0][1]
+                                        h2[b - start_bin] = -call["models"][0][2]
                     gh1.extend(list(h1))
                     gh2.extend(list(h2))
                     borders.append(len(gh1) - 1)
                 x = range(len(gh1))
                 plt.gca().get_xaxis().get_major_formatter().set_useOffset(False)
-                plt.stackplot(x, gh1, gh2, baseline='sym')
+                #plt.stackplot(x, gh1, gh2, baseline='zero')
+                plt.bar(x,gh1)
+                plt.bar(x,gh2)
+                plt.gca().yaxis.grid()
+
 
                 def format_func(value, tick_number):
                     ix = int(value)
@@ -2817,7 +2856,7 @@ class Viewer(Show, Figure, HelpDescription):
 
     def rd_baf(self, hist=True):
         plt.clf()
-        plt.rcParams["font.size"] = 8
+        plt.rcParams["font.size"] = self.font_size
         self.fig = plt.figure(1, figsize=(12, 8), facecolor='w', edgecolor='k')
         n = len(self.plot_files)
         ix = self.plot_files
@@ -2885,7 +2924,7 @@ class Viewer(Show, Figure, HelpDescription):
 
     def dispersion(self, legend=True):
         plt.clf()
-        plt.rcParams["font.size"] = 8
+        plt.rcParams["font.size"] = self.font_size
         self.fig = plt.figure(1, facecolor='w', edgecolor='k')
         if self.output_filename != "":
             self.fig.set_figheight(8)
@@ -2944,7 +2983,7 @@ class Viewer(Show, Figure, HelpDescription):
         ix = self.plot_files
         if plot:
             plt.clf()
-            plt.rcParams["font.size"] = 8
+            plt.rcParams["font.size"] = self.font_size
             if self.grid == "auto":
                 sx, sy = self._panels_shape(n)
             else:
@@ -3014,7 +3053,7 @@ class Viewer(Show, Figure, HelpDescription):
 
         if plot:
             plt.clf()
-            plt.rcParams["font.size"] = 8
+            plt.rcParams["font.size"] = self.font_size
             if self.grid == "auto":
                 sx, sy = self._panels_shape(n)
             else:
@@ -3110,7 +3149,7 @@ class Viewer(Show, Figure, HelpDescription):
 
         if plot:
             plt.clf()
-            plt.rcParams["font.size"] = 8
+            plt.rcParams["font.size"] = self.font_size
             if self.grid == "auto":
                 sx, sy = self._panels_shape(n)
             else:
@@ -4480,6 +4519,55 @@ class Viewer(Show, Figure, HelpDescription):
         report.add_plot(bio)
 
         report.output(filename, 'F')
+
+    def sort_samples(self, region, ascending=True):
+        regs1 = decode_region(region)
+        chrom, (start_pos, end_pos) = regs1[0]
+
+        index_dct = {}
+        for file_index in self.plot_files:
+            chrom = self.io[file_index].rd_chromosome_name(chrom)
+            chr_len = self.io[file_index].get_chromosome_length(chrom)
+            if chr_len is not None and end_pos == 1000000000:
+                end_pos = chr_len
+            flag_rd = (FLAG_GC_CORR if self.rd_use_gc_corr else 0) | (FLAG_USEMASK if self.rd_use_mask else 0)
+            stat = self.io[file_index].get_signal(chrom, self.bin_size, "RD stat", flag_rd | FLAG_AUTO)
+            if stat is None or len(stat) == 0:
+                stat = self.io[file_index].get_signal(chrom, self.bin_size, "RD stat", flag_rd | FLAG_SEX)
+            his_p = self.io[file_index].get_signal(chrom, self.bin_size, "RD", flag_rd)
+            bin1 = (start_pos - 1) // self.bin_size
+            bin2 = (end_pos - 1) // self.bin_size
+            rc = 0
+            rc2 = 0
+            if bin1 == bin2:
+                try:
+                    rc = (end_pos - start_pos + 1) * his_p[bin1] / self.bin_size
+                    rc2 = (end_pos - start_pos + 1) * his_p[bin1] * his_p[bin1] / self.bin_size
+                except IndexError:
+                    pass
+            else:
+                try:
+                    rc += (bin1 * self.bin_size - start_pos + 1 + self.bin_size) * his_p[bin1] / self.bin_size
+                    rc += (end_pos - bin2 * self.bin_size) * his_p[bin2] / self.bin_size
+                    rc2 += (bin1 * self.bin_size - start_pos + 1 + self.bin_size) * his_p[bin1] * his_p[bin1] / self.bin_size
+                    rc2 += (end_pos - bin2 * self.bin_size) * his_p[bin2] * his_p[bin2] / self.bin_size
+                except IndexError:
+                    pass
+                for ix in range(bin1 + 1, bin2):
+                    try:
+                        rc += his_p[ix]
+                        rc2 += his_p[ix] * his_p[ix]
+                    except IndexError:
+                        pass
+
+            index_dct[file_index] = 2. * rc / (stat[4] * (end_pos - start_pos + 1) / self.bin_size)
+
+        # sorting data dictionary with read depth values
+        sorted_index_dct = dict(sorted(index_dct.items(), key=lambda item: item[1], reverse=not ascending))
+        # setting up the order for the plot files
+        self.plot_files = list(sorted_index_dct.keys())
+
+        return sorted_index_dct
 
 
 def anim_plot_likelihood(likelihood, segments, n, res, iter, prefix, maxp, minp):

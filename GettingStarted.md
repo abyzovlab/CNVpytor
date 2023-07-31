@@ -235,7 +235,7 @@ Result is stored in tab separated files with following columns:
 * e-val4 -- same as e-val2 but for the middle of CNV,
 * q0 -- fraction of reads mapped with q0 quality in call segments,
 * pN -- fraction of reference genome gaps (Ns) within call region,
-* dNS -- fraction of reference genome gaps (Ns) within call segments,
+* pNS -- fraction of reference genome gaps (Ns) within call segments,
 * pP -- fraction of P bases (1kGP strict mask) within call segments,
 * bin_size – size of bins
 * n – number of bins within call segments,
