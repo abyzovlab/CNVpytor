@@ -3012,8 +3012,8 @@ class Root:
                         self.io.create_signal(c, bin_size, "SNP likelihood call 2d",
                                               data=np.array(likelihood, dtype="float32"), flags=snp_flag)
 
-            plt.hist(gstat_baf,bins=np.linspace(0,1,101))
-            plt.show()
+            #plt.hist(gstat_baf,bins=np.linspace(0,1,101))
+            #plt.show()
             minbaf=min(gstat_baf)
             gstat_rd0=[]
             for b,r in gstat_baf_rd:
