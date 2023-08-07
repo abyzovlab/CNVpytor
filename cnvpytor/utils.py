@@ -10,6 +10,8 @@ from scipy.special import erf
 from scipy import stats
 from scipy.stats import norm, beta
 from scipy.optimize import curve_fit
+import warnings
+from scipy.optimize import OptimizeWarning
 import logging
 import readline
 import requests
@@ -576,8 +578,13 @@ def fit_bimodal(x, y):
         _logger.warning("Problem with fit: insufficient data points. Return None!")
         return None
     try:
-        popt, pcov = curve_fit(bimodal, x, y, p0=[area / 2, mean * 0.66, sigma / 2, area / 2, mean * 1.33, sigma / 2])
-        return popt, pcov
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", OptimizeWarning)
+            popt, pcov = curve_fit(bimodal, x, y, p0=[area / 2, mean * 0.66, sigma / 2, area / 2, mean * 1.33, sigma / 2])
+            return popt, pcov
+    except OptimizeWarning:
+        _logger.warning("Problem with fit: OptimizeWarning. Return None!")
+        return None
     except ValueError:
         _logger.warning("Problem with fit: Value Error. Return None!")
         return None

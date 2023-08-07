@@ -2139,7 +2139,8 @@ class Root:
                     self.io.create_signal(c, bs, "SNP baf", baf[bs].astype("float32"), snp_flag)
                     self.io.create_signal(c, bs, "SNP maf", maf[bs].astype("float32"), snp_flag)
                     if save_likelihood:
-                        self.io.create_signal(c, bs, "SNP likelihood half", likelihood[bs].astype("float32")[:, :res // 2],
+                        self.io.create_signal(c, bs, "SNP likelihood half",
+                                              likelihood[bs].astype("float32")[:, :res // 2],
                                               snp_flag)
                     self.io.create_signal(c, bs, "SNP i1", i1[bs].astype("float32"), snp_flag)
                     self.io.create_signal(c, bs, "SNP i2", i2[bs].astype("float32"), snp_flag)
@@ -2678,7 +2679,7 @@ class Root:
 
     def call_2d(self, bin_sizes, chroms=[], event_type="both", print_calls=False, use_gc_corr=True, rd_use_mask=False,
                 snp_use_mask=True, snp_use_id=False, max_copy_number=10, min_cell_fraction=0.0, baf_threshold=0,
-                omin=None, mcount=None, max_distance=0.1, use_hom=False, res=200, anim=""):
+                omin=None, mcount=None, max_distance=0.1, use_hom=False, res=200, genome_norm_pct=None, anim=""):
         """
         CNV caller using combined RD and unphased BAF sigal based on likelihood merger.
 
@@ -2754,11 +2755,15 @@ class Root:
             gstat_rd_all = []
             gstat_rd = []
             gstat_baf = []
-            gstat_baf_rd = []
+            gstat_baf_rd_n = []
+            total_bins = 0
             gstat_error = []
+            gstat_segments = []
             gstat_lh = []
             gstat_n = []
             gstat_event = []
+
+            flag_rd = (FLAG_GC_CORR if use_gc_corr else 0) | (FLAG_USEMASK if rd_use_mask else 0)
 
             for c in self.io.rd_chromosomes():
                 if (c in rd_gc_chromosomes or not use_gc_corr) and (c in rd_mask_chromosomes or not rd_use_mask) and (
@@ -2769,7 +2774,7 @@ class Root:
                     if use_gc_corr:
                         flag_stat |= FLAG_GC_CORR
                         flag_auto |= FLAG_GC_CORR
-                    flag_rd = (FLAG_GC_CORR if use_gc_corr else 0) | (FLAG_USEMASK if rd_use_mask else 0)
+
                     if self.io.signal_exists(c, bin_size, "RD stat", flag_stat) and \
                             self.io.signal_exists(c, bin_size, "RD", flag_rd):
                         _logger.info("Calculating 2d calls using bin size %d for chromosome '%s'." % (bin_size, c))
@@ -2849,7 +2854,8 @@ class Root:
 
                         iter = 0
                         if anim != "":
-                            anim_plot_rd_likelihood(level, error, likelihood, segments, bins, snp_likelihood[0].size, iter,
+                            anim_plot_rd_likelihood(level, error, likelihood, segments, bins, snp_likelihood[0].size,
+                                                    iter,
                                                     anim + c + "_0_" + str(bin_size), 1, mean)
 
                         while len(overlaps) > 0:
@@ -2878,7 +2884,8 @@ class Root:
                                                                                                 likelihood[i])
                             iter = iter + 1
                             if anim != "" and (iter % 5) == 0:
-                                anim_plot_rd_likelihood(level, error, likelihood, segments, bins, snp_likelihood[0].size, iter,
+                                anim_plot_rd_likelihood(level, error, likelihood, segments, bins,
+                                                        snp_likelihood[0].size, iter,
                                                         anim + c + "_0_" + str(bin_size), maxo,
                                                         mean)
 
@@ -2929,7 +2936,8 @@ class Root:
                                         j = i + 1
                             iter = iter + 1
                             if anim != "":  # and (iter % 50) == 0:
-                                anim_plot_rd_likelihood(level, error, likelihood, segments, bins, snp_likelihood[0].size, iter,
+                                anim_plot_rd_likelihood(level, error, likelihood, segments, bins,
+                                                        snp_likelihood[0].size, iter,
                                                         anim + c + "_1_" + str(bin_size), maxo,
                                                         mean)
 
@@ -2979,11 +2987,13 @@ class Root:
                                         pP += P_per_bin[bin]
                                     pP /= size
 
-                                gstat_baf_rd.append((baf_mean,level[i]))
+                                gstat_baf_rd_n.append((baf_mean, level[i], len(segments[i])))
+                                total_bins += len(segments[i])
                                 gstat_rd.append(level[i])
                                 gstat_error.append(error[i])
                                 gstat_baf.append(baf_mean)
                                 gstat_lh.append(likelihood[i])
+                                gstat_segments.append(segments[i])
                                 gstat_event.append({
                                     "c": c,
                                     "start": segments[i][0] * bin_size + 1,
@@ -3002,7 +3012,6 @@ class Root:
 
                                 gstat_n.append(len(segments[i]))
 
-
                         self.io.create_signal(c, bin_size, "RD mosaic segments 2d",
                                               data=segments_code(segments), flags=flag_rd)
                         self.io.create_signal(c, bin_size, "RD mosaic call 2d",
@@ -3012,19 +3021,36 @@ class Root:
                         self.io.create_signal(c, bin_size, "SNP likelihood call 2d",
                                               data=np.array(likelihood, dtype="float32"), flags=snp_flag)
 
-            #plt.hist(gstat_baf,bins=np.linspace(0,1,101))
-            #plt.show()
-            minbaf=min(gstat_baf)
-            gstat_rd0=[]
-            for b,r in gstat_baf_rd:
-                if b<(minbaf*1.5):
-                    gstat_rd0.append(r)
-
-            if len(gstat_rd0) == 0:
-                data = np.array(gstat_rd_all)
-                _logger.warning("No bins with BAF=0.5! Using all bins for RD normalisation.")
+            data = []
+            if genome_norm_pct is None:
+                if len(gstat_rd0) == 0:
+                    data = gstat_rd_all
+                    _logger.warning("No bins with BAF=0.5! Using all bins for RD normalisation.")
+                else:
+                    data = gstat_rd0
             else:
-                data = np.array(gstat_rd0)
+                _logger.info(
+                    "Estimating normal RD level based on minimal normalisation percentage = %.3f" % genome_norm_pct)
+                sorted_baf_rd_n = sorted(gstat_baf_rd_n, key=lambda x: x[0])
+                cum_n = 0
+                baf_th = 0
+                for b_, _, n_ in sorted_baf_rd_n:
+                    cum_n += n_
+                    baf_th = b_
+                    if cum_n > (total_bins * genome_norm_pct):
+                        break
+                _logger.info("Calculated threshold for BAF = %.3f" % baf_th)
+                cc = None
+                rd = []
+                for ei in range(len(gstat_rd)):
+                    if gstat_baf[ei] <= baf_th:
+                        c = gstat_event[ei]["c"]
+                        if cc != c:
+                            cc = c
+                            rd = self.io.get_signal(c, bin_size, "RD", flag_rd)
+                        for bin in gstat_segments[ei]:
+                            data.append(rd[bin])
+            data = np.array(data)
 
             dmin = np.min(data)
             dmax = np.max(data)
@@ -3050,10 +3076,11 @@ class Root:
             _logger.info("    * rd_99p   = %.4f" % p99)
             _logger.info("    * rd_mean  = %.4f" % mean)
             _logger.info("    * rd_std   = %.4f" % std)
+            _logger.info("    * rd_n   = %d" % len(data))
 
             _logger.info("Checking bimodal hypothesis...")
             bim = fit_bimodal(bins[:-1], hist)
-            if False and bim is not None:
+            if False and (bim is not None):
                 # and bim[0][0] > 0 and bim[0][1] > 0 and bim[0][3] > 0 and bim[0][4] > 0:
                 # and np.sum(np.sqrt(np.diag(bim[1])) / np.array(bim[0])) < 10:
                 _logger.info("Fit successful:")
@@ -3064,15 +3091,10 @@ class Root:
                 _logger.info("    * mean2   = %.4f" % bim[0][4])
                 _logger.info("    * std2   = %.4f" % bim[0][5])
                 _logger.info("    * mean2/mean1   = %.4f" % (bim[0][4] / bim[0][1]))
-                if bim[0][4] / bim[0][1] > 1.75:
-                    if bim[0][4] / bim[0][1] < 2.5:
+                if (bim[0][4] / bim[0][1] > 1.9) and (bim[0][4] / bim[0][1] < 2.1):
                         _logger.info("Using both peaks to estimate normal levels")
                         fitm = (bim[0][0] * bim[0][1] + bim[0][3] * bim[0][4] / 2) / (bim[0][0] + bim[0][3])
                         fits = (bim[0][0] * bim[0][2] + bim[0][3] * bim[0][5] / 2) / (bim[0][0] + bim[0][3])
-                    else:
-                        _logger.info("Using first peak to estimate normal levels")
-                        fitm = bim[0][1]
-                        fits = bim[0][2]
                 else:
                     _logger.info("Ratio mean2/mean1 is smaller than expected. Using single peak fit values.")
                 # plt.hist(data, bins=bins, alpha=.5, label='RD in bins with BAF=1/2', edgecolor='blue', linewidth=1)

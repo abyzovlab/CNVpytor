@@ -69,6 +69,8 @@ def main():
     parser.add_argument('-maxcn', '--max_copy_number', type=int, help="maximal copy number", default=10)
     parser.add_argument('-mindbaf', '--baf_threshold', type=float, help="threshold for change in BAF level",
                         default=0.0)
+    parser.add_argument('-gnp', '--genome_norm_pct', type=float,
+                        help="minimal percentage of genome used for normalisation", default=None)
     parser.add_argument('-bafres', '--baf_resolution', type=int, help="Resolution for unphased BAF likelihood",
                         default=200)
     parser.add_argument('-nolh', '--no_save_likelihood', action='store_true',
@@ -229,7 +231,6 @@ def main():
             show = Show(args.root)
             show.info(args.info)
 
-
         if args.genotype is not None:
             params = {"output_filename": args.plot_output_file,
                       "chrom": args.chrom,
@@ -262,7 +263,6 @@ def main():
                       }
             view = Viewer(args.root, params, force_agg=args.force_agg)
             view.qc(snp_qc=False)
-
 
         if args.compare is not None:
             params = {"bin_size": binsize_type(args.compare[-1]),
@@ -385,8 +385,10 @@ def main():
         if args.baf:
             app = Root(args.root[0], max_cores=args.max_cores)
             app.calculate_baf(args.baf, chroms=args.chrom, use_mask=not args.no_mask, use_id=args.use_id,
-                              use_phase=args.use_phase, res=args.baf_resolution, reduce_noise=args.reduce_noise, blw=args.baf_likelihood_width,
-                              use_hom=args.use_hom, alt_ref_correct=args.alt_corr, save_likelihood=not args.no_save_likelihood)
+                              use_phase=args.use_phase, res=args.baf_resolution, reduce_noise=args.reduce_noise,
+                              blw=args.baf_likelihood_width,
+                              use_hom=args.use_hom, alt_ref_correct=args.alt_corr,
+                              save_likelihood=not args.no_save_likelihood)
         if args.partition:
             app = Root(args.root[0], max_cores=args.max_cores)
             app.partition(args.partition, chroms=args.chrom, use_gc_corr=not args.no_gc_corr,
@@ -403,19 +405,21 @@ def main():
                     bins = list(map(binsize_type, args.call[1:]))
                 if args.use_phase:
                     app.call_baf_phased(bins, chroms=args.chrom, event_type=event_type, print_calls=True,
-                            use_gc_corr=not args.no_gc_corr,
-                            rd_use_mask=args.use_mask_with_rd, snp_use_mask=not args.no_mask, snp_use_id=args.use_id,
-                            mcount=args.min_count, max_copy_number=args.max_copy_number,
-                            min_cell_fraction=args.min_cell_fraction, baf_threshold=args.baf_threshold,
-                            omin=args.overlap_threshold, use_hom=args.use_hom, anim=args.animation)
+                                        use_gc_corr=not args.no_gc_corr,
+                                        rd_use_mask=args.use_mask_with_rd, snp_use_mask=not args.no_mask,
+                                        snp_use_id=args.use_id,
+                                        mcount=args.min_count, max_copy_number=args.max_copy_number,
+                                        min_cell_fraction=args.min_cell_fraction, baf_threshold=args.baf_threshold,
+                                        omin=args.overlap_threshold, use_hom=args.use_hom, anim=args.animation)
                 else:
                     app.call_baf(bins, chroms=args.chrom, event_type=event_type, print_calls=True,
-                            use_gc_corr=not args.no_gc_corr,
-                            rd_use_mask=args.use_mask_with_rd, snp_use_mask=not args.no_mask, snp_use_id=args.use_id,
-                            mcount=args.min_count, max_copy_number=args.max_copy_number,
-                            min_cell_fraction=args.min_cell_fraction, baf_threshold=args.baf_threshold,
-                            omin=args.overlap_threshold, use_hom=args.use_hom, anim=args.animation)
-                #app.call_baf_old([binsize_type(x) for x in args.call[1:]], chroms=args.chrom, use_id=args.use_id,
+                                 use_gc_corr=not args.no_gc_corr,
+                                 rd_use_mask=args.use_mask_with_rd, snp_use_mask=not args.no_mask,
+                                 snp_use_id=args.use_id,
+                                 mcount=args.min_count, max_copy_number=args.max_copy_number,
+                                 min_cell_fraction=args.min_cell_fraction, baf_threshold=args.baf_threshold,
+                                 omin=args.overlap_threshold, use_hom=args.use_hom, anim=args.animation)
+                # app.call_baf_old([binsize_type(x) for x in args.call[1:]], chroms=args.chrom, use_id=args.use_id,
                 #             use_mask=not args.no_mask, mcount=args.min_count, anim=args.animation)
             elif args.call[0] == "mosaic":
                 app.call_mosaic(list(map(binsize_type, args.call[1:])), chroms=args.chrom,
@@ -424,10 +428,10 @@ def main():
             elif args.call[0] == "subclones":
                 bins = list(map(binsize_type, args.call[1:]))
                 app.call_subclones(bins, chroms=args.chrom, cnv_calls="calls combined", print_calls=True,
-                            use_gc_corr=not args.no_gc_corr, rd_use_mask=args.use_mask_with_rd,
-                            snp_use_mask=not args.no_mask, snp_use_id=args.use_id,
-                            max_copy_number=args.max_copy_number,
-                            min_cell_fraction=args.min_cell_fraction, baf_threshold=args.baf_threshold)
+                                   use_gc_corr=not args.no_gc_corr, rd_use_mask=args.use_mask_with_rd,
+                                   snp_use_mask=not args.no_mask, snp_use_id=args.use_id,
+                                   max_copy_number=args.max_copy_number,
+                                   min_cell_fraction=args.min_cell_fraction, baf_threshold=args.baf_threshold)
             elif args.call[0] == "combined":
                 if args.call[1] in ["mosaic", "germline"]:
                     event_type = args.call[1]
@@ -437,18 +441,21 @@ def main():
                     bins = list(map(binsize_type, args.call[1:]))
                 if args.use_phase:
                     app.call_2d_phased(bins, chroms=args.chrom, event_type=event_type, print_calls=True,
-                            use_gc_corr=not args.no_gc_corr,
-                            rd_use_mask=args.use_mask_with_rd, snp_use_mask=not args.no_mask, snp_use_id=args.use_id,
-                            mcount=args.min_count, max_copy_number=args.max_copy_number,
-                            min_cell_fraction=args.min_cell_fraction, baf_threshold=args.baf_threshold,
-                            omin=args.overlap_threshold, use_hom=args.use_hom, anim=args.animation)
+                                       use_gc_corr=not args.no_gc_corr,
+                                       rd_use_mask=args.use_mask_with_rd, snp_use_mask=not args.no_mask,
+                                       snp_use_id=args.use_id,
+                                       mcount=args.min_count, max_copy_number=args.max_copy_number,
+                                       min_cell_fraction=args.min_cell_fraction, baf_threshold=args.baf_threshold,
+                                       omin=args.overlap_threshold, use_hom=args.use_hom, anim=args.animation)
                 else:
                     app.call_2d(bins, chroms=args.chrom, event_type=event_type, print_calls=True,
-                            use_gc_corr=not args.no_gc_corr,
-                            rd_use_mask=args.use_mask_with_rd, snp_use_mask=not args.no_mask, snp_use_id=args.use_id,
-                            mcount=args.min_count, max_copy_number=args.max_copy_number,
-                            min_cell_fraction=args.min_cell_fraction, baf_threshold=args.baf_threshold,
-                            omin=args.overlap_threshold, use_hom=args.use_hom, anim=args.animation)
+                                use_gc_corr=not args.no_gc_corr,
+                                rd_use_mask=args.use_mask_with_rd, snp_use_mask=not args.no_mask,
+                                snp_use_id=args.use_id,
+                                mcount=args.min_count, max_copy_number=args.max_copy_number,
+                                min_cell_fraction=args.min_cell_fraction, baf_threshold=args.baf_threshold,
+                                omin=args.overlap_threshold, use_hom=args.use_hom, genome_norm_pct=args.genome_norm_pct,
+                                anim=args.animation)
             else:
                 app.call(list(map(binsize_type, args.call)), chroms=args.chrom, print_calls=True,
                          use_gc_corr=not args.no_gc_corr, use_mask=args.use_mask_with_rd)
