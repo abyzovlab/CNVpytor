@@ -3759,6 +3759,10 @@ class Viewer(Show, Figure, HelpDescription):
         ret = []
         list_baf = [[], []]
         list_bafP = [[], []]
+        list_h1 = [[], []]
+        list_h1P = [[], []]
+        list_h2 = [[], []]
+        list_h2P = [[], []]
         for i in range(n):
             regs = decode_region(regions[i])
             talt = 0
@@ -3774,18 +3778,26 @@ class Viewer(Show, Figure, HelpDescription):
                             talt += nalt[ix]
                             tref += nref[ix]
                             list_baf[i].append(nalt[ix] / (nalt[ix] + nref[ix]))
+                            list_h1[i].append(nalt[ix])
+                            list_h2[i].append(nref[ix])
                             if flag[ix] & 2:
                                 taltP += nalt[ix]
                                 trefP += nref[ix]
                                 list_bafP[i].append(nalt[ix] / (nalt[ix] + nref[ix]))
+                                list_h1P[i].append(nalt[ix])
+                                list_h2P[i].append(nref[ix])
                         elif gt[ix] == 5:
                             tref += nalt[ix]
                             talt += nref[ix]
                             list_baf[i].append(nref[ix] / (nalt[ix] + nref[ix]))
+                            list_h1[i].append(nref[ix])
+                            list_h2[i].append(nalt[ix])
                             if flag[ix] & 2:
                                 trefP += nalt[ix]
                                 taltP += nref[ix]
                                 list_bafP[i].append(nref[ix] / (nalt[ix] + nref[ix]))
+                                list_h1P[i].append(nref[ix])
+                                list_h2P[i].append(nalt[ix])
                     ix += 1
             baf = talt / (tref + talt) if (tref + talt)>0 else 0
             bafP = taltP / (trefP + taltP) if (trefP + taltP)>0 else 0
@@ -3793,6 +3805,26 @@ class Viewer(Show, Figure, HelpDescription):
         import seaborn as sns
         from scipy.stats import ks_2samp
         from scipy.stats import fisher_exact
+        from scipy.stats import chi2
+
+        ah1=np.array(list_h1[0])
+        ah2=np.array(list_h2[0])
+        P = np.sum(ah1) / (np.sum(ah1) + np.sum(ah2))
+        E_n = P * (ah1 + ah2)
+        E_m = (1 - P) * (ah1 + ah2)
+        chi2_stat = np.sum((ah1 - E_n) ** 2 / E_n) + np.sum((ah2 - E_m) ** 2 / E_m)
+        k = len(ah1)
+        p_value = 1 - chi2.cdf(chi2_stat, k - 1)
+        ah1=np.array(list_h1P[0])
+        ah2=np.array(list_h2P[0])
+        P = np.sum(ah1) / (np.sum(ah1) + np.sum(ah2))
+        E_n = P * (ah1 + ah2)
+        E_m = (1 - P) * (ah1 + ah2)
+        chi2_stat = np.sum((ah1 - E_n) ** 2 / E_n) + np.sum((ah2 - E_m) ** 2 / E_m)
+        k = len(ah1)
+        p_valueP = 1 - chi2.cdf(chi2_stat, k - 1)
+        ret.append([p_value, p_valueP])
+
         odds_ratio, p_value = fisher_exact([[ret[1][2],ret[1][3]],[ret[0][2],ret[0][3]]])
         odds_ratioP, p_valueP = fisher_exact([[ret[1][4],ret[1][5]],[ret[0][4],ret[0][5]]])
         ret.append([odds_ratio, p_value, odds_ratioP, p_valueP])
@@ -3814,18 +3846,22 @@ class Viewer(Show, Figure, HelpDescription):
 
         self.fig_show(suffix="baf_dist")
         if stdout:
+            print("Chi2 test for %s:" % (regions[0]))
+            print("p-value for all variants:      %e" % (ret[2][0]))
+            print("p-value for P-region variants: %e" % (ret[2][1]))
+            print()
             print("All variants:")
             print("%25s\t%15.4f\t%15d\t%15d" % (regions[0], ret[0][0], ret[0][2], ret[0][3]))
             print("%25s\t%15.4f\t%15d\t%15d" % (regions[1], ret[1][0], ret[1][2], ret[1][3]))
-            print("Fisher exact p-value: %15e" % (ret[2][1]))
+            print("Fisher exact p-value: %15e" % (ret[3][1]))
             print()
             print("P-region variants:")
             print("%25s\t%15.4f\t%15d\t%15d" % (regions[0], ret[0][1], ret[0][4], ret[0][5]))
             print("%25s\t%15.4f\t%15d\t%15d" % (regions[1], ret[1][1], ret[1][4], ret[1][5]))
-            print("Fisher exact p-value: %15e" % (ret[2][3]))
+            print("Fisher exact p-value: %15e" % (ret[3][3]))
             print()
-            print("KS test p-val for all variants:      %15e" % (ret[3][1]))
-            print("KS test p-val for P-region variants: %15e" % (ret[3][3]))
+            print("KS test p-val for all variants:      %15e" % (ret[4][1]))
+            print("KS test p-val for P-region variants: %15e" % (ret[4][3]))
             print()
         return ret
 
