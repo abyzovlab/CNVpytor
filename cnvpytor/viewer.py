@@ -818,8 +818,8 @@ class Viewer(Show, Figure, HelpDescription):
             file2_title = self.file_title(self.plot_files[file2])
             file_title = f"{file1_title} vs {file2_title}"
             if i == 0 and self.title:
-                ax.set_title(file_title, position=(0.01, 0.9),  color='C0', fontdict={'verticalalignment':'top',
-                                                                                      'horizontalalignment':'left'})
+                ax.set_title(file_title, position=(0.01, 0.9), color='C0', fontdict={'verticalalignment': 'top',
+                                                                                     'horizontalalignment': 'left'})
 
             start = 0
             xticks = [0]
@@ -865,13 +865,13 @@ class Viewer(Show, Figure, HelpDescription):
                 ax.set_yscale("log")
                 ax.set_ylabel("Log2 RD (Difference")
             else:
-                yticks = np.arange(self.rd_manhattan_range[0]-2, self.rd_manhattan_range[1], 0.5)
+                yticks = np.arange(self.rd_manhattan_range[0] - 2, self.rd_manhattan_range[1], 0.5)
                 if len(yticks) < 9:
                     ax.yaxis.set_major_locator(ticker.FixedLocator(yticks))
                     ax.yaxis.set_major_formatter(ticker.FixedFormatter(yticks))
                 else:
                     ax.yaxis.set_major_locator(plt.MaxNLocator(8))
-                ax.set_ylim([self.rd_manhattan_range[0]-2, self.rd_manhattan_range[1]])
+                ax.set_ylim([self.rd_manhattan_range[0] - 2, self.rd_manhattan_range[1]])
 
                 ax.set_ylabel("RD Difference")
             # ax.grid()
@@ -2504,7 +2504,8 @@ class Viewer(Show, Figure, HelpDescription):
                         FLAG_USEHAP if self.snp_use_phase else 0) | (
                                FLAG_USEMASK if self.rd_use_mask else 0) | FLAG_GC_CORR
                     flag_rd = FLAG_GC_CORR | (FLAG_USEMASK if self.rd_use_mask else 0)
-                    if ("combined_mosaic" in self.callers) and io.signal_exists(c, bin_size, "RD mosaic segments 2d", flag_rd):
+                    if ("combined_mosaic" in self.callers) and io.signal_exists(c, bin_size, "RD mosaic segments 2d",
+                                                                                flag_rd):
                         calls = io.read_calls(c, bin_size, "calls combined", flag)
                         segments = io.get_signal(c, bin_size, "RD mosaic segments 2d", FLAG_GC_CORR)
                         segments = segments_decode(segments)
@@ -2512,7 +2513,7 @@ class Viewer(Show, Figure, HelpDescription):
                         for call in calls:
                             for b in segments[int(call["segment"])]:
                                 if b < end_bin and b >= start_bin:
-                                    if (call["models"][0][1]!=1) or (call["models"][0][2]!=1):
+                                    if (call["models"][0][1] != 1) or (call["models"][0][2] != 1):
                                         h1[b - start_bin] = call["models"][0][1]
                                         h2[b - start_bin] = -call["models"][0][2]
                     gh1.extend(list(h1))
@@ -2520,11 +2521,10 @@ class Viewer(Show, Figure, HelpDescription):
                     borders.append(len(gh1) - 1)
                 x = range(len(gh1))
                 plt.gca().get_xaxis().get_major_formatter().set_useOffset(False)
-                #plt.stackplot(x, gh1, gh2, baseline='zero')
-                plt.bar(x,gh1)
-                plt.bar(x,gh2)
+                # plt.stackplot(x, gh1, gh2, baseline='zero')
+                plt.bar(x, gh1)
+                plt.bar(x, gh2)
                 plt.gca().yaxis.grid()
-
 
                 def format_func(value, tick_number):
                     ix = int(value)
@@ -3733,13 +3733,13 @@ class Viewer(Show, Figure, HelpDescription):
                 ix = 0
                 while ix < len(pos) and pos[ix] <= pos2:
                     if pos[ix] >= pos1 and (nref[ix] + nalt[ix]) != 0:
-                        if gt[ix] == 5:
+                        if gt[ix] == 6:
                             talt += nalt[ix]
                             tref += nref[ix]
                             if flag[ix] & 2:
                                 taltP += nalt[ix]
                                 trefP += nref[ix]
-                        elif gt[ix] == 6:
+                        elif gt[ix] == 5:
                             tref += nalt[ix]
                             talt += nref[ix]
                             if flag[ix] & 2:
@@ -3751,6 +3751,82 @@ class Viewer(Show, Figure, HelpDescription):
             ret.append([baf, bafP])
             if stdout:
                 print("%s\t%f\t%f" % (regions[i], baf, bafP))
+        return ret
+
+    def phased_baf_comparison(self, reg1, reg2, callset=None, stdout=False):
+        regions = [reg1, reg2]
+        n = len(regions)
+        ret = []
+        list_baf = [[], []]
+        list_bafP = [[], []]
+        for i in range(n):
+            regs = decode_region(regions[i])
+            talt = 0
+            tref = 0
+            taltP = 0
+            trefP = 0
+            for c, (pos1, pos2) in regs:
+                pos, ref, alt, nref, nalt, gt, flag, qual = self.io[self.plot_file].read_snp(c, callset=callset)
+                ix = 0
+                while ix < len(pos) and pos[ix] <= pos2:
+                    if pos[ix] >= pos1 and (nref[ix] + nalt[ix]) != 0:
+                        if gt[ix] == 6:
+                            talt += nalt[ix]
+                            tref += nref[ix]
+                            list_baf[i].append(nalt[ix] / (nalt[ix] + nref[ix]))
+                            if flag[ix] & 2:
+                                taltP += nalt[ix]
+                                trefP += nref[ix]
+                                list_bafP[i].append(nalt[ix] / (nalt[ix] + nref[ix]))
+                        elif gt[ix] == 5:
+                            tref += nalt[ix]
+                            talt += nref[ix]
+                            list_baf[i].append(nref[ix] / (nalt[ix] + nref[ix]))
+                            if flag[ix] & 2:
+                                trefP += nalt[ix]
+                                taltP += nref[ix]
+                                list_bafP[i].append(nref[ix] / (nalt[ix] + nref[ix]))
+                    ix += 1
+            baf = talt / (tref + talt) if (tref + talt)>0 else 0
+            bafP = taltP / (trefP + taltP) if (trefP + taltP)>0 else 0
+            ret.append([baf, bafP, tref, talt, trefP, taltP])
+        import seaborn as sns
+        from scipy.stats import ks_2samp
+        from scipy.stats import fisher_exact
+        odds_ratio, p_value = fisher_exact([[ret[1][2],ret[1][3]],[ret[0][2],ret[0][3]]])
+        odds_ratioP, p_valueP = fisher_exact([[ret[1][4],ret[1][5]],[ret[0][4],ret[0][5]]])
+        ret.append([odds_ratio, p_value, odds_ratioP, p_valueP])
+
+        ks_statistic, p_value = ks_2samp(list_baf[0], list_baf[1])
+        ks_statisticP, p_valueP = ks_2samp(list_bafP[0], list_bafP[1])
+        ret.append([ks_statistic, p_value, ks_statisticP, p_valueP])
+        self.new_figure(panel_count=1)
+        sns.kdeplot(list_baf[0], common_norm=True, label='case all', color='red', alpha=0.5)
+        sns.kdeplot(list_bafP[0], common_norm=True, label='case P region', color='red')
+        sns.kdeplot(list_baf[1], common_norm=True, label="control all", color='blue', alpha=0.5)
+        sns.kdeplot(list_bafP[1], common_norm=True, label="control P region", color='blue')
+        plt.xlim([0.2,0.8])
+        plt.grid()
+        plt.xticks([0.25,0.5,0.75])
+        plt.xlabel('Phased BAF')
+        plt.ylabel('Density')
+        plt.legend()
+
+        self.fig_show(suffix="baf_dist")
+        if stdout:
+            print("All variants:")
+            print("%25s\t%15.4f\t%15d\t%15d" % (regions[0], ret[0][0], ret[0][2], ret[0][3]))
+            print("%25s\t%15.4f\t%15d\t%15d" % (regions[1], ret[1][0], ret[1][2], ret[1][3]))
+            print("Fisher exact p-value: %15e" % (ret[2][1]))
+            print()
+            print("P-region variants:")
+            print("%25s\t%15.4f\t%15d\t%15d" % (regions[0], ret[0][1], ret[0][4], ret[0][5]))
+            print("%25s\t%15.4f\t%15d\t%15d" % (regions[1], ret[1][1], ret[1][4], ret[1][5]))
+            print("Fisher exact p-value: %15e" % (ret[2][3]))
+            print()
+            print("KS test p-val for all variants:      %15e" % (ret[3][1]))
+            print("KS test p-val for P-region variants: %15e" % (ret[3][3]))
+            print()
         return ret
 
     def sample2sample(self, s1, s2, callset=None):
@@ -4549,7 +4625,8 @@ class Viewer(Show, Figure, HelpDescription):
                 try:
                     rc += (bin1 * self.bin_size - start_pos + 1 + self.bin_size) * his_p[bin1] / self.bin_size
                     rc += (end_pos - bin2 * self.bin_size) * his_p[bin2] / self.bin_size
-                    rc2 += (bin1 * self.bin_size - start_pos + 1 + self.bin_size) * his_p[bin1] * his_p[bin1] / self.bin_size
+                    rc2 += (bin1 * self.bin_size - start_pos + 1 + self.bin_size) * his_p[bin1] * his_p[
+                        bin1] / self.bin_size
                     rc2 += (end_pos - bin2 * self.bin_size) * his_p[bin2] * his_p[bin2] / self.bin_size
                 except IndexError:
                     pass
