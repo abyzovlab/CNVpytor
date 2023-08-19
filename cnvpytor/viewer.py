@@ -3763,6 +3763,7 @@ class Viewer(Show, Figure, HelpDescription):
         list_h1P = [[], []]
         list_h2 = [[], []]
         list_h2P = [[], []]
+        totc = [0, 0]
         for i in range(n):
             regs = decode_region(regions[i])
             talt = 0
@@ -3772,11 +3773,13 @@ class Viewer(Show, Figure, HelpDescription):
             for c, (pos1, pos2) in regs:
                 pos, ref, alt, nref, nalt, gt, flag, qual = self.io[self.plot_file].read_snp(c, callset=callset)
                 ix = 0
-                while ix < len(pos) and pos[ix] <= pos2:
+                done = False
+                while ix < len(pos) and pos[ix] <= pos2 and not done:
                     if pos[ix] >= pos1 and (nref[ix] + nalt[ix]) != 0:
                         if gt[ix] == 6:
                             talt += nalt[ix]
                             tref += nref[ix]
+                            totc[i] += (nalt[ix] + nref[ix])
                             list_baf[i].append(nalt[ix] / (nalt[ix] + nref[ix]))
                             list_h1[i].append(nalt[ix])
                             list_h2[i].append(nref[ix])
@@ -3789,6 +3792,7 @@ class Viewer(Show, Figure, HelpDescription):
                         elif gt[ix] == 5:
                             tref += nalt[ix]
                             talt += nref[ix]
+                            totc[i] += (nalt[ix] + nref[ix])
                             list_baf[i].append(nref[ix] / (nalt[ix] + nref[ix]))
                             list_h1[i].append(nref[ix])
                             list_h2[i].append(nalt[ix])
@@ -3798,6 +3802,7 @@ class Viewer(Show, Figure, HelpDescription):
                                 list_bafP[i].append(nref[ix] / (nalt[ix] + nref[ix]))
                                 list_h1P[i].append(nref[ix])
                                 list_h2P[i].append(nalt[ix])
+                    done = (i==1) and (totc[1]>=totc[0])
                     ix += 1
             baf = talt / (tref + talt) if (tref + talt)>0 else 0
             bafP = taltP / (trefP + taltP) if (trefP + taltP)>0 else 0
