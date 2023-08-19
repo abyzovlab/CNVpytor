@@ -3779,11 +3779,11 @@ class Viewer(Show, Figure, HelpDescription):
                         if gt[ix] == 6:
                             talt += nalt[ix]
                             tref += nref[ix]
-                            totc[i] += (nalt[ix] + nref[ix])
                             list_baf[i].append(nalt[ix] / (nalt[ix] + nref[ix]))
                             list_h1[i].append(nalt[ix])
                             list_h2[i].append(nref[ix])
                             if flag[ix] & 2:
+                                totc[i] += (nalt[ix] + nref[ix])
                                 taltP += nalt[ix]
                                 trefP += nref[ix]
                                 list_bafP[i].append(nalt[ix] / (nalt[ix] + nref[ix]))
@@ -3792,11 +3792,11 @@ class Viewer(Show, Figure, HelpDescription):
                         elif gt[ix] == 5:
                             tref += nalt[ix]
                             talt += nref[ix]
-                            totc[i] += (nalt[ix] + nref[ix])
                             list_baf[i].append(nref[ix] / (nalt[ix] + nref[ix]))
                             list_h1[i].append(nref[ix])
                             list_h2[i].append(nalt[ix])
                             if flag[ix] & 2:
+                                totc[i] += (nalt[ix] + nref[ix])
                                 trefP += nalt[ix]
                                 taltP += nref[ix]
                                 list_bafP[i].append(nref[ix] / (nalt[ix] + nref[ix]))
@@ -3807,6 +3807,8 @@ class Viewer(Show, Figure, HelpDescription):
             baf = talt / (tref + talt) if (tref + talt)>0 else 0
             bafP = taltP / (trefP + taltP) if (trefP + taltP)>0 else 0
             ret.append([baf, bafP, tref, talt, trefP, taltP])
+        if (ret[0][4]+ret[0][5])==0 or (ret[1][4]+ret[1][5])==0:
+            return ret
         import seaborn as sns
         from scipy.stats import ks_2samp
         from scipy.stats import fisher_exact
