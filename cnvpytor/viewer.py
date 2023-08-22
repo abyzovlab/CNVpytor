@@ -1746,6 +1746,8 @@ class Viewer(Show, Figure, HelpDescription):
                                         cmap[i, start + b * bin_size // pixel_size, cix], call["models"][0][4])
                                 elif color == "coverage":
                                     cmap[i, start + b * bin_size // pixel_size, cix] += bin_size / pixel_size
+                                elif color == "binary":
+                                    cmap[i, start + b * bin_size // pixel_size, cix] = 1
                                 else:  # model copy number
                                     if call["models"][0][0] == 0:
                                         cmap[i, start + b * bin_size // pixel_size, 0] = 1
@@ -1774,13 +1776,13 @@ class Viewer(Show, Figure, HelpDescription):
                 pixel[2] = 1
             return pixel
 
-        if background == "white":
-            cmap = cmap.reshape(n * pixels, 3)
-            np.apply_along_axis(b2w, 1, cmap)
-            cmap = cmap.reshape(n, pixels, 3)
-
-        cmap = (255 * cmap).astype("int")
         if plot == "cmap":
+            if background == "white":
+                cmap = cmap.reshape(n * pixels, 3)
+                np.apply_along_axis(b2w, 1, cmap)
+                cmap = cmap.reshape(n, pixels, 3)
+
+            cmap = (255 * cmap).astype("int")
             self.new_figure(panel_count=1, grid=(1, 1), panel_size=(24, 0.24 * n))
             ax = self.next_panel()
             plt.imshow(cmap, aspect='auto', interpolation='none')
