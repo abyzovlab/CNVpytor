@@ -2339,6 +2339,8 @@ class Viewer(Show, Figure, HelpDescription):
                     ax.xaxis.set_major_locator(plt.MaxNLocator(5))
                     ax.set_xlim([-l * 0.0, (l - 1) * 1.0])
                     ax.xaxis.grid()
+                else:
+                    plt.setp(ax.get_xticklabels(), visible=False)
 
                 ax.yaxis.set_ticklabels([])
                 ax.yaxis.set_ticks([0, 0.25, 0.5, 0.75, 1.0], minor=[])
