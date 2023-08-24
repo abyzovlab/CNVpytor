@@ -1828,7 +1828,7 @@ class Viewer(Show, Figure, HelpDescription):
             ax.set_yticks(range(n))
             ax = self.next_panel()
             Z = hierarchy.linkage(x, 'average', 'correlation')
-            dn = hierarchy.dendrogram(Z)
+            dn = hierarchy.dendrogram(Z,labels=[self.file_title(self.plot_files[i]) for i in range(n)])
 
             self.fig_show(suffix="callmap")
         return cmap
