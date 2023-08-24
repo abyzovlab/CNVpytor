@@ -1696,7 +1696,7 @@ class Viewer(Show, Figure, HelpDescription):
         self.fig_show(suffix="manhattan" if plot_type == "rd" else "snp_calls")
 
     def callmap(self, color="frequency", background="white", pixel_size=1700000, max_p_val=1e-20, min_freq=0.01,
-                plot="cmap"):
+                min_dbaf=0.0, plot="cmap"):
         bin_size = self.bin_size
         if self.reference_genome is None:
             _logger.warning("Missing reference genome required for callmap.")
@@ -1738,7 +1738,7 @@ class Viewer(Show, Figure, HelpDescription):
 
                     for call in calls:
                         if call["bins"] > self.min_segment_size and call["p_val"] < max_p_val and "segment" in call and \
-                                call["models"][0][4] > min_freq:
+                                call["models"][0][4] >= min_freq and call["baf"]>=min_dbaf:
                             cix = int(call["type"]) + 1
                             for b in segments[int(call["segment"])]:
                                 if color == "frequency":
