@@ -4093,9 +4093,7 @@ class Viewer(Show, Figure, HelpDescription):
             ret.append([c, pos1, pos2])
             for bs in bin_sizes:
                 flag_rd = (FLAG_GC_CORR if self.rd_use_gc_corr else 0) | (FLAG_USEMASK if self.rd_use_mask else 0)
-                stat = self.io[file_index].get_signal(c, bs, "RD stat", flag_rd | FLAG_AUTO)
-                if stat is None or len(stat) == 0:
-                    stat = self.io[file_index].get_signal(c, bs, "RD stat", flag_rd | FLAG_SEX)
+                mean, stdev = io.rd_normal_level(bin_size, flag_rd | FLAG_GC_CORR)
                 his_p = self.io[file_index].get_signal(c, bs, "RD", flag_rd)
                 bin1 = (pos1 - 1) // bs
                 bin2 = (pos2 - 1) // bs
@@ -4123,14 +4121,14 @@ class Viewer(Show, Figure, HelpDescription):
                             pass
                 e2 = 0
                 if p_val:
-                    e1 = getEValue(stat[4], stat[5], his_p, bin1, bin2 + 1) * 2.9e9 / bs
-                    e2 = gaussianEValue(stat[4], stat[5], his_p, bin1, bin2 + 1) * 2.9e9
+                    e1 = getEValue(mean, stdev, his_p, bin1, bin2 + 1) * 2.9e9 / bs
+                    e2 = gaussianEValue(mean, stdev, his_p, bin1, bin2 + 1) * 2.9e9
                 if interactive:
-                    print("\t%f" % (2. * rc / (stat[4] * (pos2 - pos1 + 1) / bs)), end="")
+                    print("\t%f" % (2. * rc / (mean * (pos2 - pos1 + 1) / bs)), end="")
                     if p_val:
                         print("\t%e\t%e" % (e1, e2), end="")
 
-                ret[-1].append(2. * rc / (stat[4] * (pos2 - pos1 + 1) / bs))
+                ret[-1].append(2. * rc / (mean * (pos2 - pos1 + 1) / bs))
                 if p_val:
                     ret[-1].append(e2)
             if interactive:
@@ -4158,9 +4156,7 @@ class Viewer(Show, Figure, HelpDescription):
                     if chr_len is not None and pos2 == 1000000000:
                         pos2 = chr_len
                     flag_rd = (FLAG_GC_CORR if self.rd_use_gc_corr else 0) | (FLAG_USEMASK if self.rd_use_mask else 0)
-                    stat = self.io[file_index].get_signal(c, bs, "RD stat", flag_rd | FLAG_AUTO)
-                    if stat is None or len(stat) == 0:
-                        stat = self.io[file_index].get_signal(c, bs, "RD stat", flag_rd | FLAG_SEX)
+                    mean, stdev = io.rd_normal_level(bin_size, flag_rd | FLAG_GC_CORR)
                     his_p = self.io[file_index].get_signal(c, bs, "RD", flag_rd)
                     qrd_p = self.io[file_index].get_signal(c, bs, "RD")
                     qrd_u = self.io[file_index].get_signal(c, bs, "RD unique")
@@ -4267,8 +4263,8 @@ class Viewer(Show, Figure, HelpDescription):
                             except IndexError:
                                 pass
 
-                e1 = getEValue(stat[4], stat[5], his_p, bin1, bin2 + 1) * 2.9e9 / bs
-                e2 = gaussianEValue(stat[4], stat[5], his_p, bin1, bin2 + 1) * 2.9e9
+                e1 = getEValue(mean, stdev, his_p, bin1, bin2 + 1) * 2.9e9 / bs
+                e2 = gaussianEValue(mean, stdev, his_p, bin1, bin2 + 1) * 2.9e9
                 dG = -1
                 if gc:
                     pN = 1 - pN / (pos2 - pos1 + 1)
@@ -4279,7 +4275,7 @@ class Viewer(Show, Figure, HelpDescription):
                 if nansize == 0:
                     rc = np.nan
                 else:
-                    rc = 2 * rc / (stat[4] * nansize / bs)
+                    rc = 2 * rc / (mean * nansize / bs)
                 ret[bs][-1].append(rc)
                 ret[bs][-1].append(e1)
                 ret[bs][-1].append(e2)
