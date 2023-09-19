@@ -15,6 +15,7 @@ import matplotlib.colors as colors
 import matplotlib.ticker as ticker
 from scipy.cluster import hierarchy
 from scipy.stats import beta
+from scipy.spatial.distance import pdist
 from io import BytesIO
 from .vcf import CreateVCF
 
@@ -1794,6 +1795,51 @@ class Viewer(Show, Figure, HelpDescription):
             chroms = list(map(Genome.canonical_chrom_name, chroms))
             ax.set_xticklabels(chroms)
             self.fig_show(suffix="callmap")
+        
+        elif plot == "cluster_map":
+            if background == "white":
+                cmap = cmap.reshape(n * pixels, 3)
+                np.apply_along_axis(b2w, 1, cmap)
+                cmap = cmap.reshape(n, pixels, 3)
+                
+            self.new_figure(panel_count=1, grid=(1, 1), panel_size=(24, 0.24 * n))
+            heatmap_ax = self.fig.add_axes([0.1, 0.1, 0.75, 0.8])  # Adjust the coordinates and size
+            dendrogram_ax = self.fig.add_axes([0.85, 0.1, 0.1, 0.8])  # Adjust the coordinates and size
+
+            cmap_formatted = np.concatenate((cmap[:, :, 0], cmap[:, :, 1], cmap[:, :, 2]), axis=1)
+
+            # Calculate the distance between each sample
+            distance = pdist(cmap_formatted)
+
+            # Perform hierarchical/agglomerative clustering
+            Z = hierarchy.linkage(distance, 'ward')
+
+            # Create dendrogram
+            dendro = hierarchy.dendrogram(Z, orientation='right', no_labels=True, ax=dendrogram_ax)
+            dendrogram_ax.set_xticks([])
+            dendrogram_ax.set_yticks([])
+            dendrogram_ax.set_xticklabels([])
+            dendrogram_ax.set_yticklabels([])
+
+            # Remove the border around the dendrogram
+            dendrogram_ax.set_frame_on(False)
+
+            # Reorder data with respect to clustering
+            idx = list(reversed(dendro['leaves']))
+            cmap = cmap[idx, :]
+
+            # Create main figure
+            heatmap_ax.imshow(cmap, aspect='auto', interpolation='none')
+
+            #  set x ticks label
+            heatmap_ax.set_yticks(range(n))
+            heatmap_ax.set_yticklabels([self.file_title(self.plot_files[i]) for i in idx])
+            heatmap_ax.set_xticks((np.array(starts) + np.array(ends)) / 2)
+
+            chroms = list(map(Genome.canonical_chrom_name, chroms))
+            heatmap_ax.set_xticklabels(chroms)
+            self.fig_show(suffix="cluster_map")
+
         elif plot == "regions":
             self.new_figure(panel_count=1, grid=(1, 1), panel_size=(24, 24))
             ax = self.next_panel()
