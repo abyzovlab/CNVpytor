@@ -1739,7 +1739,7 @@ class Viewer(Show, Figure, HelpDescription):
 
                     for call in calls:
                         if call["bins"] > self.min_segment_size and call["p_val"] < max_p_val and "segment" in call and \
-                                call["models"][0][4] >= min_freq and call["baf"]>=min_dbaf:
+                                call["models"][0][4] >= min_freq and call["baf"] >= min_dbaf:
                             cix = int(call["type"]) + 1
                             for b in segments[int(call["segment"])]:
                                 if color == "frequency":
@@ -1795,13 +1795,13 @@ class Viewer(Show, Figure, HelpDescription):
             chroms = list(map(Genome.canonical_chrom_name, chroms))
             ax.set_xticklabels(chroms)
             self.fig_show(suffix="callmap")
-        
+
         elif plot == "cluster_map":
             if background == "white":
                 cmap = cmap.reshape(n * pixels, 3)
                 np.apply_along_axis(b2w, 1, cmap)
                 cmap = cmap.reshape(n, pixels, 3)
-                
+
             self.new_figure(panel_count=1, grid=(1, 1), panel_size=(24, 0.24 * n))
             heatmap_ax = self.fig.add_axes([0.1, 0.1, 0.75, 0.8])  # Adjust the coordinates and size
             dendrogram_ax = self.fig.add_axes([0.85, 0.1, 0.1, 0.8])  # Adjust the coordinates and size
@@ -1874,7 +1874,7 @@ class Viewer(Show, Figure, HelpDescription):
             ax.set_yticks(range(n))
             ax = self.next_panel()
             Z = hierarchy.linkage(x, 'average', 'correlation')
-            dn = hierarchy.dendrogram(Z,labels=[self.file_title(self.plot_files[i]) for i in range(n)])
+            dn = hierarchy.dendrogram(Z, labels=[self.file_title(self.plot_files[i]) for i in range(n)])
 
             self.fig_show(suffix="callmap")
         return cmap
@@ -3803,7 +3803,7 @@ class Viewer(Show, Figure, HelpDescription):
                 print("%s\t%f\t%f" % (regions[i], baf, bafP))
         return ret
 
-    def phased_baf_comparison(self, reg1, reg2, callset=None, stdout=False):
+    def phased_baf_comparison(self, reg1, reg2, callset=None, stdout=False, caller='2d'):
         regions = [reg1, reg2]
         n = len(regions)
         ret = []
@@ -3824,11 +3824,19 @@ class Viewer(Show, Figure, HelpDescription):
                 pos, ref, alt, nref, nalt, gt, flag, qual = self.io[self.plot_file].read_snp(c, callset=callset)
                 ix = 0
                 done = False
+                flipped_bins = set({})
+                snp_flag = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0) | (
+                    FLAG_USEHAP if self.snp_use_phase else 0)
+                flipped_bins = set(
+                    map(int, list(self.io[self.plot_file].get_signal(c, self.bin_size, "SNP " + caller + " call flipped bins", snp_flag))))
+
                 while ix < len(pos) and pos[ix] <= pos2 and not done:
                     if pos[ix] >= pos1 and (nref[ix] + nalt[ix]) != 0:
+                        if pos[ix] // self.bin_size in flipped_bins:
+                            nref[ix], nalt[ix] = nalt[ix], nref[ix]
                         if gt[ix] == 6:
                             talt += nalt[ix]
-                            tref += nref[ix]
+                            tref += nalt[ix]
                             list_baf[i].append(nalt[ix] / (nalt[ix] + nref[ix]))
                             list_h1[i].append(nalt[ix])
                             list_h2[i].append(nref[ix])
@@ -3852,28 +3860,28 @@ class Viewer(Show, Figure, HelpDescription):
                                 list_bafP[i].append(nref[ix] / (nalt[ix] + nref[ix]))
                                 list_h1P[i].append(nref[ix])
                                 list_h2P[i].append(nalt[ix])
-                    done = (i==1) and (totc[1]>=totc[0])
+                    done = (i == 1) and (totc[1] >= totc[0])
                     ix += 1
-            baf = talt / (tref + talt) if (tref + talt)>0 else 0
-            bafP = taltP / (trefP + taltP) if (trefP + taltP)>0 else 0
+            baf = talt / (tref + talt) if (tref + talt) > 0 else 0
+            bafP = taltP / (trefP + taltP) if (trefP + taltP) > 0 else 0
             ret.append([baf, bafP, tref, talt, trefP, taltP])
-        if (ret[0][4]+ret[0][5])==0 or (ret[1][4]+ret[1][5])==0:
+        if (ret[0][4] + ret[0][5]) == 0 or (ret[1][4] + ret[1][5]) == 0:
             return ret
         import seaborn as sns
         from scipy.stats import ks_2samp
         from scipy.stats import fisher_exact
         from scipy.stats import chi2
 
-        ah1=np.array(list_h1[0])
-        ah2=np.array(list_h2[0])
+        ah1 = np.array(list_h1[0])
+        ah2 = np.array(list_h2[0])
         P = np.sum(ah1) / (np.sum(ah1) + np.sum(ah2))
         E_n = P * (ah1 + ah2)
         E_m = (1 - P) * (ah1 + ah2)
         chi2_stat = np.sum((ah1 - E_n) ** 2 / E_n) + np.sum((ah2 - E_m) ** 2 / E_m)
         k = len(ah1)
         p_value = 1 - chi2.cdf(chi2_stat, k - 1)
-        ah1=np.array(list_h1P[0])
-        ah2=np.array(list_h2P[0])
+        ah1 = np.array(list_h1P[0])
+        ah2 = np.array(list_h2P[0])
         P = np.sum(ah1) / (np.sum(ah1) + np.sum(ah2))
         E_n = P * (ah1 + ah2)
         E_m = (1 - P) * (ah1 + ah2)
@@ -3882,8 +3890,8 @@ class Viewer(Show, Figure, HelpDescription):
         p_valueP = 1 - chi2.cdf(chi2_statP, k - 1)
         ret.append([p_value, chi2_stat, p_valueP, chi2_statP])
 
-        odds_ratio, p_value = fisher_exact([[ret[1][2],ret[1][3]],[ret[0][2],ret[0][3]]])
-        odds_ratioP, p_valueP = fisher_exact([[ret[1][4],ret[1][5]],[ret[0][4],ret[0][5]]])
+        odds_ratio, p_value = fisher_exact([[ret[1][2], ret[1][3]], [ret[0][2], ret[0][3]]])
+        odds_ratioP, p_valueP = fisher_exact([[ret[1][4], ret[1][5]], [ret[0][4], ret[0][5]]])
         ret.append([odds_ratio, p_value, odds_ratioP, p_valueP])
 
         ks_statistic, p_value = ks_2samp(list_baf[0], list_baf[1])
@@ -3894,9 +3902,9 @@ class Viewer(Show, Figure, HelpDescription):
         sns.kdeplot(list_bafP[0], common_norm=True, label='case P region', color='red')
         sns.kdeplot(list_baf[1], common_norm=True, label="control all", color='cyan', alpha=0.7)
         sns.kdeplot(list_bafP[1], common_norm=True, label="control P region", color='blue')
-        plt.xlim([0.2,0.8])
+        plt.xlim([0.2, 0.8])
         plt.grid()
-        plt.xticks([0.25,0.5,0.75])
+        plt.xticks([0.25, 0.5, 0.75])
         plt.xlabel('Phased BAF')
         plt.ylabel('Density')
         plt.legend()
@@ -4139,7 +4147,7 @@ class Viewer(Show, Figure, HelpDescription):
             ret.append([c, pos1, pos2])
             for bs in bin_sizes:
                 flag_rd = (FLAG_GC_CORR if self.rd_use_gc_corr else 0) | (FLAG_USEMASK if self.rd_use_mask else 0)
-                mean, stdev = io.rd_normal_level(bin_size, flag_rd | FLAG_GC_CORR)
+                mean, stdev = self.io[file_index].rd_normal_level(bs, flag_rd | FLAG_GC_CORR)
                 his_p = self.io[file_index].get_signal(c, bs, "RD", flag_rd)
                 bin1 = (pos1 - 1) // bs
                 bin2 = (pos2 - 1) // bs
@@ -4202,7 +4210,7 @@ class Viewer(Show, Figure, HelpDescription):
                     if chr_len is not None and pos2 == 1000000000:
                         pos2 = chr_len
                     flag_rd = (FLAG_GC_CORR if self.rd_use_gc_corr else 0) | (FLAG_USEMASK if self.rd_use_mask else 0)
-                    mean, stdev = io.rd_normal_level(bin_size, flag_rd | FLAG_GC_CORR)
+                    mean, stdev = self.io[file_index].rd_normal_level(bs, flag_rd | FLAG_GC_CORR)
                     his_p = self.io[file_index].get_signal(c, bs, "RD", flag_rd)
                     qrd_p = self.io[file_index].get_signal(c, bs, "RD")
                     qrd_u = self.io[file_index].get_signal(c, bs, "RD unique")
