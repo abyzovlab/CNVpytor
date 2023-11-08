@@ -246,6 +246,7 @@ class Root:
     def _read_vcf(self, vcf_file, chroms, sample='', use_index=False, no_counts=False, ad_tag="AD", gt_tag="GT",
                   filter=True, callset=None):
 
+
         vcff = Vcf(vcf_file)
         chrs = [c for c in vcff.get_chromosomes() if len(chroms) == 0 or c in chroms]
 
@@ -284,6 +285,86 @@ class Root:
                 return vcff.read_all_snp_no_counts(save_data_no_counts, sample, gt_tag=gt_tag, filter=filter)
             else:
                 return vcff.read_all_snp(save_data, sample, ad_tag=ad_tag, gt_tag=gt_tag, filter=filter)
+
+    def _read_snp_stdin(self, callback):
+        """
+        Read SNP/indel data from stdin in format "chr:pos\t[ALT_C,REF_C]\t0/1".
+
+        Parameters
+        ----------
+        callback : callable
+            Function to call after read a chromosome:
+            callback(chrom, pos, ref, alt, nref, nalt, gt, flag, qual)
+
+        Returns
+        -------
+        count : int
+            Number of read chromosomes
+
+        """
+        pos = []
+        ref = []
+        alt = []
+        nref = []
+        nalt = []
+        gt = []
+        flag = []
+        qual = []
+        last_chrom = None
+        count = 0
+        alphabet = ['A', 'T', 'G', 'C', '.']
+
+        try:
+            while True:
+                line = input()
+                sp = line.split("\t")
+                chrom, cpos = sp[0].split(":")
+                cpos = int(cpos)
+                alt_c, ref_c = tuple(map(int,sp[1][1:-1].split(",")))
+                gt1_c, gt2_c = tuple(map(int,sp[2].split("/")))
+                if last_chrom is None:
+                    last_chrom = chrom
+                if last_chrom != chrom:
+                    _logger.info("Chromosome '%s' read. Number of variants to store: %d." % (last_chrom, len(pos)))
+                    callback(last_chrom, pos, ref, alt, nref, nalt, gt, flag, qual)
+                    pos = []
+                    ref = []
+                    alt = []
+                    nref = []
+                    nalt = []
+                    gt = []
+                    flag = []
+                    qual = []
+                    filter_stat = {}
+                    count += 1
+                pos.append(cpos)
+                ref.append('A')
+                alt.append('T')
+                flag.append(2)
+                qual.append(0)
+                nref.append(alt_c)
+                nalt.append(ref_c)
+                if gt1_c == gt2_c:
+                    gt.append(3)
+                else:
+                    gt.append(1)
+
+        except EOFError:
+            pass
+
+        _logger.debug("Chromosome '%s' read. Number of variants to store: %d." % (last_chrom, len(pos)))
+        callback(last_chrom, pos, ref, alt, nref, nalt, gt, flag, qual)
+        count += 1
+        return count
+    def stdin2snp(self):
+        def save_data(chr, pos, ref, alt, nref, nalt, gt, flag, qual):
+            if (not pos is None) and (len(pos) > 0):
+                pos0, ref0, alt0, nref0, nalt0, gt0, flag0, qual0 = self.io.read_snp(chr)
+                self.io.save_snp(chr, pos0+pos, ref0+ref, alt0+alt, nref0+nref, nalt0+nalt, gt0+gt, flag0+flag,
+                                 qual0+qual, chromosome_length = Genome.reference_genomes["hg38"]["chromosomes"][chr][0])
+        self._read_snp_stdin(save_data)
+
+
 
     def rd(self, bamfiles, chroms=[], reference_filename=False, overwrite=False):
         """ Read chromosomes from bam/sam/cram file(s) and store in cnvpytor file.

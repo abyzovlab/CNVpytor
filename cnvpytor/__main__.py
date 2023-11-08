@@ -53,6 +53,7 @@ def main():
     parser.add_argument('-call', '--call', type=str, nargs="+",
                         help="CNV caller: [baf] bin_size [bin_size2 ...] (multiple bin sizes separate by space)")
     parser.add_argument('-vcf', '-snp', '--vcf', nargs="+", type=str, help="read SNP data from vcf files")
+    parser.add_argument('-stdin2snp', '--stdin2snp', action='store_true', help='read SNP data from stdin')
     parser.add_argument('-somatic_snv', '--somatic_snv', nargs="+", type=str, help="read SNP data from vcf files")
 
     parser.add_argument('-minc', '--min_count', type=int,
@@ -324,6 +325,10 @@ def main():
             app = Root(args.root[0], create=True, max_cores=args.max_cores)
             app.vcf(args.vcf, chroms=args.chrom, sample=args.vcf_sample, no_counts=args.no_snp_counts,
                     ad_tag=args.ad_tag, gt_tag=args.gt_tag, filter=not args.no_filter)
+
+        if args.stdin2snp:
+            app = Root(args.root[0], create=True, max_cores=args.max_cores)
+            app.stdin2snp()
 
         if args.idvar:
             app = Root(args.root[0], create=True, max_cores=args.max_cores)

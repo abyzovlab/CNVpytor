@@ -430,6 +430,7 @@ class Vcf:
             _logger.error("Variant file reading problem.")
             exit(0)
 
+
     def read_all_snp_no_counts(self, callback, sample='', gt_tag='GT', filter=True):
         """
         Read SNP/indel data without counts (AD tag) for given sample name.

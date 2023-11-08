@@ -758,7 +758,7 @@ class HelpDescription(object):
             topic="title",
             p_desc="Enables title in region plots",
             p_type="bool",
-            p_default=str(default["legend"]),
+            p_default=str(default["title"]),
             p_affects="region plot, rd, baf",
             p_example="set title\nunset title",
             p_see="legend"
