@@ -320,7 +320,7 @@ class Root:
                 sp = line.split("\t")
                 chrom, cpos = sp[0].split(":")
                 cpos = int(cpos)
-                alt_c, ref_c = tuple(map(int,sp[1][1:-1].split(",")))
+                alt_c, ref_c = tuple(map(int,sp[1].split(",")))
                 gt1_c, gt2_c = tuple(map(int,sp[2].split("/")))
                 if last_chrom is None:
                     last_chrom = chrom
