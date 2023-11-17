@@ -320,8 +320,10 @@ class Root:
                 sp = line.split("\t")
                 chrom, cpos = sp[0].split(":")
                 cpos = int(cpos)
-                alt_c, ref_c = tuple(map(int,sp[1].split(",")))
-                gt1_c, gt2_c = tuple(map(int,sp[2].split("/")))
+                ref_b, alt_b = sp[1], sp[2]
+                ref_c = int(sp[3])
+                alt_c = int(sp[4])
+                gt1_c, gt2_c = tuple(map(int,sp[5].split("/")))
                 if last_chrom is None:
                     last_chrom = chrom
                 if last_chrom != chrom:
@@ -338,12 +340,12 @@ class Root:
                     filter_stat = {}
                     count += 1
                 pos.append(cpos)
-                ref.append('A')
-                alt.append('T')
+                ref.append(ref_b)
+                alt.append(alt_b)
                 flag.append(2)
                 qual.append(0)
-                nref.append(alt_c)
-                nalt.append(ref_c)
+                nref.append(ref_c)
+                nalt.append(alt_c)
                 if gt1_c == gt2_c:
                     gt.append(3)
                 else:
