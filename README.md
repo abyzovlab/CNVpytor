@@ -39,7 +39,8 @@ CNVpytor: a tool for copy number variation detection and analysis from read dept
  - [Demo Video](https://www.youtube.com/watch?v=YfO9lhs2AAk) 
  - Links
    - https://github.com/igvteam/igv.js/wiki/cnvpytor
-   - https://igv.org/app/ 
+   - https://igv.org/app/
+  - Test Link: https://arpanda.github.io/igv.js/examples/cnvpytor/ 
 
 ## Gallery
 
