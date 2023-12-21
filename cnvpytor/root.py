@@ -2825,6 +2825,7 @@ class Root:
         ret = {}
         for bin_size in bin_sizes:
             ret[bin_size] = []
+            chrcalls = {}
             if omin is None:
                 overlap_min = 0.05 * bin_size / 3e9
             else:
@@ -2849,6 +2850,7 @@ class Root:
             flag_rd = (FLAG_GC_CORR if use_gc_corr else 0) | (FLAG_USEMASK if rd_use_mask else 0)
 
             for c in self.io.rd_chromosomes():
+                chrcalls[c]=[]
                 if (c in rd_gc_chromosomes or not use_gc_corr) and (c in rd_mask_chromosomes or not rd_use_mask) and (
                         self.io.signal_exists(c, bin_size, "SNP baf", snp_flag)) and (
                         len(chroms) == 0 or (c in chroms)):
@@ -3254,7 +3256,7 @@ class Root:
                                                     1],
                                                 master_lh[ei]))
 
-            chrcalls = {}
+
             for ei in range(len(gstat_rd)):
                 etype = "cnnloh"
                 netype = 0
