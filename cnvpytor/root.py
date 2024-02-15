@@ -339,6 +339,7 @@ class Root:
                     qual = []
                     filter_stat = {}
                     count += 1
+                    last_chrom = chrom
                 pos.append(cpos)
                 ref.append(ref_b)
                 alt.append(alt_b)
