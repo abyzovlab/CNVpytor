@@ -4190,6 +4190,65 @@ class Viewer(Show, Figure, HelpDescription):
 
         return ret
 
+    def genotype_genes_from_file(self, bin_size, filename):
+        genes = {}
+        genes_list = []
+        with open(filename, 'r') as file:
+            lines = file.readlines()
+            genes = {line.split('\t')[0]: line.split('\t')[1].strip() for line in lines}
+            genes_list.append(line.split('\t')[0] for line in lines)
+
+        chrom_gene = {}
+        gene_bins = {}
+        gene_size = {}
+        gene_print = {}
+        for gene in genes:
+            chrom, (start, stop) = decode_region(genes[gene])[0]
+            if chrom not in chrom_gene:
+                chrom_gene[chrom] = []
+            chrom_gene[chrom].append(gene)
+            gene_bins[gene]=(start//bin_size,stop//bin_size+1)
+            gene_size[gene]=stop-start
+
+        file_index = self.plot_file
+        rd_gc_chromosomes = {}
+        for c in self.io_gc.gc_chromosomes():
+            rd_name = self.io[file_index].rd_chromosome_name(c)
+            if not rd_name is None:
+                rd_gc_chromosomes[rd_name] = c
+
+        for c in rd_gc_chromosomes:
+            if c in chrom_gene:
+                flag_rd = (FLAG_GC_CORR if self.rd_use_gc_corr else 0) | (FLAG_USEMASK if self.rd_use_mask else 0)
+                mean, stdev = self.io[file_index].rd_normal_level(bin_size, flag_rd | FLAG_GC_CORR)
+                rd = self.io[file_index].get_signal(c, bin_size, "RD", flag_rd)
+                rd_raw = self.io[file_index].get_signal(c, bin_size, "RD")
+                snp_flag = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0) | (
+                    FLAG_USEHAP if self.snp_use_phase else 0)
+                snp_likelihood = list(
+                    self.io[file_index].get_signal(c, bin_size, "SNP likelihood", snp_flag).astype("float64"))
+                snp_hets = self.io[file_index].get_signal(c, bin_size, "SNP bin count 0|1", snp_flag)
+                snp_hets += self.io[file_index].get_signal(c, bin_size, "SNP bin count 1|0", snp_flag)
+                snp_homs = self.io[file_index].get_signal(c, bin_size, "SNP bin count 1|1", snp_flag)
+
+
+                for gene in chrom_gene[c]:
+                    mean_rd = np.nanmean(rd[gene_bins[gene][0]:gene_bins[gene][1]])
+                    mean_rd_raw = np.nanmean(rd_raw[gene_bins[gene][0]:gene_bins[gene][1]])
+                    hets = np.sum(snp_hets[gene_bins[gene][0]:gene_bins[gene][1]])
+                    homs = np.sum(snp_homs[gene_bins[gene][0]:gene_bins[gene][1]])
+                    lh = np.nanprod(snp_likelihood[gene_bins[gene][0]:gene_bins[gene][1]], axis=0)
+                    baf, baf_p = likelihood_baf_pval(lh)
+
+                    #meanbaf = np.nanmean(list(map(lambda x:likelihood_baf_pval(x)[0],snp_likelihood[gene_bins[gene][0]:gene_bins[gene][1]])))
+                    print(gene,gene_bins[gene][1]-gene_bins[gene][0],mean_rd/mean,mean_rd_raw/mean,hets,homs, baf)
+                    gene_print[gene] = f"{gene}\t{gene_size[gene]}\t{gene_bins[gene][1]-gene_bins[gene][0]}\t"
+                    gene_print[gene] += f"{mean_rd/mean}\t{mean_rd_raw/mean}\t{hets}\t{homs}\t{baf}"
+        for gene in genes_list:
+            if gene in gene_print:
+                print(gene_print[gene])
+
+
     def genotype_all(self, bin_sizes, regions, interactive=False, file_index=None):
         if file_index is None:
             file_index = self.plot_file

@@ -139,6 +139,7 @@ def main():
                         help='print quality control statistics without SNP data')
     parser.add_argument('-comp', '--compare', type=str, nargs="*", help='compere two regions: -comp reg1 reg2 [n_bins]')
     parser.add_argument('-genotype', '--genotype', type=str, nargs="*")
+    parser.add_argument('-genotype_genes', '--genotype_genes', type=str, nargs="*")
     parser.add_argument('-a', '--all', action='store_true', help='Genotype with all columns')
     parser.add_argument('-meta', '--metadata', action='store_true', help='list Metadata')
     parser.add_argument('-fasta2rg', '--reference_genome_template', type=str,
@@ -242,6 +243,17 @@ def main():
                       }
             view = Viewer(args.root, params, force_agg=args.force_agg)
             view.genotype_prompt(list(map(binsize_type, args.genotype)), all=args.all)
+
+        if args.genotype_genes is not None:
+            params = {"output_filename": args.plot_output_file,
+                      "chrom": args.chrom,
+                      "panels": args.panels,
+                      "snp_use_mask": not args.no_mask,
+                      "snp_use_id": args.use_id,
+                      "rd_use_mask": args.use_mask_with_rd
+                      }
+            view = Viewer(args.root, params, force_agg=args.force_agg)
+            view.genotype_genes_from_file(binsize_type(args.genotype_genes[0]), args.genotype_genes[1])
 
         if args.qc is not None:
             params = {"bin_size": binsize_type(args.qc[-1]),
