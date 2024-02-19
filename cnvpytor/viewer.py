@@ -4240,7 +4240,7 @@ class Viewer(Show, Figure, HelpDescription):
                     lh = np.nanprod(snp_likelihood[gene_bins[gene][0]:gene_bins[gene][1]], axis=0)
                     baf, baf_p = likelihood_baf_pval(lh)
                     gene_print[gene] = f"{gene}\t{gene_size[gene]}\t{gene_bins[gene][1]-gene_bins[gene][0]}\t"
-                    gene_print[gene] += f"{mean_rd/mean}\t{mean_rd_raw/mean}\t{hets}\t{homs}\t{baf}"
+                    gene_print[gene] += f"{mean_rd/mean:.5f}\t{mean_rd_raw/mean:.5f}\t{hets}\t{homs}\t{baf:.3f}"
 
         for gene in genes_list:
             if gene in gene_print:
