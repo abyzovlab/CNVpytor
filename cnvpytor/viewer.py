@@ -4196,7 +4196,7 @@ class Viewer(Show, Figure, HelpDescription):
         with open(filename, 'r') as file:
             lines = file.readlines()
             genes = {line.split('\t')[0]: line.split('\t')[1].strip() for line in lines}
-            genes_list.append(line.split('\t')[0] for line in lines)
+            genes_list = [line.split('\t')[0] for line in lines]
 
         chrom_gene = {}
         gene_bins = {}
@@ -4239,11 +4239,9 @@ class Viewer(Show, Figure, HelpDescription):
                     homs = np.sum(snp_homs[gene_bins[gene][0]:gene_bins[gene][1]])
                     lh = np.nanprod(snp_likelihood[gene_bins[gene][0]:gene_bins[gene][1]], axis=0)
                     baf, baf_p = likelihood_baf_pval(lh)
-
-                    #meanbaf = np.nanmean(list(map(lambda x:likelihood_baf_pval(x)[0],snp_likelihood[gene_bins[gene][0]:gene_bins[gene][1]])))
-                    print(gene,gene_bins[gene][1]-gene_bins[gene][0],mean_rd/mean,mean_rd_raw/mean,hets,homs, baf)
                     gene_print[gene] = f"{gene}\t{gene_size[gene]}\t{gene_bins[gene][1]-gene_bins[gene][0]}\t"
                     gene_print[gene] += f"{mean_rd/mean}\t{mean_rd_raw/mean}\t{hets}\t{homs}\t{baf}"
+
         for gene in genes_list:
             if gene in gene_print:
                 print(gene_print[gene])
