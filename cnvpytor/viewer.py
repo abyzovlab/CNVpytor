@@ -4231,16 +4231,18 @@ class Viewer(Show, Figure, HelpDescription):
                 snp_hets += self.io[file_index].get_signal(c, bin_size, "SNP bin count 1|0", snp_flag)
                 snp_homs = self.io[file_index].get_signal(c, bin_size, "SNP bin count 1|1", snp_flag)
 
-
                 for gene in chrom_gene[c]:
                     mean_rd = np.nanmean(rd[gene_bins[gene][0]:gene_bins[gene][1]])
                     mean_rd_raw = np.nanmean(rd_raw[gene_bins[gene][0]:gene_bins[gene][1]])
                     hets = np.sum(snp_hets[gene_bins[gene][0]:gene_bins[gene][1]])
                     homs = np.sum(snp_homs[gene_bins[gene][0]:gene_bins[gene][1]])
-                    lh = np.nanprod(snp_likelihood[gene_bins[gene][0]:gene_bins[gene][1]], axis=0)
-                    baf, baf_p = likelihood_baf_pval(lh)
-                    gene_print[gene] = f"{gene}\t{gene_size[gene]}\t{gene_bins[gene][1]-gene_bins[gene][0]}\t"
-                    gene_print[gene] += f"{mean_rd/mean:.5f}\t{mean_rd_raw/mean:.5f}\t{hets}\t{homs}\t{baf:.3f}"
+                    lh = snp_likelihood[gene_bins[gene][0]:gene_bins[gene][1]]
+                    if len(lh) == 0:
+                        baf, baf_p = np.nan, np.nan
+                    else:
+                        baf, baf_p = likelihood_baf_pval(np.prod(lh, axis=0))
+                    gene_print[gene] = f"{gene}\t{genes[gene]}\t{gene_bins[gene][1]-gene_bins[gene][0]}\t"
+                    gene_print[gene] += f"{mean_rd/mean:.5f}\t{mean_rd_raw/mean:.5f}\t{hets}\t{homs}\t{baf:.3f}\t{baf_p:.2e}"
 
         for gene in genes_list:
             if gene in gene_print:
