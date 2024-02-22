@@ -781,7 +781,7 @@ class Root:
             _logger.warning("Reference genome '%s' not found in database." % rg)
             return False
 
-    def calculate_histograms(self, bin_sizes, chroms=[]):
+    def calculate_histograms(self, bin_sizes, chroms=[], gc_auto=False):
         """
         Calculates RD histograms and store data into cnvpytor file.
 
@@ -791,6 +791,8 @@ class Root:
             List of histogram bin sizes
         chroms : list of str
             List of chromosomes. Calculates for all available if empty.
+        gc_auto: bool
+            Use autosomal GC correction for all chromosomes
 
         Returns
         -------
@@ -978,7 +980,10 @@ class Root:
                 if c in rd_gc_chromosomes and (mt or not Genome.is_mt_chrom(c)):
                     _logger.info(
                         "Calculating GC corrected RD histogram using bin size %d for chromosome '%s'." % (bin_size, c))
-                    flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
+                    if gc_auto:
+                        flag = FLAG_AUTO
+                    else:
+                        flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
                     his_p = self.io.get_signal(c, bin_size, "RD")
                     _logger.debug("Calculating GC corrected RD")
                     gc_corr = self.io.get_signal(None, bin_size, "GC corr", flag)
@@ -1032,7 +1037,10 @@ class Root:
             for c in self.io.rd_chromosomes():
                 if (c in rd_gc_chromosomes) and (c in rd_mask_chromosomes):
                     _logger.info("Calculating P-mask histograms using bin size %d for chromosome '%s'." % (bin_size, c))
-                    flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
+                    if gc_auto:
+                        flag = FLAG_AUTO
+                    else:
+                        flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
                     rd_p, rd_u = self.io.read_rd(c)
                     mask = mask_decompress(self.io_mask.get_signal(rd_mask_chromosomes[c], None, "mask"))
                     bin_ratio = bin_size // 100
@@ -1060,7 +1068,7 @@ class Root:
                     self.io.create_signal(c, bin_size, "RD", his_p_corr, flags=FLAG_GC_CORR | FLAG_USEMASK)
 
     def calculate_histograms_from_snp_counts(self, bin_sizes, chroms=[], use_mask=True, use_id=False, callset=None,
-                                             min_count=None):
+                                             min_count=None, gc_auto=False):
         """
         Calculates RD histograms from SNP data and store data into cnvpytor file.
 
@@ -1079,6 +1087,8 @@ class Root:
             stored under the name provided by callset variable.
         min_count : int
             minimal number of SNPs within bin
+        gc_auto: bool
+            Use autosomal GC correction for all chromosomes
 
         Returns
         -------
@@ -1274,7 +1284,10 @@ class Root:
                 if c in snp_gc_chromosomes and (mt or not Genome.is_mt_chrom(c)):
                     _logger.info(
                         "Calculating GC corrected RD histogram using bin size %d for chromosome '%s'." % (bin_size, c))
-                    flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
+                    if gc_auto:
+                        flag = FLAG_AUTO
+                    else:
+                        flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
                     his_p = self.io.get_signal(c, bin_size, "RD")
                     _logger.debug("Calculating GC corrected RD")
                     gc_corr = self.io.get_signal(None, bin_size, "GC corr", flag)
@@ -1328,7 +1341,10 @@ class Root:
             for c in self.io.snp_chromosomes():
                 if (c in snp_gc_chromosomes) and (c in snp_mask_chromosomes):
                     _logger.info("Calculating P-mask histograms using bin size %d for chromosome '%s'." % (bin_size, c))
-                    flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
+                    if gc_auto:
+                        flag = FLAG_AUTO
+                    else:
+                        flag = FLAG_MT if Genome.is_mt_chrom(c) else FLAG_SEX if Genome.is_sex_chrom(c) else FLAG_AUTO
                     rd_p, rd_u = self.io.read_rd(c)
                     mask = mask_decompress(self.io_mask.get_signal(snp_mask_chromosomes[c], None, "mask"))
                     bin_ratio = bin_size // 100
