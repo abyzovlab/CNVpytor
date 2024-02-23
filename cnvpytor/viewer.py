@@ -559,6 +559,11 @@ class Viewer(Show, Figure, HelpDescription):
                     print("            %d: %s" % (i, self.io[i].filename))
         print()
 
+    def mt_per_cell(self):
+        stat_auto = self.io[self.plot_file].get_signal(None, 100, "RD stat", FLAG_AUTO)
+        stat_mt = self.io[self.plot_file].get_signal(None, 100, "RD stat", FLAG_MT)
+        return 2*stat_mt[4]/stat_auto[4]
+
     def stat(self, his_bin_size=100, return_image=False):
         plt.clf()
         auto = self.io[self.plot_file].signal_exists(None, his_bin_size, "RD stat", FLAG_AUTO)
@@ -4240,7 +4245,12 @@ class Viewer(Show, Figure, HelpDescription):
                     if len(lh) == 0:
                         baf, baf_p = np.nan, np.nan
                     else:
-                        baf, baf_p = likelihood_baf_pval(np.prod(lh, axis=0))
+                        loglh = np.log(np.array(lh) + 1e-100)
+                        sumllh = np.sum(loglh, axis=0)
+                        sumllh -= np.max(sumllh)
+                        flh = np.exp(sumllh)
+                        flh /= np.sum(flh)
+                        baf, baf_p = likelihood_baf_pval(flh)
                     gene_print[gene] = f"{gene}\t{genes[gene]}\t{gene_bins[gene][1]-gene_bins[gene][0]}\t"
                     gene_print[gene] += f"{mean_rd/mean:.5f}\t{mean_rd_raw/mean:.5f}\t{hets}\t{homs}\t{baf:.3f}\t{baf_p:.2e}"
 
