@@ -3052,14 +3052,14 @@ class Root:
 
                             baf_mean, baf_p = likelihood_baf_pval(likelihood[i])
 
-                            if Genome.is_autosome(c) and len(segments[i]) > 1:
+                            if len(segments[i]) > 1:
                                 q0 = 0
                                 srdp = 0
                                 homs = 0
                                 hets = 0
                                 for bin in segments[i]:
                                     gstat_rd_all.append(rd[bin])
-                                    if baf_mean <= baf_threshold:
+                                    if baf_mean <= baf_threshold and Genome.is_autosome(c):
                                         gstat_rd0.append(rd[bin])
                                     srdp += qrd_p[bin]
                                     q0 += (qrd_p[bin] - qrd_u[bin])
