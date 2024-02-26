@@ -52,6 +52,7 @@ def main():
                         help="calculate segmentation for specified bin size (multiple bin sizes separate by space)")
     parser.add_argument('-call', '--call', type=str, nargs="+",
                         help="CNV caller: [baf] bin_size [bin_size2 ...] (multiple bin sizes separate by space)")
+    parser.add_argument('-filter_nan', '--filter_nan', action='store_true', help="filter nan values in rd/partition")
     parser.add_argument('-vcf', '-snp', '--vcf', nargs="+", type=str, help="read SNP data from vcf files")
     parser.add_argument('-stdin2snp', '--stdin2snp', action='store_true', help='read SNP data from stdin')
     parser.add_argument('-somatic_snv', '--somatic_snv', nargs="+", type=str, help="read SNP data from vcf files")
@@ -411,7 +412,7 @@ def main():
         if args.partition:
             app = Root(args.root[0], max_cores=args.max_cores)
             app.partition(args.partition, chroms=args.chrom, use_gc_corr=not args.no_gc_corr,
-                          use_mask=args.use_mask_with_rd)
+                          use_mask=args.use_mask_with_rd, filter_nan=args.filter_nan)
 
         if args.call:
             app = Root(args.root[0], max_cores=args.max_cores)
@@ -477,7 +478,7 @@ def main():
                                 anim=args.animation)
             else:
                 app.call(list(map(binsize_type, args.call)), chroms=args.chrom, print_calls=True,
-                         use_gc_corr=not args.no_gc_corr, use_mask=args.use_mask_with_rd)
+                         use_gc_corr=not args.no_gc_corr, use_mask=args.use_mask_with_rd, filter_nan=args.filter_nan)
 
 
 if __name__ == '__main__':

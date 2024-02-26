@@ -246,7 +246,6 @@ class Root:
     def _read_vcf(self, vcf_file, chroms, sample='', use_index=False, no_counts=False, ad_tag="AD", gt_tag="GT",
                   filter=True, callset=None):
 
-
         vcff = Vcf(vcf_file)
         chrs = [c for c in vcff.get_chromosomes() if len(chroms) == 0 or c in chroms]
 
@@ -323,7 +322,7 @@ class Root:
                 ref_b, alt_b = sp[1], sp[2]
                 ref_c = int(sp[3])
                 alt_c = int(sp[4])
-                gt1_c, gt2_c = tuple(map(int,sp[5].split("/")))
+                gt1_c, gt2_c = tuple(map(int, sp[5].split("/")))
                 if last_chrom is None:
                     last_chrom = chrom
                 if last_chrom != chrom:
@@ -359,15 +358,17 @@ class Root:
         callback(last_chrom, pos, ref, alt, nref, nalt, gt, flag, qual)
         count += 1
         return count
+
     def stdin2snp(self):
         def save_data(chr, pos, ref, alt, nref, nalt, gt, flag, qual):
             if (not pos is None) and (len(pos) > 0):
                 pos0, ref0, alt0, nref0, nalt0, gt0, flag0, qual0 = self.io.read_snp(chr)
-                self.io.save_snp(chr, pos0+pos, ref0+ref, alt0+alt, nref0+nref, nalt0+nalt, gt0+gt, flag0+flag,
-                                 qual0+qual, chromosome_length = Genome.reference_genomes["hg38"]["chromosomes"][chr][0])
+                self.io.save_snp(chr, pos0 + pos, ref0 + ref, alt0 + alt, nref0 + nref, nalt0 + nalt, gt0 + gt,
+                                 flag0 + flag,
+                                 qual0 + qual,
+                                 chromosome_length=Genome.reference_genomes["hg38"]["chromosomes"][chr][0])
+
         self._read_snp_stdin(save_data)
-
-
 
     def rd(self, bamfiles, chroms=[], reference_filename=False, overwrite=False):
         """ Read chromosomes from bam/sam/cram file(s) and store in cnvpytor file.
@@ -1371,7 +1372,8 @@ class Root:
                     self.io.create_signal(c, bin_size, "RD unique", his_u, flags=FLAG_USEMASK)
                     self.io.create_signal(c, bin_size, "RD", his_p_corr, flags=FLAG_GC_CORR | FLAG_USEMASK)
 
-    def partition(self, bin_sizes, chroms=[], use_gc_corr=True, use_mask=False, repeats=3, genome_size=2.9e9):
+    def partition(self, bin_sizes, chroms=[], use_gc_corr=True, use_mask=False, repeats=3, genome_size=2.9e9,
+                  filter_nan=False):
         """
         Calculates mean-shift segmentation of RD signal. Based on CNVnator algorithm.
 
@@ -1424,8 +1426,12 @@ class Root:
                         stat = self.io.get_signal(c, bin_size, "RD stat", flag_stat)
                         mean = stat[4]
                         std = stat[5]
-                        rd = self.io.get_signal(c, bin_size, "RD", flag_rd)
-                        rd = np.nan_to_num(rd)
+                        rd_org = self.io.get_signal(c, bin_size, "RD", flag_rd)
+                        if filter_nan:
+                            nan_indices = np.where(np.isnan(rd_org))[0]
+                            rd = rd_org[~np.isnan(rd_org)]
+                        else:
+                            rd = np.nan_to_num(rd_org)
                         masked = np.zeros_like(rd, dtype=bool)
                         levels = np.copy(rd)
 
@@ -1522,11 +1528,15 @@ class Root:
                                     continue
                                 masked[seg[0]:seg[1]] = True
                                 levels[seg[0]:seg[1]] = np.mean(rd[seg[0]:seg[1]])
-
+                        if filter_nan:
+                            levels2 = np.empty_like(rd_org)
+                            levels2[:] = np.nan
+                            levels2[np.setdiff1d(np.arange(len(rd_org)), nan_indices)] = levels
+                            levels = levels2
                         self.io.create_signal(c, bin_size, "RD partition", levels, flags=flag_rd)
 
     def call(self, bin_sizes, chroms=[], print_calls=False, use_gc_corr=True, use_mask=False, genome_size=2.9e9,
-             genome_cnv_fraction=0.01):
+             genome_cnv_fraction=0.01, filter_nan=False):
         """
         CNV caller based on the mean-shift segmented RD signal. Based on CNVnator algorithm.
 
@@ -1592,8 +1602,13 @@ class Root:
                         stat = self.io.get_signal(c, bin_size, "RD stat", flag_stat)
                         mean = stat[4]
                         std = stat[5]
-                        rd = self.io.get_signal(c, bin_size, "RD", flag_rd)
-                        rd = np.nan_to_num(rd)
+                        rd_org = self.io.get_signal(c, bin_size, "RD", flag_rd)
+                        if filter_nan:
+                            nan_indices = np.where(np.isnan(rd_org))[0]
+                            nan_indices_set = set(nan_indices)
+                            rd = rd_org[~np.isnan(rd_org)]
+                        else:
+                            rd = np.nan_to_num(rd_org)
                         gc, at, NN, distN = False, False, False, False
                         if c in rd_gc_chromosomes and self.io_gc.signal_exists(rd_gc_chromosomes[c], None, "GC/AT"):
                             gcat = self.io_gc.get_signal(rd_gc_chromosomes[c], None, "GC/AT")
@@ -1618,6 +1633,10 @@ class Root:
                                     prev = 0
 
                         levels = self.io.get_signal(c, bin_size, "RD partition", flag_rd)
+                        if filter_nan:
+                            levels = levels[~np.isnan(levels)]
+                        else:
+                            levels = np.nan_to_num(levels)
                         delta = 0.25
                         if Genome.is_sex_chrom(c) and self.io.signal_exists(c, bin_size, "RD stat", flag_auto):
                             stat_auto = self.io.get_signal(c, bin_size, "RD stat", flag_auto)
@@ -1713,6 +1732,11 @@ class Root:
                             if b < len(levels):
                                 cf = flags[b]
                             bs = b
+                        if filter_nan:
+                            merge2 = np.empty_like(rd_org)
+                            merge2[:] = np.nan
+                            merge2[np.setdiff1d(np.arange(len(rd_org)), nan_indices)] = merge
+                            merge = merge2
 
                         self.io.create_signal(c, bin_size, "RD call", merge, flags=flag_rd)
 
@@ -1745,14 +1769,40 @@ class Root:
                                 e4 = gaussianEValue(mean, std, rd, bs + tmp, b - tmp) * normal_genome_size
                             rd_p = self.io.get_signal(c, bin_size, "RD")
                             rd_u = self.io.get_signal(c, bin_size, "RD unique")
+                            if filter_nan:
+                                rd_p = rd_p[~np.isnan(rd_org)]
+                                rd_u = rd_u[~np.isnan(rd_org)]
                             q0 = -1
                             if sum(rd_p[bs:b]) > 0:
                                 q0 = (sum(rd_p[bs:b]) - sum(rd_u[bs:b])) / sum(rd_p[bs:b])
+
+                            if filter_nan:
+                                rbs = -1
+                                rb = -1
+                                tb = 0
+                                i = 0
+                                while rb < 0:
+                                    if i in nan_indices_set:
+                                        i += 1
+                                    else:
+                                        if tb==bs:
+                                            rbs=i
+                                        if tb==b:
+                                            rb=i
+                                        i += 1
+                                        tb += 1
+                                start = bin_size * rbs + 1
+                                end = bin_size * rb
+                                size = end - start + 1
+
                             pN = -1
                             dG = -1
                             if gc:
                                 pN = (size - sum(gc[start // 100:end // 100]) - sum(at[start // 100:end // 100])) / size
                                 dG = np.min(distN[start // 100:end // 100])
+
+                            if filter_nan:
+                                pN = np.sum(np.isnan(rd_org[rbs:rb]))/(rb-rbs)
 
                             if print_calls:
                                 print("%s\t%s:%d-%d\t%d\t%.4f\t%e\t%e\t%e\t%e\t%.4f\t%.4f\t%d" % (
@@ -2867,7 +2917,7 @@ class Root:
             flag_rd = (FLAG_GC_CORR if use_gc_corr else 0) | (FLAG_USEMASK if rd_use_mask else 0)
 
             for c in self.io.rd_chromosomes():
-                chrcalls[c]=[]
+                chrcalls[c] = []
                 if (c in rd_gc_chromosomes or not use_gc_corr) and (c in rd_mask_chromosomes or not rd_use_mask) and (
                         self.io.signal_exists(c, bin_size, "SNP baf", snp_flag)) and (
                         len(chroms) == 0 or (c in chroms)):
@@ -3194,9 +3244,9 @@ class Root:
                 _logger.info("    * std2   = %.4f" % bim[0][5])
                 _logger.info("    * mean2/mean1   = %.4f" % (bim[0][4] / bim[0][1]))
                 if (bim[0][4] / bim[0][1] > 1.9) and (bim[0][4] / bim[0][1] < 2.1):
-                        _logger.info("Using both peaks to estimate normal levels")
-                        fitm = (bim[0][0] * bim[0][1] + bim[0][3] * bim[0][4] / 2) / (bim[0][0] + bim[0][3])
-                        fits = (bim[0][0] * bim[0][2] + bim[0][3] * bim[0][5] / 2) / (bim[0][0] + bim[0][3])
+                    _logger.info("Using both peaks to estimate normal levels")
+                    fitm = (bim[0][0] * bim[0][1] + bim[0][3] * bim[0][4] / 2) / (bim[0][0] + bim[0][3])
+                    fits = (bim[0][0] * bim[0][2] + bim[0][3] * bim[0][5] / 2) / (bim[0][0] + bim[0][3])
                 else:
                     _logger.info("Ratio mean2/mean1 is smaller than expected. Using single peak fit values.")
                 # plt.hist(data, bins=bins, alpha=.5, label='RD in bins with BAF=1/2', edgecolor='blue', linewidth=1)
@@ -3272,7 +3322,6 @@ class Root:
                                                 lambda x: x[0] != germline_lh[ei][0][0] and x[1] != germline_lh[ei][0][
                                                     1],
                                                 master_lh[ei]))
-
 
             for ei in range(len(gstat_rd)):
                 etype = "cnnloh"
@@ -4529,7 +4578,7 @@ class Root:
             # plt.plot(call["lh"], label="LH")
             # plt.show()
             _logger.info("Calling subclones for %d calls" % len(all_calls))
-            if len(all_calls)>max_number_of_calls:
+            if len(all_calls) > max_number_of_calls:
                 _logger.info("Too many calls!")
                 return
 
@@ -4569,9 +4618,8 @@ class Root:
                 tsum = np.sum(call['model_lh'])
                 if tsum > 0:
                     call['model_lh'] /= tsum
-                #call['model_lhc'] = np.sum(call['model_lh'], axis=0)
-                #call['model_lhc'] /= np.sum(call['model_lhc'])
-
+                # call['model_lhc'] = np.sum(call['model_lh'], axis=0)
+                # call['model_lhc'] /= np.sum(call['model_lhc'])
 
                 # model_lh = np.array(model_lh)
                 # model_lh /= np.sum(model_lh)
@@ -4638,7 +4686,7 @@ class Root:
                 # print("%s:%d-%d" % (c1["chrom"],int(c1["start"]),int(c1["end"])),"%s:%d-%d" % (c2["chrom"],int(c2["start"]),int(c2["end"])))
                 # print("  *",distance(c1["model_lh"],c2["model_lh"]))
 
-            #print("Calculating distance matrix")
+            # print("Calculating distance matrix")
             # dist_matrix = [[distance(c1["model_lh"],c2["model_lh"])[1] if c1!=c2 else 0 for c2 in all_calls] for c1 in all_calls]
             dist_matrix = [[fast_distance2(c1["model_lh"], c2["model_lh"])[1] if c1 != c2 else 0 for c2 in all_calls]
                            for c1 in all_calls]
@@ -4653,15 +4701,15 @@ class Root:
             dist_matrix[np.isnan(dist_matrix)] = tmax + 1.0
             dist_matrix[np.isinf(dist_matrix)] = tmax + 1.0
 
-            #plt.imshow(dist_matrix, aspect='auto')
-            #plt.colorbar()
-            #plt.show()
+            # plt.imshow(dist_matrix, aspect='auto')
+            # plt.colorbar()
+            # plt.show()
 
             Z = spc.linkage(ssd.squareform(dist_matrix), method='complete')
             cids = spc.fcluster(Z, t=Z[-1][2] * 0.66, criterion='distance')
             # cids=spc.fcluster(Z, t=100, criterion='distance')
-            #dn = spc.dendrogram(Z, labels=labels, orientation="left", leaf_font_size=8)  # leaf_rotation=90,
-            #plt.show()
+            # dn = spc.dendrogram(Z, labels=labels, orientation="left", leaf_font_size=8)  # leaf_rotation=90,
+            # plt.show()
 
             Nc = max(cids)
             cl_calls = [[] for i in range(Nc)]
@@ -4673,7 +4721,7 @@ class Root:
                 tlh = np.ones_like(x)
                 for c in cl_calls[cid]:
                     tlh *= np.sum(c["model_lh"], axis=0)
-                    if np.sum(tlh)>0:
+                    if np.sum(tlh) > 0:
                         tlh /= np.sum(tlh)
                 cf = x[np.argmax(tlh)]
                 for c in cl_calls[cid]:
@@ -4695,7 +4743,7 @@ class Root:
                         c["subclonal_cf"] = cf
                         c["subclonal_lh"] = maxl
                 cl_lh.append(tlh)
-                #plt.plot(x, tlh, label=str(cid + 1))
+                # plt.plot(x, tlh, label=str(cid + 1))
 
             for cid in range(Nc):
                 for c in cl_calls[cid]:
@@ -4707,13 +4755,15 @@ class Root:
                     #       "%.3f  %.3f  %d" % (c["cnv"], c["baf"], int(c["end"]) - int(c["start"]) + 1))
                     print("%d\t%s\t%2d\t%2d\t%.3f" % (
                         cid, reg, c["subclonal_h1"], c["subclonal_h2"], c["subclonal_cf"]))
-                #print()
+                # print()
 
-            #plt.legend()
-            #plt.show()
-    def call_subclones_backup(self, bin_sizes, chroms=[], cnv_calls="calls combined", print_calls=False, use_gc_corr=True,
-                       rd_use_mask=False, snp_use_mask=True, snp_use_id=False, max_copy_number=10,
-                       min_cell_fraction=0.0, baf_threshold=0):
+            # plt.legend()
+            # plt.show()
+
+    def call_subclones_backup(self, bin_sizes, chroms=[], cnv_calls="calls combined", print_calls=False,
+                              use_gc_corr=True,
+                              rd_use_mask=False, snp_use_mask=True, snp_use_id=False, max_copy_number=10,
+                              min_cell_fraction=0.0, baf_threshold=0):
         """
         Group CNV calls in subclones.
 
