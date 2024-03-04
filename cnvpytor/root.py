@@ -1869,6 +1869,8 @@ class Root:
                         bins = len(rd)
                         valid = np.isfinite(rd)
                         level = rd[valid]
+                        if len(level)<=3:
+                            continue
                         error = np.sqrt(level) ** 2 + std ** 2
                         loc_fl = np.min(list(zip(np.abs(np.diff(level))[:-1], np.abs(np.diff(level))[1:])), axis=1)
                         loc_fl = np.concatenate(([0], loc_fl, [0]))
