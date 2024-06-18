@@ -56,7 +56,7 @@ class Root:
     def _read_bam(self, bf, chroms, reference_filename=False, overwrite=False):
         bamf = Bam(bf, reference_filename=reference_filename)
         if bamf.reference_genome:
-            self.io.create_signal(None, None, "reference genome", np.array([np.byte_(bamf.reference_genome)]))
+            self.io.create_signal(None, None, "reference genome", np.array([np.bytes_(bamf.reference_genome)]))
             self.io.create_signal(None, None, "use reference", np.array([1, 1]).astype("uint8"))
 
         def read_chromosome(x):
