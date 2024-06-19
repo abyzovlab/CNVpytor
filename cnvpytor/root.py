@@ -1651,7 +1651,7 @@ class Root:
                             pN = -1
                             dG = -1
                             if gc:
-                                pN = (size - sum(gc[start // 100:end // 100]) - sum(at[start // 100:end // 100])) / size
+                                pN = (size - np.sum(gc[start // 100:end // 100]) - np.sum(at[start // 100:end // 100])) / size
                                 dG = np.min(distN[start // 100:end // 100])
 
                             if print_calls:
