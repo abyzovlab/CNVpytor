@@ -612,7 +612,7 @@ class IO(Signals):
         print()
         chr_len = list(np.array(self.get_signal(None, None, "chromosome lengths")).astype("str"))
         chr_len = dict(zip(chr_len[::2], chr_len[1::2]))
-        print("Chromosome lengths: " + ", ".join([str(cc)+" :"+str(ll) for cc, ll in chr_len.items()]))
+        print("Chromosome lengths: " + ", ".join([str(cc)+": "+str(ll) for cc, ll in chr_len.items()]))
 
     @staticmethod
     def save_root_trees(root_filename):
