@@ -1139,7 +1139,7 @@ class Root:
                     np.seterr(divide='ignore', invalid='ignore')
                     scale = bin_size / 150
                     rdcg = scale * rdcg / rdc
-                    rdcg[rdc < min_count] = np.NaN
+                    rdcg[rdc < min_count] = np.nan
 
                     self.io.create_signal(c, bin_size, "RD", rdcg)
                     self.io.create_signal(c, bin_size, "RD unique", rdcg)
