@@ -679,7 +679,7 @@ class IO(Signals):
         if not (chr_name in self.rd_chromosomes()):
             rd_chroms = self.rd_chromosomes()
             rd_chroms.append(chr_name)
-            self.update_signal(None, None, "RD chromosomes", np.array([np.string_(x) for x in rd_chroms]))
+            self.update_signal(None, None, "RD chromosomes", np.array([np.bytes_(x) for x in rd_chroms]))
         return ds_p, ds_u
 
     def save_rd(self, chr_name, rd_p, rd_u, chromosome_length=None):
@@ -722,7 +722,7 @@ class IO(Signals):
         if not (chr_name in self.rd_chromosomes()):
             rd_chroms = self.rd_chromosomes()
             rd_chroms.append(chr_name)
-            self.create_signal(None, None, "RD chromosomes", np.array([np.string_(x) for x in rd_chroms]))
+            self.create_signal(None, None, "RD chromosomes", np.array([np.bytes_(x) for x in rd_chroms]))
         return ds_p, ds_u
 
     def add_rd_chromosome(self, chr_name):
@@ -742,7 +742,7 @@ class IO(Signals):
         if not (chr_name in self.rd_chromosomes()):
             rd_chroms = self.rd_chromosomes()
             rd_chroms.append(chr_name)
-            self.create_signal(None, None, "RD chromosomes", np.array([np.string_(x) for x in rd_chroms]))
+            self.create_signal(None, None, "RD chromosomes", np.array([np.bytes_(x) for x in rd_chroms]))
             _logger.debug("Chromosome '%s' added to 'RD chromosomes' list" % chr_name)
 
     def save_snp(self, chr_name, pos, ref, alt, nref, nalt, gt, flag, qual, update=False, callset=None,
@@ -817,7 +817,7 @@ class IO(Signals):
         if not (chr_name in self.snp_chromosomes()):
             snp_chroms = self.snp_chromosomes()
             snp_chroms.append(chr_name)
-            self.create_signal(None, None, "SNP chromosomes", np.array([np.string_(x) for x in snp_chroms]))
+            self.create_signal(None, None, "SNP chromosomes", np.array([np.bytes_(x) for x in snp_chroms]))
 
     def read_rd(self, chr_name):
         """
@@ -1006,7 +1006,7 @@ class IO(Signals):
         chr_len = dict(zip(chr_len[::2], chr_len[1::2]))
         chr_len[chromosome] = str(length)
         self.create_signal(None, None, "chromosome lengths",
-                           np.array([np.string_(x) for s in chr_len.items() for x in s]))
+                           np.array([np.bytes_(x) for s in chr_len.items() for x in s]))
 
     def get_chromosome_length(self, chromosome):
         """

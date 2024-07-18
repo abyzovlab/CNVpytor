@@ -56,7 +56,7 @@ class Root:
     def _read_bam(self, bf, chroms, reference_filename=False, overwrite=False):
         bamf = Bam(bf, reference_filename=reference_filename)
         if bamf.reference_genome:
-            self.io.create_signal(None, None, "reference genome", np.array([np.string_(bamf.reference_genome)]))
+            self.io.create_signal(None, None, "reference genome", np.array([np.bytes_(bamf.reference_genome)]))
             self.io.create_signal(None, None, "use reference", np.array([1, 1]).astype("uint8"))
 
         def read_chromosome(x):
@@ -771,7 +771,7 @@ class Root:
         """
         if rg in Genome.reference_genomes:
             _logger.info("Reference genome '%s' found in database." % rg)
-            self.io.create_signal(None, None, "reference genome", np.array([np.string_(rg)]))
+            self.io.create_signal(None, None, "reference genome", np.array([np.bytes_(rg)]))
             self.io.create_signal(None, None, "use reference", np.array([1, 1]).astype("uint8"))
             if "mask_file" in Genome.reference_genomes[rg]:
                 _logger.info("Strict mask for reference genome '%s' found in database." % rg)
@@ -1798,7 +1798,7 @@ class Root:
                             pN = -1
                             dG = -1
                             if gc:
-                                pN = (size - sum(gc[start // 100:end // 100]) - sum(at[start // 100:end // 100])) / size
+                                pN = (size - np.sum(gc[start // 100:end // 100]) - np.sum(at[start // 100:end // 100])) / size
                                 dG = np.min(distN[start // 100:end // 100])
 
                             if filter_nan:
