@@ -53,20 +53,26 @@ class Root:
                     _logger.debug("Using strict mask from database for reference genome '%s'." % rg_name)
                     self.io_mask = IO(Genome.reference_genomes[rg_name]["mask_file"], ro=True, buffer=True)
 
+    @staticmethod
+    def read_chromosome(args):
+        cl, bamf_info = args
+        chrs, lens = cl
+        bam_path, reference_filename = bamf_info
+        bamf = Bam(bam_path, reference_filename=reference_filename)
+        _logger.info("Reading data for chromosome %s with length %d" % (chrs, lens))
+        l_rd_p, l_rd_u, l_his_read_frg = bamf.read_chromosome(chrs)
+        return l_rd_p, l_rd_u, l_his_read_frg
+
     def _read_bam(self, bf, chroms, reference_filename=False, overwrite=False):
         bamf = Bam(bf, reference_filename=reference_filename)
         if bamf.reference_genome:
             self.io.create_signal(None, None, "reference genome", np.array([np.bytes_(bamf.reference_genome)]))
             self.io.create_signal(None, None, "use reference", np.array([1, 1]).astype("uint8"))
 
-        def read_chromosome(x):
-            chrs, lens = x
-            _logger.info("Reading data for chromosome %s with length %d" % (chrs, lens))
-            l_rd_p, l_rd_u, l_his_read_frg = bamf.read_chromosome(chrs)
-            return l_rd_p, l_rd_u, l_his_read_frg
-
         chrname, chrlen = bamf.get_chr_len()
         chr_len = [(c, l) for (c, l) in zip(chrname, chrlen) if len(chroms) == 0 or c in chroms]
+        chr_len_bamf = [(cl, (bf, reference_filename)) for cl in chr_len]
+
         if self.max_cores == 1:
             count = 0
             cum_his_read_frg = None
@@ -87,7 +93,7 @@ class Root:
             return count
         else:
             from .pool import parmap
-            res = parmap(read_chromosome, chr_len, cores=self.max_cores)
+            res = parmap(self.read_chromosome, chr_len_bamf, cores=self.max_cores)
             count = 0
             cum_his_read_frg = None
             for c, r in zip(chr_len, res):
