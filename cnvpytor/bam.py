@@ -151,7 +151,7 @@ class Bam:
             _logger.warning("Can not find chromosome '%s' in file '%s'." % (chr_name, self.filename))
             return
         _logger.debug("Pileup chromosome %s from filename %s" % (chr_name, self.filename))
-        tmp_file += "_" + str(random.randint(0, 1e10)) + "_" + chr_name
+        tmp_file += "_" + str(random.randint(0, 10000000000)) + "_" + chr_name
         f = open(tmp_file, "w")
         for i in pos:
             print(chr_name, i, file=f)

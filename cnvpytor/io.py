@@ -351,6 +351,8 @@ class IO(Signals):
             res = re.findall(search_string, key)
             if len(res) > 0:
                 chrs_bss.append(res[0])
+        if signal == "SNP likelihood":
+            chrs_bss = list(map(lambda x:(x[0].replace("half_",""), x[1]), chrs_bss))
         return chrs_bss
 
     def signal_exists(self, chr_name, bin_size, signal, flags=0, name=''):
@@ -610,7 +612,7 @@ class IO(Signals):
         print()
         chr_len = list(np.array(self.get_signal(None, None, "chromosome lengths")).astype("str"))
         chr_len = dict(zip(chr_len[::2], chr_len[1::2]))
-        print("Chromosome lengths: " + str(chr_len))
+        print("Chromosome lengths: " + ", ".join([str(cc)+": "+str(ll) for cc, ll in chr_len.items()]))
 
     @staticmethod
     def save_root_trees(root_filename):

@@ -489,28 +489,30 @@ class Root:
             self.io.add_meta_attribute("RD from VCF", vcf_file)
             return count
 
+    @staticmethod
+    def pileup_chromosome(x):
+        c, l, snpc, bam_path, reference_filename, pos, ref, alt = x
+        _logger.info("Pileup chromosome %s with length %d" % (c, l))
+        bamf = Bam(bam_path, reference_filename=reference_filename)
+        return bamf.pileup(c, pos[snpc], ref[snpc], alt[snpc])
+
     def _pileup_bam(self, bamfile, chroms, pos, ref, alt, nref, nalt, reference_filename):
         _logger.info("Calculating pileup from bam file '%s'." % bamfile)
         bamf = Bam(bamfile, reference_filename=reference_filename)
 
-        def pileup_chromosome(x):
-            c, l, snpc = x
-            _logger.info("Pileup chromosome %s with length %d" % (c, l))
-            return bamf.pileup(c, pos[snpc], ref[snpc], alt[snpc])
-
         chrname, chrlen = bamf.get_chr_len()
-        chr_len = [(c, l, self.io.snp_chromosome_name(c)) for (c, l) in zip(chrname, chrlen) if
-                   self.io.snp_chromosome_name(c) in chroms]
+        chr_len = [(c, l, self.io.snp_chromosome_name(c), bamfile, reference_filename, pos, ref, alt) for (c, l) in
+                   zip(chrname, chrlen) if self.io.snp_chromosome_name(c) in chroms]
 
         if self.max_cores == 1:
             for cl in chr_len:
-                r = pileup_chromosome(cl)
+                r = self.pileup_chromosome(cl)
                 nref[cl[2]] = [x + y for x, y in zip(nref[cl[2]], r[0])]
                 nalt[cl[2]] = [x + y for x, y in zip(nalt[cl[2]], r[1])]
 
         else:
             from .pool import parmap
-            res = parmap(pileup_chromosome, chr_len, cores=self.max_cores)
+            res = parmap(self.pileup_chromosome, chr_len, cores=self.max_cores)
             for cl, r in zip(chr_len, res):
                 nref[cl[2]] = [x + y for x, y in zip(nref[cl[2]], r[0])]
                 nalt[cl[2]] = [x + y for x, y in zip(nalt[cl[2]], r[1])]
@@ -1137,7 +1139,7 @@ class Root:
                     np.seterr(divide='ignore', invalid='ignore')
                     scale = bin_size / 150
                     rdcg = scale * rdcg / rdc
-                    rdcg[rdc < min_count] = np.NaN
+                    rdcg[rdc < min_count] = np.nan
 
                     self.io.create_signal(c, bin_size, "RD", rdcg)
                     self.io.create_signal(c, bin_size, "RD unique", rdcg)
@@ -1791,10 +1793,10 @@ class Root:
                                     if i in nan_indices_set:
                                         i += 1
                                     else:
-                                        if tb==bs:
-                                            rbs=i
-                                        if tb==b:
-                                            rb=i
+                                        if tb == bs:
+                                            rbs = i
+                                        if tb == b:
+                                            rb = i
                                         i += 1
                                         tb += 1
                                 start = bin_size * rbs + 1
@@ -1804,11 +1806,12 @@ class Root:
                             pN = -1
                             dG = -1
                             if gc:
-                                pN = (size - np.sum(gc[start // 100:end // 100]) - np.sum(at[start // 100:end // 100])) / size
+                                pN = (size - np.sum(gc[start // 100:end // 100]) - np.sum(
+                                    at[start // 100:end // 100])) / size
                                 dG = np.min(distN[start // 100:end // 100])
 
                             if filter_nan:
-                                pN = np.sum(np.isnan(rd_org[rbs:rb]))/(rb-rbs)
+                                pN = np.sum(np.isnan(rd_org[rbs:rb])) / (rb - rbs)
 
                             if print_calls:
                                 print("%s\t%s:%d-%d\t%d\t%.4f\t%e\t%e\t%e\t%e\t%.4f\t%.4f\t%d" % (
@@ -1875,7 +1878,7 @@ class Root:
                         bins = len(rd)
                         valid = np.isfinite(rd)
                         level = rd[valid]
-                        if len(level)<=3:
+                        if len(level) <= 3:
                             continue
                         error = np.sqrt(level) ** 2 + std ** 2
                         loc_fl = np.min(list(zip(np.abs(np.diff(level))[:-1], np.abs(np.diff(level))[1:])), axis=1)
