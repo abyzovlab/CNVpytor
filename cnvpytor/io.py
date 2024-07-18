@@ -608,11 +608,11 @@ class IO(Signals):
             if int(b) not in bss:
                 bss.append(int(b))
 
-        print("Chromosomes with SNP histograms [bin sizes]: " + ", ".join(map(str, chrs.keys())) + " " + str(sorted(bss)))
+        print("Chromosomes with SNP histograms [bin sizes]: " + ", ".join(chrs.keys()) + " " + str(sorted(bss)))
         print()
         chr_len = list(np.array(self.get_signal(None, None, "chromosome lengths")).astype("str"))
         chr_len = dict(zip(chr_len[::2], chr_len[1::2]))
-        print("Chromosome lengths: " + str(chr_len))
+        print("Chromosome lengths: " + ", ".join([str(cc)+" :"+str(ll) for cc, ll in chr_len.items()]))
 
     @staticmethod
     def save_root_trees(root_filename):
