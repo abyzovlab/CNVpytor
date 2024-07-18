@@ -15,6 +15,7 @@ import matplotlib.colors as colors
 import matplotlib.ticker as ticker
 from scipy.cluster import hierarchy
 from scipy.stats import beta
+from scipy.spatial.distance import pdist
 from io import BytesIO
 from .vcf import CreateVCF
 
@@ -558,6 +559,11 @@ class Viewer(Show, Figure, HelpDescription):
                     print("            %d: %s" % (i, self.io[i].filename))
         print()
 
+    def mt_per_cell(self):
+        stat_auto = self.io[self.plot_file].get_signal(None, 100, "RD stat", FLAG_AUTO)
+        stat_mt = self.io[self.plot_file].get_signal(None, 100, "RD stat", FLAG_MT)
+        return 2*stat_mt[4]/stat_auto[4]
+
     def stat(self, his_bin_size=100, return_image=False):
         plt.clf()
         auto = self.io[self.plot_file].signal_exists(None, his_bin_size, "RD stat", FLAG_AUTO)
@@ -818,8 +824,8 @@ class Viewer(Show, Figure, HelpDescription):
             file2_title = self.file_title(self.plot_files[file2])
             file_title = f"{file1_title} vs {file2_title}"
             if i == 0 and self.title:
-                ax.set_title(file_title, position=(0.01, 0.9),  color='C0', fontdict={'verticalalignment':'top',
-                                                                                      'horizontalalignment':'left'})
+                ax.set_title(file_title, position=(0.01, 0.9), color='C0', fontdict={'verticalalignment': 'top',
+                                                                                     'horizontalalignment': 'left'})
 
             start = 0
             xticks = [0]
@@ -865,13 +871,13 @@ class Viewer(Show, Figure, HelpDescription):
                 ax.set_yscale("log")
                 ax.set_ylabel("Log2 RD (Difference")
             else:
-                yticks = np.arange(self.rd_manhattan_range[0]-2, self.rd_manhattan_range[1], 0.5)
+                yticks = np.arange(self.rd_manhattan_range[0] - 2, self.rd_manhattan_range[1], 0.5)
                 if len(yticks) < 9:
                     ax.yaxis.set_major_locator(ticker.FixedLocator(yticks))
                     ax.yaxis.set_major_formatter(ticker.FixedFormatter(yticks))
                 else:
                     ax.yaxis.set_major_locator(plt.MaxNLocator(8))
-                ax.set_ylim([self.rd_manhattan_range[0]-2, self.rd_manhattan_range[1]])
+                ax.set_ylim([self.rd_manhattan_range[0] - 2, self.rd_manhattan_range[1]])
 
                 ax.set_ylabel("RD Difference")
             # ax.grid()
@@ -1696,7 +1702,7 @@ class Viewer(Show, Figure, HelpDescription):
         self.fig_show(suffix="manhattan" if plot_type == "rd" else "snp_calls")
 
     def callmap(self, color="frequency", background="white", pixel_size=1700000, max_p_val=1e-20, min_freq=0.01,
-                plot="cmap"):
+                min_dbaf=0.0, plot="cmap"):
         bin_size = self.bin_size
         if self.reference_genome is None:
             _logger.warning("Missing reference genome required for callmap.")
@@ -1738,7 +1744,7 @@ class Viewer(Show, Figure, HelpDescription):
 
                     for call in calls:
                         if call["bins"] > self.min_segment_size and call["p_val"] < max_p_val and "segment" in call and \
-                                call["models"][0][4] > min_freq:
+                                call["models"][0][4] >= min_freq and call["baf"] >= min_dbaf:
                             cix = int(call["type"]) + 1
                             for b in segments[int(call["segment"])]:
                                 if color == "frequency":
@@ -1746,6 +1752,8 @@ class Viewer(Show, Figure, HelpDescription):
                                         cmap[i, start + b * bin_size // pixel_size, cix], call["models"][0][4])
                                 elif color == "coverage":
                                     cmap[i, start + b * bin_size // pixel_size, cix] += bin_size / pixel_size
+                                elif color == "binary":
+                                    cmap[i, start + b * bin_size // pixel_size, cix] = 1
                                 else:  # model copy number
                                     if call["models"][0][0] == 0:
                                         cmap[i, start + b * bin_size // pixel_size, 0] = 1
@@ -1774,13 +1782,13 @@ class Viewer(Show, Figure, HelpDescription):
                 pixel[2] = 1
             return pixel
 
-        if background == "white":
-            cmap = cmap.reshape(n * pixels, 3)
-            np.apply_along_axis(b2w, 1, cmap)
-            cmap = cmap.reshape(n, pixels, 3)
-
-        cmap = (255 * cmap).astype("int")
         if plot == "cmap":
+            if background == "white":
+                cmap = cmap.reshape(n * pixels, 3)
+                np.apply_along_axis(b2w, 1, cmap)
+                cmap = cmap.reshape(n, pixels, 3)
+
+            cmap = (255 * cmap).astype("int")
             self.new_figure(panel_count=1, grid=(1, 1), panel_size=(24, 0.24 * n))
             ax = self.next_panel()
             plt.imshow(cmap, aspect='auto', interpolation='none')
@@ -1792,6 +1800,51 @@ class Viewer(Show, Figure, HelpDescription):
             chroms = list(map(Genome.canonical_chrom_name, chroms))
             ax.set_xticklabels(chroms)
             self.fig_show(suffix="callmap")
+
+        elif plot == "cluster_map":
+            if background == "white":
+                cmap = cmap.reshape(n * pixels, 3)
+                np.apply_along_axis(b2w, 1, cmap)
+                cmap = cmap.reshape(n, pixels, 3)
+
+            self.new_figure(panel_count=1, grid=(1, 1), panel_size=(24, 0.24 * n))
+            heatmap_ax = self.fig.add_axes([0.1, 0.1, 0.75, 0.8])  # Adjust the coordinates and size
+            dendrogram_ax = self.fig.add_axes([0.85, 0.1, 0.1, 0.8])  # Adjust the coordinates and size
+
+            cmap_formatted = np.concatenate((cmap[:, :, 0], cmap[:, :, 1], cmap[:, :, 2]), axis=1)
+
+            # Calculate the distance between each sample
+            distance = pdist(cmap_formatted)
+
+            # Perform hierarchical/agglomerative clustering
+            Z = hierarchy.linkage(distance, 'ward')
+
+            # Create dendrogram
+            dendro = hierarchy.dendrogram(Z, orientation='right', no_labels=True, ax=dendrogram_ax)
+            dendrogram_ax.set_xticks([])
+            dendrogram_ax.set_yticks([])
+            dendrogram_ax.set_xticklabels([])
+            dendrogram_ax.set_yticklabels([])
+
+            # Remove the border around the dendrogram
+            dendrogram_ax.set_frame_on(False)
+
+            # Reorder data with respect to clustering
+            idx = list(reversed(dendro['leaves']))
+            cmap = cmap[idx, :]
+
+            # Create main figure
+            heatmap_ax.imshow(cmap, aspect='auto', interpolation='none')
+
+            #  set x ticks label
+            heatmap_ax.set_yticks(range(n))
+            heatmap_ax.set_yticklabels([self.file_title(self.plot_files[i]) for i in idx])
+            heatmap_ax.set_xticks((np.array(starts) + np.array(ends)) / 2)
+
+            chroms = list(map(Genome.canonical_chrom_name, chroms))
+            heatmap_ax.set_xticklabels(chroms)
+            self.fig_show(suffix="cluster_map")
+
         elif plot == "regions":
             self.new_figure(panel_count=1, grid=(1, 1), panel_size=(24, 24))
             ax = self.next_panel()
@@ -1826,7 +1879,7 @@ class Viewer(Show, Figure, HelpDescription):
             ax.set_yticks(range(n))
             ax = self.next_panel()
             Z = hierarchy.linkage(x, 'average', 'correlation')
-            dn = hierarchy.dendrogram(Z)
+            dn = hierarchy.dendrogram(Z, labels=[self.file_title(self.plot_files[i]) for i in range(n)])
 
             self.fig_show(suffix="callmap")
         return cmap
@@ -2337,6 +2390,8 @@ class Viewer(Show, Figure, HelpDescription):
                     ax.xaxis.set_major_locator(plt.MaxNLocator(5))
                     ax.set_xlim([-l * 0.0, (l - 1) * 1.0])
                     ax.xaxis.grid()
+                else:
+                    plt.setp(ax.get_xticklabels(), visible=False)
 
                 ax.yaxis.set_ticklabels([])
                 ax.yaxis.set_ticks([0, 0.25, 0.5, 0.75, 1.0], minor=[])
@@ -2504,7 +2559,8 @@ class Viewer(Show, Figure, HelpDescription):
                         FLAG_USEHAP if self.snp_use_phase else 0) | (
                                FLAG_USEMASK if self.rd_use_mask else 0) | FLAG_GC_CORR
                     flag_rd = FLAG_GC_CORR | (FLAG_USEMASK if self.rd_use_mask else 0)
-                    if ("combined_mosaic" in self.callers) and io.signal_exists(c, bin_size, "RD mosaic segments 2d", flag_rd):
+                    if ("combined_mosaic" in self.callers) and io.signal_exists(c, bin_size, "RD mosaic segments 2d",
+                                                                                flag_rd):
                         calls = io.read_calls(c, bin_size, "calls combined", flag)
                         segments = io.get_signal(c, bin_size, "RD mosaic segments 2d", FLAG_GC_CORR)
                         segments = segments_decode(segments)
@@ -2512,7 +2568,7 @@ class Viewer(Show, Figure, HelpDescription):
                         for call in calls:
                             for b in segments[int(call["segment"])]:
                                 if b < end_bin and b >= start_bin:
-                                    if (call["models"][0][1]!=1) or (call["models"][0][2]!=1):
+                                    if (call["models"][0][1] != 1) or (call["models"][0][2] != 1):
                                         h1[b - start_bin] = call["models"][0][1]
                                         h2[b - start_bin] = -call["models"][0][2]
                     gh1.extend(list(h1))
@@ -2520,11 +2576,10 @@ class Viewer(Show, Figure, HelpDescription):
                     borders.append(len(gh1) - 1)
                 x = range(len(gh1))
                 plt.gca().get_xaxis().get_major_formatter().set_useOffset(False)
-                #plt.stackplot(x, gh1, gh2, baseline='zero')
-                plt.bar(x,gh1)
-                plt.bar(x,gh2)
+                # plt.stackplot(x, gh1, gh2, baseline='zero')
+                plt.bar(x, gh1)
+                plt.bar(x, gh2)
                 plt.gca().yaxis.grid()
-
 
                 def format_func(value, tick_number):
                     ix = int(value)
@@ -3733,13 +3788,13 @@ class Viewer(Show, Figure, HelpDescription):
                 ix = 0
                 while ix < len(pos) and pos[ix] <= pos2:
                     if pos[ix] >= pos1 and (nref[ix] + nalt[ix]) != 0:
-                        if gt[ix] == 5:
+                        if gt[ix] == 6:
                             talt += nalt[ix]
                             tref += nref[ix]
                             if flag[ix] & 2:
                                 taltP += nalt[ix]
                                 trefP += nref[ix]
-                        elif gt[ix] == 6:
+                        elif gt[ix] == 5:
                             tref += nalt[ix]
                             talt += nref[ix]
                             if flag[ix] & 2:
@@ -3751,6 +3806,135 @@ class Viewer(Show, Figure, HelpDescription):
             ret.append([baf, bafP])
             if stdout:
                 print("%s\t%f\t%f" % (regions[i], baf, bafP))
+        return ret
+
+    def phased_baf_comparison(self, reg1, reg2, callset=None, stdout=False, caller='2d'):
+        regions = [reg1, reg2]
+        n = len(regions)
+        ret = []
+        list_baf = [[], []]
+        list_bafP = [[], []]
+        list_h1 = [[], []]
+        list_h1P = [[], []]
+        list_h2 = [[], []]
+        list_h2P = [[], []]
+        totc = [0, 0]
+        for i in range(n):
+            regs = decode_region(regions[i])
+            talt = 0
+            tref = 0
+            taltP = 0
+            trefP = 0
+            for c, (pos1, pos2) in regs:
+                pos, ref, alt, nref, nalt, gt, flag, qual = self.io[self.plot_file].read_snp(c, callset=callset)
+                ix = 0
+                done = False
+                flipped_bins = set({})
+                snp_flag = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0) | (
+                    FLAG_USEHAP if self.snp_use_phase else 0)
+                flipped_bins = set(
+                    map(int, list(self.io[self.plot_file].get_signal(c, self.bin_size, "SNP " + caller + " call flipped bins", snp_flag))))
+
+                while ix < len(pos) and pos[ix] <= pos2 and not done:
+                    if pos[ix] >= pos1 and (nref[ix] + nalt[ix]) != 0:
+                        if pos[ix] // self.bin_size in flipped_bins:
+                            nref[ix], nalt[ix] = nalt[ix], nref[ix]
+                        if gt[ix] == 6:
+                            talt += nalt[ix]
+                            tref += nalt[ix]
+                            list_baf[i].append(nalt[ix] / (nalt[ix] + nref[ix]))
+                            list_h1[i].append(nalt[ix])
+                            list_h2[i].append(nref[ix])
+                            if flag[ix] & 2:
+                                totc[i] += (nalt[ix] + nref[ix])
+                                taltP += nalt[ix]
+                                trefP += nref[ix]
+                                list_bafP[i].append(nalt[ix] / (nalt[ix] + nref[ix]))
+                                list_h1P[i].append(nalt[ix])
+                                list_h2P[i].append(nref[ix])
+                        elif gt[ix] == 5:
+                            tref += nalt[ix]
+                            talt += nref[ix]
+                            list_baf[i].append(nref[ix] / (nalt[ix] + nref[ix]))
+                            list_h1[i].append(nref[ix])
+                            list_h2[i].append(nalt[ix])
+                            if flag[ix] & 2:
+                                totc[i] += (nalt[ix] + nref[ix])
+                                trefP += nalt[ix]
+                                taltP += nref[ix]
+                                list_bafP[i].append(nref[ix] / (nalt[ix] + nref[ix]))
+                                list_h1P[i].append(nref[ix])
+                                list_h2P[i].append(nalt[ix])
+                    done = (i == 1) and (totc[1] >= totc[0])
+                    ix += 1
+            baf = talt / (tref + talt) if (tref + talt) > 0 else 0
+            bafP = taltP / (trefP + taltP) if (trefP + taltP) > 0 else 0
+            ret.append([baf, bafP, tref, talt, trefP, taltP])
+        if (ret[0][4] + ret[0][5]) == 0 or (ret[1][4] + ret[1][5]) == 0:
+            return ret
+        import seaborn as sns
+        from scipy.stats import ks_2samp
+        from scipy.stats import fisher_exact
+        from scipy.stats import chi2
+
+        ah1 = np.array(list_h1[0])
+        ah2 = np.array(list_h2[0])
+        P = np.sum(ah1) / (np.sum(ah1) + np.sum(ah2))
+        E_n = P * (ah1 + ah2)
+        E_m = (1 - P) * (ah1 + ah2)
+        chi2_stat = np.sum((ah1 - E_n) ** 2 / E_n) + np.sum((ah2 - E_m) ** 2 / E_m)
+        k = len(ah1)
+        p_value = 1 - chi2.cdf(chi2_stat, k - 1)
+        ah1 = np.array(list_h1P[0])
+        ah2 = np.array(list_h2P[0])
+        P = np.sum(ah1) / (np.sum(ah1) + np.sum(ah2))
+        E_n = P * (ah1 + ah2)
+        E_m = (1 - P) * (ah1 + ah2)
+        chi2_statP = np.sum((ah1 - E_n) ** 2 / E_n) + np.sum((ah2 - E_m) ** 2 / E_m)
+        k = len(ah1)
+        p_valueP = 1 - chi2.cdf(chi2_statP, k - 1)
+        ret.append([p_value, chi2_stat, p_valueP, chi2_statP])
+
+        odds_ratio, p_value = fisher_exact([[ret[1][2], ret[1][3]], [ret[0][2], ret[0][3]]])
+        odds_ratioP, p_valueP = fisher_exact([[ret[1][4], ret[1][5]], [ret[0][4], ret[0][5]]])
+        ret.append([odds_ratio, p_value, odds_ratioP, p_valueP])
+
+        ks_statistic, p_value = ks_2samp(list_baf[0], list_baf[1])
+        ks_statisticP, p_valueP = ks_2samp(list_bafP[0], list_bafP[1])
+        ret.append([ks_statistic, p_value, ks_statisticP, p_valueP])
+        self.new_figure(panel_count=1)
+        sns.kdeplot(list_baf[0], common_norm=True, label='case all', color='orange', alpha=0.7)
+        sns.kdeplot(list_bafP[0], common_norm=True, label='case P region', color='red')
+        sns.kdeplot(list_baf[1], common_norm=True, label="control all", color='cyan', alpha=0.7)
+        sns.kdeplot(list_bafP[1], common_norm=True, label="control P region", color='blue')
+        plt.xlim([0.2, 0.8])
+        plt.grid()
+        plt.xticks([0.25, 0.5, 0.75])
+        plt.xlabel('Phased BAF')
+        plt.ylabel('Density')
+        plt.legend()
+
+        self.fig_show(suffix="baf_dist")
+        if stdout:
+            print("Chi2 test for %s:" % (regions[0]))
+            print("p-value for all variants:        %e" % (ret[2][0]))
+            print("Chi2 stat for all variants:      %e" % (ret[2][1]))
+            print("p-value for P-region variants:   %e" % (ret[2][2]))
+            print("Chi2 stat for P-region variants: %e" % (ret[2][3]))
+            print()
+            print("All variants:")
+            print("%25s\t%15.4f\t%15d\t%15d" % (regions[0], ret[0][0], ret[0][2], ret[0][3]))
+            print("%25s\t%15.4f\t%15d\t%15d" % (regions[1], ret[1][0], ret[1][2], ret[1][3]))
+            print("Fisher exact p-value: %15e" % (ret[3][1]))
+            print()
+            print("P-region variants:")
+            print("%25s\t%15.4f\t%15d\t%15d" % (regions[0], ret[0][1], ret[0][4], ret[0][5]))
+            print("%25s\t%15.4f\t%15d\t%15d" % (regions[1], ret[1][1], ret[1][4], ret[1][5]))
+            print("Fisher exact p-value: %15e" % (ret[3][3]))
+            print()
+            print("KS test p-val for all variants:      %15e" % (ret[4][1]))
+            print("KS test p-val for P-region variants: %15e" % (ret[4][3]))
+            print()
         return ret
 
     def sample2sample(self, s1, s2, callset=None):
@@ -3968,9 +4152,7 @@ class Viewer(Show, Figure, HelpDescription):
             ret.append([c, pos1, pos2])
             for bs in bin_sizes:
                 flag_rd = (FLAG_GC_CORR if self.rd_use_gc_corr else 0) | (FLAG_USEMASK if self.rd_use_mask else 0)
-                stat = self.io[file_index].get_signal(c, bs, "RD stat", flag_rd | FLAG_AUTO)
-                if stat is None or len(stat) == 0:
-                    stat = self.io[file_index].get_signal(c, bs, "RD stat", flag_rd | FLAG_SEX)
+                mean, stdev = self.io[file_index].rd_normal_level(bs, flag_rd | FLAG_GC_CORR)
                 his_p = self.io[file_index].get_signal(c, bs, "RD", flag_rd)
                 bin1 = (pos1 - 1) // bs
                 bin2 = (pos2 - 1) // bs
@@ -3998,20 +4180,84 @@ class Viewer(Show, Figure, HelpDescription):
                             pass
                 e2 = 0
                 if p_val:
-                    e1 = getEValue(stat[4], stat[5], his_p, bin1, bin2 + 1) * 2.9e9 / bs
-                    e2 = gaussianEValue(stat[4], stat[5], his_p, bin1, bin2 + 1) * 2.9e9
+                    e1 = getEValue(mean, stdev, his_p, bin1, bin2 + 1) * 2.9e9 / bs
+                    e2 = gaussianEValue(mean, stdev, his_p, bin1, bin2 + 1) * 2.9e9
                 if interactive:
-                    print("\t%f" % (2. * rc / (stat[4] * (pos2 - pos1 + 1) / bs)), end="")
+                    print("\t%f" % (2. * rc / (mean * (pos2 - pos1 + 1) / bs)), end="")
                     if p_val:
                         print("\t%e\t%e" % (e1, e2), end="")
 
-                ret[-1].append(2. * rc / (stat[4] * (pos2 - pos1 + 1) / bs))
+                ret[-1].append(2. * rc / (mean * (pos2 - pos1 + 1) / bs))
                 if p_val:
                     ret[-1].append(e2)
             if interactive:
                 print()
 
         return ret
+
+    def genotype_genes_from_file(self, bin_size, filename):
+        genes = {}
+        genes_list = []
+        with open(filename, 'r') as file:
+            lines = file.readlines()
+            genes = {line.split('\t')[0]: line.split('\t')[1].strip() for line in lines}
+            genes_list = [line.split('\t')[0] for line in lines]
+
+        chrom_gene = {}
+        gene_bins = {}
+        gene_size = {}
+        gene_print = {}
+        for gene in genes:
+            chrom, (start, stop) = decode_region(genes[gene])[0]
+            if chrom not in chrom_gene:
+                chrom_gene[chrom] = []
+            chrom_gene[chrom].append(gene)
+            gene_bins[gene]=(start//bin_size,stop//bin_size+1)
+            gene_size[gene]=stop-start
+
+        file_index = self.plot_file
+        rd_gc_chromosomes = {}
+        for c in self.io_gc.gc_chromosomes():
+            rd_name = self.io[file_index].rd_chromosome_name(c)
+            if not rd_name is None:
+                rd_gc_chromosomes[rd_name] = c
+
+        for c in rd_gc_chromosomes:
+            if c in chrom_gene:
+                flag_rd = (FLAG_GC_CORR if self.rd_use_gc_corr else 0) | (FLAG_USEMASK if self.rd_use_mask else 0)
+                mean, stdev = self.io[file_index].rd_normal_level(bin_size, flag_rd | FLAG_GC_CORR)
+                rd = self.io[file_index].get_signal(c, bin_size, "RD", flag_rd)
+                rd_raw = self.io[file_index].get_signal(c, bin_size, "RD")
+                snp_flag = (FLAG_USEMASK if self.snp_use_mask else 0) | (FLAG_USEID if self.snp_use_id else 0) | (
+                    FLAG_USEHAP if self.snp_use_phase else 0)
+                snp_likelihood = list(
+                    self.io[file_index].get_signal(c, bin_size, "SNP likelihood", snp_flag).astype("float64"))
+                snp_hets = self.io[file_index].get_signal(c, bin_size, "SNP bin count 0|1", snp_flag)
+                snp_hets += self.io[file_index].get_signal(c, bin_size, "SNP bin count 1|0", snp_flag)
+                snp_homs = self.io[file_index].get_signal(c, bin_size, "SNP bin count 1|1", snp_flag)
+
+                for gene in chrom_gene[c]:
+                    mean_rd = np.nanmean(rd[gene_bins[gene][0]:gene_bins[gene][1]])
+                    mean_rd_raw = np.nanmean(rd_raw[gene_bins[gene][0]:gene_bins[gene][1]])
+                    hets = np.sum(snp_hets[gene_bins[gene][0]:gene_bins[gene][1]])
+                    homs = np.sum(snp_homs[gene_bins[gene][0]:gene_bins[gene][1]])
+                    lh = snp_likelihood[gene_bins[gene][0]:gene_bins[gene][1]]
+                    if len(lh) == 0:
+                        baf, baf_p = np.nan, np.nan
+                    else:
+                        loglh = np.log(np.array(lh) + 1e-100)
+                        sumllh = np.sum(loglh, axis=0)
+                        sumllh -= np.max(sumllh)
+                        flh = np.exp(sumllh)
+                        flh /= np.sum(flh)
+                        baf, baf_p = likelihood_baf_pval(flh)
+                    gene_print[gene] = f"{gene}\t{genes[gene]}\t{gene_bins[gene][1]-gene_bins[gene][0]}\t"
+                    gene_print[gene] += f"{mean_rd/mean:.5f}\t{mean_rd_raw/mean:.5f}\t{hets}\t{homs}\t{baf:.3f}\t{baf_p:.2e}"
+
+        for gene in genes_list:
+            if gene in gene_print:
+                print(gene_print[gene])
+
 
     def genotype_all(self, bin_sizes, regions, interactive=False, file_index=None):
         if file_index is None:
@@ -4033,9 +4279,7 @@ class Viewer(Show, Figure, HelpDescription):
                     if chr_len is not None and pos2 == 1000000000:
                         pos2 = chr_len
                     flag_rd = (FLAG_GC_CORR if self.rd_use_gc_corr else 0) | (FLAG_USEMASK if self.rd_use_mask else 0)
-                    stat = self.io[file_index].get_signal(c, bs, "RD stat", flag_rd | FLAG_AUTO)
-                    if stat is None or len(stat) == 0:
-                        stat = self.io[file_index].get_signal(c, bs, "RD stat", flag_rd | FLAG_SEX)
+                    mean, stdev = self.io[file_index].rd_normal_level(bs, flag_rd | FLAG_GC_CORR)
                     his_p = self.io[file_index].get_signal(c, bs, "RD", flag_rd)
                     qrd_p = self.io[file_index].get_signal(c, bs, "RD")
                     qrd_u = self.io[file_index].get_signal(c, bs, "RD unique")
@@ -4142,8 +4386,8 @@ class Viewer(Show, Figure, HelpDescription):
                             except IndexError:
                                 pass
 
-                e1 = getEValue(stat[4], stat[5], his_p, bin1, bin2 + 1) * 2.9e9 / bs
-                e2 = gaussianEValue(stat[4], stat[5], his_p, bin1, bin2 + 1) * 2.9e9
+                e1 = getEValue(mean, stdev, his_p, bin1, bin2 + 1) * 2.9e9 / bs
+                e2 = gaussianEValue(mean, stdev, his_p, bin1, bin2 + 1) * 2.9e9
                 dG = -1
                 if gc:
                     pN = 1 - pN / (pos2 - pos1 + 1)
@@ -4154,7 +4398,7 @@ class Viewer(Show, Figure, HelpDescription):
                 if nansize == 0:
                     rc = np.nan
                 else:
-                    rc = 2 * rc / (stat[4] * nansize / bs)
+                    rc = 2 * rc / (mean * nansize / bs)
                 ret[bs][-1].append(rc)
                 ret[bs][-1].append(e1)
                 ret[bs][-1].append(e2)
@@ -4549,7 +4793,8 @@ class Viewer(Show, Figure, HelpDescription):
                 try:
                     rc += (bin1 * self.bin_size - start_pos + 1 + self.bin_size) * his_p[bin1] / self.bin_size
                     rc += (end_pos - bin2 * self.bin_size) * his_p[bin2] / self.bin_size
-                    rc2 += (bin1 * self.bin_size - start_pos + 1 + self.bin_size) * his_p[bin1] * his_p[bin1] / self.bin_size
+                    rc2 += (bin1 * self.bin_size - start_pos + 1 + self.bin_size) * his_p[bin1] * his_p[
+                        bin1] / self.bin_size
                     rc2 += (end_pos - bin2 * self.bin_size) * his_p[bin2] * his_p[bin2] / self.bin_size
                 except IndexError:
                     pass
