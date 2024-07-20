@@ -1,0 +1,83 @@
+name: Test python versions
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+        pip install .
+        pip install pytest
+
+    - name: Install `gcsfuse`
+      run: |
+        echo "deb http://packages.cloud.google.com/apt gcsfuse-$(lsb_release -c -s) main" | sudo tee /etc/apt/sources.list.d/gcsfuse.list
+        curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /tmp/packages-cloud-google-com-apt-keyring.gpg
+        sudo mv /tmp/packages-cloud-google-com-apt-keyring.gpg /etc/apt/trusted.gpg.d/
+        sudo apt-get update
+        sudo apt-get install gcsfuse -y
+
+    - name: Mount Google Cloud Storage bucket
+      run: |
+        sudo mkdir -p /mnt/gcs-bucket
+        sudo chown $USER:$USER /mnt/gcs-bucket
+        gcsfuse --implicit-dirs --anonymous-access --only-dir platinum-genomes genomics-public-data /mnt/gcs-bucket
+
+    - name: List bucket contents
+      run: ls /mnt/gcs-bucket
+
+    - name: check cnvpytor
+      run: |
+        cnvpytor -h
+
+    - name: run cnvpytor RD
+      run: |
+        cnvpytor -root test.pytor -rd /mnt/gcs-bucket/bam/NA12877_S1.bam -v d
+
+    - name: run cnvpytor SNP
+      run: |
+        cnvpytor -root test.pytor -snp /mnt/gcs-bucket/vcf/NA12877_S1.genome.vcf -v d
+
+    - name: run cnvpytor mask_snps
+      run: |
+        cnvpytor -root test.pytor -mask_snps
+
+    - name: run cnvpytor pileup
+      run: |
+        cnvpytor -root test.pytor -pileup /mnt/gcs-bucket/bam/NA12877_S1.bam -v d
+
+    - name: run cnvpytor his, baf, call combined
+      run: |
+        cnvpytor -root test.pytor -his 100000 -v d
+        cnvpytor -root test.pytor -baf 100000 -v d 
+        cnvpytor -root test.pytor -call combined 100000 -v d > output
+        cat output
+
+    - name: run cnvptor ls
+      run: |
+        cnvpytor -root test.pytor -ls 
+        echo "rdstat" | cnvpytor -root test.pytor -view 100000 -o prefix.png
+
+    - name: check calls
+      run: |
+        md5 < output
+        if [ "$(md5 < output)" == "cf2496a1f86cc22500825493a27f0d95" ] ; then echo PASS; else echo FAIL; fi
+
+    - name: Run tests
+      run: |
+        pytest -s
