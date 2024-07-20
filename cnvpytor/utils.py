@@ -59,7 +59,7 @@ def gc_at_decompress(gcat):
         Binned AT content (100bp bins).
 
     """
-    return list(gcat[:gcat.size // 2]), list(100 - gcat[:gcat.size // 2] - gcat[gcat.size // 2:])
+    return list(map(int, gcat[:gcat.size // 2])), list(map(int, 100 - gcat[:gcat.size // 2] - gcat[gcat.size // 2:]))
 
 
 def gcp_decompress(gcat, bin_ratio=1):
@@ -580,7 +580,8 @@ def fit_bimodal(x, y):
     try:
         with warnings.catch_warnings():
             warnings.simplefilter("error", OptimizeWarning)
-            popt, pcov = curve_fit(bimodal, x, y, p0=[area / 2, mean * 0.66, sigma / 2, area / 2, mean * 1.33, sigma / 2])
+            popt, pcov = curve_fit(bimodal, x, y,
+                                   p0=[area / 2, mean * 0.66, sigma / 2, area / 2, mean * 1.33, sigma / 2])
             return popt, pcov
     except OptimizeWarning:
         _logger.warning("Problem with fit: OptimizeWarning. Return None!")
@@ -1212,7 +1213,7 @@ def calculate_likelihood(io, bin_size, chrom, snp_use_mask=True, snp_use_id=Fals
                     count01[b] += 1
                     if reduce_noise:
                         likelihood[b] *= beta_fun(nalt[i] + (1 if nalt[i] < nref[i] else 0),
-                                                      nref[i] + (1 if nref[i] < nalt[i] else 0), lh_x)
+                                                  nref[i] + (1 if nref[i] < nalt[i] else 0), lh_x)
                     else:
                         likelihood[b] *= beta_fun(nalt[i] * blw, nref[i] * blw, lh_x)
                     s = np.sum(likelihood[b])
@@ -1229,7 +1230,7 @@ def calculate_likelihood(io, bin_size, chrom, snp_use_mask=True, snp_use_id=Fals
                     count11[b] += 1
 
     for i in range(max_bin):
-        if (count01[i] + count10[i])==0 and use_hom:
+        if (count01[i] + count10[i]) == 0 and use_hom:
             likelihood[i] = lh_x * 0. + 1 / res
             likelihood[i][0] = 0.5 * (count11[i] + count00[i])
             likelihood[i][-1] = 0.5 * (count11[i] + count00[i])
@@ -1237,6 +1238,3 @@ def calculate_likelihood(io, bin_size, chrom, snp_use_mask=True, snp_use_id=Fals
             likelihood[i] /= s
 
     return likelihood
-
-
-

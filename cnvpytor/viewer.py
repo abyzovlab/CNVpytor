@@ -4624,7 +4624,7 @@ class Viewer(Show, Figure, HelpDescription):
             ax.grid(True)
         self.fig_show(suffix="rd_stat_violin")
 
-    def rd_stat_violin(self, regions, factor=1):
+    def rd_stat_violin_regions(self, regions, factor=1):
         chroms = []
         for c, (l, t) in self.reference_genome["chromosomes"].items():
             rd_chr = self.io[self.plot_files[0]].rd_chromosome_name(c)
