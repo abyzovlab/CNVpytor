@@ -118,7 +118,7 @@ _Diagram made using [Draw.io](https://github.com/jgraph/drawio)._
 > cnvpytor -root file.pytor -baf 10000 100000
 ```
 
-### Filtering calls form view mode
+### Filtering calls from view mode
 ```
 > cnvpytor -root file.pytor -view 100000 
 print calls
@@ -141,7 +141,7 @@ set annotate
 print calls
 ```
 
-### Merging calls form multiple samples
+### Merging calls from multiple samples
 ```
 > cnvpytor -root file1.pytor file2.pytor ... -view 100000 
 print merged_calls
