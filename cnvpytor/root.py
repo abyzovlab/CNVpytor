@@ -58,7 +58,7 @@ class Root:
         cl, bamf_info = args
         chrs, lens = cl
         bam_path, reference_filename = bamf_info
-        bamf = Bam(bam_path, reference_filename=reference_filename)
+        bamf = Bam(bam_path, reference_filename=reference_filename, init_log=False)
         _logger.info("Reading data for chromosome %s with length %d" % (chrs, lens))
         l_rd_p, l_rd_u, l_his_read_frg = bamf.read_chromosome(chrs)
         return l_rd_p, l_rd_u, l_his_read_frg
@@ -493,7 +493,7 @@ class Root:
     def pileup_chromosome(x):
         c, l, snpc, bam_path, reference_filename, pos, ref, alt = x
         _logger.info("Pileup chromosome %s with length %d" % (c, l))
-        bamf = Bam(bam_path, reference_filename=reference_filename)
+        bamf = Bam(bam_path, reference_filename=reference_filename, init_log=False)
         return bamf.pileup(c, pos[snpc], ref[snpc], alt[snpc])
 
     def _pileup_bam(self, bamfile, chroms, pos, ref, alt, nref, nalt, reference_filename):

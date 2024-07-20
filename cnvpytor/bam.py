@@ -15,7 +15,7 @@ _logger = logging.getLogger("cnvpytor.bam")
 
 class Bam:
 
-    def __init__(self, filename, max_fragment_len=5000, max_read_len=300, reference_filename=False):
+    def __init__(self, filename, max_fragment_len=5000, max_read_len=300, reference_filename=False, init_log=True):
         """
         Opens BAM/CRAM/SAM file, reads chromosome names/lengths from header file and detects reference genome
 
@@ -47,10 +47,12 @@ class Bam:
             _logger.warning("Unsuported file type: " + filename)
         self.len = {}
         if self.file:
-            _logger.info("File: " + filename + " successfully open")
+            if init_log:
+                _logger.info("File: " + filename + " successfully open")
             self.reference_genome = Genome.detect_genome(self.file.header.references, self.file.header.lengths)
             if self.reference_genome:
-                _logger.info("Detected reference genome: " + self.reference_genome)
+                if init_log:
+                    _logger.info("Detected reference genome: " + self.reference_genome)
             for c, l in zip(self.file.header.references, self.file.header.lengths):
                 self.len[c] = l
 
