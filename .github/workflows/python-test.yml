@@ -75,8 +75,9 @@ jobs:
 
     - name: check calls
       run: |
-        md5 < output
-        if [ "$(md5 < output)" == "cf2496a1f86cc22500825493a27f0d95" ] ; then echo PASS; else echo FAIL; fi
+        md5sum output
+        
+        [ "$(md5sum output | awk '{ print $1 }')" == "c7a07af67cb38337f5df012cef304e66" ] && echo PASS || echo FAIL
 
     - name: Run tests
       run: |
