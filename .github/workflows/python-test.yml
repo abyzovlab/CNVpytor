@@ -62,7 +62,7 @@ jobs:
       run: |
         cnvpytor -root test.pytor -pileup /mnt/gcs-bucket/bam/NA12877_S1.bam -v d
 
-    - name: run cnvpytor his, baf, call combined
+    - name: run cnvpytor his, baf
       run: |
         cnvpytor -root test.pytor -his 100000 -v d
         cnvpytor -root test.pytor -baf 100000 -v d 
@@ -77,7 +77,7 @@ jobs:
         md5sum output_2D.tsv
         [ "$(md5sum output_2D.tsv | awk '{ print $1 }')" == "c7a07af67cb38337f5df012cef304e66" ] && echo PASS || echo FAIL
 
-    - name: run cnvpytor call meanShift
+    - name: run cnvpytor meanShift call
       run: |
         cnvpytor -root test.pytor -partition 100000 -v d
         cnvpytor -root test.pytor -call 100000 -v d > output_meanShift.tsv
