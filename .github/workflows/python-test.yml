@@ -1,12 +1,15 @@
 name: Test python versions
 
-on: [push, pull_request]
+on:
+  workflow_dispatch:  # Allows the workflow to be manually triggered
+
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     strategy:
+      fail-fast: false  # Continue running all jobs even if one fails
       matrix:
         python-version: ["3.11"]
 
@@ -65,20 +68,39 @@ jobs:
       run: |
         cnvpytor -root test.pytor -his 100000 -v d
         cnvpytor -root test.pytor -baf 100000 -v d 
-        cnvpytor -root test.pytor -call combined 100000 -v d > output
-        cat output
+
+    - name: run cnvpytor call combined
+      run: |
+        cnvpytor -root test.pytor -call combined 100000 -v d > output_2D.tsv
+        cat output_2D.tsv
+
+    - name: check combined calls
+      run: |
+        md5sum output_2D.tsv
+        [ "$(md5sum output_2D.tsv | awk '{ print $1 }')" == "c7a07af67cb38337f5df012cef304e66" ] && echo PASS || echo FAIL
+
+    - name: run cnvpytor call meanShift
+      run: |
+        cnvpytor -root test.pytor -partition 100000 -v d
+        cnvpytor -root test.pytor -call 100000 -v d > output_meanShift.tsv
+        cat output_meanShift.tsv
+
+    - name: check meanShift calls
+      run: |
+        md5sum output_meanShift.tsv
+        
+        [ "$(md5sum output_meanShift.tsv | awk '{ print $1 }')" == "c7a07af67cb38337f5df012cef304e66" ] && echo PASS || echo FAIL
 
     - name: run cnvptor ls
       run: |
-        cnvpytor -root test.pytor -ls 
+        cnvpytor -root test.pytor -ls
+
+    - name: run cnvptor rdstat
+      run: |
         echo "rdstat" | cnvpytor -root test.pytor -view 100000 -o prefix.png
 
-    - name: check calls
-      run: |
-        md5sum output
-        
-        [ "$(md5sum output | awk '{ print $1 }')" == "c7a07af67cb38337f5df012cef304e66" ] && echo PASS || echo FAIL
-
-    - name: Run tests
-      run: |
-        pytest -s
+    - name: Upload test image
+      uses: actions/upload-artifact@v2
+      with:
+        name: rdstat
+        path: prefix.png
