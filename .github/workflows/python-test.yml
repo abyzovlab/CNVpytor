@@ -9,7 +9,7 @@ jobs:
     strategy:
       fail-fast: false  # Continue running all jobs even if one fails
       matrix:
-        python-version: ["3.11"]
+        python-version: ["3.10", "3.12"]
 
     steps:
     - uses: actions/checkout@v4
@@ -23,7 +23,6 @@ jobs:
       run: |
         pip install -r requirements.txt
         pip install .
-        pip install pytest
 
     - name: Install `gcsfuse`
       run: |
@@ -42,7 +41,7 @@ jobs:
     - name: List bucket contents
       run: ls /mnt/gcs-bucket
 
-    - name: check cnvpytor
+    - name: cnvpytor Usage
       run: |
         cnvpytor -h
 
@@ -99,13 +98,14 @@ jobs:
 
     - name: run cnvptor manhattan
       run: |
-        echo -e "set panels rd likelihood\n manhattan" | cnvpytor -root HepG2_WGS.pytor -view 100000 -o NA12877.png
+        echo -e "set panels rd likelihood\n manhattan" | cnvpytor -root test.pytor  -view 100000 -o NA12877.png
 
-
-    - name: Upload image
+    - name: Upload data
       uses: actions/upload-artifact@v4
       with:
-        name: NA12877
+        name: NA12877 Python ${{ matrix.python-version }}
         path: |
+          output_2D.tsv
+          output_meanShift.tsv
           NA12877.stat.0000.png
           NA12877.global.0000.png
