@@ -1,8 +1,6 @@
 name: Test python versions
 
-on:
-  workflow_dispatch  # Allows the workflow to be manually triggered
-
+on: [push]
 
 jobs:
   build:
