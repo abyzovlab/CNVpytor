@@ -6,10 +6,9 @@ from __future__ import absolute_import, print_function, division
 
 from fpdf import FPDF, XPos, YPos
 import logging
-import pkg_resources
+from .utils import get_install_path
 
 _logger = logging.getLogger("cnvpytor.report")
-
 
 
 class Report(FPDF):
@@ -47,8 +46,8 @@ class Report(FPDF):
         self.cell(self.epw-105, 6, "SINGLE SAMPLE REPORT", new_x=XPos.LEFT, new_y=YPos.NEXT)
         self.cell(self.epw-105, 6, "SAMPLE: {:}".format(self.sample), new_x=XPos.LEFT, new_y=YPos.NEXT)
         self.cell(self.epw-105, 6, "DATE: {:}".format(self.date), new_x=XPos.LEFT, new_y=YPos.NEXT)
-
-        self.image(pkg_resources.resource_filename('cnvpytor', 'imgs')+"/cnvpytor_640.png",x=11,y=2,w=80)
+        logo_path = get_install_path().joinpath("imgs/cnvpytor_640.png")
+        self.image(logo_path, x=11, y=2, w=80)
 
         # Line break
         self.ln(5)
