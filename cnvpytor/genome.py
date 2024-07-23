@@ -5,15 +5,16 @@ class Genome: detect reference / parity / naming functions / reference genome da
 """
 from __future__ import absolute_import, print_function, division
 from .utils import *
+from .utils import get_install_path
 from collections import OrderedDict
 import logging
-import pkg_resources
 import os
 
 _logger = logging.getLogger("cnvpytor.genome")
 
 
 class Genome:
+    pytor_datapath = get_install_path().joinpath("data")
     reference_genomes = {
         "hg19": {
             "name": "GRCh37",
@@ -28,8 +29,8 @@ class Genome:
                  ("chr19", (59128983, "A")), ("chr20", (63025520, "A")), ("chr21", (48129895, "A")),
                  ("chr22", (51304566, "A")), ("chrX", (155270560, "S")), ("chrY", (59373566, "S")),
                  ("chrM", (16571, "M"))]),
-            "gc_file": pkg_resources.resource_filename('cnvpytor', 'data') + "/gc_hg19.pytor",
-            "mask_file": pkg_resources.resource_filename('cnvpytor', 'data') + "/mask_hg19.pytor",
+            "gc_file": pytor_datapath.joinpath("gc_hg19.pytor"),
+            "mask_file": pytor_datapath.joinpath("mask_hg19.pytor"),
             "ensembl_api_region": "https://grch37.rest.ensembl.org/overlap/region/human/{region}?content-type=application/json;feature=gene;"
         },
         "hg38": {
@@ -45,8 +46,8 @@ class Genome:
                  ("chr19", (58617616, "A")), ("chr20", (64444167, "A")), ("chr21", (46709983, "A")),
                  ("chr22", (50818468, "A")), ("chrX", (156040895, "S")), ("chrY", (57227415, "S")),
                  ("chrM", (16569, "M"))]),
-            "gc_file": pkg_resources.resource_filename('cnvpytor', 'data') + "/gc_hg38.pytor",
-            "mask_file": pkg_resources.resource_filename('cnvpytor', 'data') + "/mask_hg38.pytor",
+            "gc_file": pytor_datapath.joinpath("gc_hg38.pytor"),
+            "mask_file": pytor_datapath.joinpath("mask_hg38.pytor"),
             "ensembl_api_region": "https://rest.ensembl.org/overlap/region/human/{region}?content-type=application/json;feature=gene;"
         },
         "chm13": {
@@ -63,7 +64,7 @@ class Genome:
                 ("chr22", (51324926, "A")), ("chrX", (154259566, "S")), ("chrY", (62460029, "S")),
                 ("chrMT", (16569, "M"))
             ]),
-            "gc_file": pkg_resources.resource_filename('cnvpytor', 'data') + "/gc_chm13v2.0.pytor",
+            "gc_file": pytor_datapath.joinpath("gc_chm13v2.0.pytor"),
         },
         "chm13v1.1": {
             "name": "CHM13 v1.1 + hg38 chrY",
@@ -79,18 +80,19 @@ class Genome:
                 ("chr22", (51324926, "A")), ("chrX", (154259566, "S")), ("chrY", (57227415, "S")),
                 ("chrMT", (16569, "M"))
             ]),
-            "gc_file": pkg_resources.resource_filename('cnvpytor', 'data') + "/gc_chm13v1.1.pytor",
+            "gc_file": pytor_datapath.joinpath("gc_chm13v1.1.pytor"),
         },
         "kn99": {
             "name": "Cryptococcus neoformans var. grubii KN99 GCA_002216725.1",
             "species": "cryptococcus neoformans",
             "chromosomes": OrderedDict([
-                ("CP022321.1", (2291500,"A")), ("CP022322.1", (1621676,"A")), ("CP022323.1", (1574972,"A")), ("CP022324.1", (1084805,"A")), 
-                ("CP022325.1", (1814975,"A")), ("CP022326.1", (1422463,"A")), ("CP022327.1", (1399209,"A")), ("CP022328.1", (1398693,"A")), 
-                ("CP022329.1", (1186813,"A")), ("CP022330.1", (1059962,"A")), ("CP022331.1", (1562107,"A")), ("CP022332.1", (774060,"A")), 
-                ("CP022333.1", (756017,"A")), ("CP022334.1", (942472,"A")), ("CP022335.1", (24923,"M"))
+                ("CP022321.1", (2291500, "A")), ("CP022322.1", (1621676, "A")), ("CP022323.1", (1574972, "A")),
+                ("CP022324.1", (1084805, "A")), ("CP022325.1", (1814975, "A")), ("CP022326.1", (1422463, "A")),
+                ("CP022327.1", (1399209, "A")), ("CP022328.1", (1398693, "A")), ("CP022329.1", (1186813, "A")),
+                ("CP022330.1", (1059962, "A")), ("CP022331.1", (1562107, "A")), ("CP022332.1", (774060, "A")),
+                ("CP022333.1", (756017, "A")), ("CP022334.1", (942472, "A")), ("CP022335.1", (24923, "M"))
             ]),
-            "gc_file": pkg_resources.resource_filename('cnvpytor', 'data') + "/gc_kn99.pytor",
+            "gc_file": pytor_datapath.joinpath("gc_kn99.pytor"),
         }
     }
 
@@ -170,7 +172,7 @@ class Genome:
     @classmethod
     def download_resources(cls):
         """
-        Download missing resource files files from github.
+        Download missing resource files from gitHub.
 
         Returns
         -------
@@ -188,7 +190,7 @@ class Genome:
                     _logger.info("Downloading GC resource file: %s", fn)
                     try:
                         download(url, res)
-                        _logger.info("File downlaoded.")
+                        _logger.info("File downloaded.")
                     except Exception as e:
                         _logger.error("Problem with downloading/saving resource files.")
                         _logger.error("Exception details: " + str(e))
@@ -204,7 +206,7 @@ class Genome:
                     _logger.info("Downloading MASK resource file: %s", fn)
                     try:
                         download(url, res)
-                        _logger.info("File downlaoded.")
+                        _logger.info("File downloaded.")
                     except Exception as e:
                         _logger.error("Problem with downloading/saving resource files.")
                         _logger.error("Exception details: " + str(e))

@@ -15,6 +15,7 @@ from scipy.optimize import OptimizeWarning
 import logging
 import readline
 import requests
+from pathlib import Path
 
 _logger = logging.getLogger("cnvpytor.utils")
 
@@ -1238,3 +1239,27 @@ def calculate_likelihood(io, bin_size, chrom, snp_use_mask=True, snp_use_id=Fals
             likelihood[i] /= s
 
     return likelihood
+
+
+def get_install_path():
+    """
+    Retrieve the installation path of the 'cnvpytor' package.
+
+    This function attempts to locate the installation path of the 'cnvpytor' package.
+    It first uses the `importlib.resources` module, available in Python 3.9 and later.
+    If `importlib.resources` is not available or an error occurs, the function falls
+    back to using the `pkg_resources` module, which is compatible with older Python versions.
+
+    Returns:
+        PosixPath: The installation path of the 'cnvpytor' package.
+    """
+    try:
+        from importlib import resources
+        # Use importlib.resources for Python 3.9+
+        data_path = resources.files('cnvpytor')
+    except Exception as e:
+        # Fallback to pkg_resources for older Python versions
+        import pkg_resources
+        data_path = Path(pkg_resources.resource_filename('cnvpytor', ""))
+
+    return data_path
