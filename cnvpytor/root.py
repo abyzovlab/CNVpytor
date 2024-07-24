@@ -111,13 +111,16 @@ class Root:
                 self.io.create_signal(None, None, "read frg dist", cum_his_read_frg)
             return count
 
-    def rd_stat(self, chroms=[]):
+    def rd_stat(self, chroms=[], gc_corr_rm_ol=False):
         """ Calculate RD statistics for 100 bp bins.
 
         Parameters
         ----------
         chroms : list of str
             List of chromosomes. Calculates for all available if empty.
+
+        gc_corr_rm_ol : bool
+            If true uses only rd bins between 75% and 125% of mean value
 
         Returns
         -------
@@ -221,7 +224,7 @@ class Root:
             self.io.create_signal(None, 100, "RD u dist", dist_u_auto, flags=FLAG_AUTO)
             self.io.create_signal(None, 100, "RD GC dist", dist_p_gc_auto, flags=FLAG_AUTO)
             self.io.create_signal(None, 100, "RD stat", stat_auto, flags=FLAG_AUTO)
-            gc_corr_auto = calculate_gc_correction(dist_p_gc_auto, m_auto, s_auto)
+            gc_corr_auto = calculate_gc_correction(dist_p_gc_auto, m_auto, s_auto, gc_corr_rm_ol = gc_corr_rm_ol)
             self.io.create_signal(None, 100, "GC corr", gc_corr_auto, flags=FLAG_AUTO)
 
         if sex:
@@ -232,7 +235,7 @@ class Root:
             self.io.create_signal(None, 100, "RD u dist", dist_u_sex, flags=FLAG_SEX)
             self.io.create_signal(None, 100, "RD GC dist", dist_p_gc_sex, flags=FLAG_SEX)
             self.io.create_signal(None, 100, "RD stat", stat_sex, flags=FLAG_SEX)
-            gc_corr_sex = calculate_gc_correction(dist_p_gc_sex, m_sex, s_sex)
+            gc_corr_sex = calculate_gc_correction(dist_p_gc_sex, m_sex, s_sex, gc_corr_rm_ol = gc_corr_rm_ol)
             self.io.create_signal(None, 100, "GC corr", gc_corr_sex, flags=FLAG_SEX)
 
         if mt:
@@ -246,7 +249,7 @@ class Root:
             self.io.create_signal(None, 100, "RD u dist", dist_u_mt, flags=FLAG_MT)
             self.io.create_signal(None, 100, "RD GC dist", dist_p_gc_mt, flags=FLAG_MT)
             self.io.create_signal(None, 100, "RD stat", stat_mt, flags=FLAG_MT)
-            gc_corr_mt = calculate_gc_correction(dist_p_gc_mt, m_mt, s_mt, bin_size_mt)
+            gc_corr_mt = calculate_gc_correction(dist_p_gc_mt, m_mt, s_mt, bin_size_mt, gc_corr_rm_ol = gc_corr_rm_ol)
             self.io.create_signal(None, 100, "GC corr", gc_corr_mt, flags=FLAG_MT)
 
     def _read_vcf(self, vcf_file, chroms, sample='', use_index=False, no_counts=False, ad_tag="AD", gt_tag="GT",
@@ -790,7 +793,7 @@ class Root:
             _logger.warning("Reference genome '%s' not found in database." % rg)
             return False
 
-    def calculate_histograms(self, bin_sizes, chroms=[], gc_auto=False):
+    def calculate_histograms(self, bin_sizes, chroms=[], gc_auto=False, gc_corr_rm_ol=False):
         """
         Calculates RD histograms and store data into cnvpytor file.
 
@@ -802,6 +805,8 @@ class Root:
             List of chromosomes. Calculates for all available if empty.
         gc_auto: bool
             Use autosomal GC correction for all chromosomes
+        gc_corr_rm_ol : bool
+            If true uses only rd bins between 75% and 125% of mean value
 
         Returns
         -------
@@ -956,7 +961,7 @@ class Root:
                 self.io.create_signal(None, bin_size, "RD u dist", dist_u_auto, flags=FLAG_AUTO)
                 self.io.create_signal(None, bin_size, "RD GC dist", dist_p_gc_auto, flags=FLAG_AUTO)
                 self.io.create_signal(None, bin_size, "RD stat", stat_auto, flags=FLAG_AUTO)
-                gc_corr_auto = calculate_gc_correction(dist_p_gc_auto, m_auto, s_auto, bin_size_auto)
+                gc_corr_auto = calculate_gc_correction(dist_p_gc_auto, m_auto, s_auto, bin_size_auto, gc_corr_rm_ol = gc_corr_rm_ol)
                 self.io.create_signal(None, bin_size, "GC corr", gc_corr_auto, flags=FLAG_AUTO)
 
             if sex:
@@ -968,7 +973,7 @@ class Root:
                 self.io.create_signal(None, bin_size, "RD u dist", dist_u_sex, flags=FLAG_SEX)
                 self.io.create_signal(None, bin_size, "RD GC dist", dist_p_gc_sex, flags=FLAG_SEX)
                 self.io.create_signal(None, bin_size, "RD stat", stat_sex, flags=FLAG_SEX)
-                gc_corr_sex = calculate_gc_correction(dist_p_gc_sex, m_sex, s_sex, bin_size_sex)
+                gc_corr_sex = calculate_gc_correction(dist_p_gc_sex, m_sex, s_sex, bin_size_sex, gc_corr_rm_ol = gc_corr_rm_ol)
                 self.io.create_signal(None, bin_size, "GC corr", gc_corr_sex, flags=FLAG_SEX)
 
             if mt:
@@ -982,7 +987,7 @@ class Root:
                 self.io.create_signal(None, bin_size, "RD u dist", dist_u_mt, flags=FLAG_MT)
                 self.io.create_signal(None, bin_size, "RD GC dist", dist_p_gc_mt, flags=FLAG_MT)
                 self.io.create_signal(None, bin_size, "RD stat", stat_mt, flags=FLAG_MT)
-                gc_corr_mt = calculate_gc_correction(dist_p_gc_mt, m_mt, s_mt, bin_size_mt)
+                gc_corr_mt = calculate_gc_correction(dist_p_gc_mt, m_mt, s_mt, bin_size_mt, gc_corr_rm_ol = gc_corr_rm_ol)
                 self.io.create_signal(None, bin_size, "GC corr", gc_corr_mt, flags=FLAG_MT)
 
             for c in self.io.rd_chromosomes():
@@ -1077,7 +1082,7 @@ class Root:
                     self.io.create_signal(c, bin_size, "RD", his_p_corr, flags=FLAG_GC_CORR | FLAG_USEMASK)
 
     def calculate_histograms_from_snp_counts(self, bin_sizes, chroms=[], use_mask=True, use_id=False, callset=None,
-                                             min_count=None, gc_auto=False):
+                                             min_count=None, gc_auto=False, gc_corr_rm_ol=False):
         """
         Calculates RD histograms from SNP data and store data into cnvpytor file.
 
@@ -1098,6 +1103,8 @@ class Root:
             minimal number of SNPs within bin
         gc_auto: bool
             Use autosomal GC correction for all chromosomes
+        gc_corr_rm_ol : bool
+            If true uses only rd bins between 75% and 125% of mean value
 
         Returns
         -------
@@ -1257,7 +1264,7 @@ class Root:
                 self.io.create_signal(None, bin_size, "RD u dist", dist_u_auto, flags=FLAG_AUTO)
                 self.io.create_signal(None, bin_size, "RD GC dist", dist_p_gc_auto, flags=FLAG_AUTO)
                 self.io.create_signal(None, bin_size, "RD stat", stat_auto, flags=FLAG_AUTO)
-                gc_corr_auto = calculate_gc_correction(dist_p_gc_auto, m_auto, s_auto, bin_size_auto)
+                gc_corr_auto = calculate_gc_correction(dist_p_gc_auto, m_auto, s_auto, bin_size_auto, gc_corr_rm_ol = gc_corr_rm_ol)
                 self.io.create_signal(None, bin_size, "GC corr", gc_corr_auto, flags=FLAG_AUTO)
                 self.io.set_rd_normal_level(bin_size, m_auto, s_auto)
 
@@ -1270,7 +1277,7 @@ class Root:
                 self.io.create_signal(None, bin_size, "RD u dist", dist_u_sex, flags=FLAG_SEX)
                 self.io.create_signal(None, bin_size, "RD GC dist", dist_p_gc_sex, flags=FLAG_SEX)
                 self.io.create_signal(None, bin_size, "RD stat", stat_sex, flags=FLAG_SEX)
-                gc_corr_sex = calculate_gc_correction(dist_p_gc_sex, m_sex, s_sex, bin_size_sex)
+                gc_corr_sex = calculate_gc_correction(dist_p_gc_sex, m_sex, s_sex, bin_size_sex, gc_corr_rm_ol = gc_corr_rm_ol)
                 self.io.create_signal(None, bin_size, "GC corr", gc_corr_sex, flags=FLAG_SEX)
                 if not auto:
                     self.io.set_rd_normal_level(bin_size, m_auto, s_auto)
@@ -1286,7 +1293,7 @@ class Root:
                 self.io.create_signal(None, bin_size, "RD u dist", dist_u_mt, flags=FLAG_MT)
                 self.io.create_signal(None, bin_size, "RD GC dist", dist_p_gc_mt, flags=FLAG_MT)
                 self.io.create_signal(None, bin_size, "RD stat", stat_mt, flags=FLAG_MT)
-                gc_corr_mt = calculate_gc_correction(dist_p_gc_mt, m_mt, s_mt, bin_size_mt)
+                gc_corr_mt = calculate_gc_correction(dist_p_gc_mt, m_mt, s_mt, bin_size_mt, gc_corr_rm_ol = gc_corr_rm_ol)
                 self.io.create_signal(None, bin_size, "GC corr", gc_corr_mt, flags=FLAG_MT)
 
             for c in self.io.snp_chromosomes():

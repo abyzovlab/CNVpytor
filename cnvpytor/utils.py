@@ -669,12 +669,16 @@ def adjustToEvalue(mean, sigma, rd, start, end, pval, max_steps=1000):
     return None
 
 
-def calculate_gc_correction(his_rd_gc, mean, sigma, bin_size=1):
+def calculate_gc_correction(his_rd_gc, mean, sigma, bin_size=1, gc_corr_rm_ol=False):
     """ Calculate GC correction from RD-GC histogram
     """
+    min_bin = 1
     max_bin = min(int(max(2 * mean, mean + 5 * sigma) / bin_size), his_rd_gc.shape[0])
+    if gc_corr_rm_ol:
+        min_bin = int(0.75 * mean / bin_size)
+        max_bin = min(int(1.25 * mean / bin_size), his_rd_gc.shape[0])
     his = his_rd_gc[1:max_bin, :]
-    rd = np.repeat((np.arange(1, max_bin * bin_size, bin_size)[:max_bin - 1]).reshape((max_bin - 1, 1)), 101, axis=1)
+    rd = np.repeat((np.arange(1, max_bin * bin_size, bin_size)[:max_bin - min_bin]).reshape((max_bin - min_bin, 1)), 101, axis=1)
     np.seterr(divide='ignore', invalid='ignore')
     gc_corr = np.sum(rd * his, axis=0) / np.sum(his, axis=0)
     no_stat = np.isnan(gc_corr)
