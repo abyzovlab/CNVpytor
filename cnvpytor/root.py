@@ -497,14 +497,14 @@ class Root:
         c, l, snpc, bam_path, reference_filename, pos, ref, alt = x
         _logger.info("Pileup chromosome %s with length %d" % (c, l))
         bamf = Bam(bam_path, reference_filename=reference_filename, init_log=False)
-        return bamf.pileup(c, pos[snpc], ref[snpc], alt[snpc])
+        return bamf.pileup(c, pos, ref, alt)
 
     def _pileup_bam(self, bamfile, chroms, pos, ref, alt, nref, nalt, reference_filename):
         _logger.info("Calculating pileup from bam file '%s'." % bamfile)
         bamf = Bam(bamfile, reference_filename=reference_filename)
 
         chrname, chrlen = bamf.get_chr_len()
-        chr_len = [(c, l, self.io.snp_chromosome_name(c), bamfile, reference_filename, pos, ref, alt) for (c, l) in
+        chr_len = [(c, l, self.io.snp_chromosome_name(c), bamfile, reference_filename, pos[self.io.snp_chromosome_name(c)], ref[self.io.snp_chromosome_name(c)], alt[self.io.snp_chromosome_name(c)]) for (c, l) in
                    zip(chrname, chrlen) if self.io.snp_chromosome_name(c) in chroms]
 
         if self.max_cores == 1:
