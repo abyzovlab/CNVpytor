@@ -76,17 +76,17 @@ class Root:
         if self.max_cores == 1:
             count = 0
             cum_his_read_frg = None
-            for cl in chr_len:
-                rd_p, rd_u, his_read_frg = read_chromosome(cl)
+            for clb in chr_len_bamf:
+                rd_p, rd_u, his_read_frg = self.read_chromosome(clb)
                 if not rd_p is None:
                     if cum_his_read_frg is None:
                         cum_his_read_frg = his_read_frg
                     else:
                         cum_his_read_frg += his_read_frg
-                    if (cl[0] in self.io.rd_chromosomes()) and not overwrite:
-                        self.io.add_rd(cl[0], rd_p, rd_u)
+                    if (clb[0][0] in self.io.rd_chromosomes()) and not overwrite:
+                        self.io.add_rd(clb[0][0], rd_p, rd_u)
                     else:
-                        self.io.save_rd(cl[0], rd_p, rd_u, chromosome_length=cl[1])
+                        self.io.save_rd(clb[0][0], rd_p, rd_u, chromosome_length=clb[0][1])
                     count += 1
             if not cum_his_read_frg is None:
                 self.io.create_signal(None, None, "read frg dist", cum_his_read_frg)
