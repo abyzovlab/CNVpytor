@@ -128,6 +128,8 @@ def main():
     parser.add_argument('-nogc', '--no_gc_corr', action='store_true', help="do not use GC correction in RD histograms")
     parser.add_argument('-gc_auto', '--gc_auto', action='store_true',
                         help="use autosomal GC correction for X, Y and MT")
+    parser.add_argument('-gc_corr_rm_ol', '--gc_corr_rm_ol', action='store_true',
+                        help="use only rd bins between 75% and 125% of mean value for gc correction curve")
     parser.add_argument('-rg', '--reference_genome', type=str, help="Manually set reference genome", default=None)
     parser.add_argument('-sample', '--vcf_sample', type=str, help="Sample name in vcf file", default="")
     parser.add_argument('-conf', '--reference_genomes_conf', type=str, help="Configuration with reference genomes",
@@ -391,17 +393,17 @@ def main():
 
         if args.stat:
             app = Root(args.root[0], max_cores=args.max_cores)
-            app.rd_stat(chroms=args.chrom)
+            app.rd_stat(chroms=args.chrom, gc_corr_rm_ol=args.gc_corr_rm_ol)
 
         if args.his:
             app = Root(args.root[0], max_cores=args.max_cores)
-            app.calculate_histograms(args.his, chroms=args.chrom, gc_auto=args.gc_auto)
+            app.calculate_histograms(args.his, chroms=args.chrom, gc_auto=args.gc_auto, gc_corr_rm_ol=args.gc_corr_rm_ol)
 
         if args.his_from_snp:
             app = Root(args.root[0], max_cores=args.max_cores)
             app.calculate_histograms_from_snp_counts(args.his_from_snp, chroms=args.chrom, use_mask=not args.no_mask,
                                                      use_id=args.use_id, callset=args.callset,
-                                                     min_count=args.min_count, gc_auto=args.gc_auto)
+                                                     min_count=args.min_count, gc_auto=args.gc_auto, gc_corr_rm_ol=args.gc_corr_rm_ol)
         if args.baf:
             app = Root(args.root[0], max_cores=args.max_cores)
             app.calculate_baf(args.baf, chroms=args.chrom, use_mask=not args.no_mask, use_id=args.use_id,
