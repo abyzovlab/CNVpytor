@@ -129,7 +129,7 @@ def main():
     parser.add_argument('-gc_auto', '--gc_auto', action='store_true',
                         help="use autosomal GC correction for X, Y and MT")
     parser.add_argument('-gc_corr_rm_ol', '--gc_corr_rm_ol', action='store_true',
-                        help="use only rd bins between 75% and 125% of mean value for gc correction curve")
+                        help="use only rd bins between 75%% and 125%% of mean value for gc correction curve")
     parser.add_argument('-rg', '--reference_genome', type=str, help="Manually set reference genome", default=None)
     parser.add_argument('-sample', '--vcf_sample', type=str, help="Sample name in vcf file", default="")
     parser.add_argument('-conf', '--reference_genomes_conf', type=str, help="Configuration with reference genomes",
