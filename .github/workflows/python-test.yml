@@ -10,7 +10,7 @@ jobs:
         python-version: ["3.3", "3.4", "3.5", "3.6", "3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
 
     runs-on: |
-      ${{ contains('3.3 3.4 3.5 3.6', matrix.python-version) ? 'ubuntu-20.04' : 'ubuntu-latest' }}
+     ${{ matrix.python-version == '3.3' || matrix.python-version == '3.4' || matrix.python-version == '3.5' || matrix.python-version == '3.6' ? 'ubuntu-20.04' : 'ubuntu-latest' }}
 
     steps:
     - uses: actions/checkout@v4
