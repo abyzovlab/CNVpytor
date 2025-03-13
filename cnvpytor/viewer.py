@@ -2032,7 +2032,28 @@ class Viewer(Show, Figure, HelpDescription):
                 self.regions(self.plot_files[i], r)
                 j += 1
         self.fig_show(suffix="regions")
+        
+    def set_rd_yaxis(self, ax, mean):
+        major_yticks = np.arange(int(self.rd_range[0]), int(self.rd_range[1] + 1), 1) * mean / 2
+        major_yticks_labels = [str(i) for i in range(int(self.rd_range[0]), int(self.rd_range[1] + 1))]
+        
+        if (self.rd_range[1] - self.rd_range[0]) < 30:    
+            ax.yaxis.set_major_locator(ticker.FixedLocator(major_yticks))
+            ax.yaxis.set_major_formatter(ticker.FixedFormatter(major_yticks_labels))
+        else:
+            # Select a subset of labels for readability
+            step = max(len(major_yticks_labels) // 10, 1)  # Ensure at most 10 labels
+            reduced_ticks = major_yticks[::step]
+            reduced_labels = major_yticks_labels[::step]
 
+            ax.yaxis.set_major_locator(ticker.FixedLocator(reduced_ticks))
+            ax.yaxis.set_major_formatter(ticker.FixedFormatter(reduced_labels))
+
+        ax.set_ylim([self.rd_range[0] * mean / 2, self.rd_range[1] * mean / 2])
+        ax.set_ylabel("Read depth")
+        ax.yaxis.grid()
+        return ax
+    
     def regions(self, ix, region):
         panels = self.panels
         bin_size = self.bin_size
@@ -2159,13 +2180,8 @@ class Viewer(Show, Figure, HelpDescription):
                 else:
                     plt.setp(ax.get_xticklabels(), visible=False)
 
-                if (self.rd_range[1] - self.rd_range[0]) < 30:
-                    ax.yaxis.set_ticks(np.arange(int(self.rd_range[0]), int(self.rd_range[1] + 1), 1) * mean / 2,
-                                       minor=[])
-                    ax.yaxis.set_ticklabels([str(i) for i in range(int(self.rd_range[0]), int(self.rd_range[1] + 1))])
-                ax.set_ylim([self.rd_range[0] * mean / 2, self.rd_range[1] * mean / 2])
-                ax.set_ylabel("Read depth")
-                ax.yaxis.grid()
+                # setting yticks label
+                ax = self.set_rd_yaxis(ax, mean)
 
                 if self.rd_raw:
                     ax.step(g_p, self.rd_colors[0], label="raw")
