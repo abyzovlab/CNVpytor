@@ -159,6 +159,8 @@ class Vcf:
                             gt.append(gt_from_str(rec.samples[sample][gt_tag]))
                         elif rec.samples[sample][gt_tag] is None:
                             gt.append(0)
+                        elif any(element is None for element in rec.samples[sample][gt_tag]):
+                            gt.append(0)
                         else:
                             gt.append(gt_from_list(rec.samples[sample][gt_tag], rec.samples[sample].phased))
         except ValueError:
