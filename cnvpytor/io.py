@@ -885,7 +885,7 @@ class IO(Signals):
         pos, ref, alt, nref, nalt, gt, flag, qual = snp_decompress(snp_pos, snp_desc, snp_counts, snp_qual)
         return pos, ref, alt, nref, nalt, gt, flag, qual
 
-def update_snp_gt(self, chr_name, pos, ref, alt, gt, callset=None):
+    def update_snp_gt(self, chr_name, pos, ref, alt, gt, callset=None):
         """
         Updates genotype for a list of SNPs.
 
