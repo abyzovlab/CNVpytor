@@ -885,6 +885,83 @@ class IO(Signals):
         pos, ref, alt, nref, nalt, gt, flag, qual = snp_decompress(snp_pos, snp_desc, snp_counts, snp_qual)
         return pos, ref, alt, nref, nalt, gt, flag, qual
 
+def update_snp_gt(self, chr_name, pos, ref, alt, gt, callset=None):
+        """
+        Updates genotype for a list of SNPs.
+
+        This function reads all existing SNP data for a chromosome, finds the SNPs that
+        match the provided position, reference, and alternate alleles, updates their
+        genotype (gt) value, and then saves the complete, modified SNP data back to the file.
+        SNPs from the input that are not found in the file are ignored.
+
+        Parameters
+        ----------
+        chr_name : str
+            Name of the chromosome.
+        pos : list of int
+            List of SNP positions.
+        ref : list of str
+            List of SNP reference base (A, T, G, C or .).
+        alt : list of str
+            List of SNP alternative base (A, T, G, C or .).
+        gt : list of int
+            List of new genotypes (0 - "0/0", 1 - "0/1", 3- "1/1", 4 - "0|0" , 5 - "0|1", 6 - "1|0", 7 - "1|1").
+        callset : str, optional
+            The name of the somatic callset, if applicable. Default: None.
+
+        Returns
+        -------
+        None
+
+        """
+        _logger.info("Reading existing SNP data for chromosome '%s' to update genotypes." % chr_name)
+        pos_old, ref_old, alt_old, nref_old, nalt_old, gt_old, flag_old, qual_old = self.read_snp(chr_name, callset=callset)
+
+        if not pos_old:
+            _logger.warning("No SNP data found for chromosome '%s'. Cannot update genotypes." % chr_name)
+            return
+
+        # Create a lookup dictionary for efficient matching: (pos, ref, alt) -> index
+        old_snp_map = {(p, r, a): i for i, (p, r, a) in enumerate(zip(pos_old, ref_old, alt_old))}
+
+        updated_count = 0
+        not_found_count = 0
+        
+        _logger.info("Matching and updating %d SNPs." % len(pos))
+
+        for i in range(len(pos)):
+            # Create a key for the current SNP from the input lists
+            snp_key = (pos[i], ref[i], alt[i])
+            
+            # Check if this SNP exists in the data read from the file
+            if snp_key in old_snp_map:
+                old_index = old_snp_map[snp_key]
+                # Update the genotype in the list that will be saved
+                gt_old[old_index] = gt[i]
+                updated_count += 1
+            else:
+                not_found_count += 1
+        
+        if not_found_count > 0:
+            _logger.warning("%d out of %d provided SNPs were not found in the file and were ignored." % (not_found_count, len(pos)))
+        
+        _logger.info("Successfully updated genotypes for %d SNPs. Saving changes." % updated_count)
+
+        # Save the entire dataset back, with the modified gt_old list
+        self.save_snp(
+            chr_name,
+            pos_old,
+            ref_old,
+            alt_old,
+            nref_old,
+            nalt_old,
+            gt_old,  # Pass the modified genotype list
+            flag_old,
+            qual_old,
+            update=True,  # Use update mode to overwrite existing data
+            callset=callset
+        )
+
     def rd_chromosomes(self):
         """
         Lists all chromosomes with RD signal stored in CNVpytor file.

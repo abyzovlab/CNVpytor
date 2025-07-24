@@ -62,6 +62,8 @@ def main():
     parser.add_argument('-vcf2rd', '--rd_from_vcf', type=str, help="read SNP data from vcf files")
     parser.add_argument('-noAD', '--no_snp_counts', action='store_true',
                         help="read positions of variants, not counts (AD tag)")
+    parser.add_argument('-update_phase', '--update_snp_phase', action='store_true',
+                        help="read SNP info about phase from vcf and updates phase of existing SNPs in pytor file")
     parser.add_argument('-nofilter', '--no_filter', action='store_true',
                         help="read all variants (not only PASS)")
     parser.add_argument('-ad', '--ad_tag', type=str, help="counts tag (default: AD)", default="AD")
@@ -340,8 +342,9 @@ def main():
 
         if args.vcf:
             app = Root(args.root[0], create=True, max_cores=args.max_cores)
-            app.vcf(args.vcf, chroms=args.chrom, sample=args.vcf_sample, no_counts=args.no_snp_counts,
-                    ad_tag=args.ad_tag, gt_tag=args.gt_tag, filter=not args.no_filter)
+            app.vcf(args.vcf, chroms=args.chrom, sample=args.vcf_sample, no_counts=args.no_snp_counts, 
+                    update_snp_phase=args.update_snp_phase, ad_tag=args.ad_tag, gt_tag=args.gt_tag, 
+                    filter=not args.no_filter)
 
         if args.stdin2snp:
             app = Root(args.root[0], create=True, max_cores=args.max_cores)
@@ -355,7 +358,8 @@ def main():
             app = Root(args.root[0], create=True, max_cores=args.max_cores)
             callset = "default" if args.callset is None else args.callset
             app.vcf(args.somatic_snv, chroms=args.chrom, sample=args.vcf_sample, no_counts=args.no_snp_counts,
-                    ad_tag=args.ad_tag, gt_tag=args.gt_tag, filter=not args.no_filter, callset=callset)
+                    update_snp_phase=args.update_snp_phase, ad_tag=args.ad_tag, gt_tag=args.gt_tag, 
+                    filter=not args.no_filter, callset=callset)
 
         if args.rd_from_vcf:
             app = Root(args.root[0], create=True, max_cores=args.max_cores)

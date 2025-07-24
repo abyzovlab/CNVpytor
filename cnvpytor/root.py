@@ -252,8 +252,8 @@ class Root:
             gc_corr_mt = calculate_gc_correction(dist_p_gc_mt, m_mt, s_mt, bin_size_mt, gc_corr_rm_ol = gc_corr_rm_ol)
             self.io.create_signal(None, 100, "GC corr", gc_corr_mt, flags=FLAG_MT)
 
-    def _read_vcf(self, vcf_file, chroms, sample='', use_index=False, no_counts=False, ad_tag="AD", gt_tag="GT",
-                  filter=True, callset=None):
+    def _read_vcf(self, vcf_file, chroms, sample='', use_index=False, no_counts=False, update_snp_phase=False, 
+                  ad_tag="AD", gt_tag="GT", filter=True, callset=None):
 
         vcff = Vcf(vcf_file)
         chrs = [c for c in vcff.get_chromosomes() if len(chroms) == 0 or c in chroms]
@@ -271,11 +271,15 @@ class Root:
                 self.io.save_snp(chr, pos, ref, alt, np.zeros_like(pos), np.zeros_like(pos), gt, flag, qual,
                                  callset=callset, chromosome_length=vcff.lengths[chr])
 
+        def update_gt_no_counts(chr, pos, ref, alt, gt):
+            if (len(chroms) == 0 or chr in chroms) and (not pos is None) and (len(pos) > 0):
+                self.io.update_snp_gt(chr, pos, ref, alt, gt, callset=callset)
+
         if use_index:
             count = 0
             for c in chrs:
                 _logger.info("Reading variant data for chromosome %s" % c)
-                if no_counts:
+                if no_counts or update_snp_phase:
                     pos, ref, alt, gt, flag, qual = vcff.read_chromosome_snp_no_counts(c, sample, gt_tag=gt_tag,
                                                                                        filter=filter)
                     nref, nalt = np.zeros_like(pos), np.zeros_like(pos)
@@ -284,8 +288,11 @@ class Root:
                                                                                          gt_tag=gt_tag, filter=filter)
 
                 if not pos is None and len(pos) > 0:
-                    self.io.save_snp(c, pos, ref, alt, nref, nalt, gt, flag, qual, callset=callset,
-                                     chromosome_length=vcff.lengths[c])
+                    if update_snp_phase:
+                        update_gt_no_counts(c, pos, ref, alt, gt)
+                    else:
+                        self.io.save_snp(c, pos, ref, alt, nref, nalt, gt, flag, qual, callset=callset,
+                                         chromosome_length=vcff.lengths[c])
                     count += 1
             return count
         else:
@@ -412,8 +419,8 @@ class Root:
                 self.io_gc = IO(Genome.reference_genomes[rg_name]["gc_file"], ro=True)
                 self.rd_stat()
 
-    def vcf(self, vcf_files, chroms=[], sample='', no_counts=False, ad_tag="AD", gt_tag="GT", filter=True,
-            callset=None, use_index=True):
+    def vcf(self, vcf_files, chroms=[], sample='', no_counts=False, update_snp_phase=False, ad_tag="AD", 
+            gt_tag="GT", filter=True, callset=None, use_index=True):
         """ Read SNP data from variant file(s) and store in .cnvpytor file
 
         Parameters
@@ -440,8 +447,8 @@ class Root:
 
         """
         for vcf_file in vcf_files:
-            self._read_vcf(vcf_file, chroms, sample, no_counts=no_counts, ad_tag=ad_tag, gt_tag=gt_tag, filter=filter,
-                           callset=callset, use_index=use_index)
+            self._read_vcf(vcf_file, chroms, sample, no_counts=no_counts, update_snp_phase=update_snp_phase, 
+                           ad_tag=ad_tag, gt_tag=gt_tag, filter=filter, callset=callset, use_index=use_index)
             self.io.add_meta_attribute("VCF", vcf_file)
 
     def rd_from_vcf(self, vcf_file, chroms=[], sample='', ad_tag="AD", dp_tag="DP", use_index=False):
