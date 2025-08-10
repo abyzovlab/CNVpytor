@@ -169,6 +169,31 @@ class Genome:
                 return False
         return True
 
+    @staticmethod
+    def get_filename(filepath):
+        """
+        Returns filename of the resource file for given reference genome.
+
+        Parameters
+        ----------
+        name : str
+            Name of the reference genome
+
+        Returns
+        -------
+        filename : str 
+            Returns filename
+
+        """
+        _logger.debug(f"Getting filename from path {filepath}")
+
+        try:
+            fn = filepath.name
+        except Exception as e:
+            fn = filepath.split("/")[-1]
+
+        return fn
+    
     @classmethod
     def download_resources(cls):
         """
@@ -184,7 +209,8 @@ class Genome:
             if "gc_file" in cls.reference_genomes[i] and not os.path.exists(cls.reference_genomes[i]["gc_file"]):
                 _logger.info("Detecting missing GC resource file for reference genome '%s'" % i)
                 res = cls.reference_genomes[i]["gc_file"]
-                fn = res.split("/")[-1]
+
+                fn = cls.get_filename(res)
                 url = "https://github.com/abyzovlab/CNVpytor/raw/master/cnvpytor/data/" + fn
                 if is_downloadable(url):
                     _logger.info("Downloading GC resource file: %s", fn)
@@ -200,7 +226,8 @@ class Genome:
             if "mask_file" in cls.reference_genomes[i] and not os.path.exists(cls.reference_genomes[i]["mask_file"]):
                 _logger.info("Detecting missing MASK resource file for reference genome '%s'" % i)
                 res = cls.reference_genomes[i]["mask_file"]
-                fn = res.split("/")[-1]
+                
+                fn = cls.get_filename(res)
                 url = "https://github.com/abyzovlab/CNVpytor/raw/master/cnvpytor/data/" + fn
                 if is_downloadable(url):
                     _logger.info("Downloading MASK resource file: %s", fn)
