@@ -163,9 +163,9 @@ class Genome:
         """
         _logger.debug("Checking reference genome resource files.")
         for i in cls.reference_genomes:
-            if "gc_file" in cls.reference_genomes[i] and not os.path.exists(cls.reference_genomes[i]["gc_file"]):
+            if "gc_file" in cls.reference_genomes[i] and not Path(cls.reference_genomes[i]["gc_file"]).exists():
                 return False
-            if "mask_file" in cls.reference_genomes[i] and not os.path.exists(cls.reference_genomes[i]["mask_file"]):
+            if "mask_file" in cls.reference_genomes[i] and not Path(cls.reference_genomes[i]["mask_file"]).exists():
                 return False
         return True
 
@@ -206,7 +206,7 @@ class Genome:
         """
         _logger.info("Updating reference genome resource files...")
         for i in cls.reference_genomes:
-            if "gc_file" in cls.reference_genomes[i] and not os.path.exists(cls.reference_genomes[i]["gc_file"]):
+            if "gc_file" in cls.reference_genomes[i] and not Path(cls.reference_genomes[i]["gc_file"]).exists():
                 _logger.info("Detecting missing GC resource file for reference genome '%s'" % i)
                 res = cls.reference_genomes[i]["gc_file"]
 
@@ -223,7 +223,7 @@ class Genome:
 
                 else:
                     _logger.warning("GC resource file is not downloadable!")
-            if "mask_file" in cls.reference_genomes[i] and not os.path.exists(cls.reference_genomes[i]["mask_file"]):
+            if "mask_file" in cls.reference_genomes[i] and not Path(cls.reference_genomes[i]["mask_file"]).exists():
                 _logger.info("Detecting missing MASK resource file for reference genome '%s'" % i)
                 res = cls.reference_genomes[i]["mask_file"]
                 
