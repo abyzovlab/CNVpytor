@@ -30,7 +30,7 @@ CNVpytor: a tool for copy number variation detection and analysis from read dept
 
 ## Learn how to use CNVpytor in 10 minutes
 
-* [Geting started](GettingStarted.md) with command line interface
+* [Getting started](GettingStarted.md) with command line interface
 * [Jupyter notebook](examples/PythonLibraryGuide.ipynb): How to use CNVpytor from Python
 * [Google Colab](examples/Colab.ipynb): With CEPH trio example dataset
 * [Video Tutorial](https://www.youtube.com/watch?v=RJMQtrD0SuE): 3-minute YT demo
