@@ -184,13 +184,13 @@ def main():
         Genome.download_resources()
         return 0
 
+    if args.version:
+        print('CNVpytor {}'.format(__version__))
+        return 0
+
     if not Genome.check_resources():
         logger.error("Some reference genome resource files are missing. "
                      "Run 'cnvpytor -download' as same user who has installed cnvpytor.")
-        return 0
-
-    if args.version:
-        print('CNVpytor {}'.format(__version__))
         return 0
 
     if args.reference_genomes_conf:
