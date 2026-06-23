@@ -82,6 +82,10 @@ Optional:
 > cd CNVpytor
 > pip install .
 ```
+or
+```
+pip install git+https://github.com/abyzovlab/CNVpytor.git
+```
 For single user (without admin privileges) use:
 ```
 > pip install --user .
